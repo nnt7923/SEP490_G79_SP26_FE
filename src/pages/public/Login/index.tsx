@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { Link } from 'react-router-dom'
 import { ArrowRight, GraduationCap, Eye, EyeOff } from 'lucide-react'
 
@@ -24,6 +25,8 @@ const LoginPage: React.FC = () => {
         [name]: '',
       }))
 =======
+=======
+>>>>>>> parent of 339805b (auth page)
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../hook/useAuth'
 
@@ -51,7 +54,10 @@ const Login: React.FC = () => {
       setError(err?.message || 'Login failed')
     } finally {
       setLoading(false)
+<<<<<<< HEAD
 >>>>>>> parent of 0e64221 (Merge pull request #1 from nnt7923/authentication)
+=======
+>>>>>>> parent of 339805b (auth page)
     }
   }
 
@@ -95,6 +101,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
 
   return (
+<<<<<<< HEAD
 <<<<<<< HEAD
     <div className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
       <div className="w-full max-w-md">
@@ -268,6 +275,15 @@ const Login: React.FC = () => {
           <label htmlFor="username">Username</label>
           <input id="username" placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} />
         </div>
+=======
+    <div className="login-page">
+      <h2>Login</h2>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="username">Username</label>
+          <input id="username" placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        </div>
+>>>>>>> parent of 339805b (auth page)
         <div>
           <label htmlFor="password">Password</label>
           <input id="password" placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -282,7 +298,10 @@ const Login: React.FC = () => {
       <div className="hint">
         <p>
           Use <strong>user/password</strong> or <strong>admin/admin</strong>
+<<<<<<< HEAD
 >>>>>>> parent of 0e64221 (Merge pull request #1 from nnt7923/authentication)
+=======
+>>>>>>> parent of 339805b (auth page)
         </p>
       </div>
     </div>
@@ -290,7 +309,11 @@ const Login: React.FC = () => {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 export default LoginPage
 =======
 export default Login
 >>>>>>> parent of 0e64221 (Merge pull request #1 from nnt7923/authentication)
+=======
+export default Login
+>>>>>>> parent of 339805b (auth page)
