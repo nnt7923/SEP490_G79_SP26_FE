@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+<<<<<<< HEAD
 import { Link } from 'react-router-dom'
 import { ArrowRight, GraduationCap, Eye, EyeOff } from 'lucide-react'
 
@@ -22,6 +23,35 @@ const LoginPage: React.FC = () => {
         ...prev,
         [name]: '',
       }))
+=======
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../../hook/useAuth'
+
+const Login: React.FC = () => {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const { login, user } = useAuth()
+  const navigate = useNavigate()
+
+  if (user) {
+    navigate('/')
+    return null
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      await login(username.trim(), password)
+      navigate('/')
+    } catch (err: any) {
+      setError(err?.message || 'Login failed')
+    } finally {
+      setLoading(false)
+>>>>>>> parent of 0e64221 (Merge pull request #1 from nnt7923/authentication)
     }
   }
 
@@ -65,6 +95,7 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
 
   return (
+<<<<<<< HEAD
     <div className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo and Header */}
@@ -229,10 +260,37 @@ const LoginPage: React.FC = () => {
           <a href="#" className="text-blue-600 hover:text-blue-700 transition-colors">
             Privacy Policy
           </a>
+=======
+    <div className="login-page">
+      <h2>Login</h2>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="username">Username</label>
+          <input id="username" placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        </div>
+        <div>
+          <label htmlFor="password">Password</label>
+          <input id="password" placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        {error && <div className="error">{error}</div>}
+        <div>
+          <button type="submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </div>
+      </form>
+      <div className="hint">
+        <p>
+          Use <strong>user/password</strong> or <strong>admin/admin</strong>
+>>>>>>> parent of 0e64221 (Merge pull request #1 from nnt7923/authentication)
         </p>
       </div>
     </div>
   )
 }
 
+<<<<<<< HEAD
 export default LoginPage
+=======
+export default Login
+>>>>>>> parent of 0e64221 (Merge pull request #1 from nnt7923/authentication)

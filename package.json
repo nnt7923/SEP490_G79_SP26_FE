@@ -13,14 +13,12 @@
     "@hookform/resolvers": "^5.2.2",
     "@material-tailwind/react": "^2.1.10",
     "@reduxjs/toolkit": "^2.11.2",
-    "autoprefixer": "^10.4.20",
     "axios": "^1.8.4",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.19",
     "dompurify": "^3.3.1",
     "lodash": "^4.17.21",
     "lucide-react": "^0.545.0",
-    "postcss": "^8.5.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.51.0",
@@ -35,14 +33,12 @@
   "devDependencies": {
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
-    "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.3.0",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.6.14",
-    "typescript": "^5.6.2",
     "vite": "^5.4.8"
   }
 }

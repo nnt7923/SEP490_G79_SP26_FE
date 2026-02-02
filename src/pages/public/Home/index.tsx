@@ -1,4 +1,5 @@
 import React from 'react'
+<<<<<<< HEAD
 import { Link } from 'react-router-dom'
 import { GraduationCap, Zap, BarChart3, Users, ArrowRight, CheckCircle2, Code2, Target, Award, Star, Sparkles } from 'lucide-react'
 
@@ -195,3 +196,25 @@ const HomePage: React.FC = () => {
 }
 
 export default HomePage
+=======
+import { useAuth } from '../../../hook/useAuth'
+
+const Home: React.FC = () => {
+  const { user } = useAuth()
+
+  return (
+    <div className="home-page">
+      <h1>Welcome</h1>
+      {user ? (
+        <p>
+          Hi, {user.name} ({user.username})
+        </p>
+      ) : (
+        <p>You are not logged in. Please login to access private pages.</p>
+      )}
+    </div>
+  )
+}
+
+export default Home
+>>>>>>> parent of 0e64221 (Merge pull request #1 from nnt7923/authentication)

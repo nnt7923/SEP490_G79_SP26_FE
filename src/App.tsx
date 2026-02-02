@@ -1,23 +1,33 @@
 import React from 'react'
 import './App.css'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './hook/useAuth'
-import Home from './pages/public/Home/index'
-import Login from './pages/public/login/index'
-import Register from './pages/public/Register/index'
-import ForgotPassword from './pages/public/forgotpassword/index'
-import ResetPassword from './pages/public/resetpassword/index'
-import SiteHeader from './components/Layout/SiteHeader/index'
-import SiteFooter from './components/Layout/SiteFooter/index'
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './hook/useAuth'
+import Home from './pages/public/Home'
+import Login from './pages/public/Login'
+
+function Header() {
+  const { user, logout } = useAuth()
+
+  return (
+    <header className="app-header">
+      <nav>
+        <Link to="/">Home</Link>
+        {' | '}
+        {user ? (
+          <button onClick={() => logout()}>Logout</button>
+        ) : (
+          <Link to="/login">Login</Link>
+        )}
+      </nav>
+    </header>
+  )
+}
 
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -27,11 +37,10 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <SiteHeader />
+        <Header />
         <main className="app-main">
           <AppRoutes />
         </main>
-        <SiteFooter />
       </BrowserRouter>
     </AuthProvider>
   )
