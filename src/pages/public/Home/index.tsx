@@ -1,59 +1,197 @@
 import React from 'react'
-import { Rocket, Trophy } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { GraduationCap, Zap, BarChart3, Users, ArrowRight, CheckCircle2, Code2, Target, Award, Star, Sparkles } from 'lucide-react'
 
-
-const Stat: React.FC<{ value: string; label: string }> = ({ value, label }) => (
-  <div className="stat">
-    <div className="stat__value">{value}</div>
-    <div className="stat__label">{label}</div>
-  </div>
-)
-
-const Home: React.FC = () => {
+const HomePage: React.FC = () => {
   return (
-    <div className="page">
-      <section className="hero">
-        <div className="hero__content">
-          <h1 className="hero__title">
-            Learn a <span className="highlight">New Skill</span>
-            <br />Everyday, Anytime,
-            <br />and Anywhere.
-          </h1>
-          <p className="hero__subtitle">
-            1000+ Courses covering all tech domains for you to learn and explore new opportunities.
-            Learn from Industry Experts and land your Dream Job.
-          </p>
-          <div className="hero__actions">
-            <a className="btn btn-primary">Start Trial</a>
-            <a className="btn btn-outline">How it Works</a>
-          </div>
-
-          <div className="hero__stats">
-            <Stat value="1000+" label="Courses to choose from" />
-            <Stat value="5000+" label="Students Trained" />
-            <Stat value="200+" label="Professional Trainers" />
+    <main className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="sticky top-0 z-50 backdrop-blur-sm bg-white/95 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
+              <GraduationCap className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900">CodeLearn</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link to="/login" className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors">
+              Sign In
+            </Link>
+            <Link to="/register" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+              Get Started
+            </Link>
           </div>
         </div>
-        <div className="hero__visual">
-          <div className="decor decor--purple" />
-          <div className="decor decor--yellow" />
-          <div className="decor decor--ring" />
-          <div className="floating floating--rocket">
-            <img src="/assets/rocket.png" alt="rocket" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-            }} />
-            <Rocket size={120} color="#2f80ed" />
+      </nav>
+
+      {/* Hero Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+        <div className="text-center mb-16">
+          <div className="inline-block mb-6">
+            <span className="px-4 py-2 rounded-full bg-blue-100 text-blue-600 text-sm font-semibold border border-blue-200">
+              ✨ AI-Powered Learning Platform
+            </span>
           </div>
-          <div className="floating floating--trophy">
-            <img src="/assets/trophy.png" alt="trophy" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-            }} />
-            <Trophy size={120} color="#f59e0b" />
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+            Master Programming with
+            <span className="block text-blue-600">Personalized AI Guidance</span>
+          </h1>
+          <p className="text-lg sm:text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+            Learn programming at your own pace with AI-generated learning paths, real-time feedback, and personalized challenges tailored to your skill level and goals.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/register" className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 group">
+              Start Learning Free
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <button className="px-8 py-4 border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-900 rounded-lg font-semibold transition-all">
+              Watch Demo
+            </button>
           </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-20 py-20 border-t border-b border-gray-200">
+          {[
+            { number: '50K+', label: 'Active Learners' },
+            { number: '100+', label: 'Programming Courses' },
+            { number: '95%', label: 'Success Rate' }
+          ].map((stat, idx) => (
+            <div key={idx} className="text-center">
+              <div className="text-4xl sm:text-5xl font-bold text-blue-600 mb-2">{stat.number}</div>
+              <p className="text-gray-600">{stat.label}</p>
+            </div>
+          ))}
         </div>
       </section>
-    </div>
+
+      {/* Features Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
+            Everything You Need to Learn
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Comprehensive tools and features designed to accelerate your programming journey
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            {
+              icon: Zap,
+              title: 'AI Learning Paths',
+              desc: 'Get personalized learning paths generated by AI based on your goals, learning style, and progress.'
+            },
+            {
+              icon: BarChart3,
+              title: 'Progress Tracking',
+              desc: 'Monitor your learning progress with detailed analytics, focus time tracking, and performance insights.'
+            },
+            {
+              icon: Users,
+              title: 'Expert Mentors',
+              desc: 'Get support from experienced mentors who review your progress and provide personalized guidance.'
+            },
+            {
+              icon: CheckCircle2,
+              title: 'Interactive Quizzes',
+              desc: 'Test your knowledge with AI-powered quizzes that adapt to your skill level and provide instant feedback.'
+            },
+            {
+              icon: Zap,
+              title: 'Real-time Feedback',
+              desc: 'Receive instant AI-generated feedback on your code and learn best practices in real-time.'
+            },
+            {
+              icon: Award,
+              title: 'Certificates',
+              desc: 'Earn verified certificates upon course completion to showcase your achievements.'
+            }
+          ].map((feature, idx) => {
+            const Icon = feature.icon
+            return (
+              <div key={idx} className="p-8 rounded-xl border border-gray-200 bg-white hover:border-blue-200 hover:shadow-lg transition-all">
+                <div className="w-12 h-12 rounded-lg bg-blue-100 p-3 mb-6">
+                  <Icon className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="rounded-2xl bg-blue-50 border border-blue-200 p-12 sm:p-16 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+            Ready to Transform Your Programming Skills?
+          </h2>
+          <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto">
+            Join thousands of learners who are mastering programming with personalized AI guidance and expert support.
+          </p>
+          <Link to="/register" className="px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all inline-flex items-center gap-2">
+            Get Started Today
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 bg-gray-50 mt-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
+                  <GraduationCap className="w-6 h-6 text-white" />
+                </div>
+                <span className="font-bold text-gray-900 text-lg">CodeLearn</span>
+              </div>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Personalized AI-powered programming education for everyone
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-6">Product</h4>
+              <ul className="space-y-3 text-sm text-gray-600">
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Features</a></li>
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Pricing</a></li>
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Courses</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-6">Company</h4>
+              <ul className="space-y-3 text-sm text-gray-600">
+                <li><a href="#" className="hover:text-gray-900 transition-colors">About Us</a></li>
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Blog</a></li>
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Contact</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-6">Legal</h4>
+              <ul className="space-y-3 text-sm text-gray-600">
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Privacy Policy</a></li>
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Terms</a></li>
+                <li><a href="#" className="hover:text-gray-900 transition-colors">Support</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-200 pt-8 flex flex-col sm:flex-row items-center justify-between text-sm text-gray-600">
+            <p>&copy; 2026 CodeLearn. All rights reserved.</p>
+            <div className="flex gap-6 mt-6 sm:mt-0">
+              <a href="#" className="hover:text-gray-900 transition-colors">Twitter</a>
+              <a href="#" className="hover:text-gray-900 transition-colors">GitHub</a>
+              <a href="#" className="hover:text-gray-900 transition-colors">LinkedIn</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </main>
   )
 }
 
-export default Home
+export default HomePage
