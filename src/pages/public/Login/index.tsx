@@ -1,58 +1,103 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../../hook/useAuth'
+import GroupImg from '../../../assets/img-code.png'
+import LanguageOrbit from '../../../components/Icons/Orbit'
 
 const Login: React.FC = () => {
+  const navigate = useNavigate()
+  const { login } = useAuth()
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const { login, user } = useAuth()
-  const navigate = useNavigate()
+  const [error, setError] = useState('')
+  const [remember, setRemember] = useState(false)
 
-  if (user) {
-    navigate('/')
-    return null
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setLoading(true)
+    setError('')
     try {
       await login(username.trim(), password)
+      if (remember) {
+        // Could persist longer session here
+      }
       navigate('/')
     } catch (err: any) {
-      setError(err?.message || 'Login failed')
-    } finally {
-      setLoading(false)
+      setError(err?.message || 'Đăng nhập thất bại')
     }
   }
 
   return (
-    <div className="login-page">
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="username">Username</label>
-          <input id="username" placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+    <div className="page">
+      <section className="auth auth--split">
+        <div className="auth__card">
+          <h2 className="auth__title">Welcome Back</h2>
+          <p className="auth__subtitle">Sign in to your account</p>
+          <form className="form" onSubmit={onSubmit}>
+            <label className="form__label" htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="text"
+              className="form__input"
+              placeholder="Enter your email"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+
+            <label className="form__label" htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              className="form__input"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+
+            {error && <div className="form__error" role="alert">{error}</div>}
+
+            <div className="auth__links" style={{ justifyContent: 'space-between' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                Remember me
+              </label>
+              <a href="#" onClick={(e) => e.preventDefault()}>Forgot password?</a>
+            </div>
+
+            <button type="submit" className="btn btn-primary auth__submit">Sign In</button>
+
+            <div className="auth__links">
+              <span>Don't have an account?</span>
+              <Link to="/register">Sign up</Link>
+            </div>
+          </form>
         </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input id="password" placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+
+        <div className="auth__visual" aria-hidden>
+          <div className="auth-decor auth-decor--red" />
+          <div className="auth-decor auth-decor--yellow" />
+
+          <div className="auth-circle">
+            <img
+              src={GroupImg}
+              alt="developer"
+              className="auth-circle__img"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </div>
+
+          <div style={{ position: 'absolute', left: 24, top: 6, zIndex: 3 }}>
+            <h3 style={{ margin: 0, color: '#111827' }}>Join the Developer Community</h3>
+            <p style={{ margin: '8px 0', color: '#6b7280' }}>
+              Connect with thousands of developers, share your projects, and grow your coding skills.
+            </p>
+          </div>
+
+          <LanguageOrbit />
         </div>
-        {error && <div className="error">{error}</div>}
-        <div>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </div>
-      </form>
-      <div className="hint">
-        <p>
-          Use <strong>user/password</strong> or <strong>admin/admin</strong>
-        </p>
-      </div>
+      </section>
     </div>
   )
 }
