@@ -2,11 +2,14 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import LanguageOrbit from '../../../components/Icons/Orbit'
 import GroupImg from '../../../assets/img-code.png'
+import useAuthStore from '../../../store/useAuthStore'
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
+  const authStore = useAuthStore()
 
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -16,14 +19,34 @@ const Register: React.FC = () => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    // This project uses a mock AuthService without registration.
-    // For now, just show a success message and redirect to login.
-    if (!name || !email || !username || !password) {
+    setMessage('')
+
+    const payload = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim(),
+      username: username.trim(),
+      password: password.trim(),
+    }
+
+    if (!payload.firstName || !payload.lastName || !payload.email || !payload.username || !payload.password) {
       setError('Vui lòng điền đầy đủ thông tin')
       return
     }
-    setMessage('Registration successful! Please log in.')
-    setTimeout(() => navigate('/login'), 800)
+
+    try {
+      const res = await authStore.register(payload)
+      if (res.isOk) {
+        setMessage('Đăng ký thành công! Vui lòng kiểm tra email để nhận OTP.')
+        navigate(`/verify-otp?email=${encodeURIComponent(payload.email)}`)
+      } else {
+        setError(res.msg || 'Đăng ký thất bại.')
+      }
+    } catch (err: any) {
+      const data = err?.response?.data
+      const msg = data?.msg || data?.detail || data?.title || data?.message || err?.message || 'Đăng ký thất bại.'
+      setError(msg)
+    }
   }
 
   return (
@@ -33,8 +56,11 @@ const Register: React.FC = () => {
           <h2 className="auth__title">Create Account</h2>
           <p className="auth__subtitle">Sign up to get started</p>
           <form className="form" onSubmit={onSubmit}>
-            <label className="form__label" htmlFor="name">Full name</label>
-            <input id="name" type="text" className="form__input" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="form__label" htmlFor="firstName">First name</label>
+            <input id="firstName" type="text" className="form__input" placeholder="Your first name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+
+            <label className="form__label" htmlFor="lastName">Last name</label>
+            <input id="lastName" type="text" className="form__input" placeholder="Your last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
 
             <label className="form__label" htmlFor="email">Email</label>
             <input id="email" type="email" className="form__input" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -48,7 +74,7 @@ const Register: React.FC = () => {
             {error && <div className="form__error" role="alert">{error}</div>}
             {message && <div style={{ color: '#10b981', fontSize: 14 }}>{message}</div>}
 
-            <button type="submit" className="btn btn-primary auth__submit">Sign Up</button>
+            <button type="submit" className="btn btn-primary auth__submit" disabled={authStore.loading}>Sign Up</button>
 
             <div className="auth__links">
               <span>Already have an account?</span>

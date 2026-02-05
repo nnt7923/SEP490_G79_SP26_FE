@@ -1,9 +1,10 @@
 import React from 'react'
+import { Outlet } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
 
 interface LayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -11,7 +12,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="layout">
       <Header />
       <main className="layout__main">
-        {children}
+        {children ?? <Outlet />}
       </main>
       <Footer />
     </div>

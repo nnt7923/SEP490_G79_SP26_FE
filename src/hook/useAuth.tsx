@@ -1,15 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import * as AuthService from '../services/AuthService'
+import React, { createContext, useContext } from 'react'
+import useAuthStore from '../store/useAuthStore'
 
-type User = {
-  id: number
-  username: string
-  name: string
-  email?: string
-}
-
+// Context type dùng theo store thực tế
 type AuthContextValue = {
-  user: User | null
+  user: ReturnType<typeof useAuthStore>['user']
   login: (username: string, password: string) => Promise<void>
   logout: () => void
 }
@@ -17,24 +11,19 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null)
+  const store = useAuthStore()
 
-  useEffect(() => {
-    const stored = AuthService.getStoredAuth()
-    if (stored) setUser(stored.user)
-  }, [])
-
+  // Gọi API thật qua store, không dùng mock/getStoredAuth
   const login = async (username: string, password: string) => {
-    const { user } = await AuthService.login(username, password)
-    setUser(user)
+    const res = await store.login(username, password)
+    if (!res.isOk) throw new Error(res.msg || 'Đăng nhập thất bại.')
   }
 
   const logout = () => {
-    AuthService.logout()
-    setUser(null)
+    store.logout()
   }
 
-  return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user: store.user, login, logout }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

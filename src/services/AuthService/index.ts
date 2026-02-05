@@ -1,58 +1,111 @@
-type User = {
-       id: number
-       username: string
-       name: string
-       email?: string
+import api from '../Axios'
+import { loginUrl, registerUrl, logoutUrl, refreshUrl, loginWithGoogleUrl, verifyOtpUrl } from './urls'
+
+export type User = {
+  id: number
+  username: string
+  name: string
+  email?: string
 }
 
-const STORAGE_KEY = 'mock_auth'
+const STORAGE_KEY = 'auth'
 
-const mockUsers: Array<{ id: number; username: string; password: string; name: string; email?: string }> = [
-       { id: 1, username: 'user', password: 'password', name: 'Demo User', email: 'user@example.com' },
-       { id: 2, username: 'admin', password: 'admin', name: 'Administrator', email: 'admin@example.com' },
-]
-
-export async function login(username: string, password: string): Promise<{ user: User; token: string }> {
-       await new Promise((r) => setTimeout(r, 300))
-
-       const found = mockUsers.find((u) => u.username === username && u.password === password)
-       if (!found) {
-              return Promise.reject(new Error('Invalid username or password'))
-       }
-
-       const token = `mock-token-${found.id}-${Date.now()}`
-       const user: User = { id: found.id, username: found.username, name: found.name, email: found.email }
-
-       const payload = { token, user }
-       try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-       } catch (e) {
-              // ignore storage errors
-       }
-
-       return { user, token }
+function saveAuth(payload: { token: string; user: User }) {
+  // no-op: storage disabled; API is source of truth
 }
 
-export function logout() {
-       try {
-              localStorage.removeItem(STORAGE_KEY)
-       } catch (e) {
-              // ignore
-       }
+export function getStoredAuth(): { token: string; user: User } | null {
+  // storage disabled; always return null
+  return null
 }
 
-export function getStoredAuth(): { user: User; token: string } | null {
-       try {
-              const raw = localStorage.getItem(STORAGE_KEY)
-              if (!raw) return null
-              return JSON.parse(raw)
-       } catch (e) {
-              return null
-       }
+// legacy login(username, password) removed; use payload { Identifier, Password }
+
+export async function register(payload: any) {
+  const res: any = await api.post(registerUrl, payload)
+  return res?.data ?? res
+}
+
+export async function loginWithGoogle(payload: any) {
+  const res: any = await api.post(loginWithGoogleUrl, payload)
+  const data = res?.data ?? res
+  const token: string | undefined = data?.token ?? data?.data?.token
+  const user: User | undefined = data?.user ?? data?.data?.user
+  if (!token || !user) throw new Error('Google login response missing token/user')
+  return { user, token }
+}
+
+export async function login(payload: { Identifier: string; Password: string }) {
+  // Send top-level fields as backend requires Identifier and Password
+  const res: any = await api.post(loginUrl, payload)
+  const data = res?.data ?? res
+
+  // Backend returns accessToken, refreshToken, userId, email, username, roleId, roleName
+  const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
+
+  // Construct user object from top-level fields
+  const user: any = {
+    id: data?.userId ?? data?.data?.userId,
+    username: data?.username ?? data?.data?.username,
+    name:
+      data?.username ?? data?.data?.username ??
+      (data?.email ?? data?.data?.email)?.split?.('@')?.[0] ?? 'User',
+    email: data?.email ?? data?.data?.email,
+    role: { name: data?.roleName ?? data?.data?.roleName },
+  }
+
+  if (!token || !user?.id) throw new Error('Login response missing token/user')
+  return { user, token }
+}
+
+export async function logout() {
+  // FE-only logout: do not call backend
+  try {
+    const defaults: any = api?.defaults
+    if (defaults?.headers?.common) {
+      delete defaults.headers.common['Authorization']
+    }
+  } catch {}
 }
 
 export function isAuthenticated(): boolean {
-       return getStoredAuth() !== null
+  const stored = getStoredAuth()
+  return !!stored?.token
 }
 
-export default { login, logout, getStoredAuth, isAuthenticated }
+export function setAccessToken(token: string) {
+  // no-op: storage disabled
+}
+
+export function clearState() {
+  // Ensure axios does not carry Authorization after clearing
+  try {
+    const defaults: any = api?.defaults
+    if (defaults?.headers?.common) {
+      delete defaults.headers.common['Authorization']
+    }
+  } catch {}
+}
+
+export async function verifyOtp(payload: { Email: string; Otp: string }) {
+  const res: any = await api.post(verifyOtpUrl, payload)
+  const data = res?.data ?? res
+
+  // Expect same structure as login: accessToken and top-level user fields
+  const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
+
+  const user: any = {
+    id: data?.userId ?? data?.data?.userId,
+    username: data?.username ?? data?.data?.username,
+    name:
+      data?.username ?? data?.data?.username ??
+      (data?.email ?? data?.data?.email)?.split?.('@')?.[0] ?? 'User',
+    email: data?.email ?? data?.data?.email,
+    role: { name: data?.roleName ?? data?.data?.roleName },
+  }
+
+  if (!token || !user?.id) throw new Error('Verify OTP response missing token/user')
+  return { user, token }
+}
+
+export default { login, logout, register, loginWithGoogle, verifyOtp, getStoredAuth, isAuthenticated, setAccessToken, clearState }
