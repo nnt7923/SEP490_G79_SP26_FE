@@ -3,10 +3,13 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../../hook/useAuth'
 import GroupImg from '../../../assets/img-code.png'
 import LanguageOrbit from '../../../components/Icons/Orbit'
+import useAuthStore from '../../../store/useAuthStore'
+import ROUTER from '../../../router/ROUTER'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const authStore = useAuthStore()
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -21,7 +24,9 @@ const Login: React.FC = () => {
       if (remember) {
         // Could persist longer session here
       }
-      navigate('/')
+      const roleName = authStore.user?.role?.name
+      if (roleName === 'Student') navigate(ROUTER.STUDENT_DASHBOARD)
+      else navigate(ROUTER.HOME)
     } catch (err: any) {
       setError(err?.message || 'Đăng nhập thất bại')
     }
