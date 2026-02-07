@@ -12,6 +12,8 @@ const Home = React.lazy(() => import('../pages/public/Home'))
 const Login = React.lazy(() => import('../pages/public/login'))
 const Register = React.lazy(() => import('../pages/public/Register'))
 const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
+const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
+const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
 
 const router = createBrowserRouter([
@@ -31,6 +33,8 @@ const router = createBrowserRouter([
       { path: ROUTER.LOGIN, element: <Login /> },
       { path: ROUTER.REGISTER, element: <Register /> },
       { path: ROUTER.VERIFY_OTP, element: <VerifyOtp /> },
+      { path: ROUTER.FORGOT_PASSWORD, element: <ForgotPassword /> },
+      { path: ROUTER.RESET_PASSWORD, element: <ResetPassword /> },
     ],
   },
   {

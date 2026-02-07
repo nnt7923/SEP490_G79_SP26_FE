@@ -20,7 +20,6 @@ const Header: React.FC = () => {
         </nav>
         <div className="site-header__cta">
           <Link to="/login" className="btn btn-outline btn-sm">Login</Link>
-          <Link to="/register" className="btn btn-primary btn-sm">Sign In</Link>
         </div>
       </div>
     </header>
