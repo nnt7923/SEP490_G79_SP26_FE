@@ -33,8 +33,11 @@ const noAuthHeaderPaths = [
   '/Auth/register',
   '/Auth/refresh',
   '/Auth/login-google',
-  '/Auth/verify-email',
+  // '/Auth/verify-email', // removed: endpoint not used
   '/Auth/verify-otp',
+  '/Auth/resend-otp',
+  '/Auth/forgot-password',
+  '/Auth/reset-password',
 ]
 
 // Attach Authorization from store or stored auth on requests except unauthenticated endpoints
@@ -72,8 +75,9 @@ const authPaths = [
   '/Auth/reset-password',
   '/Auth/logout',
   '/Auth/login-google',
-  '/Auth/verify-email',
+  // '/Auth/verify-email', // removed: endpoint not used
   '/Auth/verify-otp',
+  '/Auth/resend-otp',
 ]
 
 api.interceptors.response.use(

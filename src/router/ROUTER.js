@@ -4,6 +4,8 @@ const ROUTER = {
   LOGIN: '/login',
   REGISTER: '/register',
   VERIFY_OTP: '/verify-otp',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
   // Example future routes
   CLASSES: '/classes',
   PLANS: '/plans',

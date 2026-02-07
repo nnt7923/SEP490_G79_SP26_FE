@@ -1,25 +1,17 @@
 import api from '../Axios'
-import { loginUrl, registerUrl, logoutUrl, refreshUrl, loginWithGoogleUrl, verifyOtpUrl } from './urls'
+import { loginUrl, registerUrl, logoutUrl, refreshUrl, loginWithGoogleUrl, verifyOtpUrl, resendOtpUrl, forgotPasswordUrl, resetPasswordUrl } from './urls'
 
-export type User = {
-  id: number
-  username: string
-  name: string
-  email?: string
+
+
+export function getStoredAuth(): { token: string } | null {
+  try {
+    const token = localStorage.getItem('accessToken')
+    if (token) return { token }
+    return null
+  } catch {
+    return null
+  }
 }
-
-const STORAGE_KEY = 'auth'
-
-function saveAuth(payload: { token: string; user: User }) {
-  // no-op: storage disabled; API is source of truth
-}
-
-export function getStoredAuth(): { token: string; user: User } | null {
-  // storage disabled; always return null
-  return null
-}
-
-// legacy login(username, password) removed; use payload { Identifier, Password }
 
 export async function register(payload: any) {
   const res: any = await api.post(registerUrl, payload)
@@ -30,20 +22,17 @@ export async function loginWithGoogle(payload: any) {
   const res: any = await api.post(loginWithGoogleUrl, payload)
   const data = res?.data ?? res
   const token: string | undefined = data?.token ?? data?.data?.token
-  const user: User | undefined = data?.user ?? data?.data?.user
+  const user: any = data?.user ?? data?.data?.user
   if (!token || !user) throw new Error('Google login response missing token/user')
   return { user, token }
 }
 
 export async function login(payload: { Identifier: string; Password: string }) {
-  // Send top-level fields as backend requires Identifier and Password
   const res: any = await api.post(loginUrl, payload)
   const data = res?.data ?? res
 
-  // Backend returns accessToken, refreshToken, userId, email, username, roleId, roleName
   const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
 
-  // Construct user object from top-level fields
   const user: any = {
     id: data?.userId ?? data?.data?.userId,
     username: data?.username ?? data?.data?.username,
@@ -74,7 +63,15 @@ export function isAuthenticated(): boolean {
 }
 
 export function setAccessToken(token: string) {
-  // no-op: storage disabled
+  try {
+    if (token) {
+      localStorage.setItem('accessToken', token)
+      ;(api.defaults.headers.common as any).Authorization = `Bearer ${token}`
+    } else {
+      localStorage.removeItem('accessToken')
+      delete (api.defaults.headers.common as any).Authorization
+    }
+  } catch {}
 }
 
 export function clearState() {
@@ -91,7 +88,6 @@ export async function verifyOtp(payload: { Email: string; Otp: string }) {
   const res: any = await api.post(verifyOtpUrl, payload)
   const data = res?.data ?? res
 
-  // Expect same structure as login: accessToken and top-level user fields
   const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
 
   const user: any = {
@@ -104,8 +100,26 @@ export async function verifyOtp(payload: { Email: string; Otp: string }) {
     role: { name: data?.roleName ?? data?.data?.roleName },
   }
 
-  if (!token || !user?.id) throw new Error('Verify OTP response missing token/user')
-  return { user, token }
+  const msg: string = data?.message ?? data?.msg ?? 'OTP verified successfully.'
+
+  // If backend provides token/user, return them; otherwise only return ok + message
+  if (token && user?.id) return { user, token, isOk: true, msg }
+  return { isOk: true, msg }
 }
 
-export default { login, logout, register, loginWithGoogle, verifyOtp, getStoredAuth, isAuthenticated, setAccessToken, clearState }
+export async function resendOtp(payload: { Email: string }) {
+  const res: any = await api.post(resendOtpUrl, payload)
+  return res?.data ?? res
+}
+
+export async function forgotPassword(payload: { Email: string }) {
+  const res: any = await api.post(forgotPasswordUrl, payload)
+  return res?.data ?? res
+}
+
+export async function resetPassword(payload: { Token: string; Password: string; Email?: string }) {
+  const res: any = await api.post(resetPasswordUrl, payload)
+  const data = res?.data ?? res
+  return data
+}
+export default { login, logout, register, loginWithGoogle, verifyOtp, resendOtp, forgotPassword, resetPassword, getStoredAuth, isAuthenticated, setAccessToken, clearState }

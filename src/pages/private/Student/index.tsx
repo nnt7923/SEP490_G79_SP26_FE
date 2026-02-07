@@ -18,36 +18,36 @@ const StudentIndex: React.FC = () => {
           <button onClick={async () => { await logout(); navigate(ROUTER.LOGIN) }} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff' }}>Logout</button>
         </div>
       </div>
-      <p style={{ color: '#555', marginBottom: '24px' }}>Xin chào, {displayName}! Đây là dashboard cơ bản của Student.</p>
+      <p style={{ color: '#555', marginBottom: '24px' }}>Hello, {displayName}! This is the basic Student dashboard.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
         <section style={{ border: '1px solid #eee', borderRadius: 8, padding: 16 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 8 }}>Tóm tắt hồ sơ</h2>
+          <h2 style={{ fontSize: 18, marginBottom: 8 }}>Profile Summary</h2>
           <ul style={{ margin: 0, paddingLeft: 16 }}>
-            <li>Tên: {user?.name || '—'}</li>
+            <li>Name: {user?.name || '—'}</li>
             <li>Username: {user?.username || '—'}</li>
             <li>Email: {user?.email || '—'}</li>
-            <li>Vai trò: {user?.role?.name || 'Student'}</li>
+            <li>Role: {user?.role?.name || 'Student'}</li>
           </ul>
         </section>
 
         <section style={{ border: '1px solid #eee', borderRadius: 8, padding: 16 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 8 }}>Lớp sắp tới</h2>
-          <p style={{ margin: 0, color: '#777' }}>Chưa có dữ liệu. Sẽ thêm sau.</p>
+          <h2 style={{ fontSize: 18, marginBottom: 8 }}>Upcoming Classes</h2>
+          <p style={{ margin: 0, color: '#777' }}>No data yet. Coming soon.</p>
         </section>
 
         <section style={{ border: '1px solid #eee', borderRadius: 8, padding: 16 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 8 }}>Tiến độ học tập</h2>
-          <p style={{ margin: 0, color: '#777' }}>Đang cập nhật. Bạn sẽ thấy thống kê ở đây.</p>
+          <h2 style={{ fontSize: 18, marginBottom: 8 }}>Study Progress</h2>
+          <p style={{ margin: 0, color: '#777' }}>Updating. You will see statistics here.</p>
         </section>
       </div>
 
       <div style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 8 }}>Hành động nhanh</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>Quick Actions</h2>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <a href="#" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', textDecoration: 'none' }}>Đăng ký lớp</a>
-          <a href="#" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', textDecoration: 'none' }}>Xem lịch học</a>
-          <a href="#" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', textDecoration: 'none' }}>Cập nhật hồ sơ</a>
+          <a href="#" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', textDecoration: 'none' }}>Enroll in class</a>
+          <a href="#" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', textDecoration: 'none' }}>View schedule</a>
+          <a href="#" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', textDecoration: 'none' }}>Update profile</a>
         </div>
       </div>
     </div>

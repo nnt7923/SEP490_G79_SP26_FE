@@ -33,9 +33,6 @@ const Footer: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="site-footer__bar">
-        <span>© {new Date().getFullYear()} CodeNexus</span>
-      </div>
     </footer>
   )
 }

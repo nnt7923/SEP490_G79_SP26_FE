@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import LanguageOrbit from '../../../components/Icons/Orbit'
 import GroupImg from '../../../assets/img-code.png'
 import useAuthStore from '../../../store/useAuthStore'
+import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
+import { useResponsive } from '../../../hook/useResponsive'
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
@@ -30,31 +32,33 @@ const Register: React.FC = () => {
     }
 
     if (!payload.firstName || !payload.lastName || !payload.email || !payload.username || !payload.password) {
-      setError('Vui lòng điền đầy đủ thông tin')
+      setError('Please fill in all required fields')
       return
     }
 
     try {
       const res = await authStore.register(payload)
       if (res.isOk) {
-        setMessage('Đăng ký thành công! Vui lòng kiểm tra email để nhận OTP.')
+        setMessage('Registration successful! Please check your email for the OTP.')
         navigate(`/verify-otp?email=${encodeURIComponent(payload.email)}`)
       } else {
-        setError(res.msg || 'Đăng ký thất bại.')
+        setError(res.msg || 'Registration failed.')
       }
     } catch (err: any) {
-      const data = err?.response?.data
-      const msg = data?.msg || data?.detail || data?.title || data?.message || err?.message || 'Đăng ký thất bại.'
+      const msg = extractErrorMessage(err, 'Registration failed.')
       setError(msg)
     }
   }
 
+  const { isSmallScreen } = useResponsive()
+  const containerClass = `auth auth--split ${isSmallScreen ? 'auth--stack auth--fluid' : ''}`
+
   return (
     <div className="page">
-      <section className="auth auth--split">
+      <section className={containerClass}>
         <div className="auth__card">
           <h2 className="auth__title">Create Account</h2>
-          <p className="auth__subtitle">Sign up to get started</p>
+          <p className="auth__subtitle">Register to get started</p>
           <form className="form" onSubmit={onSubmit}>
             <label className="form__label" htmlFor="firstName">First name</label>
             <input id="firstName" type="text" className="form__input" placeholder="Your first name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -74,7 +78,7 @@ const Register: React.FC = () => {
             {error && <div className="form__error" role="alert">{error}</div>}
             {message && <div style={{ color: '#10b981', fontSize: 14 }}>{message}</div>}
 
-            <button type="submit" className="btn btn-primary auth__submit" disabled={authStore.loading}>Sign Up</button>
+            <button type="submit" className="btn btn-primary auth__submit" disabled={authStore.loading}>Register</button>
 
             <div className="auth__links">
               <span>Already have an account?</span>
