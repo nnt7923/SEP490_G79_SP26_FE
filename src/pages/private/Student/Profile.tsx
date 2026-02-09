@@ -21,6 +21,7 @@ const Profile = () => {
         }
     }, [user])
 
+    if (!user || !form) return <div>Loading...</div>
 
     const handleChange = (field: string, value: any) => {
         setForm({ ...form, [field]: value })
