@@ -12,6 +12,7 @@ const ROUTER = {
   ABOUT: '/about',
   // Private routes
   STUDENT_DASHBOARD: '/dashboard',
+  PROFILE: '/profile',
 };
 
 export default ROUTER;
