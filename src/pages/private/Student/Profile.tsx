@@ -29,22 +29,23 @@ const Profile = () => {
 
     const validate = () => {
         const newErrors: any = {}
-
         const phoneRegex = /^0\d{9}$/
 
         if (!form.phone) {
-            newErrors.phone = 'Vui lòng nhập số điện thoại'
+            newErrors.phone = 'Please enter your phone number'
         } else if (!phoneRegex.test(form.phone)) {
-            newErrors.phone = 'Số điện thoại phải gồm 10 số và bắt đầu bằng 0'
+            newErrors.phone =
+                'Phone number must contain 10 digits and start with 0'
         }
 
         if (form.dateOfBirth) {
             const dob = dayjs(form.dateOfBirth)
 
             if (!dob.isValid()) {
-                newErrors.dateOfBirth = 'Ngày sinh không hợp lệ'
+                newErrors.dateOfBirth = 'Invalid date of birth'
             } else if (dob.isAfter(dayjs())) {
-                newErrors.dateOfBirth = 'Ngày sinh không được lớn hơn hôm nay'
+                newErrors.dateOfBirth =
+                    'Date of birth cannot be in the future'
             }
         }
 
@@ -58,7 +59,7 @@ const Profile = () => {
         const res = await updateProfile(form)
 
         if (res.isOk) {
-            alert(res.msg)
+            alert(res.msg || 'Profile updated successfully')
         }
     }
 
@@ -76,27 +77,28 @@ const Profile = () => {
         ]
 
         if (!allowedTypes.includes(file.type)) {
-            alert('Chỉ chấp nhận file ảnh (jpg, jpeg, png, webp)')
+            alert(
+                'Only image files are allowed (jpg, jpeg, png, webp)'
+            )
             return
         }
 
         if (file.size > 10 * 1024 * 1024) {
-            alert('Ảnh tối đa 10MB')
+            alert('Maximum file size is 10MB')
             return
         }
 
         const res = await uploadAvatar(file)
 
         if (res.isOk) {
-            alert(res.msg || 'Upload avatar thành công')
+            alert(res.msg || 'Avatar uploaded successfully')
         } else {
-            alert(res.msg || 'Upload thất bại')
+            alert(res.msg || 'Avatar upload failed')
         }
     }
 
-
     const formatDate = (dateStr?: string) => {
-        if (!dateStr) return 'Chưa cập nhật'
+        if (!dateStr) return 'Not updated'
         return dayjs(dateStr).format('DD/MM/YYYY')
     }
 
@@ -111,12 +113,11 @@ const Profile = () => {
 
             <div className="profile-top">
                 <button className="edit-btn" onClick={() => setOpen(true)}>
-                    Chỉnh sửa
+                    Edit
                 </button>
             </div>
 
             <div className="profile-header">
-
                 <div className="avatar-wrapper">
                     <img
                         src={
@@ -146,22 +147,25 @@ const Profile = () => {
                         {user.firstName} {user.lastName}
                     </h2>
                     <p>{user.email}</p>
-                    <span>{user.bio || 'Chưa cập nhật'}</span>
+                    <span>{user.bio || 'Not updated'}</span>
                 </div>
             </div>
 
-            <h3 className="section-title">Thông Tin Cá Nhân</h3>
+            <h3 className="section-title">Personal Information</h3>
 
             <div className="info-grid">
                 <Info
-                    label="Họ và tên"
+                    label="Full Name"
                     value={`${user.firstName} ${user.lastName}`}
                 />
                 <Info label="Email" value={user.email} />
-                <Info label="Số Điện Thoại" value={user.phone} />
-                <Info label="Ngày Sinh" value={formatDate(user.dateOfBirth)} />
-                <Info label="Chuyên Ngành" value={user.bio} />
-                <Info label="Địa Chỉ" value={user.address} />
+                <Info label="Phone Number" value={user.phone} />
+                <Info
+                    label="Date of Birth"
+                    value={formatDate(user.dateOfBirth)}
+                />
+                <Info label="Bio" value={user.bio} />
+                <Info label="Address" value={user.address} />
             </div>
 
             {open && (
@@ -173,11 +177,11 @@ const Profile = () => {
                         className="modal-card"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h3>Cập nhật thông tin cá nhân</h3>
+                        <h3>Update Personal Information</h3>
 
                         <div className="modal-grid">
                             <Input
-                                label="Họ"
+                                label="First Name"
                                 value={form.firstName}
                                 onChange={(v: any) =>
                                     handleChange('firstName', v)
@@ -185,7 +189,7 @@ const Profile = () => {
                             />
 
                             <Input
-                                label="Tên"
+                                label="Last Name"
                                 value={form.lastName}
                                 onChange={(v: any) =>
                                     handleChange('lastName', v)
@@ -193,7 +197,7 @@ const Profile = () => {
                             />
 
                             <Input
-                                label="Số điện thoại"
+                                label="Phone Number"
                                 value={form.phone}
                                 onChange={(v: any) =>
                                     handleChange('phone', v)
@@ -202,7 +206,7 @@ const Profile = () => {
                             />
 
                             <Input
-                                label="Ngày sinh"
+                                label="Date of Birth"
                                 type="date"
                                 value={form.dateOfBirth}
                                 onChange={(v: any) =>
@@ -212,7 +216,7 @@ const Profile = () => {
                             />
 
                             <Input
-                                label="Chuyên ngành"
+                                label="Bio"
                                 value={form.bio}
                                 onChange={(v: any) =>
                                     handleChange('bio', v)
@@ -220,7 +224,7 @@ const Profile = () => {
                             />
 
                             <Input
-                                label="Địa chỉ"
+                                label="Address"
                                 value={form.address}
                                 onChange={(v: any) =>
                                     handleChange('address', v)
@@ -233,7 +237,7 @@ const Profile = () => {
                                 className="btn-cancel"
                                 onClick={() => setOpen(false)}
                             >
-                                Hủy
+                                Cancel
                             </button>
 
                             <button
@@ -242,8 +246,8 @@ const Profile = () => {
                                 disabled={loading}
                             >
                                 {loading
-                                    ? 'Đang cập nhật...'
-                                    : 'Cập nhật'}
+                                    ? 'Updating...'
+                                    : 'Update'}
                             </button>
                         </div>
                     </div>
@@ -253,11 +257,10 @@ const Profile = () => {
     )
 }
 
-
 const Info = ({ label, value }: any) => (
     <div className="info-card">
         <label>{label}</label>
-        <p>{value || 'Chưa cập nhật'}</p>
+        <p>{value || 'Not updated'}</p>
     </div>
 )
 
