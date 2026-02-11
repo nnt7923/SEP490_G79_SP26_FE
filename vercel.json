@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "devCommand": "vite",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://pppl.click/api/:path*" }
+    { "source": "/api/:path*", "destination": "https://pplp.click/api/:path*" }
   ],
   "github": {
     "enabled": true
