@@ -19,7 +19,6 @@ interface AuthState {
   login: (username: string, password: string) => Promise<{ isOk: boolean; msg?: string }>
   register: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
   logout: () => Promise<void>
-  refresh: () => Promise<void>
   init: () => Promise<void>
 }
 
@@ -96,20 +95,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
     } catch {}
     get().clearState()
     set({ loading: false })
-  },
-
-  refresh: async () => {
-    try {
-      set({ loading: true })
-      const res: any = await AuthService.refresh?.()
-      const newToken: string | undefined = res?.data?.token || res?.token || res?.data
-      if (newToken) get().setToken(newToken)
-      // No fetchMe: '/Auth/me' has been removed
-    } catch (error) {
-      get().clearState()
-    } finally {
-      set({ loading: false })
-    }
   },
 
   init: async () => {
