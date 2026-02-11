@@ -54,7 +54,8 @@ const Login: React.FC = () => {
         setError('')
         const cred: string | undefined = response?.credential
         if (!cred) throw new Error('Google credential not found')
-        const res: any = await AuthService.loginWithGoogle({ credential: cred, idToken: cred })
+        // Include ClientId and Credential for backend
+        const res: any = await AuthService.loginWithGoogle({ ClientId: GOOGLE_CLIENT_ID, Credential: cred })
         const token: string | undefined = res?.token || res?.data?.token
         const user: any = res?.user || res?.data?.user
         if (!token || !user) throw new Error('Không nhận được token/user từ Google')

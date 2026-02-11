@@ -18,7 +18,7 @@ export async function register(payload: any) {
   return res?.data ?? res
 }
 
-export async function loginWithGoogle(payload: any) {
+export async function loginWithGoogle(payload: { ClientId: string; Credential: string }) {
   const res: any = await api.post(loginWithGoogleUrl, payload)
   const data = res?.data ?? res
   const token: string | undefined = data?.token ?? data?.data?.token
