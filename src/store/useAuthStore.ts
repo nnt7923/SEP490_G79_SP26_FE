@@ -1,9 +1,16 @@
 import { create } from 'zustand'
-import { AuthService } from '../services'
+import { AuthService , UserService } from '../services'
 
 type User = {
   id: number
   username: string
+  firstName?: string
+  lastName?: string
+  avatarUrl?: string
+  dateOfBirth?: string
+  phone?: string
+  address?: string
+  bio?: string
   name: string
   email?: string
   role?: { name: string }
@@ -19,8 +26,10 @@ interface AuthState {
   login: (username: string, password: string) => Promise<{ isOk: boolean; msg?: string }>
   register: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
   logout: () => Promise<void>
-  refresh: () => Promise<void>
   init: () => Promise<void>
+  fetchProfile: () => Promise<void>
+  updateProfile: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
+  uploadAvatar: (file: File) => Promise<{ isOk: boolean; url?: string; msg?: string }>
 }
 
 const useAuthStore = create<AuthState>((set, get) => ({
@@ -98,27 +107,67 @@ const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: false })
   },
 
-  refresh: async () => {
+  init: async () => {
+    const raw = localStorage.getItem('accessToken')
+    if (raw) {
+      set({ token: raw })
+      AuthService.setAccessToken?.(raw)
+      await get().fetchProfile()
+    }
+  },
+  fetchProfile: async () => {
+    try {
+      const data: any = await UserService.getProfile()
+      const user: User = data?.data ?? data
+      set({ user })
+    } catch {
+      get().clearState()
+    }
+  },
+  updateProfile: async (payload) => {
     try {
       set({ loading: true })
-      const res: any = await AuthService.refresh?.()
-      const newToken: string | undefined = res?.data?.token || res?.token || res?.data
-      if (newToken) get().setToken(newToken)
-      // No fetchMe: '/Auth/me' has been removed
-    } catch (error) {
-      get().clearState()
+
+      await UserService.updateProfile(payload)
+
+      await get().fetchProfile()
+
+      return { isOk: true, msg: 'Update profile successfully' }
+    } catch {
+      return { isOk: false, msg: 'Update profile failed' }
+    } finally {
+      set({ loading: false })
+    }
+  },
+  uploadAvatar: async (file: File) => {
+    try {
+      set({ loading: true })
+
+      const formData = new FormData()
+      formData.append('file', file)
+
+      await UserService.uploadAvatarProfile(formData)
+
+      const profile = await UserService.getProfile()
+
+      const url = profile?.avatarUrl
+
+      if (!url) {
+        return { isOk: false, msg: 'Không nhận được url ảnh' }
+      }
+      const currentUser = get().user
+      if (currentUser) {
+        set({ user: { ...currentUser, avatarUrl: url } })
+      }
+
+      return { isOk: true, msg: 'Upload ảnh thành công' }
+    } catch (error: any) {
+      return { isOk: false, msg: 'Upload ảnh thất bại' }
     } finally {
       set({ loading: false })
     }
   },
 
-  init: async () => {
-    const raw = localStorage.getItem('accessToken')
-    if (raw) {
-      set({ token: raw })
-      // No fetchMe on init: '/Auth/me' has been removed
-    }
-  },
 }))
 
 export default useAuthStore

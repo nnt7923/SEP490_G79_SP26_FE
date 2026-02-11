@@ -15,6 +15,7 @@ const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
 const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
 const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
+const Profile = React.lazy(() => import('../pages/private/Student/Profile'))
 
 const router = createBrowserRouter([
   {
@@ -41,6 +42,7 @@ const router = createBrowserRouter([
     element: <ProtectedRoute />, // example private wrapper without role
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
+      { path: ROUTER.PROFILE, element: <Profile /> },
     ],
   },
 ])
