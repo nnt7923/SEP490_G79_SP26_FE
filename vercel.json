@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "devCommand": "vite",
+  "github": {
+    "enabled": true
+  }
+}
