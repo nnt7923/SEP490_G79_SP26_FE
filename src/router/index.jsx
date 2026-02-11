@@ -9,7 +9,7 @@ const ProtectedRoute = React.lazy(() => import('../components/Authorization/Prot
 
 // Pages
 const Home = React.lazy(() => import('../pages/public/Home'))
-const Login = React.lazy(() => import('../pages/public/login'))
+const Login = React.lazy(() => import('../pages/public/Login'))
 const Register = React.lazy(() => import('../pages/public/Register'))
 const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
 const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))

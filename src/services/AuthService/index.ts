@@ -133,5 +133,14 @@ export async function resetPassword(payload: { Token: string; Password: string; 
   const data = res?.data ?? res
   return data
 }
+export async function refresh() {
+  const res: any = await api.get(refreshUrl)
+  const data = res?.data ?? res
+  const newToken: string | undefined = data?.data?.token ?? data?.token ?? data
+  if (newToken) {
+    try { setAccessToken(newToken) } catch {}
+  }
+  return { token: newToken }
+}
 
-export default { login, logout, register, loginWithGoogle, verifyOtp, resendOtp, forgotPassword, resetPassword, getStoredAuth, isAuthenticated, setAccessToken, clearState }
+export default { login, logout, register, loginWithGoogle, verifyOtp, resendOtp, forgotPassword, resetPassword, getStoredAuth, isAuthenticated, setAccessToken, clearState, refresh }
