@@ -40,8 +40,13 @@ const useAuthStore = create<AuthState>((set, get) => ({
   setToken: (token) => {
     set({ token })
     try {
-      if (token) localStorage.setItem('accessToken', token)
-      else localStorage.removeItem('accessToken')
+      if (token) {
+        localStorage.setItem('accessToken', token)
+        AuthService.setAccessToken?.(token)
+      } else {
+        localStorage.removeItem('accessToken')
+        AuthService.clearState?.()
+      }
     } catch {}
   },
 

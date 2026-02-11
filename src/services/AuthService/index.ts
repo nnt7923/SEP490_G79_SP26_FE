@@ -1,8 +1,6 @@
 import api from '../Axios'
 import { loginUrl, registerUrl, logoutUrl, refreshUrl, loginWithGoogleUrl, verifyOtpUrl, resendOtpUrl, forgotPasswordUrl, resetPasswordUrl } from './urls'
 
-
-
 export function getStoredAuth(): { token: string } | null {
   try {
     const token = localStorage.getItem('accessToken')
@@ -18,12 +16,21 @@ export async function register(payload: any) {
   return res?.data ?? res
 }
 
-export async function loginWithGoogle(payload: any) {
+export async function loginWithGoogle(payload: { ClientId: string; IdToken: string }) {
   const res: any = await api.post(loginWithGoogleUrl, payload)
   const data = res?.data ?? res
-  const token: string | undefined = data?.token ?? data?.data?.token
-  const user: any = data?.user ?? data?.data?.user
-  if (!token || !user) throw new Error('Google login response missing token/user')
+  const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
+  const user: any = {
+    id: data?.userId ?? data?.data?.userId,
+    username: data?.username ?? data?.data?.username,
+    name:
+      data?.username ?? data?.data?.username ??
+      (data?.email ?? data?.data?.email)?.split?.('@')?.[0] ?? 'User',
+    email: data?.email ?? data?.data?.email,
+    role: { name: data?.roleName ?? data?.data?.roleName },
+  }
+
+  if (!token || !user?.id) throw new Error('Google login response missing token/user')
   return { user, token }
 }
 
@@ -48,7 +55,11 @@ export async function login(payload: { Identifier: string; Password: string }) {
 }
 
 export async function logout() {
-  // FE-only logout: do not call backend
+  // Call backend to invalidate session/token
+  try {
+    await api.post(logoutUrl)
+  } catch {}
+  // Ensure axios does not carry Authorization after logout
   try {
     const defaults: any = api?.defaults
     if (defaults?.headers?.common) {
@@ -122,4 +133,5 @@ export async function resetPassword(payload: { Token: string; Password: string; 
   const data = res?.data ?? res
   return data
 }
+
 export default { login, logout, register, loginWithGoogle, verifyOtp, resendOtp, forgotPassword, resetPassword, getStoredAuth, isAuthenticated, setAccessToken, clearState }
