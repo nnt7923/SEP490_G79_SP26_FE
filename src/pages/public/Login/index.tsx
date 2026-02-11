@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../../hook/useAuth'
 import GroupImg from '../../../assets/img-code.png'
@@ -7,12 +7,18 @@ import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
 import { useResponsive } from '../../../hook/useResponsive'
+import { AuthService } from '../../../services'
+
+const GOOGLE_CLIENT_ID =
+  (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
+  '241803303859-6jds7jhib6rgupj2pfmnr9pr0akla4n2.apps.googleusercontent.com'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
   const authStore = useAuthStore()
+  const googleBtnRef = useRef<HTMLDivElement>(null)
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -25,11 +31,61 @@ const Login: React.FC = () => {
     const msg = state?.toast
     if (msg) {
       setToast(String(msg))
-      // Clear toast after 3s
       const t = setTimeout(() => setToast(''), 3000)
       return () => clearTimeout(t)
     }
   }, [location.state])
+
+  // Initialize Google Identity Services and render the button
+  useEffect(() => {
+    const w = window as any
+    const ensureScript = () => new Promise<void>((resolve) => {
+      if (w.google && w.google.accounts && w.google.accounts.id) return resolve()
+      const script = document.createElement('script')
+      script.src = 'https://accounts.google.com/gsi/client'
+      script.async = true
+      script.defer = true
+      script.onload = () => resolve()
+      document.head.appendChild(script)
+    })
+
+    const onCredential = async (response: any) => {
+      try {
+        setError('')
+        const cred: string | undefined = response?.credential
+        if (!cred) throw new Error('Google credential not found')
+        const res: any = await AuthService.loginWithGoogle({ credential: cred, idToken: cred })
+        const token: string | undefined = res?.token || res?.data?.token
+        const user: any = res?.user || res?.data?.user
+        if (!token || !user) throw new Error('Không nhận được token/user từ Google')
+        authStore.setToken(token)
+        authStore.setUser(user)
+        const roleName = authStore.user?.role?.name || user?.role?.name
+        if (roleName === 'Student') navigate(ROUTER.STUDENT_DASHBOARD)
+        else navigate(ROUTER.HOME)
+      } catch (err: any) {
+        setError(extractErrorMessage(err, 'Google login failed'))
+      }
+    }
+
+    ensureScript().then(() => {
+      try {
+        w.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: onCredential,
+        })
+        if (googleBtnRef.current) {
+          w.google.accounts.id.renderButton(googleBtnRef.current, {
+            theme: 'outline',
+            size: 'large',
+            type: 'standard',
+            text: 'continue_with',
+            shape: 'rectangular',
+          })
+        }
+      } catch {}
+    })
+  }, [navigate, authStore])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,6 +152,13 @@ const Login: React.FC = () => {
             </div>
 
             <button type="submit" className="btn btn-primary auth__submit">Login</button>
+
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ height: 1, background: '#e5e7eb', flex: 1 }} />
+              <span style={{ color: '#6b7280', fontSize: 12 }}>OR</span>
+              <div style={{ height: 1, background: '#e5e7eb', flex: 1 }} />
+            </div>
+            <div ref={googleBtnRef} style={{ marginTop: 12 }} />
 
             <div className="auth__links">
               <span>Don't have an account?</span>
