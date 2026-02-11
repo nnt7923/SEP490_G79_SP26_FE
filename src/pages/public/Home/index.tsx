@@ -1,6 +1,7 @@
 import React from 'react'
-import { Rocket, Trophy } from 'lucide-react'
-
+import { Code2, Terminal } from 'lucide-react'
+import GroupImg from '../../../assets/img-code.png'
+import LanguageOrbit from '../../../components/Icons/Orbit'
 
 const Stat: React.FC<{ value: string; label: string }> = ({ value, label }) => (
   <div className="stat">
@@ -28,6 +29,8 @@ const Home: React.FC = () => {
             <a className="btn btn-outline">How it Works</a>
           </div>
 
+          {/* Language icons moved around the circle */}
+
           <div className="hero__stats">
             <Stat value="1000+" label="Courses to choose from" />
             <Stat value="5000+" label="Students Trained" />
@@ -38,18 +41,28 @@ const Home: React.FC = () => {
           <div className="decor decor--purple" />
           <div className="decor decor--yellow" />
           <div className="decor decor--ring" />
+          <div className="decor decor--dot" />
+
           <div className="floating floating--rocket">
-            <img src="/assets/rocket.png" alt="rocket" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-            }} />
-            <Rocket size={120} color="#2f80ed" />
+            {/* replaced Rocket with Code2 icon */}
+            <Code2 size={120} color="#2f80ed" />
           </div>
           <div className="floating floating--trophy">
-            <img src="/assets/trophy.png" alt="trophy" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-            }} />
-            <Trophy size={120} color="#f59e0b" />
+            {/* replaced Trophy with Terminal icon */}
+            <Terminal size={120} color="#f59e0b" />
           </div>
+
+          {/* Centered image overlay inside the orange circle */}
+          <div className="hero-circle">
+            <img
+              src={GroupImg}
+              alt="student"
+              className="hero-circle__img"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </div>
+           {/* Orbiting language icons */}
+           <LanguageOrbit />
         </div>
       </section>
     </div>

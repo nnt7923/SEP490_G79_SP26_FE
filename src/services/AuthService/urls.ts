@@ -1,0 +1,10 @@
+export const loginUrl = '/Auth/login'
+export const registerUrl = '/Auth/register'
+export const logoutUrl = '/Auth/logout'
+export const refreshUrl = '/Auth/refresh'
+export const loginWithGoogleUrl = '/Auth/login-google'
+export const verifyOtpUrl = '/Auth/verify-otp'
+export const resendOtpUrl = '/Auth/resend-otp'
+// Forgot/Reset password endpoints
+export const forgotPasswordUrl = '/Auth/forgot-password'
+export const resetPasswordUrl = '/Auth/reset-password'
