@@ -15,8 +15,8 @@ const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
 const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
 const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
-const Profile = React.lazy(() => import('../pages/private/Student/Profile'))
-
+const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
+const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
 
 
 const router = createBrowserRouter([
@@ -45,7 +45,7 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
       { path: ROUTER.PROFILE, element: <Profile /> },
-
+      { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },
 ])

@@ -13,7 +13,7 @@ const ROUTER = {
   // Private routes
   STUDENT_DASHBOARD: '/dashboard',
   PROFILE: '/profile',
-
+  CHANGE_PASSWORD: '/change-password',
 };
 
 export default ROUTER;

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { AuthService , UserService } from '../services'
 
-type User = {
+export type User = {
   id: number
   username: string
   firstName?: string
@@ -144,7 +144,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false })
     }
   },
-  uploadAvatar: async (file: File) => {
+  uploadAvatar: async (file) => {
     try {
       set({ loading: true })
 
@@ -153,20 +153,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
       await UserService.uploadAvatarProfile(formData)
 
-      const profile = await UserService.getProfile()
-
-      const url = profile?.avatarUrl
-
-      if (!url) {
-        return { isOk: false, msg: 'Không nhận được url ảnh' }
-      }
-      const currentUser = get().user
-      if (currentUser) {
-        set({ user: { ...currentUser, avatarUrl: url } })
-      }
+      await get().fetchProfile()
 
       return { isOk: true, msg: 'Upload ảnh thành công' }
-    } catch (error: any) {
+    } catch {
       return { isOk: false, msg: 'Upload ảnh thất bại' }
     } finally {
       set({ loading: false })

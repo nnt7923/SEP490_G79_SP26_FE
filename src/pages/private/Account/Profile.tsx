@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
 import useAuthStore from '../../../store/useAuthStore'
+import type { User } from '../../../store/useAuthStore'
+interface ProfileForm extends Partial<User> {
+    dateOfBirth?: string
+}
 
-const Profile = () => {
+const Profile: React.FC = () => {
     const { user, updateProfile, uploadAvatar, loading } = useAuthStore()
-
-    const [open, setOpen] = useState(false)
-    const [form, setForm] = useState<any>(null)
-    const [errors, setErrors] = useState<any>({})
-    const [message, setMessage] = useState<string>('')
+    const [open, setOpen] = useState<boolean>(false)
+    const [form, setForm] = useState<ProfileForm | null>(null)
+    const [errors, setErrors] = useState<Record<string, string>>({})
+    const [message, setMessage] = useState<{
+        type: 'success' | 'error'
+        text: string
+    } | null>(null)
 
     useEffect(() => {
         if (user) {
@@ -21,14 +27,25 @@ const Profile = () => {
         }
     }, [user])
 
-    if (!user || !form) return <div>Loading...</div>
+    useEffect(() => {
+        if (!message) return
 
-    const handleChange = (field: string, value: any) => {
-        setForm({ ...form, [field]: value })
+        const timer = setTimeout(() => {
+            setMessage(null)
+        }, 3000)
+
+        return () => clearTimeout(timer)
+    }, [message])
+
+    const handleChange = (field: keyof ProfileForm, value: string) => {
+        setForm(prev => {
+            if (!prev) return prev
+            return { ...prev, [field]: value }
+        })
     }
-
-    const validate = () => {
-        const newErrors: any = {}
+    if (!user || !form) return <div>Loading...</div>
+    const validate = (): boolean => {
+        const newErrors: Record<string, string> = {}
         const phoneRegex = /^0\d{9}$/
 
         if (!form.phone) {
@@ -58,8 +75,16 @@ const Profile = () => {
 
         const res = await updateProfile(form)
 
-        if (res.isOk) {
-            alert(res.msg || 'Profile updated successfully')
+        if (res?.isOk) {
+            setMessage({
+                type: 'success',
+                text: res.msg || 'Profile updated successfully'
+            })
+        } else {
+            setMessage({
+                type: 'error',
+                text: res?.msg || 'Update failed'
+            })
         }
     }
 
@@ -77,9 +102,7 @@ const Profile = () => {
         ]
 
         if (!allowedTypes.includes(file.type)) {
-            alert(
-                'Only image files are allowed (jpg, jpeg, png, webp)'
-            )
+            alert('Only image files are allowed (jpg, jpeg, png, webp)')
             return
         }
 
@@ -91,23 +114,43 @@ const Profile = () => {
         const res = await uploadAvatar(file)
 
         if (res.isOk) {
-            alert(res.msg || 'Avatar uploaded successfully')
+            setMessage({
+                type: 'success',
+                text: res.msg || 'Avatar uploaded successfully'
+            })
         } else {
-            alert(res.msg || 'Avatar upload failed')
+            setMessage({
+                type: 'error',
+                text: res?.msg || 'Update failed'
+            })
         }
     }
 
-    const formatDate = (dateStr?: string) => {
+    const formatDate = (dateStr?: string): string => {
         if (!dateStr) return 'Not updated'
-        return dayjs(dateStr).format('DD/MM/YYYY')
+        return dayjs(dateStr).format('MM/DD/YYYY')
     }
 
     return (
         <div className="profile-container">
-
             {message && (
-                <div style={{ marginBottom: 10, color: 'green' }}>
-                    {message}
+                <div
+                    style={{
+                        marginBottom: 12,
+                        padding: '10px 14px',
+                        borderRadius: 6,
+                        background:
+                            message.type === 'success'
+                                ? '#e6fffa'
+                                : '#ffe6e6',
+                        color:
+                            message.type === 'success'
+                                ? '#007a5a'
+                                : '#cc0000',
+                        fontWeight: 500
+                    }}
+                >
+                    {message.text}
                 </div>
             )}
 
@@ -121,10 +164,10 @@ const Profile = () => {
                 <div className="avatar-wrapper">
                     <img
                         src={
-                            user?.avatarUrl?.trim()
+                            user.avatarUrl?.trim()
                                 ? user.avatarUrl
                                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    `${user?.firstName || ''} ${user?.lastName || ''}`
+                                    `${user.firstName || ''} ${user.lastName || ''}`
                                 )}`
                         }
                         alt="avatar"
@@ -156,7 +199,7 @@ const Profile = () => {
             <div className="info-grid">
                 <Info
                     label="Full Name"
-                    value={`${user.firstName} ${user.lastName}`}
+                    value={`${user.firstName || ''} ${user.lastName || ''}`}
                 />
                 <Info label="Email" value={user.email} />
                 <Info label="Phone Number" value={user.phone} />
@@ -183,25 +226,19 @@ const Profile = () => {
                             <Input
                                 label="First Name"
                                 value={form.firstName}
-                                onChange={(v: any) =>
-                                    handleChange('firstName', v)
-                                }
+                                onChange={(v) => handleChange('firstName', v)}
                             />
 
                             <Input
                                 label="Last Name"
                                 value={form.lastName}
-                                onChange={(v: any) =>
-                                    handleChange('lastName', v)
-                                }
+                                onChange={(v) => handleChange('lastName', v)}
                             />
 
                             <Input
                                 label="Phone Number"
                                 value={form.phone}
-                                onChange={(v: any) =>
-                                    handleChange('phone', v)
-                                }
+                                onChange={(v) => handleChange('phone', v)}
                                 error={errors.phone}
                             />
 
@@ -209,26 +246,20 @@ const Profile = () => {
                                 label="Date of Birth"
                                 type="date"
                                 value={form.dateOfBirth}
-                                onChange={(v: any) =>
-                                    handleChange('dateOfBirth', v)
-                                }
+                                onChange={(v) => handleChange('dateOfBirth', v)}
                                 error={errors.dateOfBirth}
                             />
 
                             <Input
                                 label="Bio"
                                 value={form.bio}
-                                onChange={(v: any) =>
-                                    handleChange('bio', v)
-                                }
+                                onChange={(v) => handleChange('bio', v)}
                             />
 
                             <Input
                                 label="Address"
                                 value={form.address}
-                                onChange={(v: any) =>
-                                    handleChange('address', v)
-                                }
+                                onChange={(v) => handleChange('address', v)}
                             />
                         </div>
 
@@ -245,9 +276,7 @@ const Profile = () => {
                                 onClick={handleSubmit}
                                 disabled={loading}
                             >
-                                {loading
-                                    ? 'Updating...'
-                                    : 'Update'}
+                                {loading ? 'Updating...' : 'Update'}
                             </button>
                         </div>
                     </div>
@@ -257,20 +286,33 @@ const Profile = () => {
     )
 }
 
-const Info = ({ label, value }: any) => (
+interface InfoProps {
+    label: string
+    value?: string
+}
+
+const Info: React.FC<InfoProps> = ({ label, value }) => (
     <div className="info-card">
         <label>{label}</label>
         <p>{value || 'Not updated'}</p>
     </div>
 )
 
-const Input = ({
+interface InputProps {
+    label: string
+    value?: string
+    onChange: (value: string) => void
+    type?: string
+    error?: string
+}
+
+const Input: React.FC<InputProps> = ({
     label,
     value,
     onChange,
     type = 'text',
-    error,
-}: any) => (
+    error
+}) => (
     <div>
         <label>{label}</label>
         <input
