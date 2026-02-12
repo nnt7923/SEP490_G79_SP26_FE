@@ -11,6 +11,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // Thêm proxy cho SignalR Hub (WebSocket)
+      '/hubs': {
+        target: 'https://pplp.click',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 })
