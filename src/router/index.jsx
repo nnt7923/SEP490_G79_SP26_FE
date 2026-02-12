@@ -26,7 +26,6 @@ const router = createBrowserRouter([
     children: [
       { index: true, path: ROUTER.HOME, element: <Home /> },
       { path: ROUTER.CLASSES, element: <div>Classes</div> },
-      { path: ROUTER.PLANS, element: <div>Plans</div> },
       { path: ROUTER.ABOUT, element: <div>About Us</div> },
     ],
   },
@@ -45,7 +44,7 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
       { path: ROUTER.PROFILE, element: <Profile /> },
-
+      { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
     ],
   },
 ])
