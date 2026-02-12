@@ -16,7 +16,7 @@ const API_BASE = isDev
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
+  // headers: { 'Content-Type': 'application/json' },
 })
 
 let isRefreshing = false

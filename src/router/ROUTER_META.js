@@ -11,6 +11,9 @@ const ROUTER_META = {
   [ROUTER.PLANS]: { breadcrumb: 'Plans', title: 'Plans' },
   [ROUTER.ABOUT]: { breadcrumb: 'About', title: 'About Us' },
   [ROUTER.STUDENT_DASHBOARD]: { breadcrumb: 'Dashboard', title: 'Student Dashboard' },
+  [ROUTER.PROFILE]: { breadcrumb: 'Profile', title: 'My Profile' },
+
+
 }
 
 export default ROUTER_META
