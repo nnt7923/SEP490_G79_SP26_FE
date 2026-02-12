@@ -137,6 +137,34 @@ const GoalCard: React.FC<{
   </div>
 );
 
+// Card hiển thị một goal duy nhất
+const SingleGoalCard: React.FC<{
+  active?: boolean;
+  title: string;
+  colorClass: string;
+  icon?: string;
+  goalKey: string;
+  onToggle: (key: string) => void;
+}> = ({ active, title, colorClass, icon, goalKey, onToggle }) => (
+  <button
+    type="button"
+    onClick={() => onToggle(goalKey)}
+    aria-pressed={!!active}
+    className={`card card__pad ${active ? 'card--active' : ''}`}
+    style={{ textAlign: 'left' }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className={`icon-12 ${colorClass}`}>{icon ?? '🧠'}</div>
+      <div>
+        <div style={{ fontWeight: 600, color: '#111827' }}>{title}</div>
+      </div>
+    </div>
+    {active && (
+      <span className="badge-selected">Selected</span>
+    )}
+  </button>
+);
+
 const PlansPage: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [language, setLanguage] = useState<string | null>(() => {
@@ -161,9 +189,15 @@ const PlansPage: React.FC = () => {
   // Load goals from API + generation states
   const [goals, setGoals] = useState<any[]>([])
   const [goalsLoading, setGoalsLoading] = useState<boolean>(true)
+  // Enable Live auto-update for goals
+  const [goalsLive, setGoalsLive] = useState<boolean>(true)
   const [generating, setGenerating] = useState<boolean>(false)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
+  // New goal creation states
+  const [newGoalTitle, setNewGoalTitle] = useState<string>('')
+  const [creatingGoal, setCreatingGoal] = useState<boolean>(false)
+  const [createGoalError, setCreateGoalError] = useState<string | null>(null)
 
   // Persist selections
   useEffect(() => {
@@ -271,6 +305,28 @@ const PlansPage: React.FC = () => {
     return () => { active = false }
   }, [])
 
+  // Background polling to keep goals in sync (realtime-like)
+  useEffect(() => {
+    if (!goalsLive || step !== 2) return
+    let disposed = false
+
+    const fetchGoals = async () => {
+      try {
+        const data = await GoalService.listGoals()
+        if (!disposed) setGoals(Array.isArray(data) ? data : [])
+      } catch {}
+    }
+
+    // initial fetch then interval
+    fetchGoals()
+    const id = setInterval(fetchGoals, 8000)
+
+    return () => {
+      disposed = true
+      clearInterval(id)
+    }
+  }, [goalsLive, step])
+
   const canNext = useMemo(() => {
     if (step === 1) return !!language
     if (step === 2) return selectedGoals.length > 0
@@ -284,6 +340,37 @@ const PlansPage: React.FC = () => {
       prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
     )
   }
+
+  // Create new goal via API and select it
+  const handleCreateGoal = async () => {
+    const title = newGoalTitle.trim()
+    if (!title) {
+      setCreateGoalError('Please enter a goal title')
+      return
+    }
+    setCreatingGoal(true)
+    setCreateGoalError(null)
+    try {
+      const created = await GoalService.createGoal({ title })
+      setGoals((prev) => [created, ...prev])
+      const newKey = String(created?.id ?? created?.goalId ?? created?.key ?? '')
+      if (newKey) {
+        setSelectedGoals((prev) => Array.from(new Set([...prev, newKey])))
+      }
+      setNewGoalTitle('')
+      // Refresh list from backend to ensure we have stable IDs and latest data
+      try {
+        const latest = await GoalService.listGoals()
+        setGoals(Array.isArray(latest) ? latest : [])
+      } catch {}
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message
+      setCreateGoalError(msg || 'Failed to create goal')
+    } finally {
+      setCreatingGoal(false)
+    }
+  }
+
   // Map API goals to GoalCard items
   const goalItems: GoalItem[] = Array.isArray(goals)
     ? goals
@@ -369,16 +456,75 @@ const PlansPage: React.FC = () => {
                 subtitle="Select one or more goals from system data"
                 icon="📍"
               />
+              {goalsLive && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }} aria-live="polite">
+                  <span style={{ width: 6, height: 6, borderRadius: 999, background: '#22c55e', display: 'inline-block', animation: 'pulse 1.6s infinite' }} />
+                  <span style={{ fontSize: 12, color: '#16a34a' }}>Live updates enabled</span>
+                </div>
+              )}
               <section className="grid-goals" aria-label="goal-list">
-                <GoalCard
-                  key="goals-all"
-                  title={goalsLoading ? 'Loading goals…' : 'Available Goals'}
-                  colorClass="icon--emerald"
-                  icon="🧠"
-                  items={goalItems}
-                  active={selectedGoals.some((s) => goalItems.map((x) => x.key).includes(s))}
-                  toggleItem={toggleGoal}
-                />
+
+                {/* Create goal card */}
+                <div className="card card__pad" style={{ textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                    <div className={`icon-12 icon--blue`}>➕</div>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#111827' }}>Add New Goal</div>
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>Create a goal and include it in your plan</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Goal title"
+                      value={newGoalTitle}
+                      onChange={(e) => setNewGoalTitle(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateGoal() }}
+                      className="input"
+                    />
+                    <button
+                      type="button"
+                      className={`btn btn-primary ${creatingGoal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={creatingGoal}
+                      onClick={handleCreateGoal}
+                    >
+                      {creatingGoal ? 'Creating…' : 'Add Goal'}
+                    </button>
+                  </div>
+                  {createGoalError ? (
+                    <div style={{ marginTop: 8, color: '#dc2626' }}>{createGoalError}</div>
+                  ) : null}
+                </div>
+                
+                {/* Render each goal as its own card */}
+                {goalsLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={`goal-skel-${i}`} className="card card__pad">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div className="icon-12" style={{ background: '#e5e7eb' }} />
+                        <div>
+                          <div style={{ width: 120, height: 16, background: '#e5e7eb', borderRadius: 6 }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : goalItems.length > 0 ? (
+                  goalItems.map((it, idx) => (
+                    <SingleGoalCard
+                      key={String(it.key)}
+                      title={it.label}
+                      colorClass={palette[idx % palette.length]}
+                      icon={undefined}
+                      goalKey={String(it.key)}
+                      active={selectedGoals.includes(String(it.key))}
+                      onToggle={toggleGoal}
+                    />
+                  ))
+                ) : (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280' }}>
+                    No goals available.
+                  </div>
+                )}
               </section>
             </>
           )}
