@@ -9,13 +9,15 @@ const ProtectedRoute = React.lazy(() => import('../components/Authorization/Prot
 
 // Pages
 const Home = React.lazy(() => import('../pages/public/Home'))
-const Login = React.lazy(() => import('../pages/public/login'))
+const Login = React.lazy(() => import('../pages/public/Login'))
 const Register = React.lazy(() => import('../pages/public/Register'))
 const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
 const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
 const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
 const Profile = React.lazy(() => import('../pages/private/Student/Profile'))
+
+
 
 const router = createBrowserRouter([
   {
@@ -39,10 +41,11 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: <ProtectedRoute />, // example private wrapper without role
+    element: <React.Suspense fallback={<div />}> <ProtectedRoute /> </React.Suspense>, // wrap lazy ProtectedRoute to avoid suspend on sync input
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
       { path: ROUTER.PROFILE, element: <Profile /> },
+
     ],
   },
 ])

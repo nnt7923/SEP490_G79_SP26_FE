@@ -75,7 +75,9 @@ const Login: React.FC = () => {
       const { token, user } = await AuthService.loginWithGoogle({ ClientId: CLIENT_ID, IdToken: credential })
       authStore.setToken(token)
       authStore.setUser(user as any)
-      const roleName = user?.role?.name
+      // Tải đầy đủ thông tin user sau khi có token từ Google
+      await authStore.fetchProfile()
+      const roleName = (authStore.user?.role?.name) || user?.role?.name
       if (roleName === 'Student') navigate(ROUTER.STUDENT_DASHBOARD)
       else navigate(ROUTER.HOME)
     } catch (err: any) {
