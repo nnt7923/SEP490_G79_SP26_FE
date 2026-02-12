@@ -104,6 +104,7 @@ const Header: React.FC = () => {
                                 setOpen(false)
                                 if (href === '#logout') onLogout()
                                 else if (href === '/dashboard') navigate(ROUTER.STUDENT_DASHBOARD)
+                                
                                 else if (href === '/profile') navigate(ROUTER.PROFILE)
                                 else if (href === '/settings') navigate(ROUTER.HOME)
                               }}

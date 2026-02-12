@@ -87,10 +87,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const res: any = await AuthService.login({ Identifier: username, Password: password })
       const token: string | undefined = res?.token || res?.data?.token
-      const user: User | null = (res?.user || res?.data?.user || null) as User | null
       if (token) {
         get().setToken(token)
-        set({ user })
+        // Tải đầy đủ dữ liệu user sau khi có token
+        await get().fetchProfile()
         return { isOk: true }
       }
       return { isOk: false, msg: 'Không nhận được token' }

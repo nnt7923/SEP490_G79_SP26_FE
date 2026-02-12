@@ -17,6 +17,8 @@ const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
 const Profile = React.lazy(() => import('../pages/private/Student/Profile'))
 
+
+
 const router = createBrowserRouter([
   {
     element: <React.Suspense fallback={<div />}> <LayoutCommon /> </React.Suspense>,
@@ -39,10 +41,11 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: <ProtectedRoute />, // example private wrapper without role
+    element: <React.Suspense fallback={<div />}> <ProtectedRoute /> </React.Suspense>, // wrap lazy ProtectedRoute to avoid suspend on sync input
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
       { path: ROUTER.PROFILE, element: <Profile /> },
+
     ],
   },
 ])
