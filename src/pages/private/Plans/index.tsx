@@ -99,7 +99,7 @@ const LanguageCard: React.FC<{
       ) : null}
     </div>
     {active && (
-      <span className="badge-selected">Chọn</span>
+      <span className="badge-selected">Selected</span>
     )}
   </button>
 );
@@ -184,10 +184,10 @@ const PlansPage: React.FC = () => {
 
   // SEO: title, meta description, canonical & JSON-LD
   useEffect(() => {
-    const title = 'Lộ trình học - Chọn ngôn ngữ & mục tiêu | CodeNexus'
+    const title = 'Learning Path - Choose language & goals | CodeNexus'
     document.title = title
 
-    const desc = 'Chọn ngôn ngữ lập trình, mục tiêu học tập và tạo lộ trình học phù hợp trên CodeNexus.'
+    const desc = 'Select a programming language, choose your goals, and generate a personalized learning path on CodeNexus.'
     let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null
     if (!metaDesc) {
       metaDesc = document.createElement('meta')
@@ -289,7 +289,7 @@ const PlansPage: React.FC = () => {
     ? goals
         .map((g: any) => ({
           key: g?.id ?? g?.goalId ?? g?.key,
-          label: g?.title ?? g?.name ?? g?.label ?? 'Mục tiêu',
+          label: g?.title ?? g?.name ?? g?.label ?? 'Goal',
         }))
         .filter((it) => !!it.key)
     : []
@@ -320,8 +320,8 @@ const PlansPage: React.FC = () => {
           {step === 1 && (
             <>
               <StepHeader
-                title="Chọn Ngôn Ngữ Lập Trình"
-                subtitle="Hãy chọn ngôn ngữ lập trình mà bạn muốn học. Bạn có thể chọn ngôn ngữ để tạo lộ trình học phù hợp."
+                title="Choose Programming Language"
+                subtitle="Select the programming language you want to learn."
                 icon="🧩"
               />
               <section className="grid-subjects" aria-label="subject-list">
@@ -348,14 +348,14 @@ const PlansPage: React.FC = () => {
                       tag={s.slug ?? undefined}
                       colorClass={palette[idx % palette.length]}
                       icon={undefined}
-                      desc={`Khám phá lộ trình học ${s.name}`}
+                      desc={`Explore the learning path for ${s.name}`}
                       active={language === String(s.id ?? (s as any).subjectId)}
                       onClick={() => { console.log('Selected subject:', s); setLanguage(String(s.id ?? (s as any).subjectId)); setStep(2); }}
                     />
                   ))
                 ) : (
                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280' }}>
-                    Không có môn học nào.
+                    No subjects available.
                   </div>
                 )}
               </section>
@@ -365,14 +365,14 @@ const PlansPage: React.FC = () => {
           {step === 2 && (
             <>
               <StepHeader
-                title="Chọn mục tiêu của bạn"
-                subtitle="Chọn một hoặc nhiều mục tiêu từ dữ liệu hệ thống"
+                title="Choose Your Goals"
+                subtitle="Select one or more goals from system data"
                 icon="📍"
               />
               <section className="grid-goals" aria-label="goal-list">
                 <GoalCard
                   key="goals-all"
-                  title={goalsLoading ? 'Đang tải mục tiêu…' : 'Mục tiêu có sẵn'}
+                  title={goalsLoading ? 'Loading goals…' : 'Available Goals'}
                   colorClass="icon--emerald"
                   icon="🧠"
                   items={goalItems}
@@ -386,35 +386,35 @@ const PlansPage: React.FC = () => {
           {step === 3 && (
             <>
               <StepHeader
-                title="Tạo lộ trình học"
-                subtitle="Xác nhận lựa chọn và tạo lộ trình với backend"
+                title="Generate Learning Path"
+                subtitle="Confirm selections and generate with the backend"
                 icon="🛠️"
               />
               <section aria-label="summary" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 16 }}>
                 <div className={`card card__pad`}>
-                  <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>Ngôn ngữ đã chọn</h2>
+                  <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>Selected Language</h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {language ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999, background: '#f3f4f6', padding: '6px 12px', fontSize: 14, color: '#374151' }}>
                         <span style={{ width: 8, height: 8, borderRadius: 999, background: '#4f46e5' }} />
-                        {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Đã chọn'}
+                        {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Selected'}
                       </span>
                     ) : (
-                      <span style={{ color: '#6b7280', fontSize: 14 }}>Chưa chọn</span>
+                      <span style={{ color: '#6b7280', fontSize: 14 }}>Not selected</span>
                     )}
                   </div>
                 </div>
                 <div className={`card card__pad`}>
-                  <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>Mục tiêu của bạn</h2>
+                  <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>Your Goals</h2>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {selectedGoals.length > 0 ? (
                       selectedGoals.map((g) => (
                         <span key={g} style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 999, background: '#f3f4f6', padding: '6px 12px', fontSize: 14, color: '#374151' }}>
-                          {goalItems.find((x) => x.key === g)?.label || 'Đã chọn'}
+                          {goalItems.find((x) => x.key === g)?.label || 'Selected'}
                         </span>
                       ))
                     ) : (
-                      <span style={{ color: '#6b7280', fontSize: 14 }}>Chưa chọn</span>
+                      <span style={{ color: '#6b7280', fontSize: 14 }}>Not selected</span>
                     )}
                   </div>
                 </div>
@@ -426,11 +426,11 @@ const PlansPage: React.FC = () => {
                   disabled={!canGenerate || generating}
                   onClick={async () => {
                     if (!language) {
-                      setPlanError('Vui lòng chọn ngôn ngữ')
+                      setPlanError('Please select a language')
                       return
                     }
                     if (selectedGoals.length === 0) {
-                      setPlanError('Vui lòng chọn ít nhất một mục tiêu')
+                      setPlanError('Please select at least one goal')
                       return
                     }
                     setPlanError(null)
@@ -443,13 +443,13 @@ const PlansPage: React.FC = () => {
                     } catch (e: any) {
                       console.error('generateSkeleton error', e)
                       const serverMsg = e?.response?.data?.message || e?.response?.data?.msg || e?.response?.data?.error
-                      setPlanError(serverMsg || e?.message || 'Không thể tạo lộ trình')
+                      setPlanError(serverMsg || e?.message || 'Unable to generate learning path')
                     } finally {
                       setGenerating(false)
                     }
                   }}
                 >
-                  {generating ? 'Đang tạo…' : 'Tạo lộ trình'}
+                  {generating ? 'Generating…' : 'Generate Learning Path'}
                 </button>
               </div>
               {planError ? (
@@ -458,19 +458,19 @@ const PlansPage: React.FC = () => {
               {planGenerated && skeleton && (
                 <section className="mt-8" aria-label="generated-plan">
                   <div className="card card__pad">
-                    <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 12 }}>Kết quả lộ trình</h2>
+                    <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 12 }}>Learning Path Result</h2>
                     {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
                       <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
                         {skeleton.lessons.map((ls: any) => (
                           <li key={ls.id ?? ls.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                             <span style={{ marginTop: 4, width: 8, height: 8, borderRadius: 999, background: '#4f46e5' }} />
                             <div>
-                              <div style={{ fontWeight: 600, color: '#1f2937' }}>{ls.title ?? 'Bài học'}</div>
+                              <div style={{ fontWeight: 600, color: '#1f2937' }}>{ls.title ?? 'Lesson'}</div>
                               {ls.description ? (<div style={{ fontSize: 14, color: '#6b7280' }}>{ls.description}</div>) : null}
                               {Array.isArray(ls.chapters) && ls.chapters.length > 0 ? (
                                 <ul style={{ marginTop: 6, paddingLeft: 18 }}>
                                   {ls.chapters.map((ch: any) => (
-                                    <li key={ch.id ?? ch.title} style={{ color: '#4b5563', fontSize: 14 }}>{ch.title ?? 'Chương'}</li>
+                                    <li key={ch.id ?? ch.title} style={{ color: '#4b5563', fontSize: 14 }}>{ch.title ?? 'Chapter'}</li>
                                   ))}
                                 </ul>
                               ) : null}
@@ -479,7 +479,7 @@ const PlansPage: React.FC = () => {
                         ))}
                       </ul>
                     ) : (
-                      <div style={{ color: '#6b7280' }}>Không có dữ liệu lộ trình từ máy chủ.</div>
+                      <div style={{ color: '#6b7280' }}>No learning path data from server.</div>
                     )}
                   </div>
                 </section>
