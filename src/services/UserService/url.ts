@@ -1,3 +1,3 @@
-export const getProfileUrl = '/User/profile'
-export const updateProfileUrl = '/User/update-profile'
-export const updateAvatarProfile ='/User/upload-avatar'
+export const getProfileUrl = '/users/me'
+export const updateProfileUrl = '/users/me'
+export const updateAvatarProfile ='/users/me/avatar'
