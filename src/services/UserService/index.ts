@@ -7,7 +7,7 @@ export async function getProfile() {
   return res?.data ?? res
 }
 export async function updateProfile(payload: any) {
-  const res: any = await api.patch(updateProfileUrl, payload)
+  const res: any = await api.put(updateProfileUrl, payload)
   return res?.data ?? res
 }
 export async function uploadAvatarProfile(payload: any) {
