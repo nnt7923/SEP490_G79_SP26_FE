@@ -9,6 +9,7 @@ const ROUTER_META = {
   [ROUTER.RESET_PASSWORD]: { breadcrumb: 'Reset Password', title: 'Reset Password' },
   [ROUTER.CLASSES]: { breadcrumb: 'Classes', title: 'Classes' },
   [ROUTER.PLANS]: { breadcrumb: 'Plans', title: 'Plans' },
+  [ROUTER.PLANS_RESULT]: { breadcrumb: 'Plan Result', title: 'Learning Path' },
   [ROUTER.ABOUT]: { breadcrumb: 'About', title: 'About Us' },
   [ROUTER.STUDENT_DASHBOARD]: { breadcrumb: 'Dashboard', title: 'Student Dashboard' },
   [ROUTER.PROFILE]: { breadcrumb: 'Profile', title: 'My Profile' },
