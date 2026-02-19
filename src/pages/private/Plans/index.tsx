@@ -3,6 +3,8 @@ import { SubjectService, GoalService, LearningPathService } from '../../../servi
 import type { Subject } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
+import { useNavigate } from 'react-router-dom'
+import ROUTER from '../../../router/ROUTER'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -81,19 +83,18 @@ const LanguageCard: React.FC<{
     type="button"
     onClick={onClick}
     aria-pressed={!!active}
-    className={`card card__pad ${active ? 'card--active' : ''}`}
-    style={{ textAlign: 'left' }}
+    className={`card card__pad text-left ${active ? 'card--active' : ''}`}
   >
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
         <div className={`icon-12 ${colorClass}`}>{icon ?? '🔖'}</div>
         <div>
-          <div style={{ fontWeight: 600, color: '#111827' }}>{name}</div>
-          {desc ? <div style={{ fontSize: 12, color: '#6b7280' }}>{desc}</div> : null}
+          <div className="font-semibold text-gray-900">{name}</div>
+          {desc ? <div className="text-xs text-gray-500">{desc}</div> : null}
         </div>
       </div>
       {tag ? (
-        <div style={{ marginTop: 4 }}>
+        <div className="mt-1">
           <span className="pill"><span className="pill__dot" />{tag}</span>
         </div>
       ) : null}
@@ -112,24 +113,23 @@ const GoalCard: React.FC<{
   items: GoalItem[];
   toggleItem: (key: string) => void;
 }> = ({ active, title, colorClass, icon, items, toggleItem }) => (
-  <div className={`card card__pad ${active ? 'card--active' : ''}`} style={{ textAlign: 'left' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+  <div className={`card card__pad ${active ? 'card--active' : ''} text-left`}>
+    <div className="flex items-center gap-3 mb-3">
       <div className={`icon-12 ${colorClass}`}>{icon ?? '📦'}</div>
       <div>
-        <div style={{ fontWeight: 600, color: '#111827' }}>{title}</div>
+        <div className="font-semibold text-gray-900">{title}</div>
       </div>
     </div>
-    <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 0, margin: 0, listStyle: 'none' }}>
+    <ul className="flex flex-col gap-2 p-0 m-0 list-none">
       {items.map((it) => (
         <li key={it.key}>
           <button
             type="button"
-            style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, padding: '8px 12px', border: '1px solid transparent' }}
             onClick={() => toggleItem(it.key)}
-            className="btn-outline"
+            className="w-full text-left flex items-center gap-2 rounded-[10px] px-3 py-2 border border-transparent btn-outline"
           >
-            <span style={{ display: 'inline-block', width: 20, height: 20, borderRadius: 999, border: '1px solid #d1d5db', marginRight: 4 }} />
-            <span style={{ fontSize: 14, color: '#374151' }}>{it.label}</span>
+            <span className="inline-block w-5 h-5 rounded-full border border-gray-300 mr-1" />
+            <span className="text-sm text-gray-700">{it.label}</span>
           </button>
         </li>
       ))}
@@ -150,7 +150,7 @@ const SingleGoalCard: React.FC<{
     type="button"
     onClick={() => onToggle(goalKey)}
     aria-pressed={!!active}
-    className={`card card__pad ${active ? 'card--active' : ''}`}
+    className={`card card__pad ${active ? 'card--active' : ''} text-left`}
     style={{ textAlign: 'left' }}
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -198,6 +198,11 @@ const PlansPage: React.FC = () => {
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
   const [creatingGoal, setCreatingGoal] = useState<boolean>(false)
   const [createGoalError, setCreateGoalError] = useState<string | null>(null)
+  // Duration for each selected goal (days)
+  const [goalDurations, setGoalDurations] = useState<Record<string, number>>({})
+
+  // IMPORTANT: initialize navigate for routing
+  const navigate = useNavigate()
 
   // Persist selections
   useEffect(() => {
@@ -278,9 +283,12 @@ const PlansPage: React.FC = () => {
     ;(async () => {
       try {
         const data = await SubjectService.listSubjects()
-        if (active) setSubjects(data ?? [])
-      } catch (err) {
-        console.error('Failed to load subjects', err)
+        if (active) {
+          const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
+          setSubjects(normalized as any)
+        }
+      } catch {
+        // ignore
       } finally {
         if (active) setSubjectsLoading(false)
       }
@@ -296,8 +304,8 @@ const PlansPage: React.FC = () => {
       try {
         const data = await GoalService.listGoals()
         if (active) setGoals(Array.isArray(data) ? data : [])
-      } catch (err) {
-        console.error('Failed to load goals', err)
+      } catch {
+        // ignore
       } finally {
         if (active) setGoalsLoading(false)
       }
@@ -339,6 +347,14 @@ const PlansPage: React.FC = () => {
     setSelectedGoals((prev) =>
       prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
     )
+    setGoalDurations((prev) => {
+      const exists = selectedGoals.includes(key)
+      if (exists) {
+        const { [key]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [key]: prev[key] ?? 30 }
+    })
   }
 
   // Create new goal via API and select it
@@ -389,7 +405,7 @@ const PlansPage: React.FC = () => {
           {/* Stepper */}
           <nav className="stepper" aria-label="progress">
             {[1, 2, 3].map((i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+              <div key={i} className="flex items-center">
                 <div
                   className={`stepper__dot ${step >= i ? 'stepper__dot--active' : ''}`}
                   aria-current={step === i ? 'step' : undefined}
@@ -415,29 +431,29 @@ const PlansPage: React.FC = () => {
                 {subjectsLoading ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="card card__pad">
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div className="icon-12" style={{ background: '#e5e7eb' }} />
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="icon-12 bg-gray-200" />
                           <div>
-                            <div style={{ width: 96, height: 16, background: '#e5e7eb', borderRadius: 6 }} />
-                            <div style={{ width: 72, height: 12, background: '#f3f4f6', borderRadius: 6, marginTop: 6 }} />
+                            <div className="w-24 h-4 bg-gray-200 rounded-[6px]" />
+                            <div className="w-[72px] h-3 bg-gray-100 rounded-[6px] mt-1.5" />
                           </div>
                         </div>
-                        <div style={{ width: 80, height: 12, background: '#f3f4f6', borderRadius: 6 }} />
+                        <div className="w-20 h-3 bg-gray-100 rounded-[6px]" />
                       </div>
                     </div>
                   ))
                 ) : subjects.length > 0 ? (
                   subjects.map((s, idx) => (
                     <LanguageCard
-                      key={`${s.id ?? s.slug ?? idx}`}
+                      key={`${(s as any).id ?? (s as any).subjectId ?? s.slug ?? idx}`}
                       name={s.name}
                       tag={s.slug ?? undefined}
                       colorClass={palette[idx % palette.length]}
                       icon={undefined}
                       desc={`Explore the learning path for ${s.name}`}
-                      active={language === String(s.id ?? (s as any).subjectId)}
-                      onClick={() => { console.log('Selected subject:', s); setLanguage(String(s.id ?? (s as any).subjectId)); setStep(2); }}
+                      active={language === String((s as any).id ?? (s as any).subjectId)}
+                      onClick={() => { setLanguage(String((s as any).id ?? (s as any).subjectId)); setStep(2); }}
                     />
                   ))
                 ) : (
@@ -460,6 +476,31 @@ const PlansPage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }} aria-live="polite">
                   <span style={{ width: 6, height: 6, borderRadius: 999, background: '#22c55e', display: 'inline-block', animation: 'pulse 1.6s infinite' }} />
                   <span style={{ fontSize: 12, color: '#16a34a' }}>Live updates enabled</span>
+                </div>
+              )}
+              {selectedGoals.length > 0 && (
+                <div className="card card__pad" style={{ marginBottom: 12 }}>
+                  <h3 style={{ fontWeight: 600, color: '#111827', marginBottom: 8, fontSize: 14 }}>Thời lượng mục tiêu (ngày)</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {selectedGoals.map((gId) => (
+                      <label key={gId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 8px' }}>
+                        <span style={{ fontSize: 12, color: '#374151' }}>{goalItems.find((x) => x.key === gId)?.label || 'Goal'}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={goalDurations[gId] ?? 30}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value, 10)
+                            setGoalDurations((prev) => ({ ...prev, [gId]: isNaN(v) || v <= 0 ? 1 : v }))
+                          }}
+                          title="Số ngày"
+                          style={{ width: 64 }}
+                          className="input"
+                        />
+                        <span style={{ fontSize: 12, color: '#6b7280' }}>ngày</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               )}
               <section className="grid-goals" aria-label="goal-list">
@@ -582,14 +623,18 @@ const PlansPage: React.FC = () => {
                     setPlanError(null)
                     setGenerating(true)
                     try {
-                      const payload = { subjectIds: language ? [language] : [], goalIds: selectedGoals }
+                      const goalsWithDurations = selectedGoals.map((id) => ({ goalId: id, durationDay: goalDurations[id] ?? 30 }))
+                      const payload = { subjectIds: language ? [language] : [], goalIds: selectedGoals, goals: goalsWithDurations }
                       const sk = await LearningPathService.generateSkeleton(payload)
                       setSkeleton(sk)
                       setPlanGenerated(true)
+                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch {}
+                      navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
                     } catch (e: any) {
-                      console.error('generateSkeleton error', e)
-                      const serverMsg = e?.response?.data?.message || e?.response?.data?.msg || e?.response?.data?.error
-                      setPlanError(serverMsg || e?.message || 'Unable to generate learning path')
+                      const d = e?.response?.data
+                      const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
+                      const code = d?.errorCode || d?.code
+                      setPlanError(code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path'))
                     } finally {
                       setGenerating(false)
                     }

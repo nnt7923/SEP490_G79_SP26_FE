@@ -9,6 +9,7 @@ const ROUTER = {
   // Example future routes
   CLASSES: '/classes',
   PLANS: '/plans',
+  PLANS_RESULT: '/plans/result',
   ABOUT: '/about',
   // Private routes
   STUDENT_DASHBOARD: '/dashboard',
