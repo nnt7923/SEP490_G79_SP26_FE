@@ -25,3 +25,47 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI Assistants
+.agent
+.claude
+.codebuddy
+.codex
+.continue
+.cursor
+.gemini
+.github
+.opencode
+.kiro
+.qoder
+.roo
+.trae
+.windsurf
+
+# AI Assistants
+.agent
+.claude
+.codebuddy
+.codex
+.continue
+.cursor
+.gemini
+.github
+.kiro
+.opencode
+.kiro
+.qoder
+.roo
+.trae
+.windsurf
+
+# config files
+.package-lock.json
+.package.json
+.postcss.config.js
+.tailwind.config.js
+.tsconfig.json
+.tsconfig.node.json
+.tsconfig.app.json
+.vercel.json
+.vite.config.ts
