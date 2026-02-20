@@ -14,7 +14,10 @@ const ROUTER = {
   // Private routes
   STUDENT_DASHBOARD: '/dashboard',
   PROFILE: '/profile',
-
+  ADMIN_DASHBOARD: '/admin',
+  MENTOR_DASHBOARD: '/mentor',
+  // Admin nested
+  ADMIN_API_KEY: '/admin/api-key',
 };
 
 export default ROUTER;

@@ -13,7 +13,8 @@ const ROUTER_META = {
   [ROUTER.ABOUT]: { breadcrumb: 'About', title: 'About Us' },
   [ROUTER.STUDENT_DASHBOARD]: { breadcrumb: 'Dashboard', title: 'Student Dashboard' },
   [ROUTER.PROFILE]: { breadcrumb: 'Profile', title: 'My Profile' },
-
+  [ROUTER.ADMIN_DASHBOARD]: { breadcrumb: 'Admin', title: 'Admin Dashboard' },
+  [ROUTER.MENTOR_DASHBOARD]: { breadcrumb: 'Mentor', title: 'Mentor Dashboard' },
 
 }
 

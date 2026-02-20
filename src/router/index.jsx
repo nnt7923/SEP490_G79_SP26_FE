@@ -16,6 +16,9 @@ const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword')
 const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
 const Profile = React.lazy(() => import('../pages/private/Student/Profile'))
+const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
+const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
+const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 
 
 
@@ -39,13 +42,29 @@ const router = createBrowserRouter([
       { path: ROUTER.RESET_PASSWORD, element: <ResetPassword /> },
     ],
   },
+  // General protected routes (any logged-in user)
   {
-    element: <React.Suspense fallback={<div />}> <ProtectedRoute /> </React.Suspense>, // wrap lazy ProtectedRoute to avoid suspend on sync input
+    element: <React.Suspense fallback={<div />}> <ProtectedRoute /> </React.Suspense>,
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
       { path: ROUTER.PROFILE, element: <Profile /> },
       { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
       { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
+    ],
+  },
+  // Admin-only routes
+  {
+    element: <React.Suspense fallback={<div />}> <ProtectedRoute role="Admin" /> </React.Suspense>,
+    children: [
+      { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
+      { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
+    ],
+  },
+  // Mentor-only routes
+  {
+    element: <React.Suspense fallback={<div />}> <ProtectedRoute role="Mentor" /> </React.Suspense>,
+    children: [
+      { path: ROUTER.MENTOR_DASHBOARD, element: <MentorDashboard /> },
     ],
   },
 ])
