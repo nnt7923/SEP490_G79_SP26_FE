@@ -6,7 +6,7 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
   return [
     {
       label: 'Overview',
-      path: '/admin/overview',
+      path: '/admin/',
       icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
