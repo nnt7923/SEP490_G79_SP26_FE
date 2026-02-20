@@ -45,7 +45,7 @@
 
 .profile-container {
   padding: 40px;
-  background: linear-gradient(to right, #f3e7e9, #e3eeff);
+  background: #ffffff;
   min-height: 100vh;
 }
 
@@ -71,6 +71,7 @@
   background: #fff;
   padding: 20px;
   border-radius: 16px;
+  border: 2px solid #e5e7eb;
   box-shadow: 0 5px 15px rgba(0,0,0,0.08);
   margin-bottom: 30px;
 }
@@ -96,9 +97,10 @@
 
 .info-card {
   background: white;
-  padding: 18px;
-  border-radius: 14px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  padding: 25px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
 .info-card label {

@@ -9,11 +9,16 @@ const ROUTER = {
   // Example future routes
   CLASSES: '/classes',
   PLANS: '/plans',
+  PLANS_RESULT: '/plans/result',
   ABOUT: '/about',
   // Private routes
   STUDENT_DASHBOARD: '/dashboard',
   PROFILE: '/profile',
-
+  CHANGE_PASSWORD: '/change-password',
+  ADMIN_DASHBOARD: '/admin',
+  MENTOR_DASHBOARD: '/mentor',
+  // Admin nested
+  ADMIN_API_KEY: '/admin/api-key',
 };
 
 export default ROUTER;
