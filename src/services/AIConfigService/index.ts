@@ -1,9 +1,21 @@
 import api from '../Axios'
-import { configUrl } from './url'
+import { configUrl, addConfigUrl } from './url'
+
+export type ConfigJson = {
+  Model?: string
+  MaxTokens?: number
+  Temperature?: number
+  MaxRetries?: number
+  [key: string]: any
+}
 
 export type AIConfig = {
-  provider?: string
   apiKey?: string
+  providerName?: string
+  isEnabled?: boolean
+  lastUpdated?: string
+  configJson?: ConfigJson
+  provider?: string // fallback field
   model?: string
   temperature?: number
   maxTokens?: number
@@ -35,7 +47,7 @@ export async function getAIConfig(): Promise<AIConfig | AIConfig[]> {
 }
 
 export async function updateAIConfig(payload: Partial<AIConfig>): Promise<AIConfig | AIConfig[]> {
-  const res: any = await api.put(configUrl, payload)
+  const res: any = await api.post(addConfigUrl, payload)
   return unwrap<AIConfig | AIConfig[]>(res)
 }
 
