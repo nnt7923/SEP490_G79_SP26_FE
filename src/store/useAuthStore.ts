@@ -30,6 +30,7 @@ interface AuthState {
   fetchProfile: () => Promise<void>
   updateProfile: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
   uploadAvatar: (file: File) => Promise<{ isOk: boolean; url?: string; msg?: string }>
+  changePassword: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
 }
 
 const useAuthStore = create<AuthState>((set, get) => ({
@@ -196,6 +197,28 @@ const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  changePassword: async (payload) => {
+    try {
+      const res = await UserService.changePassword(payload)
+
+      console.log('API response:', res)
+
+      return {
+        isOk: true,
+        msg: res?.msg || res?.message || 'Password changed successfully!',
+      }
+    } catch (err: any) {
+      console.error('API error:', err)
+
+      return {
+        isOk: false,
+        msg:
+          err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          'Passwords do not match',
+      }
+    }
+  },
 }))
 
 export default useAuthStore
