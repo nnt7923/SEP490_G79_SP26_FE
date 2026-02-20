@@ -26,8 +26,17 @@ const Header: React.FC = () => {
     .slice(0, 2)
     .join('')
 
+  // Determine dashboard path by role (case-insensitive)
+  const roleName = (user?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0] || '').toString()
+  const normalizedRole = roleName.trim().toLowerCase()
+  const dashboardPath = normalizedRole === 'admin'
+    ? ROUTER.ADMIN_DASHBOARD
+    : normalizedRole === 'mentor'
+      ? ROUTER.MENTOR_DASHBOARD
+      : ROUTER.STUDENT_DASHBOARD
+
   // Markdown now uses link syntax for navigation
-  const md = `- [Dashboard](/dashboard)\n- [Profile](/profile)\n- [Settings](/settings)\n- [Logout](#logout)`
+  const md = `- [Dashboard](${dashboardPath})\n- [Profile](/profile)\n- [Settings](/settings)\n- [Logout](#logout)`
 
   const onLogout = async () => {
     try { await logout() } catch {}
@@ -35,94 +44,69 @@ const Header: React.FC = () => {
   }
 
   return (
-    <header className="site-header">
-      <div className="site-header__inner">
-        <div className="site-header__brand">
-          <Link to="/" className="brand">
-            <img src={BrandIcon} alt="CodeNexus" className="brand__logo" />
-            <span className="brand__name">CodeNexus</span>
-          </Link>
-        </div>
-        <nav className="site-header__nav">
-          <Link to="/" className="nav__link">Home</Link>
-          <Link to="/classes" className="nav__link">Classes</Link>
-          <Link to="/plans" className="nav__link">Plans</Link>
-          <Link to="/about" className="nav__link">About Us</Link>
-        </nav>
-        <div className="site-header__cta" ref={menuRef}>
-          {!token ? (
-            <Link to="/login" className="btn btn-outline btn-sm">Login</Link>
-          ) : (
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <Link to={ROUTER.PROFILE} aria-label="profile" style={{ display: 'inline-block' }}>
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                ) : (
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb',
-                    display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600, color: '#374151'
-                  }}>{initials}</div>
-                )}
-              </Link>
+    <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center gap-4">
+            <Link to="/" className="flex items-center gap-3">
+              <img src={BrandIcon} alt="CodeNexus" className="w-8 h-8 rounded-md" />
+              <span className="text-xl font-semibold text-slate-900 dark:text-white">CodeNexus</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-4" aria-label="Primary">
+              <Link to="/" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Home</Link>
+              <Link to="/classes" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Classes</Link>
+              <Link to="/plans" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Plans</Link>
+              <Link to="/about" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">About</Link>
+            </nav>
+          </div>
 
-              <button
-                aria-label="user menu"
-                onClick={() => setOpen((v) => !v)}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  background: 'transparent', border: '1px solid transparent', cursor: 'pointer', padding: '4px 6px'
-                }}
+          <div className="flex items-center gap-3">
+            {!token ? (
+              <Link
+                to="/login"
+                className="px-3 py-1.5 rounded-md border border-blue-600 text-blue-600 text-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                <span style={{ fontSize: 14, color: '#374151' }}>{user?.name || user?.username}</span>
-              </button>
+                Login
+              </Link>
+            ) : (
+              <div className="relative" ref={menuRef}>
+                <div className="flex items-center gap-3">
+                  <Link to={ROUTER.PROFILE} aria-label="profile">
+                    {user?.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="avatar" className="w-9 h-9 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-sm font-semibold text-slate-700 dark:text-slate-200">{initials}</div>
+                    )}
+                  </Link>
 
-              {open && (
-                <div
-                  role="menu"
-                  style={{
-                    position: 'absolute', right: 0, top: '100%', marginTop: 8,
-                    width: 260, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.08)', padding: 10, zIndex: 50
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-                    <button className="btn btn-outline btn-sm" onClick={() => { setOpen(false); navigate(ROUTER.STUDENT_DASHBOARD) }}>Dashboard</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => { setOpen(false); navigate(ROUTER.PROFILE) }}>Profile</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => { setOpen(false); navigate(ROUTER.HOME) }}>Settings</button>
-                    <button className="btn btn-primary btn-sm" onClick={onLogout}>Logout</button>
-                  </div>
-                  <div style={{ paddingTop: 8, borderTop: '1px dashed #e5e7eb' }}>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Các chức năng</div>
-                    <div style={{ fontSize: 13, color: '#374151' }}>
-                      <ReactMarkdown
-                        components={{
-                          a: ({ href, children }) => (
-                            <a
-                              href={href}
-                              onClick={(e) => {
-                                e.preventDefault()
-                                setOpen(false)
-                                if (href === '#logout') onLogout()
-                                else if (href === '/dashboard') navigate(ROUTER.STUDENT_DASHBOARD)
-                                
-                                else if (href === '/profile') navigate(ROUTER.PROFILE)
-                                else if (href === '/settings') navigate(ROUTER.HOME)
-                              }}
-                              style={{ color: '#2563eb', textDecoration: 'none', cursor: 'pointer' }}
-                            >
-                              {children}
-                            </a>
-                          ),
-                        }}
-                      >
-                        {md}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
+                  <button
+                    aria-haspopup="menu"
+                    aria-expanded={open}
+                    onClick={() => setOpen((v) => !v)}
+                    className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <span className="text-sm text-slate-900 dark:text-white">{user?.name || user?.username}</span>
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
+
+                {open && (
+                  <div
+                    role="menu"
+                    aria-label="User menu"
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3 z-50"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(dashboardPath) }}>Dashboard</button>
+                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(ROUTER.PROFILE) }}>Profile</button>
+                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(ROUTER.HOME) }}>Settings</button>
+                      <button className="text-left px-3 py-2 rounded-md text-sm text-red-600 hover:bg-red-50" onClick={onLogout}>Logout</button>
+                    </div>
+                    
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

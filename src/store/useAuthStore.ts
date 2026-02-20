@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { AuthService , UserService } from '../services'
+import { AuthService, UserService } from '../services'
 
 export type User = {
   id: number
@@ -47,7 +47,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
         localStorage.removeItem('accessToken')
         AuthService.clearState?.()
       }
-    } catch {}
+    } catch { }
   },
 
   setUser: (user) => {
@@ -56,8 +56,8 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   clearState: () => {
     set({ token: null, user: null, loading: false })
-    try { localStorage.removeItem('accessToken') } catch {}
-    try { AuthService.clearState?.() } catch {}
+    try { localStorage.removeItem('accessToken') } catch { }
+    try { AuthService.clearState?.() } catch { }
   },
 
   register: async (payload) => {
@@ -85,11 +85,30 @@ const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username, password) => {
     set({ loading: true })
     try {
-      const res: any = await AuthService.login({ Identifier: username, Password: password })
-      const token: string | undefined = res?.token || res?.data?.token
+      const resp: any = await AuthService.login({ Identifier: username, Password: password })
+      try { console.debug('[auth] login response:', resp) } catch { }
+
+      const token: string | undefined = resp?.token
+      const rawUser: any = resp?.user ?? resp
+
       if (token) {
         get().setToken(token)
-        // Tải đầy đủ dữ liệu user sau khi có token
+
+        // Normalize role name from various possible shapes
+        const roleName: string | undefined = rawUser?.role?.name || rawUser?.roleName || (Array.isArray(rawUser?.roles) ? rawUser.roles[0] : undefined)
+
+        const loginUser: User = {
+          id: rawUser?.id,
+          username: rawUser?.username,
+          name: rawUser?.name || rawUser?.username || 'User',
+          email: rawUser?.email,
+          role: { name: roleName || 'Student' },
+        }
+
+        set({ user: loginUser })
+        try { console.debug('[auth] set login user:', loginUser) } catch { }
+
+        // Load full profile after token; preserve role if profile lacks it
         await get().fetchProfile()
         return { isOk: true }
       }
@@ -107,7 +126,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true })
     try {
       await AuthService.logout()
-    } catch {}
+    } catch { }
     get().clearState()
     set({ loading: false })
   },
@@ -120,15 +139,30 @@ const useAuthStore = create<AuthState>((set, get) => ({
       await get().fetchProfile()
     }
   },
+
   fetchProfile: async () => {
     try {
       const data: any = await UserService.getProfile()
-      const user: User = data?.data ?? data
+      const profileData: any = data?.data ?? data
+      try { console.debug('[auth] fetchProfile response:', profileData) } catch { }
+      const currentUser = get().user
+
+      // Determine role from profile if available; otherwise keep current role
+      const profileRoleName: string | undefined = profileData?.role?.name || profileData?.roleName || (Array.isArray(profileData?.roles) ? profileData.roles[0] : undefined)
+
+      const user: User = {
+        ...(currentUser || {} as any),
+        ...profileData,
+        role: profileRoleName ? { name: profileRoleName } : currentUser?.role,
+      }
+
+      try { console.debug('[auth] final user after fetchProfile:', user) } catch { }
       set({ user })
     } catch {
       get().clearState()
     }
   },
+
   updateProfile: async (payload) => {
     try {
       set({ loading: true })
@@ -144,17 +178,16 @@ const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false })
     }
   },
-  uploadAvatar: async (file) => {
+
+  uploadAvatar: async (file: File) => {
+
     try {
       set({ loading: true })
 
       const formData = new FormData()
       formData.append('file', file)
-
       await UserService.uploadAvatarProfile(formData)
-
       await get().fetchProfile()
-
       return { isOk: true, msg: 'Upload ảnh thành công' }
     } catch {
       return { isOk: false, msg: 'Upload ảnh thất bại' }

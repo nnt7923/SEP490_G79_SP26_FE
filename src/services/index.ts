@@ -1,2 +1,7 @@
 export * as AuthService from './AuthService/index'
 export * as UserService from './UserService/index'
+export * as SubjectService from './SubjectService/index'
+export * as LearningPathService from './LearningPathService/index'
+export * as GoalService from './GoalService/index'
+export * as AIConfigService from './AIConfigService/index'
+export { default as api } from './Axios'
