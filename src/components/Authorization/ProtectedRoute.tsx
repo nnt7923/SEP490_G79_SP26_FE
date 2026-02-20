@@ -10,8 +10,12 @@ const ProtectedRoute: React.FC<{ role?: string }> = ({ role }) => {
     return <Navigate to={ROUTER.LOGIN} replace />
   }
 
-  if (role && (user as any)?.role?.name !== role) {
-    return <Navigate to={ROUTER.HOME} replace />
+  if (role) {
+    const actual = String((user as any)?.role?.name || '').toLowerCase()
+    const expected = String(role).toLowerCase()
+    if (actual !== expected) {
+      return <Navigate to={ROUTER.HOME} replace />
+    }
   }
 
   return <Outlet />

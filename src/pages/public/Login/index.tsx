@@ -68,6 +68,14 @@ const Login: React.FC = () => {
     }
   }
 
+  const navigateByRole = (roleRaw?: string) => {
+    const normalized = (roleRaw || '').toString().trim().toLowerCase()
+    if (normalized === 'admin') return navigate(ROUTER.ADMIN_DASHBOARD)
+    if (normalized === 'mentor') return navigate(ROUTER.MENTOR_DASHBOARD)
+    if (normalized === 'student') return navigate(ROUTER.STUDENT_DASHBOARD)
+    return navigate(ROUTER.HOME)
+  }
+
   const handleGoogleCredential = async (response: any) => {
     try {
       const credential: string | undefined = response?.credential
@@ -77,9 +85,8 @@ const Login: React.FC = () => {
       authStore.setUser(user as any)
       // Tải đầy đủ thông tin user sau khi có token từ Google
       await authStore.fetchProfile()
-      const roleName = (authStore.user?.role?.name) || user?.role?.name
-      if (roleName === 'Student') navigate(ROUTER.STUDENT_DASHBOARD)
-      else navigate(ROUTER.HOME)
+      const roleName = (authStore.user?.role?.name) || (user as any)?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0]
+      navigateByRole(roleName)
     } catch (err: any) {
       setError(extractErrorMessage(err, 'Đăng nhập Google thất bại'))
     }
@@ -93,9 +100,8 @@ const Login: React.FC = () => {
       if (remember) {
         // Could persist longer session here
       }
-      const roleName = authStore.user?.role?.name
-      if (roleName === 'Student') navigate(ROUTER.STUDENT_DASHBOARD)
-      else navigate(ROUTER.HOME)
+      const roleName = (authStore.user?.role?.name) || (authStore.user as any)?.roleName || (authStore.user as any)?.roles?.[0]
+      navigateByRole(roleName)
     } catch (err: any) {
       setError(extractErrorMessage(err, 'Login failed'))
     }

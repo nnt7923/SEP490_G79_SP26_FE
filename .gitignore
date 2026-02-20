@@ -25,3 +25,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI Assistants
+.agent
+.claude
+.codebuddy
+.codex
+.continue
+.cursor
+.gemini
+.github
+.kiro
+.opencode
+.qoder
+.roo
+.trae
+.windsurf
