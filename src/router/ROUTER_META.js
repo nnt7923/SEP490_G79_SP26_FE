@@ -16,7 +16,8 @@ const ROUTER_META = {
   [ROUTER.CHANGE_PASSWORD]: { breadcrumb: 'Change Password', title: 'Change Password' },
   [ROUTER.ADMIN_DASHBOARD]: { breadcrumb: 'Admin', title: 'Admin Dashboard' },
   [ROUTER.MENTOR_DASHBOARD]: { breadcrumb: 'Mentor', title: 'Mentor Dashboard' },
-
+  [ROUTER.ADMIN_API_KEY]: { breadcrumb: 'API Key', title: 'Admin API Key' },
+  [ROUTER.ADMIN_USERS]: { breadcrumb: 'Users', title: 'Admin Users' },
 }
 
 export default ROUTER_META

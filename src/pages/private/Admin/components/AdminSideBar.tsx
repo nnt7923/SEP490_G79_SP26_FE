@@ -6,14 +6,14 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
   return [
     {
       label: 'Overview',
-      path: '/admin/',
+      path: ROUTER.ADMIN_DASHBOARD,
       icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
       label: 'Users',
-      path: '/admin/users',
+      path: ROUTER.ADMIN_USERS,
       icon: <Users className="w-5 h-5" />,
-      badge: 0,
+      // badge: 0,
     },
     {
       label: 'Reports',
