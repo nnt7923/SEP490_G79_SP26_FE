@@ -34,7 +34,6 @@ dist-ssr
 .continue
 .cursor
 .gemini
-.github
 .opencode
 .kiro
 .qoder
@@ -50,7 +49,6 @@ dist-ssr
 .continue
 .cursor
 .gemini
-.github
 .kiro
 .opencode
 .kiro
@@ -69,3 +67,7 @@ dist-ssr
 .tsconfig.app.json
 .vercel.json
 .vite.config.ts
+# Unit test artifacts (Vitest)
+coverage/
+.vitest/
+*.lcov
