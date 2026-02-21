@@ -6,6 +6,7 @@ import ROUTER_META from './ROUTER_META'
 // Layouts
 const LayoutCommon = React.lazy(() => import('../components/Layout'))
 const ProtectedRoute = React.lazy(() => import('../components/Authorization/ProtectedRoute'))
+const ForbidRole = React.lazy(() => import('../components/Authorization/ForbidRole'))
 
 // Pages
 const Home = React.lazy(() => import('../pages/public/Home'))
@@ -20,6 +21,7 @@ const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangeP
 const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
+const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 
 
 const router = createBrowserRouter([
@@ -48,6 +50,13 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
       { path: ROUTER.PROFILE, element: <Profile /> },
+      {
+        element: <React.Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </React.Suspense>,
+        children: [
+          { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
+          { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
+        ],
+      },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
       { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
       { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
@@ -59,6 +68,7 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
+      { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
     ],
   },
   // Mentor-only routes

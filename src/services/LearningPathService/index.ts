@@ -18,6 +18,21 @@ export type SkeletonResponse = {
   subjects?: { id: string; name?: string }[]
   goals?: { id: string; name?: string }[]
   lessons: Lesson[]
+  [key: string]: any
+}
+
+// Consistent unwrap for ApiEnvelope or raw data
+function unwrap<T>(res: any): T {
+  const data = (res?.data ?? res) as any
+  if (data && typeof data === 'object') {
+    // prefer .value if present (ApiEnvelope)
+    if ('value' in data) return data.value as T
+    // some APIs wrap under .data.value
+    if ('data' in data && data?.data && typeof data.data === 'object' && 'value' in data.data) {
+      return data.data.value as T
+    }
+  }
+  return data as T
 }
 
 // Normalize payload to backend-expected format
@@ -63,7 +78,7 @@ export async function generateSkeleton(payload: any): Promise<SkeletonResponse> 
   if (goalsWithDurations.length > 0) reqBody.Goals = goalsWithDurations
 
   const res: any = await api.post(skeletonUrl, reqBody)
-  return (res?.data ?? res) as SkeletonResponse
+  return unwrap<SkeletonResponse>(res)
 }
 
 export async function generateLessonContent(lessonId: string, payload?: any): Promise<Lesson> {
@@ -81,7 +96,7 @@ export async function generateLessonContent(lessonId: string, payload?: any): Pr
 
   const reqBody = { SubjectIds: subjectIds, GoalIds: goalIds }
   const res: any = await api.post(lessonContentUrl(lessonId), reqBody)
-  return (res?.data ?? res) as Lesson
+  return unwrap<Lesson>(res)
 }
 
 export default { generateSkeleton, generateLessonContent }

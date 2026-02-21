@@ -137,33 +137,119 @@ const GoalCard: React.FC<{
   </div>
 );
 
-// Card hiển thị một goal duy nhất
+// Updated: Card hiển thị một goal duy nhất với Edit/Delete
 const SingleGoalCard: React.FC<{
+  id: string;
   active?: boolean;
   title: string;
   colorClass: string;
   icon?: string;
-  goalKey: string;
   onToggle: (key: string) => void;
-}> = ({ active, title, colorClass, icon, goalKey, onToggle }) => (
-  <button
-    type="button"
-    onClick={() => onToggle(goalKey)}
-    aria-pressed={!!active}
-    className={`card card__pad ${active ? 'card--active' : ''} text-left`}
-    style={{ textAlign: 'left' }}
-  >
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div className={`icon-12 ${colorClass}`}>{icon ?? '🧠'}</div>
-      <div>
-        <div style={{ fontWeight: 600, color: '#111827' }}>{title}</div>
+  onStartEdit: (id: string, currTitle: string) => void;
+  onDelete: (id: string) => void;
+  isEditing: boolean;
+  editingTitle: string;
+  setEditingTitle: (v: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  saving: boolean;
+  deleting: boolean;
+}> = ({
+  id,
+  active,
+  title,
+  colorClass,
+  icon,
+  onToggle,
+  onStartEdit,
+  onDelete,
+  isEditing,
+  editingTitle,
+  setEditingTitle,
+  onSaveEdit,
+  onCancelEdit,
+  saving,
+  deleting,
+}) => {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  return (
+    <div
+      className={`card card__pad ${active ? 'card--active' : ''}`}
+      role={!isEditing ? 'button' : undefined}
+      aria-pressed={!!active}
+      onClick={() => { if (!isEditing && !menuOpen) onToggle(id) }}
+      style={{ textAlign: 'left', position: 'relative', cursor: isEditing ? 'default' : 'pointer' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className={`icon-12 ${colorClass}`}>{icon ?? '🧠'}</div>
+          <div>
+            <div style={{ fontWeight: 600, color: '#111827' }}>{title}</div>
+          </div>
+        </div>
+        {!isEditing && (
+          <div>
+            <button
+              type="button"
+              aria-label="More options"
+              className="btn btn-ghost"
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}
+              disabled={saving || deleting}
+            >
+              ⋮
+            </button>
+            {menuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ position: 'absolute', top: 10, right: 10, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', minWidth: 140, zIndex: 20 }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-ghost w-full text-left"
+                  onClick={() => { setMenuOpen(false); onStartEdit(id, title) }}
+                  disabled={saving || deleting}
+                  style={{ borderBottom: '1px solid #f3f4f6', borderRadius: '8px 8px 0 0' }}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger w-full text-left"
+                  onClick={() => { setMenuOpen(false); onDelete(id) }}
+                  disabled={saving || deleting}
+                  style={{ borderRadius: '0 0 8px 8px' }}
+                >
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {isEditing && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
+          <input
+            type="text"
+            value={editingTitle}
+            onChange={(e) => setEditingTitle(e.target.value)}
+            className="input"
+            placeholder="Goal title"
+          />
+          <button type="button" className={`btn btn-primary ${saving ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={onSaveEdit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" className="btn" onClick={onCancelEdit} disabled={saving}>Cancel</button>
+        </div>
+      )}
+
+      {active && !isEditing && (
+        <span className="badge-selected" style={{ marginTop: 8, display: 'inline-block' }}>Selected</span>
+      )}
     </div>
-    {active && (
-      <span className="badge-selected">Selected</span>
-    )}
-  </button>
-);
+  )
+}
 
 const PlansPage: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -186,11 +272,13 @@ const PlansPage: React.FC = () => {
   // Load subjects from API
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(true)
+  const [subjectsError, setSubjectsError] = useState<string | null>(null)
   // Load goals from API + generation states
   const [goals, setGoals] = useState<any[]>([])
   const [goalsLoading, setGoalsLoading] = useState<boolean>(true)
   // Enable Live auto-update for goals
   const [goalsLive, setGoalsLive] = useState<boolean>(true)
+  const [goalsError, setGoalsError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<boolean>(false)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
@@ -200,6 +288,68 @@ const PlansPage: React.FC = () => {
   const [createGoalError, setCreateGoalError] = useState<string | null>(null)
   // Duration for each selected goal (days)
   const [goalDurations, setGoalDurations] = useState<Record<string, number>>({})
+
+  // Added: goal edit/delete states and handlers
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState<string>('')
+  const [savingGoal, setSavingGoal] = useState<boolean>(false)
+  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null)
+  const [goalNotice, setGoalNotice] = useState<string | null>(null)
+  const [goalActionError, setGoalActionError] = useState<string | null>(null)
+
+  const startEditGoal = (id: string, currTitle: string) => {
+    setEditingGoalId(id)
+    setEditingTitle(currTitle)
+    setGoalActionError(null)
+  }
+
+  const cancelEditGoal = () => {
+    setEditingGoalId(null)
+    setEditingTitle('')
+    setGoalActionError(null)
+  }
+
+  const saveEditGoal = async () => {
+    const id = editingGoalId
+    const title = editingTitle.trim()
+    if (!id) return
+    if (!title) {
+      setGoalActionError('Title cannot be empty')
+      return
+    }
+    setSavingGoal(true)
+    setGoalActionError(null)
+    try {
+      const updated = await GoalService.updateGoal(id, { title })
+      setGoals((prev) => prev.map((g: any) => (String(g?.id ?? g?.goalId ?? g?.key) === String(id) ? { ...g, ...updated } : g)))
+      setGoalNotice('Goal updated successfully')
+      setTimeout(() => setGoalNotice(null), 2500)
+      setEditingGoalId(null)
+      setEditingTitle('')
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to update goal'
+      setGoalActionError(msg)
+    } finally {
+      setSavingGoal(false)
+    }
+  }
+
+  const handleDeleteGoal = async (id: string) => {
+    setDeletingGoalId(id)
+    setGoalActionError(null)
+    try {
+      await GoalService.deleteGoal(id)
+      setGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
+      setSelectedGoals((prev) => prev.filter((k) => String(k) !== String(id)))
+      setGoalNotice('Goal deleted successfully')
+      setTimeout(() => setGoalNotice(null), 2500)
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to delete goal'
+      setGoalActionError(msg)
+    } finally {
+      setDeletingGoalId(null)
+    }
+  }
 
   // IMPORTANT: initialize navigate for routing
   const navigate = useNavigate()
@@ -287,8 +437,10 @@ const PlansPage: React.FC = () => {
           const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
           setSubjects(normalized as any)
         }
-      } catch {
-        // ignore
+      } catch (e: any) {
+        const d = e?.response?.data
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Không thể tải danh sách subject.'
+        if (active) setSubjectsError(msg)
       } finally {
         if (active) setSubjectsLoading(false)
       }
@@ -304,8 +456,10 @@ const PlansPage: React.FC = () => {
       try {
         const data = await GoalService.listGoals()
         if (active) setGoals(Array.isArray(data) ? data : [])
-      } catch {
-        // ignore
+      } catch (e: any) {
+        const d = e?.response?.data
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Không thể tải danh sách goals.'
+        if (active) setGoalsError(msg)
       } finally {
         if (active) setGoalsLoading(false)
       }
@@ -443,6 +597,10 @@ const PlansPage: React.FC = () => {
                       </div>
                     </div>
                   ))
+                ) : subjectsError ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#dc2626' }}>
+                    Không tải được danh sách subject: {subjectsError}
+                  </div>
                 ) : subjects.length > 0 ? (
                   subjects.map((s, idx) => (
                     <LanguageCard
@@ -537,6 +695,18 @@ const PlansPage: React.FC = () => {
                   ) : null}
                 </div>
                 
+                {/* Thông báo hành động goal */}
+                {(goalNotice || goalActionError) ? (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    {goalNotice ? (
+                      <div className="notice notice--info">{goalNotice}</div>
+                    ) : null}
+                    {goalActionError ? (
+                      <div className="notice notice--danger" style={{ marginTop: 6 }}>{goalActionError}</div>
+                    ) : null}
+                  </div>
+                ) : null}
+                
                 {/* Render each goal as its own card */}
                 {goalsLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
@@ -549,18 +719,35 @@ const PlansPage: React.FC = () => {
                       </div>
                     </div>
                   ))
+                ) : goalsError ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#dc2626' }}>
+                    Không tải được goals: {goalsError}
+                  </div>
                 ) : goalItems.length > 0 ? (
-                  goalItems.map((it, idx) => (
-                    <SingleGoalCard
-                      key={String(it.key)}
-                      title={it.label}
-                      colorClass={palette[idx % palette.length]}
-                      icon={undefined}
-                      goalKey={String(it.key)}
-                      active={selectedGoals.includes(String(it.key))}
-                      onToggle={toggleGoal}
-                    />
-                  ))
+                  goals.map((g: any, idx: number) => {
+                    const id = g?.id ?? g?.goalId ?? g?.key
+                    const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                    return (
+                      <SingleGoalCard
+                        key={String(id)}
+                        id={String(id)}
+                        title={title}
+                        colorClass={palette[idx % palette.length]}
+                        icon={undefined}
+                        active={selectedGoals.includes(String(id))}
+                        onToggle={toggleGoal}
+                        onStartEdit={startEditGoal}
+                        onDelete={handleDeleteGoal}
+                        isEditing={String(editingGoalId) === String(id)}
+                        editingTitle={editingTitle}
+                        setEditingTitle={setEditingTitle}
+                        onSaveEdit={saveEditGoal}
+                        onCancelEdit={cancelEditGoal}
+                        saving={savingGoal}
+                        deleting={String(deletingGoalId) === String(id)}
+                      />
+                    )
+                  })
                 ) : (
                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280' }}>
                     No goals available.
@@ -634,7 +821,12 @@ const PlansPage: React.FC = () => {
                       const d = e?.response?.data
                       const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
                       const code = d?.errorCode || d?.code
-                      setPlanError(code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path'))
+                      let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path')
+                      const lower = String(serverMsg || e?.message || '').toLowerCase()
+                      if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
+                        msg = 'AI service chưa được cấu hình hợp lệ (Invalid API Key). Vui lòng cấu hình GROQ_API_KEY trên backend và thử lại.'
+                      }
+                      setPlanError(msg)
                     } finally {
                       setGenerating(false)
                     }

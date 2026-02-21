@@ -19,6 +19,7 @@ const ROUTER = {
   MENTOR_DASHBOARD: '/mentor',
   // Admin nested
   ADMIN_API_KEY: '/admin/api-key',
+  ADMIN_USERS: '/admin/users',
 };
 
 export default ROUTER;

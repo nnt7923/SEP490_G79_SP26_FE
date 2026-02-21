@@ -34,6 +34,7 @@ const Header: React.FC = () => {
     : normalizedRole === 'mentor'
       ? ROUTER.MENTOR_DASHBOARD
       : ROUTER.STUDENT_DASHBOARD
+  const showPlansLink = normalizedRole !== 'admin'
 
   // Markdown now uses link syntax for navigation
   const md = `- [Dashboard](${dashboardPath})\n- [Profile](/profile)\n- [Settings](/settings)\n- [Logout](#logout)`
@@ -54,8 +55,10 @@ const Header: React.FC = () => {
             </Link>
             <nav className="hidden md:flex items-center gap-4" aria-label="Primary">
               <Link to="/" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Home</Link>
-              <Link to="/classes" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Classes</Link>
-              <Link to="/plans" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Plans</Link>
+              {/* <Link to="/classes" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Classes</Link> */}
+              {showPlansLink && (
+                <Link to="/plans" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Plans</Link>
+              )}
               <Link to="/about" className="text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">About</Link>
             </nav>
           </div>
@@ -96,12 +99,25 @@ const Header: React.FC = () => {
                     className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3 z-50"
                   >
                     <div className="flex flex-col gap-2">
-                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(dashboardPath) }}>Dashboard</button>
-                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(ROUTER.PROFILE) }}>Profile</button>
-                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(ROUTER.HOME) }}>Settings</button>
-                      <button className="text-left px-3 py-2 rounded-md text-sm text-red-600 hover:bg-red-50" onClick={onLogout}>Logout</button>
+                      {/* <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(dashboardPath) }}>Dashboard</button>
+                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(ROUTER.PROFILE) }}>Profile</button> */}
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children }) => (
+                              <button
+                                className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800 w-full"
+                                onClick={() => {
+                                  setOpen(false)
+                                  if (href === '#logout') onLogout()
+                                  else if (href) navigate(href)
+                                }}
+                              >{children}</button>
+                            ),
+                          }}
+                        >{md}</ReactMarkdown>
+                      </div>
                     </div>
-                    
                   </div>
                 )}
               </div>
