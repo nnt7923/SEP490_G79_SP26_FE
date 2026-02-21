@@ -1,42 +1,45 @@
 import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { getAdminSidebarConfig } from '../components/AdminSideBar'
-import { AIConfigService, type AIConfig } from '../../../../services'
-import { Eye, EyeOff, Save, RotateCcw, AlertCircle, Plus, Trash2 } from 'lucide-react'
+import { AIConfigService } from '../../../../services'
 
 const AdminApiKeyPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>('')
+
+  // List of configs from backend
+  const [items, setItems] = useState<any[]>([])
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+
+  // Add form state
+  const [showAddForm, setShowAddForm] = useState<boolean>(false)
   const [providerName, setProviderName] = useState<string>('')
   const [apiKey, setApiKey] = useState<string>('')
-  const [configJson, setConfigJson] = useState<Array<{ key: string; value: string }>>([])
-  const [showPassword, setShowPassword] = useState(false)
+  const [model, setModel] = useState<string>('')
+  const [maxTokens, setMaxTokens] = useState<string>('')
+  const [temperature, setTemperature] = useState<string>('')
+  const [maxRetries, setMaxRetries] = useState<string>('')
+  const [isEnabel, setIsEnabel] = useState<boolean>(true)
+
+  const maskKey = (key?: string) => (key ? key.replace(/.(?=.{4})/g, '*') : '')
+
+  const fetchList = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const cfg = await AIConfigService.getAIConfig()
+      const list = Array.isArray(cfg) ? cfg : cfg ? [cfg] : []
+      setItems(list)
+    } catch (e: any) {
+      setError(e?.message || 'Không tải được danh sách API key')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchConfig = async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const cfg = await AIConfigService.getAIConfig()
-        const first = Array.isArray(cfg) ? cfg[0] : cfg
-        if (first) {
-          setProviderName(first.providerName || '')
-          setApiKey(first.apiKey || '')
-          const config = first.configJson || {}
-          const items = Object.entries(config).map(([key, value]) => ({
-            key,
-            value: String(value),
-          }))
-          setConfigJson(items)
-        }
-      } catch (e: any) {
-        setError(e?.message || 'Failed to load AI configuration')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchConfig()
+    fetchList()
   }, [])
 
   const onSave = async (e: React.FormEvent) => {
@@ -44,21 +47,31 @@ const AdminApiKeyPage: React.FC = () => {
     setSaving(true)
     setError('')
     try {
-      const configObj = configJson.reduce((acc, item) => {
-        if (item.key.trim()) {
-          acc[item.key] = item.value
-        }
-        return acc
-      }, {} as Record<string, string>)
-
-      await AIConfigService.updateAIConfig({
+      const payload = {
         providerName,
         apiKey,
-        configJson: configObj,
-      })
-      setError('')  // Success
+        configJson: {
+          Model: model,
+          MaxTokens: Number(maxTokens) || 0,
+          Temperature: Number(temperature) || 0,
+          MaxRetries: Number(maxRetries) || 0,
+        },
+        isEnabel,
+      }
+      await AIConfigService.updateAIConfig(payload as any)
+      setShowAddForm(false)
+      // Reset form
+      setProviderName('')
+      setApiKey('')
+      setModel('')
+      setMaxTokens('')
+      setTemperature('')
+      setMaxRetries('')
+      setIsEnabel(true)
+      // Refresh list
+      fetchList()
     } catch (e: any) {
-      setError(e?.message || 'Failed to add API key')
+      setError(e?.message || 'Cập nhật thất bại')
     } finally {
       setSaving(false)
     }
@@ -66,213 +79,206 @@ const AdminApiKeyPage: React.FC = () => {
 
   const sidebarConfig = {
     navItems: getAdminSidebarConfig(),
-    brand: { name: 'API Configuration', subtitle: 'Admin' },
+    brand: { name: 'API Key', subtitle: 'Admin' },
   }
-
-  const maskedKey = apiKey ? apiKey.replace(/.(?=.{4})/g, '*') : ''
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-4xl mx-auto w-full">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2">AI Provider Configuration</h1>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">Configure your AI provider, API key, and model settings.</p>
+      <div className="p-6 max-w-3xl">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-semibold">Danh sách API Keys</h1>
+          <button
+            type="button"
+            onClick={() => setShowAddForm((s) => !s)}
+            className="px-4 py-2 rounded-md bg-blue-600 text-white"
+          >{showAddForm ? 'Đóng' : 'Thêm API Key'}</button>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex gap-3 items-start" role="alert">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 break-words">{error}</p>
-            </div>
-          </div>
+          <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2" role="alert">{error}</div>
         )}
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-300 border-t-slate-900 dark:border-t-white"></div>
-            <span className="text-xs sm:text-sm font-medium">Loading configuration...</span>
-          </div>
-        ) : (
-          <>
-            {/* Summary card (read-only) */}
-            <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-4 sm:p-6 mb-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Provider</p>
-                  <p className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">{providerName || '—'}</p>
-                </div>
-                <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">API Key</p>
-                  <p className="text-sm sm:text-base font-mono text-slate-900 dark:text-slate-300 tracking-wide truncate">{maskedKey || '—'}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {configJson.length > 0 ? (
-                  configJson.map((item, idx) => (
-                    <div key={idx}>
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">{item.key}</p>
-                      <p className="text-base font-semibold text-slate-900 dark:text-white truncate">{item.value || '—'}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 col-span-full">No configuration items</p>
-                )}
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-6 border-t border-gray-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="inline-flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 text-sm"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  {showPassword ? 'Hide' : 'Show'} Full Key
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      setLoading(true)
-                      const cfg = await AIConfigService.getAIConfig()
-                      const first = Array.isArray(cfg) ? cfg[0] : cfg
-                      if (first) {
-                        setProviderName(first.providerName || '')
-                        setApiKey(first.apiKey || '')
-                        const config = first.configJson || {}
-                        const items = Object.entries(config).map(([key, value]) => ({
-                          key,
-                          value: String(value),
-                        }))
-                        setConfigJson(items)
-                      }
-                    } catch (e: any) {
-                      setError(e?.message || 'Failed to reload')
-                    } finally {
-                      setLoading(false)
-                    }
-                  }}
-                  className="inline-flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 text-sm"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Reload
-                </button>
-              </div>
-            </div>
-
-            {/* Configuration Form */}
-            <form onSubmit={onSave} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-4 sm:p-6 space-y-5">
-              <h2 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white mb-6">Add API Key</h2>
-
+        {showAddForm && (
+          <form onSubmit={onSave} className="space-y-4 mb-6 border rounded-md p-4 bg-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="provider" className="block text-xs sm:text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  Provider Name
-                </label>
+                <label className="block text-sm font-medium mb-1">Provider Name</label>
                 <input
-                  id="provider"
                   type="text"
-                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors text-sm"
-                  placeholder="openai, anthropic, gemini, groq, or ollama"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="vd: Groq"
                   value={providerName}
                   onChange={(e) => setProviderName(e.target.value)}
-                  required
                 />
               </div>
 
               <div>
-                <label htmlFor="apikey" className="block text-xs sm:text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  API Key
-                </label>
-                <div className="relative">
-                  <input
-                    id="apikey"
-                    type={showPassword ? 'text' : 'password'}
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors pr-10 text-sm"
-                    placeholder="Enter your API key"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 focus:outline-none"
-                    aria-label={showPassword ? 'Hide API key' : 'Show API key'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+                <label className="block text-sm font-medium mb-1">API Key</label>
+                <input
+                  type="password"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="Nhập API Key"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
-                    Configuration
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setConfigJson([...configJson, { key: '', value: '' }])}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-sm font-medium transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900"
-                    aria-label="Add configuration item"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add
-                  </button>
-                </div>
+                <label className="block text-sm font-medium mb-1">Model</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="vd: openai/gpt-oss-120b"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Max Tokens</label>
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="8192"
+                  value={maxTokens}
+                  onChange={(e) => setMaxTokens(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Temperature</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="0.3"
+                  value={temperature}
+                  onChange={(e) => setTemperature(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Max Retries</label>
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="3"
+                  value={maxRetries}
+                  onChange={(e) => setMaxRetries(e.target.value)}
+                />
+              </div>
+            </div>
 
-                <div className="space-y-3">
-                  {configJson.length > 0 ? (
-                    configJson.map((item, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Key (e.g., Model, MaxTokens)"
-                          value={item.key}
-                          onChange={(e) => {
-                            const updated = [...configJson]
-                            updated[idx].key = e.target.value
-                            setConfigJson(updated)
-                          }}
-                          className="flex-1 min-w-0 px-3 sm:px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Value"
-                          value={item.value}
-                          onChange={(e) => {
-                            const updated = [...configJson]
-                            updated[idx].value = e.target.value
-                            setConfigJson(updated)
-                          }}
-                          className="flex-1 min-w-0 px-3 sm:px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setConfigJson(configJson.filter((_, i) => i !== idx))}
-                          className="px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-slate-900"
-                          aria-label="Remove configuration item"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+            <div className="flex items-center gap-2">
+              <input
+                id="isEnabel"
+                type="checkbox"
+                className="h-4 w-4"
+                checked={isEnabel}
+                onChange={(e) => setIsEnabel(e.target.checked)}
+              />
+              <label htmlFor="isEnabel" className="text-sm">Kích hoạt (isEnabel)</label>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-60"
+              >{saving ? 'Đang lưu...' : 'Lưu cấu hình'}</button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 rounded-md border"
+              >Hủy</button>
+            </div>
+          </form>
+        )}
+
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm text-gray-600">Chỉ hiển thị Provider và API Key. Bấm icon để xem chi tiết.</p>
+          <button
+            type="button"
+            onClick={fetchList}
+            className="px-3 py-1.5 rounded-md border"
+          >Tải lại</button>
+        </div>
+
+        {loading ? (
+          <div className="text-sm text-gray-500">Đang tải dữ liệu...</div>
+        ) : items.length === 0 ? (
+          <div className="text-sm text-gray-500 border rounded-md p-4 bg-white">Chưa có API Key nào.</div>
+        ) : (
+          <div className="space-y-2">
+            {items.map((it, idx) => {
+              const name = it.providerName ?? it.provider ?? '—'
+              const key = it.apiKey ?? it.ApiKey ?? ''
+              const masked = maskKey(key)
+              const cj = it.configJson ?? it.GroqSettings ?? {}
+              const detail = {
+                Model: cj.Model ?? it.model ?? '—',
+                MaxTokens: cj.MaxTokens ?? it.maxTokens ?? '—',
+                Temperature: cj.Temperature ?? it.temperature ?? '—',
+                MaxRetries: cj.MaxRetries ?? it.maxRetries ?? '—',
+                isEnabel: typeof it.isEnabel === 'boolean' ? it.isEnabel : (typeof it.isEnable === 'boolean' ? it.isEnable : undefined),
+              }
+              const expanded = expandedIndex === idx
+              return (
+                <div key={`${name}-${idx}`} className="border rounded-md bg-white">
+                  <div className="p-3 sm:flex sm:items-center sm:justify-between gap-3">
+                    <div className="min-w-0 flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-8">
+                      <div className="min-w-0">
+                        <div className="text-xs text-gray-500 select-none">Provider</div>
+                        <div className="font-medium truncate">{name}</div>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-slate-500 dark:text-slate-400 py-2">No configuration items. Click "Add" to create one.</p>
+                      <div className="min-w-0">
+                        <div className="text-xs text-gray-500 select-none">API Key</div>
+                        <div className="font-mono tracking-normal truncate max-w-full sm:max-w-[28rem] md:max-w-[36rem]">{masked || '—'}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 sm:mt-0 flex items-center justify-end">
+                      <button
+                        type="button"
+                        title={expanded ? 'Ẩn chi tiết' : 'Xem chi tiết'}
+                        onClick={() => setExpandedIndex(expanded ? null : idx)}
+                        className="p-2 rounded-md border hover:bg-gray-50"
+                        aria-label="details"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${expanded ? 'text-blue-600' : 'text-gray-600'}`} viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8 8 3.582 8 8zM9 9a1 1 0 112 0v6a1 1 0 11-2 0V9zm1-4a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  {expanded && (
+                    <div className="px-3 pb-3 text-sm text-gray-700">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-gray-500">Model</div>
+                          <div className="font-medium">{String(detail.Model)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Max Tokens</div>
+                          <div className="font-medium">{String(detail.MaxTokens)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Temperature</div>
+                          <div className="font-medium">{String(detail.Temperature)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Max Retries</div>
+                          <div className="font-medium">{String(detail.MaxRetries)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Trạng thái</div>
+                          <div className="font-medium">{detail.isEnabel === undefined ? '—' : (detail.isEnabel ? 'Đang bật' : 'Tắt')}</div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-6 border-t border-gray-100 dark:border-slate-800">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 disabled:cursor-not-allowed text-sm"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Adding...' : 'Add API Key'}
-                </button>
-              </div>
-            </form>
-          </>
+              )
+            })}
+          </div>
         )}
       </div>
     </Layout>

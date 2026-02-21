@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Header from '../../../../components/Layout/Header'
 import Footer from '../../../../components/Layout/Footer'
 import ROUTER from '../../../../router/ROUTER'
-import { getLessonHub, getChapterHub } from '../../../../services/SignalR'
+import { requestLessonContent, requestChapterContent } from '../../../../services/SignalR'
 import { generateAllContent } from '../../../../services/ContentGenerator'
 import ReactMarkdown from 'react-markdown'
 
@@ -35,8 +35,7 @@ const ResultPage: React.FC = () => {
         return
       }
       try {
-        await Promise.all([getLessonHub(), getChapterHub()])
-        console.info('[SignalR] lesson & chapter hubs initialized')
+        // Hubs will be started on first request; content generation is stubbed
         const summary = await generateAllContent(skeleton, { concurrency: 2 })
         console.info('[Generate] done:', summary)
       } catch (err: any) {
@@ -53,6 +52,7 @@ const ResultPage: React.FC = () => {
       .map((ls: any, idx: number) => ({
         id: ls?.id ?? ls?.lessonId ?? ls?.LessonId,
         title: ls?.title || `Bài học ${idx + 1}`,
+        chapters: Array.isArray(ls?.chapters) ? ls.chapters : [],
       }))
       .filter((x: any) => !!x.id)
   }, [skeleton])
@@ -62,6 +62,7 @@ const ResultPage: React.FC = () => {
     if (!selectedLessonId && lessons?.[0]?.id) setSelectedLessonId(lessons[0].id)
   }, [lessons, selectedLessonId])
 
+  // Helpers to extract markdown-like text from various payload shapes
   const getStored = (key: string) => {
     try { return JSON.parse(sessionStorage.getItem(key) || 'null') } catch { return null }
   }
@@ -79,14 +80,68 @@ const ResultPage: React.FC = () => {
   }
 
   const [md, setMd] = useState<string>('')
-  const reloadMd = () => {
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch lesson content via SignalR when selected lesson changes
+  useEffect(() => {
+    let disposed = false
+    const run = async () => {
+      if (!selectedLessonId) { setMd(''); setError(null); return }
+      setLoading(true)
+      setError(null)
+      try {
+        const content = await requestLessonContent(selectedLessonId, () => {
+          if (!disposed) setLoading(true)
+        })
+        if (disposed) return
+        try { sessionStorage.setItem(`lessonContent:${selectedLessonId}`, JSON.stringify(content)) } catch {}
+        setMd(extractMarkdown(content))
+      } catch (e: any) {
+        if (disposed) return
+        const msg = e?.message || 'Không thể tải nội dung bài học.'
+        // Fallback to any cached content
+        const cached = getStored(`lessonContent:${selectedLessonId}`)
+        if (cached) {
+          setMd(extractMarkdown(cached))
+        }
+        setError(msg)
+      } finally {
+        if (!disposed) setLoading(false)
+      }
+    }
+    run()
+    return () => { disposed = true }
+  }, [selectedLessonId])
+
+  // Load cached content initially if any
+  useEffect(() => {
     if (!selectedLessonId) { setMd(''); return }
     const payload = getStored(`lessonContent:${selectedLessonId}`)
-    setMd(extractMarkdown(payload))
-  }
-  useEffect(() => {
-    reloadMd()
+    if (payload) setMd(extractMarkdown(payload))
   }, [selectedLessonId])
+
+  // Fetch chapter content when clicking a chapter item
+  const handleChapterClick = async (chapterId?: string) => {
+    if (!chapterId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const content = await requestChapterContent(chapterId, () => setLoading(true))
+      try { sessionStorage.setItem(`chapterContent:${chapterId}`, JSON.stringify(content)) } catch {}
+      setMd(extractMarkdown(content))
+    } catch (e: any) {
+      const msg = e?.message || 'Không thể tải nội dung chương.'
+      // Fallback to cached chapter content
+      try {
+        const cached = getStored(`chapterContent:${chapterId}`)
+        if (cached) setMd(extractMarkdown(cached))
+      } catch {}
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Path meta for hero section
   const pathId: string | undefined = skeleton?.pathId ?? skeleton?.PathId ?? skeleton?.Id ?? skeleton?.path?.pathId ?? skeleton?.path?.id
@@ -134,11 +189,11 @@ const ResultPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Grid layout: left lesson content, right skeleton list */}
+          {/* Grid layout: left lesson/chapter content, right skeleton list */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <div className="card card__pad">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold">Nội dung bài học</h2>
+                <h2 className="text-lg font-semibold">Nội dung bài/chương</h2>
                 <div className="flex items-center gap-2">
                   <select
                     className="border rounded px-2 py-1 text-sm"
@@ -149,14 +204,18 @@ const ResultPage: React.FC = () => {
                       <option key={ls.id} value={ls.id}>{ls.title}</option>
                     ))}
                   </select>
-                  <button className="btn" onClick={reloadMd}>Cập nhật</button>
                 </div>
               </div>
+
               <div className="prose max-w-none overflow-auto" style={{ maxHeight: 480 }}>
-                {md ? (
+                {loading ? (
+                  <div className="text-gray-500 text-sm">Đang tải nội dung…</div>
+                ) : error ? (
+                  <div className="text-red-600 text-sm">{error}</div>
+                ) : md ? (
                   <ReactMarkdown>{md}</ReactMarkdown>
                 ) : (
-                  <div className="text-gray-500 text-sm">Chưa có nội dung cho bài học đã chọn.</div>
+                  <div className="text-gray-500 text-sm">Chưa có nội dung cho bài/chương đã chọn.</div>
                 )}
               </div>
             </div>
@@ -171,7 +230,14 @@ const ResultPage: React.FC = () => {
                       {Array.isArray(ls.chapters) && ls.chapters.length > 0 ? (
                         <ul className="mt-1 ml-4 list-disc text-sm text-gray-600">
                           {ls.chapters.map((ch: any) => (
-                            <li key={ch.id ?? ch.title}>{ch.title ?? 'Chapter'}</li>
+                            <li
+                              key={ch.id ?? ch.title}
+                              className="cursor-pointer hover:text-gray-800"
+                              onClick={() => handleChapterClick(ch.id)}
+                              title="Xem nội dung chương"
+                            >
+                              {ch.title ?? 'Chapter'}
+                            </li>
                           ))}
                         </ul>
                       ) : (

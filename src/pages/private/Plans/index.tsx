@@ -186,11 +186,13 @@ const PlansPage: React.FC = () => {
   // Load subjects from API
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(true)
+  const [subjectsError, setSubjectsError] = useState<string | null>(null)
   // Load goals from API + generation states
   const [goals, setGoals] = useState<any[]>([])
   const [goalsLoading, setGoalsLoading] = useState<boolean>(true)
   // Enable Live auto-update for goals
   const [goalsLive, setGoalsLive] = useState<boolean>(true)
+  const [goalsError, setGoalsError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<boolean>(false)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
@@ -287,8 +289,10 @@ const PlansPage: React.FC = () => {
           const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
           setSubjects(normalized as any)
         }
-      } catch {
-        // ignore
+      } catch (e: any) {
+        const d = e?.response?.data
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Không thể tải danh sách subject.'
+        if (active) setSubjectsError(msg)
       } finally {
         if (active) setSubjectsLoading(false)
       }
@@ -304,8 +308,10 @@ const PlansPage: React.FC = () => {
       try {
         const data = await GoalService.listGoals()
         if (active) setGoals(Array.isArray(data) ? data : [])
-      } catch {
-        // ignore
+      } catch (e: any) {
+        const d = e?.response?.data
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Không thể tải danh sách goals.'
+        if (active) setGoalsError(msg)
       } finally {
         if (active) setGoalsLoading(false)
       }
@@ -443,6 +449,10 @@ const PlansPage: React.FC = () => {
                       </div>
                     </div>
                   ))
+                ) : subjectsError ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#dc2626' }}>
+                    Không tải được danh sách subject: {subjectsError}
+                  </div>
                 ) : subjects.length > 0 ? (
                   subjects.map((s, idx) => (
                     <LanguageCard
@@ -549,6 +559,10 @@ const PlansPage: React.FC = () => {
                       </div>
                     </div>
                   ))
+                ) : goalsError ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#dc2626' }}>
+                    Không tải được goals: {goalsError}
+                  </div>
                 ) : goalItems.length > 0 ? (
                   goalItems.map((it, idx) => (
                     <SingleGoalCard
@@ -634,7 +648,12 @@ const PlansPage: React.FC = () => {
                       const d = e?.response?.data
                       const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
                       const code = d?.errorCode || d?.code
-                      setPlanError(code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path'))
+                      let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path')
+                      const lower = String(serverMsg || e?.message || '').toLowerCase()
+                      if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
+                        msg = 'AI service chưa được cấu hình hợp lệ (Invalid API Key). Vui lòng cấu hình GROQ_API_KEY trên backend và thử lại.'
+                      }
+                      setPlanError(msg)
                     } finally {
                       setGenerating(false)
                     }
