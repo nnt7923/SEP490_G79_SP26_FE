@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { AuthService, UserService } from '../services'
 
-type User = {
+export type User = {
   id: number
   username: string
   firstName?: string
@@ -30,6 +30,7 @@ interface AuthState {
   fetchProfile: () => Promise<void>
   updateProfile: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
   uploadAvatar: (file: File) => Promise<{ isOk: boolean; url?: string; msg?: string }>
+  changePassword: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
 }
 
 const useAuthStore = create<AuthState>((set, get) => ({
@@ -180,34 +181,44 @@ const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   uploadAvatar: async (file: File) => {
+
     try {
       set({ loading: true })
 
       const formData = new FormData()
       formData.append('file', file)
-
       await UserService.uploadAvatarProfile(formData)
-
-      const profile = await UserService.getProfile()
-
-      const url = (profile as any)?.avatarUrl
-
-      if (!url) {
-        return { isOk: false, msg: 'Không nhận được url ảnh' }
-      }
-      const currentUser = get().user
-      if (currentUser) {
-        set({ user: { ...currentUser, avatarUrl: url } })
-      }
-
+      await get().fetchProfile()
       return { isOk: true, msg: 'Upload ảnh thành công' }
-    } catch (error: any) {
+    } catch {
       return { isOk: false, msg: 'Upload ảnh thất bại' }
     } finally {
       set({ loading: false })
     }
   },
 
+  changePassword: async (payload) => {
+    try {
+      const res = await UserService.changePassword(payload)
+
+      console.log('API response:', res)
+
+      return {
+        isOk: true,
+        msg: res?.msg || res?.message || 'Password changed successfully!',
+      }
+    } catch (err: any) {
+      console.error('API error:', err)
+
+      return {
+        isOk: false,
+        msg:
+          err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          'Passwords do not match',
+      }
+    }
+  },
 }))
 
 export default useAuthStore

@@ -14,6 +14,7 @@ const ROUTER = {
   // Private routes
   STUDENT_DASHBOARD: '/dashboard',
   PROFILE: '/profile',
+  CHANGE_PASSWORD: '/change-password',
   ADMIN_DASHBOARD: '/admin',
   MENTOR_DASHBOARD: '/mentor',
   // Admin nested

@@ -16,11 +16,11 @@ const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
 const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
 const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
-const Profile = React.lazy(() => import('../pages/private/Student/Profile'))
+const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
+const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
 const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
-
 
 
 const router = createBrowserRouter([
@@ -56,6 +56,9 @@ const router = createBrowserRouter([
           { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
         ],
       },
+      { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
+      { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
+      { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
     ],
   },
   // Admin-only routes
