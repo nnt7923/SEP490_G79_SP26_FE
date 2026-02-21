@@ -21,6 +21,7 @@ const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangeP
 const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
+const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 
 
 const router = createBrowserRouter([
@@ -67,6 +68,7 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
+      { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
     ],
   },
   // Mentor-only routes
