@@ -5,12 +5,11 @@ import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { getStudentSidebarConfig } from './components/StudentSideBar'
-import { LogOut, Settings, HelpCircle } from 'lucide-react'
+import { LogOut, Settings, HelpCircle, BookOpen, TrendingUp, Award, Calendar, Clock } from 'lucide-react'
 
 const StudentIndex: React.FC = () => {
   const { user, logout } = useAuthStore()
   const displayName = user?.name || user?.username || 'Student'
-  // Robust role handling: backend may return role as string or object
   const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name ?? '—'
   const navigate = useNavigate()
 
@@ -51,51 +50,203 @@ const StudentIndex: React.FC = () => {
     },
   }
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold mb-3">{ROUTER_META[ROUTER.STUDENT_DASHBOARD]?.title || 'Dashboard'}</h1>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(ROUTER.HOME)}
-              className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Back Home
-            </button>
+      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6]">
+        {/* ========== PROFILE HEADER ========== */}
+        <div className="mb-8">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm">
+            <div className="h-24 bg-gradient-to-r from-[#2f80ed] to-[#7c3aed]"></div>
+            
+            <div className="px-6 pb-6 -mt-12 relative">
+              <div className="flex items-end gap-4 mb-4">
+                <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-[#2f80ed] to-[#7c3aed] border-4 border-white shadow-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-2xl">{getInitials(displayName)}</span>
+                </div>
+                
+                <div className="flex-1 pb-2">
+                  <h1 className="text-2xl font-bold text-[#111827]">{displayName}</h1>
+                  <p className="text-sm text-[#6b7280]">{roleName} • Learning Platform</p>
+                </div>
+
+                <button
+                  onClick={() => navigate(ROUTER.HOME)}
+                  className="h-10 px-4 rounded-lg border border-[#e5e7eb] bg-white text-sm font-500 text-[#374151] hover:bg-[#f9fafb] transition-all duration-200 cursor-pointer"
+                  title="Go back to home page"
+                >
+                  Back Home
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="stat-card">
+                  <div className="stat-card__label">Email</div>
+                  <div className="stat-card__value">{user?.email ?? '—'}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-card__label">Courses Enrolled</div>
+                  <div className="stat-card__value">0</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-card__label">Learning Hours</div>
+                  <div className="stat-card__value">0h</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-card__label">Completion Rate</div>
+                  <div className="stat-card__value">0%</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <p className="text-gray-600 dark:text-gray-300 mb-6">Hello, {displayName}! This is the basic Student dashboard.</p>
+        {/* ========== MAIN CONTENT GRID ========== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* STUDY PROGRESS */}
+          <div className="lg:col-span-2 dashboard-card">
+            <div className="dashboard-card__header">
+              <div className="flex items-center gap-3">
+                <div className="icon-badge icon-badge--primary">
+                  <TrendingUp size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#111827]">Study Progress</h2>
+                  <p className="text-xs text-[#6b7280]">Your learning performance</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="dashboard-card__body">
+              <div className="progress-stub">
+                <p className="text-sm text-[#6b7280]">📊 No courses yet. Enroll to start tracking progress.</p>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="progress-metric">
+                  <div className="metric-value">0</div>
+                  <div className="metric-label">Courses</div>
+                </div>
+                <div className="progress-metric">
+                  <div className="metric-value">0</div>
+                  <div className="metric-label">Lessons</div>
+                </div>
+                <div className="progress-metric">
+                  <div className="metric-value">0%</div>
+                  <div className="metric-label">Avg Score</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Profile Summary</h2>
-            <ul className="m-0 pl-4 text-sm text-gray-700 dark:text-gray-300">
-              <li>Name: {user?.name ?? '—'}</li>
-              <li>Username: {user?.username ?? '—'}</li>
-              <li>Email: {user?.email ?? '—'}</li>
-              <li>Role: {roleName}</li>
-            </ul>
-          </section>
-
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Upcoming Classes</h2>
-            <p className="text-sm text-gray-500">No data yet. Coming soon.</p>
-          </section>
-
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Study Progress</h2>
-            <p className="text-sm text-gray-500">Updating. You will see statistics here.</p>
-          </section>
+          {/* QUICK STATS */}
+          <div className="dashboard-card">
+            <div className="dashboard-card__header">
+              <div className="flex items-center gap-3">
+                <div className="icon-badge icon-badge--warning">
+                  <Award size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#111827]">Achievements</h2>
+                </div>
+              </div>
+            </div>
+            
+            <div className="dashboard-card__body">
+              <div className="achievement-stub">
+                <p className="text-xs text-[#6b7280]">Complete courses to earn badges and certificates.</p>
+              </div>
+              <div className="achievement-badges">
+                <div className="badge-placeholder">🏆</div>
+                <div className="badge-placeholder">⭐</div>
+                <div className="badge-placeholder">🎯</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-6">
-          <h2 className="text-lg font-medium mb-3">Quick Actions</h2>
-          <div className="flex flex-wrap gap-3">
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Enroll in class</a>
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">View schedule</a>
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Update profile</a>
+        {/* ========== UPCOMING & RESOURCES ========== */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* UPCOMING CLASSES */}
+          <div className="dashboard-card">
+            <div className="dashboard-card__header">
+              <div className="flex items-center gap-3">
+                <div className="icon-badge icon-badge--info">
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#111827]">Upcoming Classes</h2>
+                  <p className="text-xs text-[#6b7280]">What's coming up</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="dashboard-card__body">
+              <div className="empty-state">
+                <Calendar size={32} className="text-[#d1d5db]" />
+                <p className="text-sm text-[#6b7280]">No scheduled classes yet</p>
+                <p className="text-xs text-[#9ca3af]">Enroll in courses to see class schedules</p>
+              </div>
+            </div>
+          </div>
+
+          {/* LEARNING RESOURCES */}
+          <div className="dashboard-card">
+            <div className="dashboard-card__header">
+              <div className="flex items-center gap-3">
+                <div className="icon-badge icon-badge--success">
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#111827]">Learning Resources</h2>
+                  <p className="text-xs text-[#6b7280]">Available materials</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="dashboard-card__body">
+              <div className="empty-state">
+                <BookOpen size={32} className="text-[#d1d5db]" />
+                <p className="text-sm text-[#6b7280]">No resources available</p>
+                <p className="text-xs text-[#9ca3af]">Check back after enrolling in courses</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========== QUICK ACTIONS ========== */}
+        <div className="dashboard-card">
+          <div className="dashboard-card__header">
+            <h2 className="text-lg font-bold text-[#111827]">Quick Actions</h2>
+          </div>
+          
+          <div className="dashboard-card__body">
+            <div className="action-buttons">
+              <button className="action-button action-button--primary">
+                <BookOpen size={18} />
+                <span>Explore Courses</span>
+              </button>
+              <button className="action-button action-button--secondary">
+                <Calendar size={18} />
+                <span>View Schedule</span>
+              </button>
+              <button className="action-button action-button--secondary">
+                <Clock size={18} />
+                <span>Set Goals</span>
+              </button>
+              <button className="action-button action-button--secondary">
+                <Settings size={18} />
+                <span>Update Profile</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

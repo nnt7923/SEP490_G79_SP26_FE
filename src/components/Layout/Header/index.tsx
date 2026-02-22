@@ -34,15 +34,31 @@ const Header: React.FC = () => {
     : normalizedRole === 'mentor'
       ? ROUTER.MENTOR_DASHBOARD
       : ROUTER.STUDENT_DASHBOARD
+
+  // Decide profile path by role; admin has no profile
+  const profilePath = normalizedRole === 'admin' ? '' : (normalizedRole === 'mentor' ? ROUTER.MENTOR_PROFILE : ROUTER.PROFILE)
+
   const showPlansLink = normalizedRole !== 'admin'
 
-  // Markdown now uses link syntax for navigation
-  const md = `- [Dashboard](${dashboardPath})\n- [Profile](/profile)\n- [Settings](/settings)\n- [Logout](#logout)`
+  // Build markdown menu dynamically
+  const mdLines = [`- [Dashboard](${dashboardPath})`]
+  if (profilePath) mdLines.push(`- [Profile](${profilePath})`)
+  mdLines.push('- [Settings](/settings)')
+  mdLines.push('- [Logout](#logout)')
+  const md = mdLines.join('\n')
 
   const onLogout = async () => {
     try { await logout() } catch {}
     navigate(ROUTER.HOME)
   }
+
+  const AvatarEl = (
+    user?.avatarUrl ? (
+      <img src={user.avatarUrl} alt="avatar" className="w-9 h-9 rounded-full object-cover" />
+    ) : (
+      <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-sm font-semibold text-slate-700 dark:text-slate-200">{initials}</div>
+    )
+  )
 
   return (
     <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
@@ -74,13 +90,13 @@ const Header: React.FC = () => {
             ) : (
               <div className="relative" ref={menuRef}>
                 <div className="flex items-center gap-3">
-                  <Link to={ROUTER.PROFILE} aria-label="profile">
-                    {user?.avatarUrl ? (
-                      <img src={user.avatarUrl} alt="avatar" className="w-9 h-9 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-sm font-semibold text-slate-700 dark:text-slate-200">{initials}</div>
-                    )}
-                  </Link>
+                  {profilePath ? (
+                    <Link to={profilePath} aria-label="profile">
+                      {AvatarEl}
+                    </Link>
+                  ) : (
+                    <span aria-label="profile">{AvatarEl}</span>
+                  )}
 
                   <button
                     aria-haspopup="menu"
@@ -99,8 +115,6 @@ const Header: React.FC = () => {
                     className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3 z-50"
                   >
                     <div className="flex flex-col gap-2">
-                      {/* <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(dashboardPath) }}>Dashboard</button>
-                      <button className="text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-slate-800" onClick={() => { setOpen(false); navigate(ROUTER.PROFILE) }}>Profile</button> */}
                       <div className="prose prose-sm max-w-none">
                         <ReactMarkdown
                           components={{

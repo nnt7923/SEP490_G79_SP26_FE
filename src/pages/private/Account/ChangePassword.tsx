@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Layout from '../../../components/Layout'
 import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
+import { getMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Settings, HelpCircle } from 'lucide-react'
@@ -8,20 +9,23 @@ import useAuthStore from '../../../store/useAuthStore'
 
 const ChangePassword = () => {
   const navigate = useNavigate()
-  const { logout, changePassword } = useAuthStore()
+  const { logout, changePassword, user } = useAuthStore()
 
   const handleLogout = async () => {
     await logout()
     navigate(ROUTER.LOGIN)
   }
 
+  const roleName = (user?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0] || '').toString().trim().toLowerCase()
+  const navItems = useMemo(() => roleName === 'mentor' ? getMentorSidebarConfig() : getStudentSidebarConfig(), [roleName])
+
   const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
+    navItems,
     actions: [
       {
         label: 'Settings',
         icon: <Settings className="w-5 h-5" />,
-        onClick: () => navigate(ROUTER.PROFILE),
+        onClick: () => navigate(roleName === 'mentor' ? ROUTER.MENTOR_PROFILE : ROUTER.PROFILE),
       },
       {
         label: 'Help',
@@ -37,7 +41,7 @@ const ChangePassword = () => {
     ],
     brand: {
       name: 'Dashboard',
-      subtitle: 'Learning',
+      subtitle: roleName === 'mentor' ? 'Teaching' : 'Learning',
     },
   }
 
