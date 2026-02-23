@@ -70,4 +70,4 @@ dist-ssr
 # Unit test artifacts (Vitest)
 coverage/
 .vitest/
-*.lcov
+*.lcov.github/
