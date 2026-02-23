@@ -34,10 +34,9 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
     try {
       setLoadingSubjects(true)
       const data = await SubjectService.listSubjects()
-      console.log('=== Subjects from API ===', data)
       setSubjects(data)
     } catch (err) {
-      console.error('Failed to load subjects:', err)
+      // silently ignore in UI; optional: onShowToast later
     } finally {
       setLoadingSubjects(false)
     }
@@ -90,23 +89,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
         formData.append('File', file)
       }
 
-      // Debug: Log FormData contents
-      console.log('=== FormData Debug ===')
-      console.log('Title:', title)
-      console.log('Type:', type)
-      console.log('SubjectId:', subjectId)
-      console.log('Description:', description)
-      if (type === 'Link') {
-        console.log('Url:', url)
-      } else if (file) {
-        console.log('File:', file.name, file.type, file.size)
-      }
-      
-      // Log all FormData entries
-      console.log('=== FormData Entries ===')
-      for (const pair of formData.entries()) {
-        console.log(pair[0], ':', pair[1])
-      }
+      // removed debug logging of form data
 
       const { ResourceService } = await import('../../../services')
       await ResourceService.createResource(formData)
@@ -125,10 +108,6 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       onSuccess()
       onClose()
     } catch (err: any) {
-      console.error('=== Create Resource Error ===', err)
-      console.error('Error response:', err?.response)
-      console.error('Error data:', err?.response?.data)
-      
       const errorMsg = 
         err?.response?.data?.message || 
         err?.response?.data?.msg ||

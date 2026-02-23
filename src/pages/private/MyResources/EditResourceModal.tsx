@@ -80,16 +80,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
         formData.append('File', file)
       }
 
-      console.log('=== Update Resource Debug ===')
-      console.log('ResourceId:', resource.resourceId)
-      console.log('Title:', title)
-      console.log('Description:', description)
-      if (resource.type === 'Link') {
-        console.log('Url:', url)
-      }
-      if (file) {
-        console.log('New File:', file.name, file.type, file.size)
-      }
+      // removed debug logging
 
       const { ResourceService } = await import('../../../services')
       await ResourceService.updateResource(resource.resourceId, formData)
@@ -98,8 +89,6 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
       onSuccess()
       onClose()
     } catch (err: any) {
-      console.error('=== Update Resource Error ===', err)
-      
       const errorMsg = 
         err?.response?.data?.message || 
         err?.response?.data?.msg ||
