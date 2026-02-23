@@ -69,12 +69,12 @@ const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error: any) {
       const data = error?.response?.data
       const status = error?.response?.status
-      const defaultMsg = 'Đăng ký thất bại.'
+      const defaultMsg = 'Registration failed.'
       let msg = data?.msg || data?.detail || data?.title || data?.message
       if (!msg) {
-        if (status === 500) msg = 'Máy chủ gặp sự cố. Vui lòng thử lại sau.'
-        else if (status === 409) msg = 'Email hoặc Username đã tồn tại.'
-        else if (status === 400) msg = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.'
+        if (status === 500) msg = 'Server error. Please try again later.'
+        else if (status === 409) msg = 'Email or username already exists.'
+        else if (status === 400) msg = 'Invalid data. Please check and try again.'
         else msg = error?.message || defaultMsg
       }
       return { isOk: false, msg }
@@ -87,7 +87,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true })
     try {
       const resp: any = await AuthService.login({ Identifier: username, Password: password })
-      try { console.debug('[auth] login response:', resp) } catch { }
+      
 
       const token: string | undefined = resp?.token
       const rawUser: any = resp?.user ?? resp
@@ -107,16 +107,16 @@ const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         set({ user: loginUser })
-        try { console.debug('[auth] set login user:', loginUser) } catch { }
+        
 
         // Load full profile after token; preserve role if profile lacks it
         await get().fetchProfile()
         return { isOk: true }
       }
-      return { isOk: false, msg: 'Không nhận được token' }
+      return { isOk: false, msg: 'No token received' }
     } catch (error: any) {
       const data = error?.response?.data
-      const msg = data?.msg || data?.detail || data?.title || data?.message || error?.message || 'Đăng nhập thất bại.'
+      const msg = data?.msg || data?.detail || data?.title || data?.message || error?.message || 'Login failed.'
       return { isOk: false, msg }
     } finally {
       set({ loading: false })
@@ -145,7 +145,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data: any = await UserService.getProfile()
       const profileData: any = data?.data ?? data
-      try { console.debug('[auth] fetchProfile response:', profileData) } catch { }
+      
       const currentUser = get().user
 
       // Determine role from profile if available; otherwise keep current role
@@ -157,7 +157,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
         role: profileRoleName ? { name: profileRoleName } : currentUser?.role,
       }
 
-      try { console.debug('[auth] final user after fetchProfile:', user) } catch { }
+      
       set({ user })
     } catch {
       get().clearState()
@@ -189,9 +189,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
       formData.append('file', file)
       await UserService.uploadAvatarProfile(formData)
       await get().fetchProfile()
-      return { isOk: true, msg: 'Upload ảnh thành công' }
+      return { isOk: true, msg: 'Avatar uploaded successfully' }
     } catch {
-      return { isOk: false, msg: 'Upload ảnh thất bại' }
+      return { isOk: false, msg: 'Avatar upload failed' }
     } finally {
       set({ loading: false })
     }
@@ -201,7 +201,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const res = await UserService.changePassword(payload)
 
-      console.log('API response:', res)
+      
 
       return {
         isOk: true,

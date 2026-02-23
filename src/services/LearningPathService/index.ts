@@ -1,23 +1,60 @@
 import api from '../Axios'
 import { skeletonUrl, lessonContentUrl } from './url'
 
-export type Chapter = {
+export type Quiz = {
   id: string
   title: string
-  description?: string
+  description?: string | null
 }
 
 export type Lesson = {
   id: string
   title: string
-  description?: string
+  description?: string | null
+  content?: string | null
+  quizzes?: Quiz[]
   chapters?: Chapter[]
 }
 
+export type Task = {
+  id: string
+  title: string
+  description?: string | null
+}
+
+export type Chapter = {
+  id: string
+  title: string
+  content?: string | null
+  orderIndex?: number
+  lessons?: Lesson[]
+  tasks?: Task[]
+}
+
 export type SkeletonResponse = {
-  subjects?: { id: string; name?: string }[]
-  goals?: { id: string; name?: string }[]
-  lessons: Lesson[]
+  // New top-level fields from backend
+  pathId?: string
+  title?: string
+  description?: string | null
+  chapterDtos?: Array<{
+    chapterId: string
+    title: string
+    content?: string | null
+    orderIndex?: number
+    lessons?: Array<{
+      lessonId: string
+      title: string
+      content?: string | null
+      quizzes?: Array<{ quizzId: string; title: string; description?: string | null }>
+    }>
+    tasks?: Array<{ taskId: string; title: string; description?: string | null }>
+  }>
+  chapterCount?: number
+  createdAt?: string
+  isContentGenerating?: boolean
+  // Normalized fields for UI compatibility
+  lessons?: Lesson[]
+  chapters?: Chapter[]
   [key: string]: any
 }
 
@@ -33,6 +70,65 @@ function unwrap<T>(res: any): T {
     }
   }
   return data as T
+}
+
+function normalizeSkeleton(payload: any): SkeletonResponse {
+  const hasChapterDtos = Array.isArray(payload?.chapterDtos)
+  const chapters: Chapter[] | undefined = hasChapterDtos
+    ? payload.chapterDtos.map((ch: any) => ({
+        id: ch?.chapterId ?? ch?.id,
+        title: ch?.title,
+        content: ch?.content ?? null,
+        orderIndex: ch?.orderIndex,
+        lessons: Array.isArray(ch?.lessons)
+          ? ch.lessons.map((ls: any) => ({
+              id: ls?.lessonId ?? ls?.id,
+              title: ls?.title,
+              description: null,
+              content: ls?.content ?? null,
+              quizzes: Array.isArray(ls?.quizzes)
+                ? ls.quizzes.map((q: any) => ({
+                    id: q?.quizzId ?? q?.id,
+                    title: q?.title,
+                    description: q?.description ?? null,
+                  }))
+                : [],
+            }))
+          : [],
+        tasks: Array.isArray(ch?.tasks)
+          ? ch.tasks.map((t: any) => ({
+              id: t?.taskId ?? t?.id,
+              title: t?.title,
+              description: t?.description ?? null,
+            }))
+          : [],
+      }))
+    : payload?.chapters
+
+  // Flatten lessons for existing UI components
+  const lessons: Lesson[] | undefined = hasChapterDtos
+    ? (chapters || []).flatMap((ch) => ch.lessons || [])
+    : Array.isArray(payload?.lessons)
+    ? payload.lessons.map((ls: any) => ({
+        id: ls?.id ?? ls?.lessonId,
+        title: ls?.title,
+        description: ls?.description ?? null,
+        content: ls?.content ?? null,
+        quizzes: Array.isArray(ls?.quizzes)
+          ? ls.quizzes.map((q: any) => ({
+              id: q?.id ?? q?.quizzId,
+              title: q?.title,
+              description: q?.description ?? null,
+            }))
+          : [],
+      }))
+    : undefined
+
+  return {
+    ...payload,
+    chapters,
+    lessons,
+  } as SkeletonResponse
 }
 
 // Normalize payload to backend-expected format
@@ -78,7 +174,8 @@ export async function generateSkeleton(payload: any): Promise<SkeletonResponse> 
   if (goalsWithDurations.length > 0) reqBody.Goals = goalsWithDurations
 
   const res: any = await api.post(skeletonUrl, reqBody)
-  return unwrap<SkeletonResponse>(res)
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
 }
 
 export async function generateLessonContent(lessonId: string, payload?: any): Promise<Lesson> {

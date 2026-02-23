@@ -1,9 +1,10 @@
 /* Global styles for Home hero and Auth pages + Layout */
 :root {
-  --brand-primary: #2f80ed;
-  --brand-secondary: #111827;
-  --brand-accent: #fbbf24;
-  --brand-bg: #ffffff;
+  --brand-primary: #0D9488;
+  --brand-secondary: #134E4A;
+  --brand-accent: #EA580C;
+  --brand-bg: #F0FDFA;
+  --brand-border: #5EEAD4;
 }
 
 /* Shared buttons */
@@ -232,16 +233,16 @@
 .card--active { outline: 2px solid #4f46e5; }
 
 .icon-12 { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; }
-.icon--yellow { background: #f59e0b; }
-.icon--blue { background: #3b82f6; }
-.icon--orange { background: #f97316; }
-.icon--cyan { background: #06b6d4; }
-.icon--indigo { background: #6366f1; }
-.icon--pink { background: #ec4899; }
-.icon--teal { background: #14b8a6; }
-.icon--amber { background: #b45309; }
-.icon--violet { background: #8b5cf6; }
-.icon--emerald { background: #10b981; }
+.icon--yellow { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
+.icon--blue { background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); }
+.icon--orange { background: linear-gradient(135deg, #fb923c 0%, #f97316 100%); }
+.icon--cyan { background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%); }
+.icon--indigo { background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%); }
+.icon--pink { background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%); }
+.icon--teal { background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%); }
+.icon--amber { background: linear-gradient(135deg, #fbbf24 0%, #b45309 100%); }
+.icon--violet { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); }
+.icon--emerald { background: linear-gradient(135deg, #34d399 0%, #10b981 100%); }
 
 .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e5e7eb; border-radius: 12px; background: rgba(255,255,255,0.8); padding: 4px 8px; font-size: 11px; color: #6b7280; }
 .pill__dot { width: 6px; height: 6px; border-radius: 50%; background: #4f46e5; }
@@ -761,6 +762,58 @@
 
 /* === Dashboard Styling === */
 
+/* Lesson Content Styling */
+.lesson-content {
+  font-family: 'Open Sans', sans-serif;
+  line-height: 1.7;
+}
+
+.lesson-content h1,
+.lesson-content h2,
+.lesson-content h3,
+.lesson-content h4,
+.lesson-content h5,
+.lesson-content h6 {
+  font-family: 'Poppins', sans-serif;
+  scroll-margin-top: 2rem;
+}
+
+.lesson-content pre {
+  position: relative;
+}
+
+.lesson-content :not(pre) > code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Smooth scrolling for lesson content */
+.lesson-content {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for lesson content */
+.lesson-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.lesson-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.lesson-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.lesson-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* === Dashboard Styling === */
+
 /* Custom Roundings */
 .rounded-8 { border-radius: 8px; }
 .rounded-10 { border-radius: 10px; }
@@ -1055,4 +1108,29 @@
   .analytics-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Common Mistakes section: style the list right after the heading as cards */
+.lesson-content h2.cm-section + ul,
+.lesson-content h3.cm-section + ul {
+  border: 2px solid #99f6e4; /* teal-200 */
+  background: linear-gradient(to right, #f0fdfa, #ecfeff); /* from-teal-50 to-cyan-50 */
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  margin-bottom: 1rem;
+}
+.lesson-content h2.cm-section + ul li,
+.lesson-content h3.cm-section + ul li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb; /* gray-200 */
+  border-radius: 0.5rem;
+}
+.lesson-content h2.cm-section + ul li + li,
+.lesson-content h3.cm-section + ul li + li {
+  margin-top: 8px;
 }

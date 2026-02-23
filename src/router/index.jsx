@@ -22,6 +22,8 @@ const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
+const Plans = React.lazy(() => import('../pages/private/Plans'))
+const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 
 
 const router = createBrowserRouter([
@@ -53,13 +55,12 @@ const router = createBrowserRouter([
         element: <React.Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </React.Suspense>,
         children: [
           { path: ROUTER.PROFILE, element: <Profile /> },
-          { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
-          { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
+          { path: ROUTER.PLANS, element: <Plans /> },
+          { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },
         ],
       },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
-      { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
-      { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
+      // Removed duplicate PLANS and PLANS_RESULT routes
     ],
   },
   // Admin-only routes
