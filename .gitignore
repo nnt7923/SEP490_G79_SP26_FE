@@ -57,6 +57,9 @@ dist-ssr
 .trae
 .windsurf
 
+# Shared resources (UI/UX Pro Max)
+.shared/
+
 # config files
 .package-lock.json
 .package.json
