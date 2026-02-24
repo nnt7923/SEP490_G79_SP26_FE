@@ -56,6 +56,7 @@ dist-ssr
 .roo
 .trae
 .windsurf
+.shared
 
 # config files
 .package-lock.json
