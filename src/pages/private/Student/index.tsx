@@ -1,18 +1,42 @@
 import React from 'react'
 import useAuthStore from '../../../store/useAuthStore'
-import ROUTER_META from '../../../router/ROUTER_META'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { getStudentSidebarConfig } from './components/StudentSideBar'
-import { LogOut, Settings, HelpCircle } from 'lucide-react'
+import { LogOut, Settings, HelpCircle, Target, BookMarked } from 'lucide-react'
+import { listGoals } from '../../../services/GoalService'
+import { getUserLearningPaths } from '../../../services/LearningPathService'
 
 const StudentIndex: React.FC = () => {
   const { user, logout } = useAuthStore()
   const displayName = user?.name || user?.username || 'Student'
-  // Robust role handling: backend may return role as string or object
-  const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name ?? '—'
   const navigate = useNavigate()
+  const [goalsCount, setGoalsCount] = React.useState(0)
+  const [plansCount, setPlansCount] = React.useState(0)
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        setLoading(true)
+        const [goals, paths] = await Promise.all([
+          listGoals(),
+          getUserLearningPaths(user?.id || 'me', { pageSize: 1 })
+        ])
+        setGoalsCount(goals?.length || 0)
+        setPlansCount(paths?.totalCount || 0)
+      } catch (error) {
+        console.error('Error fetching counts:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (user?.id) {
+      fetchCounts()
+    }
+  }, [user?.id])
 
   const handleLogout = async () => {
     await logout()
@@ -23,83 +47,112 @@ const StudentIndex: React.FC = () => {
     navigate(ROUTER.PROFILE)
   }
 
-  const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
-    actions: [
-      {
-        label: 'Settings',
-        icon: <Settings className="w-5 h-5" />,
-        onClick: handleSettings,
-      },
-      {
-        label: 'Help',
-        icon: <HelpCircle className="w-5 h-5" />,
-        onClick: () => {
-          console.log('Help clicked')
-        },
-      },
-      {
-        label: 'Logout',
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: 'danger' as const,
-      },
-    ],
-    brand: {
-      name: 'Dashboard',
-      subtitle: 'Learning',
-    },
+
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
   }
 
   return (
-    <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold mb-3">{ROUTER_META[ROUTER.STUDENT_DASHBOARD]?.title || 'Dashboard'}</h1>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(ROUTER.HOME)}
-              className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Back Home
-            </button>
+    
+      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+        {/* ========== PROFILE HEADER ========== */}
+        <div className="mb-8">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm">
+            <div className="h-24 bg-gradient-to-r from-[#2f80ed] to-[#7c3aed]"></div>
+            
+            <div className="px-6 pb-6 -mt-12 relative">
+              <div className="flex items-end gap-4 mb-6">
+                <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-[#2f80ed] to-[#7c3aed] border-4 border-white shadow-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-2xl">{getInitials(displayName)}</span>
+                </div>
+                
+                <div className="flex-1 pb-2">
+                  <h1 className="text-2xl font-bold text-[#111827]">{displayName}</h1>
+                  <p className="text-sm text-[#6b7280]">{user?.email ?? '—'}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate(ROUTER.HOME)}
+                  className="h-10 px-4 rounded-lg border border-[#e5e7eb] bg-white text-sm font-500 text-[#374151] hover:bg-[#f9fafb] transition-all duration-200 cursor-pointer"
+                  title="Go back to home page"
+                >
+                  Back Home
+                </button>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Goals Card */}
+                <div className="bg-gradient-to-br from-[#fef3c7] to-[#fde68a] rounded-xl p-4 border border-[#fcd34d] shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-lg bg-[#f59e0b] flex items-center justify-center">
+                      <Target size={20} className="text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-[#92400e]">Goals</span>
+                  </div>
+                  <div className="text-3xl font-bold text-[#78350f]">
+                    {loading ? '—' : goalsCount}
+                  </div>
+                  <p className="text-xs text-[#b45309] mt-1">Learning objectives</p>
+                </div>
+
+                {/* Plans Card */}
+                <div className="bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe] rounded-xl p-4 border border-[#93c5fd] shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-lg bg-[#2f80ed] flex items-center justify-center">
+                      <BookMarked size={20} className="text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-[#1e40af]">Plans</span>
+                  </div>
+                  <div className="text-3xl font-bold text-[#1e3a8a]">
+                    {loading ? '—' : plansCount}
+                  </div>
+                  <p className="text-xs text-[#1e40af] mt-1">Learning paths</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <p className="text-gray-600 dark:text-gray-300 mb-6">Hello, {displayName}! This is the basic Student dashboard.</p>
+        {/* Quick Navigation */}
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => navigate(ROUTER.GOALS)}
+            className="bg-white border border-[#e5e7eb] rounded-xl p-4 hover:shadow-md hover:border-[#2f80ed] transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-[#fef3c7] group-hover:bg-[#fcd34d] transition-colors flex items-center justify-center">
+                <Target size={20} className="text-[#f59e0b]" />
+              </div>
+              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors">View Goals</span>
+            </div>
+            <p className="text-xs text-[#6b7280]">Check your learning objectives</p>
+          </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Profile Summary</h2>
-            <ul className="m-0 pl-4 text-sm text-gray-700 dark:text-gray-300">
-              <li>Name: {user?.name ?? '—'}</li>
-              <li>Username: {user?.username ?? '—'}</li>
-              <li>Email: {user?.email ?? '—'}</li>
-              <li>Role: {roleName}</li>
-            </ul>
-          </section>
-
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Upcoming Classes</h2>
-            <p className="text-sm text-gray-500">No data yet. Coming soon.</p>
-          </section>
-
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Study Progress</h2>
-            <p className="text-sm text-gray-500">Updating. You will see statistics here.</p>
-          </section>
-        </div>
-
-        <div className="mt-6">
-          <h2 className="text-lg font-medium mb-3">Quick Actions</h2>
-          <div className="flex flex-wrap gap-3">
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Enroll in class</a>
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">View schedule</a>
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Update profile</a>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate(ROUTER.MY_PLANS)}
+            className="bg-white border border-[#e5e7eb] rounded-xl p-4 hover:shadow-md hover:border-[#2f80ed] transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-[#dbeafe] group-hover:bg-[#bfdbfe] transition-colors flex items-center justify-center">
+                <BookMarked size={20} className="text-[#2f80ed]" />
+              </div>
+              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors">View Plans</span>
+            </div>
+            <p className="text-xs text-[#6b7280]">Explore your learning paths</p>
+          </button>
         </div>
       </div>
-    </Layout>
+    
   )
 }
 

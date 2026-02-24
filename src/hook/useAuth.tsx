@@ -13,10 +13,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const store = useAuthStore()
 
-  // Gọi API thật qua store, không dùng mock/getStoredAuth
+  // Call real API via store, do not use mock/getStoredAuth
   const login = async (username: string, password: string) => {
     const res = await store.login(username, password)
-    if (!res.isOk) throw new Error(res.msg || 'Đăng nhập thất bại.')
+    if (!res.isOk) throw new Error(res.msg || 'Login failed.')
   }
 
   const logout = () => {

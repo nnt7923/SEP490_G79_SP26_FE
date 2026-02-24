@@ -1,23 +1,60 @@
 import api from '../Axios'
-import { skeletonUrl, lessonContentUrl } from './url'
+import { skeletonUrl, lessonContentUrl, userLearningPathsUrl } from './url'
 
-export type Chapter = {
+export type Quiz = {
   id: string
   title: string
-  description?: string
+  description?: string | null
 }
 
 export type Lesson = {
   id: string
   title: string
-  description?: string
+  description?: string | null
+  content?: string | null
+  quizzes?: Quiz[]
   chapters?: Chapter[]
 }
 
+export type Task = {
+  id: string
+  title: string
+  description?: string | null
+}
+
+export type Chapter = {
+  id: string
+  title: string
+  content?: string | null
+  orderIndex?: number
+  lessons?: Lesson[]
+  tasks?: Task[]
+}
+
 export type SkeletonResponse = {
-  subjects?: { id: string; name?: string }[]
-  goals?: { id: string; name?: string }[]
-  lessons: Lesson[]
+  // New top-level fields from backend
+  pathId?: string
+  title?: string
+  description?: string | null
+  chapterDtos?: Array<{
+    chapterId: string
+    title: string
+    content?: string | null
+    orderIndex?: number
+    lessons?: Array<{
+      lessonId: string
+      title: string
+      content?: string | null
+      quizzes?: Array<{ quizzId: string; title: string; description?: string | null }>
+    }>
+    tasks?: Array<{ taskId: string; title: string; description?: string | null }>
+  }>
+  chapterCount?: number
+  createdAt?: string
+  isContentGenerating?: boolean
+  // Normalized fields for UI compatibility
+  lessons?: Lesson[]
+  chapters?: Chapter[]
   [key: string]: any
 }
 
@@ -35,33 +72,92 @@ function unwrap<T>(res: any): T {
   return data as T
 }
 
+function normalizeSkeleton(payload: any): SkeletonResponse {
+  const hasChapterDtos = Array.isArray(payload?.chapterDtos)
+  const chapters: Chapter[] | undefined = hasChapterDtos
+    ? payload.chapterDtos.map((ch: any) => ({
+      id: ch?.chapterId ?? ch?.id,
+      title: ch?.title,
+      content: ch?.content ?? null,
+      orderIndex: ch?.orderIndex,
+      lessons: Array.isArray(ch?.lessons)
+        ? ch.lessons.map((ls: any) => ({
+          id: ls?.lessonId ?? ls?.id,
+          title: ls?.title,
+          description: null,
+          content: ls?.content ?? null,
+          quizzes: Array.isArray(ls?.quizzes)
+            ? ls.quizzes.map((q: any) => ({
+              id: q?.quizzId ?? q?.id,
+              title: q?.title,
+              description: q?.description ?? null,
+            }))
+            : [],
+        }))
+        : [],
+      tasks: Array.isArray(ch?.tasks)
+        ? ch.tasks.map((t: any) => ({
+          id: t?.taskId ?? t?.id,
+          title: t?.title,
+          description: t?.description ?? null,
+        }))
+        : [],
+    }))
+    : payload?.chapters
+
+  // Flatten lessons for existing UI components
+  const lessons: Lesson[] | undefined = hasChapterDtos
+    ? (chapters || []).flatMap((ch) => ch.lessons || [])
+    : Array.isArray(payload?.lessons)
+      ? payload.lessons.map((ls: any) => ({
+        id: ls?.id ?? ls?.lessonId,
+        title: ls?.title,
+        description: ls?.description ?? null,
+        content: ls?.content ?? null,
+        quizzes: Array.isArray(ls?.quizzes)
+          ? ls.quizzes.map((q: any) => ({
+            id: q?.id ?? q?.quizzId,
+            title: q?.title,
+            description: q?.description ?? null,
+          }))
+          : [],
+      }))
+      : undefined
+
+  return {
+    ...payload,
+    chapters,
+    lessons,
+  } as SkeletonResponse
+}
+
 // Normalize payload to backend-expected format
 export async function generateSkeleton(payload: any): Promise<SkeletonResponse> {
   const subjectIds: string[] = Array.isArray(payload?.subjectIds)
     ? payload.subjectIds
     : Array.isArray(payload?.subjects)
-    ? payload.subjects.map((s: any) => s?.id ?? s?.subjectId).filter(Boolean)
-    : []
+      ? payload.subjects.map((s: any) => s?.id ?? s?.subjectId).filter(Boolean)
+      : []
 
   const goalIds: string[] = Array.isArray(payload?.goalIds)
     ? payload.goalIds
     : Array.isArray(payload?.goals)
-    ? payload.goals.map((g: any) => g?.id ?? g?.goalId).filter(Boolean)
-    : []
+      ? payload.goals.map((g: any) => g?.id ?? g?.goalId).filter(Boolean)
+      : []
 
   // Support per-goal duration in request body
   const goalsWithDurations: { GoalId: string; DurationDay: number; Description?: string }[] = Array.isArray(payload?.goals)
     ? payload.goals
-        .map((g: any) => {
-          const id = g?.GoalId ?? g?.goalId ?? g?.id
-          const d = g?.DurationDay ?? g?.durationDay ?? g?.duration
-          if (!id || !d) return null
-          const desc = g?.Description ?? g?.description
-          return desc ? { GoalId: String(id), DurationDay: Number(d), Description: String(desc) } : { GoalId: String(id), DurationDay: Number(d) }
-        })
-        .filter(Boolean) as any
+      .map((g: any) => {
+        const id = g?.GoalId ?? g?.goalId ?? g?.id
+        const d = g?.DurationDay ?? g?.durationDay ?? g?.duration
+        if (!id || !d) return null
+        const desc = g?.Description ?? g?.description
+        return desc ? { GoalId: String(id), DurationDay: Number(d), Description: String(desc) } : { GoalId: String(id), DurationDay: Number(d) }
+      })
+      .filter(Boolean) as any
     : Array.isArray(payload?.goalsWithDurations)
-    ? payload.goalsWithDurations
+      ? payload.goalsWithDurations
         .map((g: any) => {
           const id = g?.GoalId ?? g?.goalId ?? g?.id
           const d = g?.DurationDay ?? g?.durationDay ?? g?.duration
@@ -70,7 +166,7 @@ export async function generateSkeleton(payload: any): Promise<SkeletonResponse> 
           return desc ? { GoalId: String(id), DurationDay: Number(d), Description: String(desc) } : { GoalId: String(id), DurationDay: Number(d) }
         })
         .filter(Boolean) as any
-    : []
+      : []
 
   const reqBody: any = { SubjectIds: subjectIds, GoalIds: goalIds }
   if (subjectIds.length === 1) reqBody.SubjectId = subjectIds[0]
@@ -78,25 +174,67 @@ export async function generateSkeleton(payload: any): Promise<SkeletonResponse> 
   if (goalsWithDurations.length > 0) reqBody.Goals = goalsWithDurations
 
   const res: any = await api.post(skeletonUrl, reqBody)
-  return unwrap<SkeletonResponse>(res)
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
 }
 
 export async function generateLessonContent(lessonId: string, payload?: any): Promise<Lesson> {
   const subjectIds: string[] = Array.isArray(payload?.subjectIds)
     ? payload.subjectIds
     : Array.isArray(payload?.subjects)
-    ? payload.subjects.map((s: any) => s?.id).filter(Boolean)
-    : []
+      ? payload.subjects.map((s: any) => s?.id).filter(Boolean)
+      : []
 
   const goalIds: string[] = Array.isArray(payload?.goalIds)
     ? payload.goalIds
     : Array.isArray(payload?.goals)
-    ? payload.goals.map((g: any) => g?.id).filter(Boolean)
-    : []
+      ? payload.goals.map((g: any) => g?.id).filter(Boolean)
+      : []
 
   const reqBody = { SubjectIds: subjectIds, GoalIds: goalIds }
   const res: any = await api.post(lessonContentUrl(lessonId), reqBody)
   return unwrap<Lesson>(res)
 }
 
-export default { generateSkeleton, generateLessonContent }
+export interface UserLearningPathsParams {
+  pageNumber?: number
+  pageSize?: number
+  searchTerm?: string
+  subjectId?: string
+  status?: string
+  sortDescending?: boolean
+}
+
+export interface UserLearningPathsResponse {
+  items: SkeletonResponse[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+}
+
+export async function getUserLearningPaths(
+  userId: string | number,
+  params?: UserLearningPathsParams
+): Promise<UserLearningPathsResponse> {
+  const queryParams = new URLSearchParams()
+
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+  if (params?.status) queryParams.append('Status', params.status)
+  if (params?.sortDescending !== undefined) queryParams.append('SortDescending', String(params.sortDescending))
+
+  const url = `${userLearningPathsUrl(userId)}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<UserLearningPathsResponse>(res)
+
+  return {
+    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeleton) : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+  }
+}
+
+export default { generateSkeleton, generateLessonContent, getUserLearningPaths }

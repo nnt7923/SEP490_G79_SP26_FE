@@ -1,9 +1,17 @@
 import api from '../Axios'
-import { listGoalsUrl, createGoalUrl, goalUrl } from './url'
+import { listGoalsUrl, createGoalUrl, goalUrl, userGoalsUrl, mockGoals } from './url'
 
 export async function listGoals(): Promise<Goal[]> {
-  const res: any = await api.get(listGoalsUrl)
-  return (res?.data ?? res) as Goal[]
+  // Backend doesn't support GET /goals or /users/me/goals
+  // Using mock data for now - in production, this should come from backend
+  try {
+    // Try to fetch from backend first
+    const res: any = await api.get(userGoalsUrl('me'))
+    return (res?.data ?? res) as Goal[]
+  } catch {
+    // Fallback to mock data
+    return mockGoals as Goal[]
+  }
 }
 
 export async function createGoal(payload: { title?: string; name?: string; description?: string }): Promise<Goal> {
