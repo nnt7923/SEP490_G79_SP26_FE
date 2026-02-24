@@ -56,7 +56,12 @@ const Profile: React.FC = () => {
     useEffect(() => {
         if (user) {
             setForm({
-                ...user,
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                bio: user.bio || '',
+                address: user.address || '',
                 dateOfBirth: user.dateOfBirth
                     ? dayjs(user.dateOfBirth).format('YYYY-MM-DD')
                     : ''
@@ -85,14 +90,15 @@ const Profile: React.FC = () => {
         const newErrors: Record<string, string> = {}
         const phoneRegex = /^0\d{9}$/
 
-        if (!form.phone) {
-            newErrors.phone = 'Please enter your phone number'
-        } else if (!phoneRegex.test(form.phone)) {
-            newErrors.phone =
-                'Phone number must contain 10 digits and start with 0'
+        if (form.phone && form.phone.trim() !== '') {
+            if (!phoneRegex.test(form.phone)) {
+                newErrors.phone =
+                    'Phone number must contain 10 digits and start with 0'
+            }
         }
-
-        if (form.dateOfBirth) {
+        if (!form.dateOfBirth || form.dateOfBirth.trim() === '') {
+            newErrors.dateOfBirth = 'Please enter date of birth'
+        } else {
             const dob = dayjs(form.dateOfBirth)
 
             if (!dob.isValid()) {
@@ -102,7 +108,6 @@ const Profile: React.FC = () => {
                     'Date of birth cannot be in the future'
             }
         }
-
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
