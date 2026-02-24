@@ -25,10 +25,5 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
       path: ROUTER.ADMIN_API_KEY,
       icon: <KeyRound className="w-5 h-5" />,
     },
-    {
-      label: 'Settings',
-      path: '/admin/settings',
-      icon: <Settings className="w-5 h-5" />,
-    },
   ]
 }

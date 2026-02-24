@@ -4,7 +4,7 @@ import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { getStudentSidebarConfig } from './components/StudentSideBar'
-import { LogOut, Settings, HelpCircle, Target, BookMarked } from 'lucide-react'
+import { LogOut, Target, BookMarked } from 'lucide-react'
 import { listGoals } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
 
@@ -20,12 +20,20 @@ const StudentIndex: React.FC = () => {
     const fetchCounts = async () => {
       try {
         setLoading(true)
-        const [goals, paths] = await Promise.all([
-          listGoals(),
-          getUserLearningPaths(user?.id || 'me', { pageSize: 1 })
-        ])
-        setGoalsCount(goals?.length || 0)
-        setPlansCount(paths?.totalCount || 0)
+        const goals = await listGoals()
+        const paths = await getUserLearningPaths(user?.id || 'me', { pageSize: 1 })
+        
+        console.log('Goals fetched:', goals)
+        console.log('Paths fetched:', paths)
+        
+        const goalsLength = Array.isArray(goals) ? goals.length : 0
+        const plansTotal = paths?.totalCount || 0
+        
+        console.log('Setting goals count to:', goalsLength)
+        console.log('Setting plans count to:', plansTotal)
+        
+        setGoalsCount(goalsLength)
+        setPlansCount(plansTotal)
       } catch (error) {
         console.error('Error fetching counts:', error)
       } finally {
@@ -33,21 +41,13 @@ const StudentIndex: React.FC = () => {
       }
     }
 
-    if (user?.id) {
-      fetchCounts()
-    }
-  }, [user?.id])
+    fetchCounts()
+  }, [])
 
   const handleLogout = async () => {
     await logout()
     navigate(ROUTER.LOGIN)
   }
-
-  const handleSettings = () => {
-    navigate(ROUTER.PROFILE)
-  }
-
-
 
   const getInitials = (name: string) => {
     return name
@@ -58,101 +58,111 @@ const StudentIndex: React.FC = () => {
       .slice(0, 2)
   }
 
+  const sidebarConfig = {
+    navItems: getStudentSidebarConfig(),
+    actions: [
+      {
+        label: 'Logout',
+        icon: <LogOut className="w-5 h-5" />,
+        onClick: handleLogout,
+        variant: 'danger' as const,
+      },
+    ],
+    brand: {
+      name: 'Dashboard',
+      subtitle: 'Learning',
+    },
+  }
+
   return (
-    
+    <Layout sidebar={sidebarConfig}>
       <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
         {/* ========== PROFILE HEADER ========== */}
         <div className="mb-8">
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm">
-            <div className="h-24 bg-gradient-to-r from-[#2f80ed] to-[#7c3aed]"></div>
-            
-            <div className="px-6 pb-6 -mt-12 relative">
-              <div className="flex items-end gap-4 mb-6">
-                <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-[#2f80ed] to-[#7c3aed] border-4 border-white shadow-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">{getInitials(displayName)}</span>
+          <div className="bg-gradient-to-r from-[#2f80ed] via-[#7c3aed] to-[#2f80ed] rounded-2xl overflow-hidden shadow-lg">
+            <div className="px-8 py-8">
+              <div className="flex items-center gap-6">
+                <div className="w-28 h-28 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <span className="text-white font-bold text-4xl">{getInitials(displayName)}</span>
                 </div>
                 
-                <div className="flex-1 pb-2">
-                  <h1 className="text-2xl font-bold text-[#111827]">{displayName}</h1>
-                  <p className="text-sm text-[#6b7280]">{user?.email ?? '—'}</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => navigate(ROUTER.HOME)}
-                  className="h-10 px-4 rounded-lg border border-[#e5e7eb] bg-white text-sm font-500 text-[#374151] hover:bg-[#f9fafb] transition-all duration-200 cursor-pointer"
-                  title="Go back to home page"
-                >
-                  Back Home
-                </button>
-              </div>
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Goals Card */}
-                <div className="bg-gradient-to-br from-[#fef3c7] to-[#fde68a] rounded-xl p-4 border border-[#fcd34d] shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-lg bg-[#f59e0b] flex items-center justify-center">
-                      <Target size={20} className="text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-[#92400e]">Goals</span>
-                  </div>
-                  <div className="text-3xl font-bold text-[#78350f]">
-                    {loading ? '—' : goalsCount}
-                  </div>
-                  <p className="text-xs text-[#b45309] mt-1">Learning objectives</p>
-                </div>
-
-                {/* Plans Card */}
-                <div className="bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe] rounded-xl p-4 border border-[#93c5fd] shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-lg bg-[#2f80ed] flex items-center justify-center">
-                      <BookMarked size={20} className="text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-[#1e40af]">Plans</span>
-                  </div>
-                  <div className="text-3xl font-bold text-[#1e3a8a]">
-                    {loading ? '—' : plansCount}
-                  </div>
-                  <p className="text-xs text-[#1e40af] mt-1">Learning paths</p>
+                <div className="flex-1">
+                  <h1 className="text-4xl font-bold text-white mb-2">{displayName}</h1>
+                  <p className="text-white/80 text-base mb-4">{user?.email ?? '—'}</p>
+                  
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          {/* Goals Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow border border-[#e5e7eb]">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#fef3c7] to-[#fde68a] flex items-center justify-center">
+                <Target size={24} className="text-[#f59e0b]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#6b7280]">Goals</p>
+                <p className="text-3xl font-bold text-[#111827]">
+                  {loading ? '—' : goalsCount}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-[#6b7280]">Learning objectives</p>
+          </div>
+
+          {/* Plans Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow border border-[#e5e7eb]">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe] flex items-center justify-center">
+                <BookMarked size={24} className="text-[#2f80ed]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#6b7280]">Plans</p>
+                <p className="text-3xl font-bold text-[#111827]">
+                  {loading ? '—' : plansCount}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-[#6b7280]">Learning paths</p>
+          </div>
+        </div>
+
         {/* Quick Navigation */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           <button
             type="button"
             onClick={() => navigate(ROUTER.GOALS)}
-            className="bg-white border border-[#e5e7eb] rounded-xl p-4 hover:shadow-md hover:border-[#2f80ed] transition-all duration-200 text-left group"
+            className="bg-white border border-[#e5e7eb] rounded-2xl p-6 hover:shadow-lg hover:border-[#2f80ed] transition-all duration-200 text-left group"
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-[#fef3c7] group-hover:bg-[#fcd34d] transition-colors flex items-center justify-center">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-[#fef3c7] group-hover:bg-[#fcd34d] transition-colors flex items-center justify-center">
                 <Target size={20} className="text-[#f59e0b]" />
               </div>
-              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors">View Goals</span>
+              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors text-lg">View Goals</span>
             </div>
-            <p className="text-xs text-[#6b7280]">Check your learning objectives</p>
+            <p className="text-sm text-[#6b7280]">Check your learning objectives</p>
           </button>
 
           <button
             type="button"
             onClick={() => navigate(ROUTER.MY_PLANS)}
-            className="bg-white border border-[#e5e7eb] rounded-xl p-4 hover:shadow-md hover:border-[#2f80ed] transition-all duration-200 text-left group"
+            className="bg-white border border-[#e5e7eb] rounded-2xl p-6 hover:shadow-lg hover:border-[#2f80ed] transition-all duration-200 text-left group"
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-[#dbeafe] group-hover:bg-[#bfdbfe] transition-colors flex items-center justify-center">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-[#dbeafe] group-hover:bg-[#bfdbfe] transition-colors flex items-center justify-center">
                 <BookMarked size={20} className="text-[#2f80ed]" />
               </div>
-              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors">View Plans</span>
+              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors text-lg">View Plans</span>
             </div>
-            <p className="text-xs text-[#6b7280]">Explore your learning paths</p>
+            <p className="text-sm text-[#6b7280]">Explore your learning paths</p>
           </button>
         </div>
       </div>
-    
+    </Layout>
   )
 }
 

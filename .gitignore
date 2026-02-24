@@ -62,7 +62,7 @@ dist-ssr
 # config files
 .package-lock.json
 .package.json
-.postcss.config.js
+.postcss.config.cjs
 .tailwind.config.js
 .tsconfig.json
 .tsconfig.node.json
