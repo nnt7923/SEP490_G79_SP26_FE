@@ -4,7 +4,7 @@ import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import { getMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Settings, HelpCircle } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
 
 const ChangePassword = () => {
@@ -22,16 +22,6 @@ const ChangePassword = () => {
   const sidebarConfig = {
     navItems,
     actions: [
-      {
-        label: 'Settings',
-        icon: <Settings className="w-5 h-5" />,
-        onClick: () => navigate(roleName === 'mentor' ? ROUTER.MENTOR_PROFILE : ROUTER.PROFILE),
-      },
-      {
-        label: 'Help',
-        icon: <HelpCircle className="w-5 h-5" />,
-        onClick: () => {},
-      },
       {
         label: 'Logout',
         icon: <LogOut className="w-5 h-5" />,

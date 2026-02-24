@@ -43,6 +43,7 @@ const Header: React.FC = () => {
   // Build markdown menu dynamically
   const mdLines = [`- [Dashboard](${dashboardPath})`]
   if (profilePath) mdLines.push(`- [Profile](${profilePath})`)
+  if (normalizedRole === 'student') mdLines.push(`- [My Plans](${ROUTER.MY_PLANS})`)
   mdLines.push('- [Settings](/settings)')
   mdLines.push('- [Logout](#logout)')
   const md = mdLines.join('\n')

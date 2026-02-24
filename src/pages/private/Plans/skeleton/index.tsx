@@ -182,8 +182,8 @@ const ResultPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Grid layout: left lesson/chapter content, right skeleton list */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Grid layout: full width lesson/chapter content */}
+          <section className="grid grid-cols-1 gap-6">
             <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900 font-heading">Lesson / Chapter Content</h2>
@@ -210,29 +210,6 @@ const ResultPage: React.FC = () => {
               </div>
 
               <LessonContent content={md} loading={loading} error={error || undefined} />
-            </div>
-
-            {/* Right: list of chapters */}
-            <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Plan Outline</h2>
-              {Array.isArray(chapters) && chapters.length > 0 ? (
-                <ul className="space-y-3">
-                  {chapters.map((ch: any, i: number) => (
-                    <li key={ch?.id ?? i} className="p-4 rounded-xl bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200">
-                      <div className="font-semibold text-gray-900">{ch?.title || `Chapter ${(ch?.orderIndex ?? i) + 1}`}</div>
-                      {Array.isArray(ch?.lessons) && ch.lessons.length > 0 && (
-                        <ul className="mt-2 ml-4 space-y-1">
-                          {ch.lessons.map((ls: any) => (
-                            <li key={ls?.id ?? ls?.lessonId} className="text-sm text-gray-700">• {ls?.title || 'Lesson'}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-sm text-gray-500 mt-3">No lessons for this chapter yet.</div>
-              )}
             </div>
           </section>
 

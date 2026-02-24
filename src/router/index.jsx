@@ -16,6 +16,10 @@ const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
 const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
 const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
+const MyPlans = React.lazy(() => import('../pages/private/Student/MyPlans'))
+const MyPlansDetail = React.lazy(() => import('../pages/private/Student/MyPlans/Detail'))
+const Goals = React.lazy(() => import('../pages/private/Student/Goals'))
+const GoalsDetail = React.lazy(() => import('../pages/private/Student/Goals/Detail'))
 const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
 const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
 const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
@@ -51,6 +55,10 @@ const router = createBrowserRouter([
     element: <React.Suspense fallback={<div />}> <ProtectedRoute /> </React.Suspense>,
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
+      { path: ROUTER.MY_PLANS, element: <MyPlans /> },
+      { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
+      { path: ROUTER.GOALS, element: <Goals /> },
+      { path: '/goals/:goalId', element: <GoalsDetail /> },
       {
         element: <React.Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </React.Suspense>,
         children: [

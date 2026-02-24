@@ -1,4 +1,4 @@
-import { LayoutDashboard, BookOpen, TrendingUp, User } from 'lucide-react'
+import { LayoutDashboard, BookOpen, TrendingUp, User, Bookmark, Target } from 'lucide-react'
 import ROUTER from '../../../../router/ROUTER'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 
@@ -8,6 +8,16 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
       label: 'Overview',
       path: ROUTER.STUDENT_DASHBOARD,
       icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      label: 'My Plans',
+      path: ROUTER.MY_PLANS,
+      icon: <Bookmark className="w-5 h-5" />,
+    },
+    {
+      label: 'Goals',
+      path: ROUTER.GOALS,
+      icon: <Target className="w-5 h-5" />,
     },
     {
       label: 'Classes',

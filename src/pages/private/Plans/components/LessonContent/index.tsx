@@ -10,10 +10,74 @@ interface LessonContentProps {
 }
 
 const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }) => {
+  const [processedContent, setProcessedContent] = React.useState<string>(content)
+
+  React.useEffect(() => {
+    if (!content) return
+
+    let processed = content
+
+    // Find Common Mistakes section and extract code blocks
+    const commonMistakesRegex = /## Common Mistakes\n([\s\S]*?)(?=\n## |\n# |$)/
+    const match = content.match(commonMistakesRegex)
+
+    if (match) {
+      const mistakesContent = match[1]
+      
+      // Extract all code blocks
+      const codeBlockRegex = /```([\w]*)\n([\s\S]*?)```/g
+      const codeBlocks: Array<{ lang: string; code: string }> = []
+      let codeMatch
+      
+      while ((codeMatch = codeBlockRegex.exec(mistakesContent)) !== null) {
+        codeBlocks.push({
+          lang: codeMatch[1] || 'text',
+          code: codeMatch[2]
+        })
+      }
+      
+      if (codeBlocks.length >= 2) {
+        // Create formatted section with 2-column layout
+        const formattedMistakes = `## Common Mistakes
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0;">
+  <div style="border: 2px solid #ef4444; border-radius: 0.75rem; overflow: hidden;">
+    <div style="background: #fee2e2; padding: 0.75rem 1rem; border-bottom: 2px solid #ef4444;">
+      <strong style="color: #991b1b; font-size: 0.95rem;">❌ Wrong Code</strong>
+    </div>
+    <div style="padding: 0;">
+
+\`\`\`${codeBlocks[0].lang}
+${codeBlocks[0].code.trim()}
+\`\`\`
+
+    </div>
+  </div>
+  <div style="border: 2px solid #22c55e; border-radius: 0.75rem; overflow: hidden;">
+    <div style="background: #dcfce7; padding: 0.75rem 1rem; border-bottom: 2px solid #22c55e;">
+      <strong style="color: #166534; font-size: 0.95rem;">✅ Correct Code</strong>
+    </div>
+    <div style="padding: 0;">
+
+\`\`\`${codeBlocks[1].lang}
+${codeBlocks[1].code.trim()}
+\`\`\`
+
+    </div>
+  </div>
+</div>`
+
+        processed = content.replace(commonMistakesRegex, formattedMistakes)
+      }
+    }
+
+    setProcessedContent(processed)
+  }, [content])
+
   if (loading) {
     return (
-      <div className="flex items-center gap-3 text-gray-600 bg-teal-50 px-4 py-3 rounded-xl border-2 border-teal-200">
-        <svg className="animate-spin h-5 w-5 text-teal-600" viewBox="0 0 24 24">
+      <div className="flex items-center gap-3 text-gray-600 bg-blue-50 px-4 py-3 rounded-xl border-2 border-blue-200">
+        <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24">
           <circle
             className="opacity-25"
             cx="12"
@@ -73,61 +137,51 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
         components={{
           // Headings
           h1: ({ children }) => (
-            <h1 className="text-3xl font-bold font-heading text-gray-900 mb-4 mt-8 pb-3 border-b-2 border-teal-200">
+            <h1 className="text-4xl font-bold font-heading text-gray-900 mb-6 mt-8 pb-4 border-b-2 border-blue-300">
               {children}
             </h1>
           ),
-          h2: ({ children }) => {
-            const text = String(React.Children.toArray(children).map((c: any) =>
-              typeof c === 'string' ? c : (c?.props?.children ?? '')
-            ).join('')).trim()
-            const isCommonMistakes = /^common\s+mistakes$/i.test(text)
-            return (
-              <h2 className={`text-2xl font-bold font-heading text-gray-900 mb-3 mt-6 pb-2 border-b border-gray-200 ${isCommonMistakes ? 'cm-section' : ''}`}>
-                {children}
-              </h2>
-            )
-          },
-          h3: ({ children }) => {
-            const text = String(React.Children.toArray(children).map((c: any) =>
-              typeof c === 'string' ? c : (c?.props?.children ?? '')
-            ).join('')).trim()
-            const isCommonMistakes = /^common\s+mistakes$/i.test(text)
-            return (
-              <h3 className={`text-xl font-semibold font-heading text-gray-900 mb-3 mt-5 ${isCommonMistakes ? 'cm-section' : ''}`}>
-                {children}
-              </h3>
-            )
-          },
+          h2: ({ children }) => (
+            <h2 className="text-3xl font-bold font-heading text-gray-900 mb-4 mt-8 pb-3 border-b-2 border-blue-200">
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="text-2xl font-bold font-heading text-gray-900 mb-3 mt-6 pb-2 border-b border-gray-300">
+              {children}
+            </h3>
+          ),
           h4: ({ children }) => (
-            <h4 className="text-lg font-semibold font-heading text-gray-800 mb-2 mt-4">
+            <h4 className="text-xl font-semibold font-heading text-gray-800 mb-3 mt-5">
               {children}
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="text-base font-semibold font-heading text-gray-800 mb-2 mt-3">
+            <h5 className="text-lg font-semibold font-heading text-gray-800 mb-2 mt-4">
               {children}
             </h5>
           ),
           h6: ({ children }) => (
-            <h6 className="text-sm font-semibold font-heading text-gray-700 mb-2 mt-3">
+            <h6 className="text-base font-semibold font-heading text-gray-700 mb-2 mt-3">
               {children}
             </h6>
           ),
 
           // Paragraphs
           p: ({ children }) => (
-            <p className="text-gray-700 leading-relaxed mb-4">{children}</p>
+            <p className="text-gray-700 leading-relaxed mb-5 text-base">
+              {children}
+            </p>
           ),
 
           // Lists
           ul: ({ children }) => (
-            <ul className="space-y-2 mb-4 ml-6 text-gray-700">
+            <ul className="space-y-3 mb-5 ml-6 text-gray-700">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="space-y-2 mb-4 ml-6 text-gray-700">
+            <ol className="space-y-3 mb-5 ml-6 text-gray-700">
               {children}
             </ol>
           ),
@@ -143,8 +197,8 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             }
             
             return (
-              <li className="leading-relaxed relative pl-2" {...props}>
-                <span className="absolute left-0 top-2 w-1.5 h-1.5 rounded-full bg-teal-500" />
+              <li className="leading-relaxed relative pl-2 text-base" {...props}>
+                <span className="absolute left-0 top-2 w-2 h-2 rounded-full bg-blue-500" />
                 <span className="ml-3">{children}</span>
               </li>
             )
@@ -156,7 +210,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-teal-600 hover:text-teal-700 underline font-medium transition-colors"
+              className="text-blue-600 hover:text-blue-700 underline font-medium transition-colors"
             >
               {children}
             </a>
@@ -164,9 +218,9 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
           // Blockquotes
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-teal-500 bg-gradient-to-r from-teal-50 to-cyan-50 pl-5 pr-4 py-4 my-6 italic text-gray-700 rounded-r-xl shadow-sm">
+            <blockquote className="border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 pl-5 pr-4 py-4 my-6 italic text-gray-700 rounded-r-xl shadow-sm">
               <div className="flex gap-3">
-                <svg className="w-6 h-6 text-teal-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                 </svg>
                 <div className="flex-1">{children}</div>
@@ -259,7 +313,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-gradient-to-r from-teal-500 to-cyan-500">
+            <thead className="bg-gradient-to-r from-blue-500 to-purple-500">
               {children}
             </thead>
           ),
@@ -269,7 +323,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             </tbody>
           ),
           tr: ({ children }) => (
-            <tr className="hover:bg-teal-50 transition-colors">{children}</tr>
+            <tr className="hover:bg-blue-50 transition-colors">{children}</tr>
           ),
           th: ({ children }) => (
             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
@@ -305,7 +359,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   )
