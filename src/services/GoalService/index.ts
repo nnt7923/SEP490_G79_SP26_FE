@@ -1,6 +1,16 @@
 import api from '../Axios'
 import { listGoalsUrl, createGoalUrl, goalUrl, userGoalsUrl, mockGoals } from './url'
 
+export interface Goal {
+  goalId: string
+  title: string
+  description: string | null
+  durationDays: number
+  isCompleted: boolean
+  completedAt: string | null
+  createdAt: string
+}
+
 export async function listGoals(): Promise<Goal[]> {
   // Backend doesn't support GET /goals or /users/me/goals
   // Using mock data for now - in production, this should come from backend
