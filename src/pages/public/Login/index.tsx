@@ -79,7 +79,7 @@ const Login: React.FC = () => {
   const handleGoogleCredential = async (response: any) => {
     try {
       const credential: string | undefined = response?.credential
-      if (!credential) throw new Error('Không nhận được idToken từ Google')
+      if (!credential) throw new Error('Did not receive idToken from Google')
       const { token, user } = await AuthService.loginWithGoogle({ ClientId: CLIENT_ID, IdToken: credential })
       authStore.setToken(token)
       authStore.setUser(user as any)
@@ -88,7 +88,7 @@ const Login: React.FC = () => {
       const roleName = (authStore.user?.role?.name) || (user as any)?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0]
       navigateByRole(roleName)
     } catch (err: any) {
-      setError(extractErrorMessage(err, 'Đăng nhập Google thất bại'))
+      setError(extractErrorMessage(err, 'Google login failed'))
     }
   }
 

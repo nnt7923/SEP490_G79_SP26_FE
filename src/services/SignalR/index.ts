@@ -45,6 +45,7 @@ export async function getLessonHub(): Promise<signalR.HubConnection> {
           return Math.min(1000 << retryContext.previousRetryCount, 30000)
         },
       })
+      .configureLogging(signalR.LogLevel.None)
       .build()
   }
   await ensureStarted(lessonHub)
@@ -64,6 +65,7 @@ export async function getChapterHub(): Promise<signalR.HubConnection> {
           return Math.min(1000 << retryContext.previousRetryCount, 30000)
         },
       })
+      .configureLogging(signalR.LogLevel.None)
       .build()
   }
   await ensureStarted(chapterHub)

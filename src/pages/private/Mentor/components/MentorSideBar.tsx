@@ -1,11 +1,12 @@
 import { LayoutDashboard, BookOpen, ClipboardList, MessageSquare, User } from 'lucide-react'
+import ROUTER from '../../../../router/ROUTER'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 
 export const getMentorSidebarConfig = (): SidebarNavItem[] => {
   return [
     {
       label: 'Overview',
-      path: '/mentor/overview',
+      path: ROUTER.MENTOR_DASHBOARD,
       icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
@@ -25,7 +26,7 @@ export const getMentorSidebarConfig = (): SidebarNavItem[] => {
     },
     {
       label: 'Profile',
-      path: '/mentor/profile',
+      path: ROUTER.MENTOR_PROFILE,
       icon: <User className="w-5 h-5" />,
     },
   ]

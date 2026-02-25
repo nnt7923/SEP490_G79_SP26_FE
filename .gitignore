@@ -40,6 +40,8 @@ dist-ssr
 .roo
 .trae
 .windsurf
+.kiro
+.shared
 
 # AI Assistants
 .agent
