@@ -82,7 +82,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
 
       // removed debug logging
 
-      const { ResourceService } = await import('../../../services')
+      const ResourceService = (await import('../../../services/ResourceService')).default
       await ResourceService.updateResource(resource.resourceId, formData)
 
       onShowToast('Resource updated successfully!', 'success')
@@ -182,7 +182,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
             </div>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label className="block text sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Replace File (Optional)
               </label>
               <div className="relative">
