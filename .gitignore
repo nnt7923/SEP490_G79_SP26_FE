@@ -71,7 +71,7 @@ dist-ssr
 .tsconfig.json
 .tsconfig.node.json
 .tsconfig.app.json
-vite.config.ts
+
 # Unit test artifacts (Vitest)
 coverage/
 .vitest/
