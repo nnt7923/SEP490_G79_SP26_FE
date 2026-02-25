@@ -40,6 +40,8 @@ dist-ssr
 .roo
 .trae
 .windsurf
+.kiro
+.shared
 
 # AI Assistants
 .agent
@@ -58,6 +60,9 @@ dist-ssr
 .windsurf
 .shared
 
+# Shared resources (UI/UX Pro Max)
+.shared/
+
 # config files
 .package-lock.json
 .package.json
@@ -67,8 +72,8 @@ dist-ssr
 .tsconfig.node.json
 .tsconfig.app.json
 .vercel.json
-.vite.config.ts
+vite.config.ts
 # Unit test artifacts (Vitest)
 coverage/
 .vitest/
-*.lcov
+*.lcov.github/

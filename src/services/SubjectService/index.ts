@@ -1,20 +1,41 @@
 import api from '../Axios'
-import { listSubjectsUrl } from './url'
+import { listSubjectsUrl, createSubjectUrl } from './url'
 
 export type Subject = {
   id: string
+  subjectId?: string
   name: string
   slug?: string
+  description?: string
 }
 
 export async function listSubjects(): Promise<Subject[]> {
   const res: any = await api.get(listSubjectsUrl)
+  
+  let subjects: any[] = []
+  
   // The API may wrap results as { isSuccess, value: [...] }
-  if (Array.isArray(res)) return res as Subject[]
-  if (Array.isArray(res?.value)) return res.value as Subject[]
-  if (Array.isArray(res?.data)) return res.data as Subject[]
-  if (Array.isArray(res?.data?.value)) return res.data.value as Subject[]
-  return []
+  if (Array.isArray(res)) subjects = res
+  else if (Array.isArray(res?.value)) subjects = res.value
+  else if (Array.isArray(res?.data)) subjects = res.data
+  else if (Array.isArray(res?.data?.value)) subjects = res.data.value
+  
+  // Normalize: backend uses 'subjectId', frontend expects 'id'
+  return subjects.map((s: any) => ({
+    id: s.subjectId || s.id,
+    subjectId: s.subjectId || s.id,
+    name: s.name,
+    slug: s.slug,
+    description: s.description,
+  }))
 }
 
-export default { listSubjects }
+export async function createSubject(payload: { name: string; slug?: string }): Promise<Subject> {
+  const res: any = await api.post(createSubjectUrl, payload)
+  // Unwrap common API envelope patterns
+  const data = res?.data ?? res
+  if (data?.value) return data.value as Subject
+  return data as Subject
+}
+
+export default { listSubjects, createSubject }
