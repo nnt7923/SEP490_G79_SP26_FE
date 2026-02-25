@@ -60,7 +60,8 @@ const ResultPage: React.FC = () => {
       .filter((x: any) => !!x.id)
   }, [skeleton])
 
-  const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>(() => lessons?.[0]?.id)
+  const selectedFromNav: string | undefined = location?.state?.selectedLessonId
+  const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>(() => selectedFromNav || lessons?.[0]?.id)
   useEffect(() => {
     if (!selectedLessonId && lessons?.[0]?.id) setSelectedLessonId(lessons[0].id)
   }, [lessons, selectedLessonId])

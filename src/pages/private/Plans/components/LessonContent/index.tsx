@@ -1,5 +1,7 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -17,57 +19,63 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
     let processed = content
 
-    // Find Common Mistakes section and extract code blocks
+    // Find Common Mistakes section and extract code blocks, then render as a 3-column HTML table with multiline code blocks
     const commonMistakesRegex = /## Common Mistakes\n([\s\S]*?)(?=\n## |\n# |$)/
     const match = content.match(commonMistakesRegex)
 
     if (match) {
       const mistakesContent = match[1]
       
-      // Extract all code blocks
+      // Extract all code blocks with positions
       const codeBlockRegex = /```([\w]*)\n([\s\S]*?)```/g
-      const codeBlocks: Array<{ lang: string; code: string }> = []
-      let codeMatch
+      const codeBlocks: Array<{ lang: string; code: string; start: number; end: number }> = []
+      let codeMatch: RegExpExecArray | null
       
       while ((codeMatch = codeBlockRegex.exec(mistakesContent)) !== null) {
         codeBlocks.push({
           lang: codeMatch[1] || 'text',
-          code: codeMatch[2]
+          code: codeMatch[2],
+          start: codeMatch.index,
+          end: codeMatch.index + codeMatch[0].length,
         })
       }
       
       if (codeBlocks.length >= 2) {
-        // Create formatted section with 2-column layout
-        const formattedMistakes = `## Common Mistakes
+        const escapeHtml = (s: string) =>
+          s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0;">
-  <div style="border: 2px solid #ef4444; border-radius: 0.75rem; overflow: hidden;">
-    <div style="background: #fee2e2; padding: 0.75rem 1rem; border-bottom: 2px solid #ef4444;">
-      <strong style="color: #991b1b; font-size: 0.95rem;">❌ Wrong Code</strong>
-    </div>
-    <div style="padding: 0;">
+        const escapeText = (s: string) =>
+          s
+            .replace(/<br\s*\/?\>/gi, '\n')
+            .replace(/&nbsp;/gi, ' ')
+            .trim()
 
-\`\`\`${codeBlocks[0].lang}
-${codeBlocks[0].code.trim()}
-\`\`\`
+        const rowsHtml: string[] = []
+        for (let i = 0; i < codeBlocks.length; i += 2) {
+          const left = codeBlocks[i]
+          const right = codeBlocks[i + 1]
+          if (!right) break
 
-    </div>
-  </div>
-  <div style="border: 2px solid #22c55e; border-radius: 0.75rem; overflow: hidden;">
-    <div style="background: #dcfce7; padding: 0.75rem 1rem; border-bottom: 2px solid #22c55e;">
-      <strong style="color: #166534; font-size: 0.95rem;">✅ Correct Code</strong>
-    </div>
-    <div style="padding: 0;">
+          const noteRaw = mistakesContent.slice(left.end, right.start)
+          const noteEscaped = escapeHtml(escapeText(noteRaw)).replace(/\n/g, '<br/>')
 
-\`\`\`${codeBlocks[1].lang}
-${codeBlocks[1].code.trim()}
-\`\`\`
+          const leftCode = escapeHtml(left.code.trim())
+          const rightCode = escapeHtml(right.code.trim())
 
-    </div>
-  </div>
-</div>`
+          rowsHtml.push(`
+<tr>
+  <td><pre><code class="language-${left.lang}">${leftCode}</code></pre></td>
+  <td><pre><code class="language-${right.lang}">${rightCode}</code></pre></td>
+  <td><div>${noteEscaped}</div></td>
+</tr>`)
+        }
 
-        processed = content.replace(commonMistakesRegex, formattedMistakes)
+        const tableHtml = `## Common Mistakes\n\n<table>\n  <thead>\n    <tr>\n      <th>❌ Wrong Approach</th>\n      <th>✅ Correct Approach</th>\n      <th>📝 Notes</th>\n    </tr>\n  </thead>\n  <tbody>\n    ${rowsHtml.join('\n')}\n  </tbody>\n</table>`
+
+        processed = content.replace(commonMistakesRegex, tableHtml)
       }
     }
 
@@ -134,20 +142,22 @@ ${codeBlocks[1].code.trim()}
   return (
     <div className="lesson-content">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={{
           // Headings
           h1: ({ children }) => (
-            <h1 className="text-4xl font-bold font-heading text-gray-900 mb-6 mt-8 pb-4 border-b-2 border-blue-300">
+            <h1 className="text-4xl font-bold font-heading text-gray-900 mb-6 mt-8 pb-4 border-b-2 border-gray-200">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-3xl font-bold font-heading text-gray-900 mb-4 mt-8 pb-3 border-b-2 border-blue-200">
+            <h2 className="text-3xl font-bold font-heading text-gray-900 mb-4 mt-8 pb-3 border-b-2 border-gray-100">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-2xl font-bold font-heading text-gray-900 mb-3 mt-6 pb-2 border-b border-gray-300">
+            <h3 className="text-2xl font-bold font-heading text-gray-900 mb-3 mt-6 pb-2 border-b border-gray-200">
               {children}
             </h3>
           ),
@@ -169,19 +179,19 @@ ${codeBlocks[1].code.trim()}
 
           // Paragraphs
           p: ({ children }) => (
-            <p className="text-gray-700 leading-relaxed mb-5 text-base">
+            <p className="text-gray-800 leading-relaxed mb-5 text-base">
               {children}
             </p>
           ),
 
           // Lists
           ul: ({ children }) => (
-            <ul className="space-y-3 mb-5 ml-6 text-gray-700">
+            <ul className="space-y-3 mb-5 ml-6 text-gray-800">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="space-y-3 mb-5 ml-6 text-gray-700">
+            <ol className="space-y-3 mb-5 ml-6 text-gray-800">
               {children}
             </ol>
           ),
@@ -198,7 +208,7 @@ ${codeBlocks[1].code.trim()}
             
             return (
               <li className="leading-relaxed relative pl-2 text-base" {...props}>
-                <span className="absolute left-0 top-2 w-2 h-2 rounded-full bg-blue-500" />
+                <span className="absolute left-0 top-2 w-2 h-2 rounded-full bg-gray-400" />
                 <span className="ml-3">{children}</span>
               </li>
             )
@@ -210,7 +220,7 @@ ${codeBlocks[1].code.trim()}
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-700 underline font-medium transition-colors"
+              className="text-blue-600 hover:text-blue-700 underline"
             >
               {children}
             </a>
@@ -218,9 +228,9 @@ ${codeBlocks[1].code.trim()}
 
           // Blockquotes
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 pl-5 pr-4 py-4 my-6 italic text-gray-700 rounded-r-xl shadow-sm">
+            <blockquote className="border-l-4 border-gray-300 bg-gray-50 pl-5 pr-4 py-4 my-6 italic text-gray-700 rounded-r">
               <div className="flex gap-3">
-                <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-gray-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                 </svg>
                 <div className="flex-1">{children}</div>
@@ -235,34 +245,19 @@ ${codeBlocks[1].code.trim()}
 
             if (!inline && language) {
               return (
-                <div className="my-6 rounded-xl overflow-hidden border-2 border-gray-300 shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="flex items-center justify-between bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 px-4 py-2.5 border-b border-gray-700">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                      </div>
-                      <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide ml-2">
-                        {language}
-                      </span>
-                    </div>
+                <div className="my-3 rounded border border-gray-200">
+                  <div className="flex items-center justify-between bg-gray-800 px-3 py-1.5 border-b border-gray-700">
+                    <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                      {language}
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
                         navigator.clipboard.writeText(String(children).replace(/\n$/, ''))
                       }}
-                      className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-gray-700 font-medium"
+                      className="text-xs text-gray-300 hover:text-white transition-colors px-2 py-0.5 rounded hover:bg-gray-700"
                       title="Copy code"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
                       Copy
                     </button>
                   </div>
@@ -276,7 +271,7 @@ ${codeBlocks[1].code.trim()}
                       borderRadius: 0,
                       fontSize: '0.875rem',
                       lineHeight: '1.6',
-                      padding: '1.25rem',
+                      padding: '0.75rem',
                       background: '#1e1e1e',
                     }}
                     lineNumberStyle={{
@@ -293,10 +288,10 @@ ${codeBlocks[1].code.trim()}
               )
             }
 
-            // Inline code
+            // Inline code (neutral)
             return (
               <code
-                className="bg-pink-50 text-pink-700 px-2 py-0.5 rounded-md text-sm font-mono border border-pink-200 font-semibold"
+                className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded text-sm font-mono border border-gray-200"
                 {...props}
               >
                 {children}
@@ -304,39 +299,37 @@ ${codeBlocks[1].code.trim()}
             )
           },
 
-          // Tables
+          // Tables (neutral styles)
           table: ({ children }) => (
-            <div className="my-6 overflow-x-auto rounded-xl border-2 border-gray-200 shadow-md">
-              <table className="min-w-full divide-y divide-gray-200">
-                {children}
-              </table>
-            </div>
+            <table className="min-w-full text-sm border border-gray-200 my-4">
+              {children}
+            </table>
           ),
           thead: ({ children }) => (
-            <thead className="bg-gradient-to-r from-blue-500 to-purple-500">
+            <thead className="bg-gray-50">
               {children}
             </thead>
           ),
           tbody: ({ children }) => (
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {children}
             </tbody>
           ),
           tr: ({ children }) => (
-            <tr className="hover:bg-blue-50 transition-colors">{children}</tr>
+            <tr>{children}</tr>
           ),
           th: ({ children }) => (
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+            <th className="px-3 py-2 text-left font-semibold text-gray-800 border-b border-gray-200">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-6 py-4 text-sm text-gray-700 font-medium">{children}</td>
+            <td className="px-3 py-2 align-top text-gray-800 border-b border-gray-200">{children}</td>
           ),
 
           // Horizontal rule
           hr: () => (
-            <hr className="my-6 border-t-2 border-gray-200" />
+            <hr className="my-6 border-t border-gray-200" />
           ),
 
           // Images
@@ -344,7 +337,7 @@ ${codeBlocks[1].code.trim()}
             <img
               src={src}
               alt={alt || ''}
-              className="max-w-full h-auto rounded-xl shadow-md my-4 border-2 border-gray-200"
+              className="max-w-full h-auto my-4 border border-gray-200 rounded"
             />
           ),
 

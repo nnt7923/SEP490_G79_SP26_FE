@@ -44,7 +44,6 @@ const Header: React.FC = () => {
   const mdLines = [`- [Dashboard](${dashboardPath})`]
   if (profilePath) mdLines.push(`- [Profile](${profilePath})`)
   if (normalizedRole === 'student') mdLines.push(`- [My Plans](${ROUTER.MY_PLANS})`)
-  mdLines.push('- [Settings](/settings)')
   mdLines.push('- [Logout](#logout)')
   const md = mdLines.join('\n')
 
@@ -63,7 +62,8 @@ const Header: React.FC = () => {
 
   return (
     <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Make container full-width so left/right groups stick to screen edges */}
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-3">

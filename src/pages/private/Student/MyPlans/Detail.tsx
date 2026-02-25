@@ -5,6 +5,7 @@ import { getStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
 import { ArrowLeft, Loader, AlertCircle, BookOpen, CheckCircle2, Clock } from 'lucide-react'
+import ROUTER from '../../../../router/ROUTER'
 
 const MyPlansDetailPage: React.FC = () => {
   const { pathId } = useParams<{ pathId: string }>()
@@ -206,13 +207,21 @@ const MyPlansDetailPage: React.FC = () => {
                               {lessonIdx + 1}
                             </div>
                             <div className="flex-1">
-                              <h4 className="font-medium text-[#111827]">{lesson.title}</h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch {}
+                                  navigate(ROUTER.PLANS_RESULT, { state: { skeleton: plan, selectedLessonId: lesson.id } })
+                                }}
+                                title="View lesson content"
+                                className="font-medium text-[#111827] text-left hover:text-[#2f80ed] underline decoration-transparent hover:decoration-[#2f80ed]"
+                              >
+                                {lesson.title}
+                              </button>
                               {lesson.description && (
                                 <p className="text-sm text-[#6b7280] mt-1">{lesson.description}</p>
                               )}
-                              {lesson.content && (
-                                <p className="text-sm text-[#374151] mt-2">{lesson.content}</p>
-                              )}
+                              
 
                               {/* Quizzes */}
                               {lesson.quizzes && lesson.quizzes.length > 0 && (

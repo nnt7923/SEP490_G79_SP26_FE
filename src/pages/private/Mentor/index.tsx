@@ -2,12 +2,21 @@ import React from 'react'
 import useAuthStore from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
 import { getMentorSidebarConfig } from './components/MentorSideBar'
-import { BookOpen, Users, TrendingUp, Star, FileText, Clock, BarChart3, Settings } from 'lucide-react'
+import { BookOpen, Users, TrendingUp, Star, FileText, Clock, BarChart3, Settings, Plus } from 'lucide-react'
+import { SubjectService } from '../../../services'
 
 const MentorDashboard: React.FC = () => {
   const { user } = useAuthStore()
   const name = user?.name || user?.username || 'Mentor'
   const role = user?.role?.name || 'Mentor'
+
+  // Subject modal state
+  const [showSubjectModal, setShowSubjectModal] = React.useState(false)
+  const [newSubjectName, setNewSubjectName] = React.useState('')
+  const [newSubjectSlug, setNewSubjectSlug] = React.useState('')
+  const [creatingSubject, setCreatingSubject] = React.useState(false)
+  const [subjectError, setSubjectError] = React.useState<string | null>(null)
+  const [subjectSuccess, setSubjectSuccess] = React.useState<string | null>(null)
 
   const sidebarConfig = {
     navItems: getMentorSidebarConfig(),
@@ -26,51 +35,71 @@ const MentorDashboard: React.FC = () => {
       .slice(0, 2)
   }
 
+  const slugify = (v: string) => v
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+
+  const openSubjectModal = () => {
+    setShowSubjectModal(true)
+    setSubjectError(null)
+    setSubjectSuccess(null)
+    setNewSubjectName('')
+    setNewSubjectSlug('')
+  }
+
+  const handleCreateSubject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubjectError(null)
+    setSubjectSuccess(null)
+    const name = newSubjectName.trim()
+    if (!name) {
+      setSubjectError('Vui lòng nhập tên subject')
+      return
+    }
+    const slug = newSubjectSlug.trim() || slugify(name)
+
+    try {
+      setCreatingSubject(true)
+      const created = await SubjectService.createSubject({ name, slug })
+      setSubjectSuccess(`Tạo subject "${created?.name || name}" thành công`)
+      // Đóng modal sau một chút để người dùng thấy thông báo
+      setTimeout(() => setShowSubjectModal(false), 800)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Không thể tạo subject'
+      setSubjectError(msg)
+    } finally {
+      setCreatingSubject(false)
+    }
+  }
+
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6]">
+      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
         {/* ========== MENTOR PROFILE HEADER ========== */}
         <div className="mb-8">
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm">
-            <div className="h-24 bg-gradient-to-r from-[#7c3aed] to-[#2f80ed]"></div>
-            
-            <div className="px-6 pb-6 -mt-12 relative">
-              <div className="flex items-end gap-4 mb-6">
-                <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-[#7c3aed] to-[#2f80ed] border-4 border-white shadow-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">{getInitials(name)}</span>
-                </div>
-                
-                <div className="flex-1 pb-2">
-                  <h1 className="text-2xl font-bold text-[#111827]">{name}</h1>
-                  <p className="text-sm text-[#6b7280]">{role} • Expert Instructor</p>
+          <div className="bg-gradient-to-r from-[#2f80ed] via-[#7c3aed] to-[#2f80ed] rounded-2xl overflow-hidden shadow-lg">
+            <div className="px-8 py-8">
+              <div className="flex items-center gap-6">
+                <div className="w-28 h-28 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <span className="text-white font-bold text-4xl">{getInitials(name)}</span>
                 </div>
 
-                <button className="h-10 w-10 rounded-lg border border-[#e5e7eb] bg-white text-sm font-500 text-[#374151] hover:bg-[#f9fafb] transition-all duration-200 cursor-pointer flex items-center justify-center" title="Profile settings">
+                <div className="flex-1">
+                  <h1 className="text-4xl font-bold text-white mb-2">{name}</h1>
+                  <p className="text-white/80 text-base mb-1">{user?.email ?? '—'}</p>
+                  <p className="text-white/70 text-sm">{role}</p>
+                </div>
+
+                <button
+                  className="hidden md:inline-flex h-10 px-4 rounded-lg border border-white/30 bg-white/10 text-white/90 hover:bg-white/20 transition-all duration-200 cursor-pointer items-center gap-2"
+                  title="Profile settings"
+                >
                   <Settings size={18} />
+                  <span className="text-sm font-semibold">Settings</span>
                 </button>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="stat-card">
-                  <div className="stat-card__label">Email</div>
-                  <div className="stat-card__value text-sm">{user?.email ?? '—'}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-card__label">Students</div>
-                  <div className="stat-card__value">0</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-card__label">Courses</div>
-                  <div className="stat-card__value">0</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-card__label">Avg Rating</div>
-                  <div className="stat-card__value">—</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-card__label">Lessons</div>
-                  <div className="stat-card__value">0</div>
-                </div>
               </div>
             </div>
           </div>
@@ -281,17 +310,80 @@ const MentorDashboard: React.FC = () => {
                 <Users size={18} />
                 <span>View Students</span>
               </button>
-              <button className="action-button action-button--secondary">
-                <FileText size={18} />
-                <span>Upload Materials</span>
-              </button>
-              <button className="action-button action-button--secondary">
-                <BarChart3 size={18} />
-                <span>View Analytics</span>
+              <button className="action-button action-button--secondary" onClick={openSubjectModal}>
+                <Plus size={18} />
+                <span>Add Subject</span>
               </button>
             </div>
           </div>
         </div>
+
+        {/* ========== SUBJECT CREATE MODAL ========== */}
+        {showSubjectModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-lg w-full max-w-md mx-4 p-6">
+              <h3 className="text-xl font-bold text-[#111827] mb-4">Tạo Subject mới</h3>
+              <form onSubmit={handleCreateSubject} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#374151] mb-1">Tên Subject</label>
+                  <input
+                    type="text"
+                    value={newSubjectName}
+                    onChange={(e) => {
+                      setNewSubjectName(e.target.value)
+                    }}
+                    onBlur={() => {
+                      if (!newSubjectSlug.trim() && newSubjectName.trim()) {
+                        setNewSubjectSlug(slugify(newSubjectName))
+                      }
+                    }}
+                    placeholder="Ví dụ: JavaScript"
+                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2f80ed]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#374151] mb-1">Slug (tùy chọn)</label>
+                  <input
+                    type="text"
+                    value={newSubjectSlug}
+                    onChange={(e) => setNewSubjectSlug(slugify(e.target.value))}
+                    placeholder="vd: javascript"
+                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2f80ed]"
+                  />
+                </div>
+
+                {subjectError && (
+                  <div className="text-sm text-[#b91c1c] bg-[#fee2e2] border border-[#fecaca] rounded-lg px-3 py-2">
+                    {subjectError}
+                  </div>
+                )}
+                {subjectSuccess && (
+                  <div className="text-sm text-[#065f46] bg-[#ecfdf5] border border-[#d1fae5] rounded-lg px-3 py-2">
+                    {subjectSuccess}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]"
+                    onClick={() => setShowSubjectModal(false)}
+                    disabled={creatingSubject}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg bg-[#2f80ed] text-white hover:bg-[#1d5ed4] disabled:opacity-60"
+                    disabled={creatingSubject}
+                  >
+                    {creatingSubject ? 'Đang tạo...' : 'Tạo Subject'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )
