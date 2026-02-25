@@ -11,15 +11,17 @@ export interface Goal {
   createdAt: string
 }
 
+// Feature toggle: disable real goals API by default to avoid 404 noise
+const ENABLE_GOALS_API = (import.meta as any)?.env?.VITE_ENABLE_GOALS_API?.toString()?.toLowerCase() === 'true'
+
 export async function listGoals(): Promise<Goal[]> {
-  // Backend doesn't support GET /goals or /users/me/goals
-  // Using mock data for now - in production, this should come from backend
+  // When backend endpoint is unavailable, use mock without making a network request
+  if (!ENABLE_GOALS_API) return mockGoals as Goal[]
+
   try {
-    // Try to fetch from backend first
     const res: any = await api.get(userGoalsUrl('me'))
     return (res?.data ?? res) as Goal[]
   } catch {
-    // Fallback to mock data
     return mockGoals as Goal[]
   }
 }

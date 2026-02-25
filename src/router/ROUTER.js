@@ -24,6 +24,8 @@ const ROUTER = {
   ADMIN_USERS: "/admin/users",
   // Mentor nested
   MENTOR_PROFILE: "/mentor/profile",
+  // Student resources
+  MY_RESOURCES: "/my-resources",
 };
 
 export default ROUTER;

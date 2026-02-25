@@ -1,4 +1,4 @@
-import { LayoutDashboard, BookOpen, TrendingUp, User, Bookmark, Target } from 'lucide-react'
+import { LayoutDashboard, BookOpen, TrendingUp, User, Bookmark, Target, FileText } from 'lucide-react'
 import ROUTER from '../../../../router/ROUTER'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 

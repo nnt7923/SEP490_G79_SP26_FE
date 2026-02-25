@@ -26,7 +26,7 @@ async function ensureStarted(conn: signalR.HubConnection) {
     try {
       await conn.start()
     } catch (err) {
-      console.error('Failed to start hub connection:', err)
+      // Removed console.error for hub connection start failure
       throw err
     }
   }
@@ -234,6 +234,6 @@ export async function disconnectHubs(): Promise<void> {
       await chapterHub.stop()
     }
   } catch (err) {
-    console.error('Error disconnecting hubs:', err)
+    // Removed console.error for disconnecting hubs error
   }
 }

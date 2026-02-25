@@ -64,7 +64,7 @@ const Login: React.FC = () => {
       })
       // google.accounts.id.prompt()
     } catch (e) {
-      console.error('Init Google failed:', e)
+      // Removed console.error in Google init failure
     }
   }
 

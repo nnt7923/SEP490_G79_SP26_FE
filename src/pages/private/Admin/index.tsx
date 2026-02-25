@@ -30,7 +30,7 @@ const AdminDashboard: React.FC = () => {
         const configs = Array.isArray(configData) ? configData : [configData]
         setApiKeyCount(configs.filter(c => c).length)
       } catch (error) {
-        console.error('Error fetching stats:', error)
+        // Removed console.error in admin stats load
       } finally {
         setLoading(false)
       }

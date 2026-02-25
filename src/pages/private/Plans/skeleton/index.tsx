@@ -41,7 +41,7 @@ const ResultPage: React.FC = () => {
 
         // generation summary available if needed in DEV via debugger
        } catch (err: any) {
-         console.error('[Generate] failed:', err?.message || err)
+         // Removed console.error in Generate error handler
        }
      }
      run()

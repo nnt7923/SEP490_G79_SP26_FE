@@ -208,8 +208,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
         msg: res?.msg || res?.message || 'Password changed successfully!',
       }
     } catch (err: any) {
-      console.error('API error:', err)
-
+      // Removed console.error in auth store API error handler
       return {
         isOk: false,
         msg:

@@ -71,7 +71,6 @@ const MyResourcesPage: React.FC = () => {
       
       setResources(resourcesList)
     } catch (err: any) {
-      console.error('=== Fetch Resources Error ===', err)
       setError(err?.response?.data?.message || 'Failed to load resources')
       setResources([])
     } finally {
@@ -133,7 +132,6 @@ const MyResourcesPage: React.FC = () => {
       showToast('Resource deleted successfully!', 'success')
       fetchResources()
     } catch (err: any) {
-      console.error('=== Delete Resource Error ===', err)
       const errorMsg = 
         err?.response?.data?.message || 
         err?.response?.data?.msg ||
