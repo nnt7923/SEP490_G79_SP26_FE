@@ -1,3 +1,4 @@
+import React from 'react'
 import { LayoutDashboard, Users, Clipboard, BarChart2, Settings, KeyRound } from 'lucide-react'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 import ROUTER from '../../../../router/ROUTER'
