@@ -14,6 +14,7 @@ const ROUTER_META = {
   [ROUTER.STUDENT_DASHBOARD]: { breadcrumb: 'Dashboard', title: 'Student Dashboard' },
   [ROUTER.PROFILE]: { breadcrumb: 'Profile', title: 'My Profile' },
   [ROUTER.CHANGE_PASSWORD]: { breadcrumb: 'Change Password', title: 'Change Password' },
+  [ROUTER.MY_RESOURCES]: { breadcrumb: 'My Resources', title: 'My Resources' },
   [ROUTER.ADMIN_DASHBOARD]: { breadcrumb: 'Admin', title: 'Admin Dashboard' },
   [ROUTER.MENTOR_DASHBOARD]: { breadcrumb: 'Mentor', title: 'Mentor Dashboard' },
   [ROUTER.ADMIN_API_KEY]: { breadcrumb: 'API Key', title: 'Admin API Key' },

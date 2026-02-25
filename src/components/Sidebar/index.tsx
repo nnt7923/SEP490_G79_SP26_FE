@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
@@ -27,7 +25,6 @@ interface SidebarProps {
     subtitle?: string
   }
   menuLabel?: string
-  actionsLabel?: string
   collapsible?: boolean
   className?: string
 }
@@ -37,7 +34,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   actions = [],
   brand,
   menuLabel = 'Main Menu',
-  actionsLabel = 'More',
   collapsible = true,
   className = '',
 }) => {
@@ -159,12 +155,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Actions Section */}
         {actions.length > 0 && (
           <div className="px-4 py-4 border-t border-gray-200 dark:border-slate-700">
-            {actionsLabel && (
-              <p className={`text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 transition-opacity duration-300 ${(isOpen || isMobileOpen) ? 'opacity-100' : 'md:opacity-0 md:hidden'}`}>
-                {actionsLabel}
-              </p>
-            )}
-
             <div className="space-y-2">
               {actions.map((action, idx) => (
                 <button
