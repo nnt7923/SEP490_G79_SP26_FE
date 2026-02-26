@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react'
 import { X, Loader2 } from 'lucide-react'
+import ResourceService from '../../../services/ResourceService'
 
 interface Resource {
   resourceId: string
@@ -82,7 +84,6 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
 
       // removed debug logging
 
-      const ResourceService = (await import('../../../services/ResourceService')).default
       await ResourceService.updateResource(resource.resourceId, formData)
 
       onShowToast('Resource updated successfully!', 'success')

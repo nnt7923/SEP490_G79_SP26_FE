@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import ROUTER from './ROUTER'
 import ROUTER_META from './ROUTER_META'
+import { lazy, Suspense } from 'react'
 
 // Layouts
 const LayoutCommon = lazy(() => import('../components/Layout'))
@@ -30,6 +31,7 @@ const AdminUsers = lazy(() => import('../pages/private/Admin/Users'))
 const Plans = lazy(() => import('../pages/private/Plans'))
 const PlansResult = lazy(() => import('../pages/private/Plans/skeleton'))
 
+const Fallback = () => <div />
 
 const router = createBrowserRouter([
   {
@@ -72,7 +74,6 @@ const router = createBrowserRouter([
         ],
       },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
-      // Removed duplicate PLANS and PLANS_RESULT routes
     ],
   },
   // Admin-only routes
