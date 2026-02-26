@@ -3,7 +3,9 @@ import * as AuthService from '../AuthService'
 import useAuthStore from '../../store/useAuthStore'
 
 // Compute API base from env (append /api if missing)
-const rawBase = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_BASE_URL as string) || ''
+const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
+  || (import.meta.env.VITE_BASE_URL as string)
+  || (import.meta.env.PROD ? 'https://pplp.click/api' : '')
 const trimmed = rawBase.replace(/\/+$/, '')
 const isDev = typeof window !== 'undefined' && import.meta.env.DEV
 const API_BASE = isDev

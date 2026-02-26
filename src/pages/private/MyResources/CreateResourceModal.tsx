@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react'
 import { X, Upload, Link as LinkIcon, Loader2, BookOpen } from 'lucide-react'
 import SubjectService, { type Subject } from '../../../services/SubjectService'
+import ResourceService from '../../../services/ResourceService'
 
 interface CreateResourceModalProps {
   isOpen: boolean
@@ -90,7 +92,6 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
 
       // removed debug logging of form data
 
-      const ResourceService = (await import('../../../services/ResourceService')).default
       await ResourceService.createResource(formData)
 
       // Reset form
