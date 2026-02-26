@@ -1,14 +1,17 @@
 import * as signalR from '@microsoft/signalr'
 import useAuthStore from '../../store/useAuthStore'
 
-const rawBase = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_BASE_URL as string) || ''
+// Determine hub base URL with production fallback
+const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
+  || (import.meta.env.VITE_BASE_URL as string)
+  || (import.meta.env.PROD ? 'https://pplp.click/api' : '')
 const trimmed = (rawBase || '').replace(/\/+$/, '')
 const isDev = typeof window !== 'undefined' && import.meta.env.DEV
 const HUB_BASE = isDev
   ? ''
   : trimmed
     ? (trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed)
-    : ''
+    : 'https://pplp.click'
 
 const LESSON_HUB_URL = `${HUB_BASE}/hubs/lesson`
 const CHAPTER_HUB_URL = `${HUB_BASE}/hubs/chapter`
@@ -23,12 +26,7 @@ function getToken(): string | undefined {
 
 async function ensureStarted(conn: signalR.HubConnection) {
   if (conn.state === signalR.HubConnectionState.Disconnected) {
-    try {
-      await conn.start()
-    } catch (err) {
-      // Removed console.error for hub connection start failure
-      throw err
-    }
+    await conn.start()
   }
 }
 
@@ -72,15 +70,6 @@ export async function getChapterHub(): Promise<signalR.HubConnection> {
   return chapterHub
 }
 
-/**
- * Request lesson content from SignalR hub.
- * Waits for ReceiveLessonContent event or times out.
- * Events: LessonContentLoading, ReceiveLessonContent, LessonContentError
- *
- * @param lessonId - The GUID of the lesson
- * @param onLoading - Optional callback when loading starts
- * @returns Promise with lesson content
- */
 export async function requestLessonContent(
   lessonId: string,
   onLoading?: () => void,
@@ -147,15 +136,6 @@ export async function requestLessonContent(
   })
 }
 
-/**
- * Request chapter content from SignalR hub.
- * Waits for ReceiveChapterContent event or times out.
- * Events: ChapterContentLoading, ReceiveChapterContent, ChapterContentError
- *
- * @param chapterId - The GUID of the chapter
- * @param onLoading - Optional callback when loading starts
- * @returns Promise with chapter content
- */
 export async function requestChapterContent(
   chapterId: string,
   onLoading?: () => void,
@@ -222,9 +202,6 @@ export async function requestChapterContent(
   })
 }
 
-/**
- * Disconnect both lesson and chapter hubs (cleanup on component unmount)
- */
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state === signalR.HubConnectionState.Connected) {
@@ -233,7 +210,7 @@ export async function disconnectHubs(): Promise<void> {
     if (chapterHub && chapterHub.state === signalR.HubConnectionState.Connected) {
       await chapterHub.stop()
     }
-  } catch (err) {
-    // Removed console.error for disconnecting hubs error
+  } catch {
+    // ignore
   }
 }
