@@ -27,6 +27,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
   useEffect(() => {
     if (isOpen) {
       fetchSubjects()
+      setError(null) // Reset error when modal opens
     }
   }, [isOpen])
 
@@ -34,7 +35,6 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
     try {
       setLoadingSubjects(true)
       const data = await SubjectService.listSubjects()
-      console.log('=== Subjects from API ===', data)
       setSubjects(data)
     } catch (err) {
       console.error('Failed to load subjects:', err)
@@ -90,24 +90,6 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
         formData.append('File', file)
       }
 
-      // Debug: Log FormData contents
-      console.log('=== FormData Debug ===')
-      console.log('Title:', title)
-      console.log('Type:', type)
-      console.log('SubjectId:', subjectId)
-      console.log('Description:', description)
-      if (type === 'Link') {
-        console.log('Url:', url)
-      } else if (file) {
-        console.log('File:', file.name, file.type, file.size)
-      }
-      
-      // Log all FormData entries
-      console.log('=== FormData Entries ===')
-      for (const pair of formData.entries()) {
-        console.log(pair[0], ':', pair[1])
-      }
-
       const { ResourceService } = await import('../../../services')
       await ResourceService.createResource(formData)
 
@@ -125,9 +107,6 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       onSuccess()
       onClose()
     } catch (err: any) {
-      console.error('=== Create Resource Error ===', err)
-      console.error('Error response:', err?.response)
-      console.error('Error data:', err?.response?.data)
       
       const errorMsg = 
         err?.response?.data?.message || 
@@ -161,9 +140,9 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-700 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
             Create New Resource
           </h2>
@@ -176,13 +155,14 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
-            </div>
-          )}
+        {/* Form - Scrollable */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              </div>
+            )}
 
           {/* Title */}
           <div>
@@ -326,9 +306,10 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
               placeholder="Enter resource description (optional)"
             />
           </div>
+        </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 p-6 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
             <button
               type="button"
               onClick={handleClose}

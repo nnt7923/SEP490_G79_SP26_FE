@@ -39,6 +39,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
       setDescription(resource.description || '')
       setUrl(resource.url || resource.filePath || '')
       setFile(null)
+      setError(null) // Reset error when resource changes
     }
   }, [resource])
 
@@ -80,17 +81,6 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
         formData.append('File', file)
       }
 
-      console.log('=== Update Resource Debug ===')
-      console.log('ResourceId:', resource.resourceId)
-      console.log('Title:', title)
-      console.log('Description:', description)
-      if (resource.type === 'Link') {
-        console.log('Url:', url)
-      }
-      if (file) {
-        console.log('New File:', file.name, file.type, file.size)
-      }
-
       const { ResourceService } = await import('../../../services')
       await ResourceService.updateResource(resource.resourceId, formData)
 
@@ -98,7 +88,6 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
       onSuccess()
       onClose()
     } catch (err: any) {
-      console.error('=== Update Resource Error ===', err)
       
       const errorMsg = 
         err?.response?.data?.message || 
@@ -130,9 +119,9 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-700 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
             Edit Resource
           </h2>
@@ -145,13 +134,14 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
-            </div>
-          )}
+        {/* Form - Scrollable */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              </div>
+            )}
 
           {/* Type Badge (Read-only) */}
           <div className="flex items-center gap-2">
@@ -231,9 +221,10 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
               placeholder="Enter resource description (optional)"
             />
           </div>
+        </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 p-6 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
             <button
               type="button"
               onClick={handleClose}
