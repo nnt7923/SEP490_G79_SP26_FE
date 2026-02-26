@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import ROUTER from './ROUTER'
 import ROUTER_META from './ROUTER_META'
@@ -35,11 +35,7 @@ const Fallback = () => <div />
 
 const router = createBrowserRouter([
   {
-    element: (
-      <Suspense fallback={<Fallback />}>
-        <LayoutCommon />
-      </Suspense>
-    ),
+    element: <Suspense fallback={<div />}> <LayoutCommon /> </Suspense>,
     handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
     children: [
       { index: true, path: ROUTER.HOME, element: <Home /> },
@@ -48,11 +44,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: (
-      <Suspense fallback={<Fallback />}>
-        <LayoutCommon />
-      </Suspense>
-    ),
+    element: <Suspense fallback={<div />}> <LayoutCommon /> </Suspense>,
     children: [
       { path: ROUTER.LOGIN, element: <Login /> },
       { path: ROUTER.REGISTER, element: <Register /> },
@@ -63,11 +55,7 @@ const router = createBrowserRouter([
   },
   // General protected routes (any logged-in user)
   {
-    element: (
-      <Suspense fallback={<Fallback />}>
-        <ProtectedRoute />
-      </Suspense>
-    ),
+    element: <Suspense fallback={<div />}> <ProtectedRoute /> </Suspense>,
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
       { path: ROUTER.MY_PLANS, element: <MyPlans /> },
@@ -78,11 +66,7 @@ const router = createBrowserRouter([
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
       { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
       {
-        element: (
-          <Suspense fallback={<Fallback />}>
-            <ForbidRole forbid="Admin" />
-          </Suspense>
-        ),
+        element: <Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </Suspense>,
         children: [
           { path: ROUTER.PROFILE, element: <Profile /> },
           { path: ROUTER.PLANS, element: <Plans /> },
@@ -94,11 +78,7 @@ const router = createBrowserRouter([
   },
   // Admin-only routes
   {
-    element: (
-      <Suspense fallback={<Fallback />}>
-        <ProtectedRoute role="Admin" />
-      </Suspense>
-    ),
+    element: <Suspense fallback={<div />}> <ProtectedRoute role="Admin" /> </Suspense>,
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
@@ -107,11 +87,7 @@ const router = createBrowserRouter([
   },
   // Mentor-only routes
   {
-    element: (
-      <Suspense fallback={<Fallback />}>
-        <ProtectedRoute role="Mentor" />
-      </Suspense>
-    ),
+    element: <Suspense fallback={<div />}> <ProtectedRoute role="Mentor" /> </Suspense>,
     children: [
       { path: ROUTER.MENTOR_DASHBOARD, element: <MentorDashboard /> },
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
