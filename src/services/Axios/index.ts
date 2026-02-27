@@ -6,9 +6,10 @@ import useAuthStore from '../../store/useAuthStore'
 const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
   || (import.meta.env.VITE_BASE_URL as string)
   || (import.meta.env.PROD ? 'https://pplp.click/api' : '')
-const trimmed = rawBase.replace(/\/+$/, '')
+const trimmed = (rawBase || '').replace(/\/+$/, '')
 const isDev = typeof window !== 'undefined' && import.meta.env.DEV
-const API_BASE = isDev
+const isVercel = typeof window !== 'undefined' && /vercel\.app$/i.test(window.location.hostname)
+const API_BASE = (isDev || isVercel)
   ? '/api'
   : trimmed
     ? (trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`)
