@@ -1,35 +1,35 @@
-import React, { Suspense, lazy } from 'react'
+
 import { createBrowserRouter } from 'react-router-dom'
 import ROUTER from './ROUTER'
 import ROUTER_META from './ROUTER_META'
-import { lazy, Suspense } from 'react'
+import React, { Suspense } from 'react'
 
 // Layouts
-const LayoutCommon = lazy(() => import('../components/Layout'))
-const ProtectedRoute = lazy(() => import('../components/Authorization/ProtectedRoute'))
-const ForbidRole = lazy(() => import('../components/Authorization/ForbidRole'))
+const LayoutCommon = React.lazy(() => import('../components/Layout'))
+const ProtectedRoute = React.lazy(() => import('../components/Authorization/ProtectedRoute'))
+const ForbidRole = React.lazy(() => import('../components/Authorization/ForbidRole'))
 
 // Pages
-const Home = lazy(() => import('../pages/public/Home'))
-const Login = lazy(() => import('../pages/public/Login'))
-const Register = lazy(() => import('../pages/public/Register'))
-const VerifyOtp = lazy(() => import('../pages/public/VerifyOtp'))
-const ForgotPassword = lazy(() => import('../pages/public/ForgotPassword'))
-const ResetPassword = lazy(() => import('../pages/public/ResetPassword'))
-const StudentDashboard = lazy(() => import('../pages/private/Student'))
-const MyPlans = lazy(() => import('../pages/private/Student/MyPlans'))
-const MyPlansDetail = lazy(() => import('../pages/private/Student/MyPlans/Detail'))
-const Goals = lazy(() => import('../pages/private/Student/Goals'))
-const GoalsDetail = lazy(() => import('../pages/private/Student/Goals/Detail'))
-const Profile = lazy(() => import('../pages/private/Account/Profile'))
-const ChangePassword = lazy(() => import('../pages/private/Account/ChangePassword'))
-const MyResources = lazy(() => import('../pages/private/MyResources'))
-const AdminDashboard = lazy(() => import('../pages/private/Admin'))
-const MentorDashboard = lazy(() => import('../pages/private/Mentor'))
-const AdminApiKey = lazy(() => import('../pages/private/Admin/APIKey'))
-const AdminUsers = lazy(() => import('../pages/private/Admin/Users'))
-const Plans = lazy(() => import('../pages/private/Plans'))
-const PlansResult = lazy(() => import('../pages/private/Plans/skeleton'))
+const Home = React.lazy(() => import('../pages/public/Home'))
+const Login = React.lazy(() => import('../pages/public/Login'))
+const Register = React.lazy(() => import('../pages/public/Register'))
+const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
+const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
+const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
+const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
+const MyPlans = React.lazy(() => import('../pages/private/Student/MyPlans'))
+const MyPlansDetail = React.lazy(() => import('../pages/private/Student/MyPlans/Detail'))
+const Goals = React.lazy(() => import('../pages/private/Student/Goals'))
+const GoalsDetail = React.lazy(() => import('../pages/private/Student/Goals/Detail'))
+const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
+const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
+const MyResources = React.lazy(() => import('../pages/private/MyResources'))
+const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
+const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
+const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
+const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
+const Plans = React.lazy(() => import('../pages/private/Plans'))
+const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 
 const Fallback = () => <div />
 
