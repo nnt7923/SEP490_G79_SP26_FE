@@ -69,8 +69,8 @@ dist-ssr
 .tsconfig.node.json
 .tsconfig.app.json
 .vercel.json
-.vite.config.ts
+vite.config.ts
 # Unit test artifacts (Vitest)
 coverage/
 .vitest/
-*.lcov
+*.lcov.github/
