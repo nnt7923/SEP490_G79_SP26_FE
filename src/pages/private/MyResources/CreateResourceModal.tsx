@@ -75,30 +75,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       formData.append('Type', 'PDF')
       formData.append('Description', description)
       formData.append('SubjectId', subjectId)
-
-      if (type === 'Link') {
-        formData.append('Url', url)
-      } else if (type === 'File' && file) {
-        formData.append('File', file)
-      }
-
-      // Debug: Log FormData contents
-      console.log('=== FormData Debug ===')
-      console.log('Title:', title)
-      console.log('Type:', type)
-      console.log('SubjectId:', subjectId)
-      console.log('Description:', description)
-      if (type === 'Link') {
-        console.log('Url:', url)
-      } else if (file) {
-        console.log('File:', file.name, file.type, file.size)
-      }
-      
-      // Log all FormData entries
-      console.log('=== FormData Entries ===')
-      for (const pair of formData.entries()) {
-        console.log(pair[0], ':', pair[1])
-      }
+      formData.append('File', file)
 
       const { ResourceService } = await import('../../../services')
       await ResourceService.createResource(formData)
