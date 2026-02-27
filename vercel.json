@@ -5,7 +5,9 @@
   "outputDirectory": "dist",
   "devCommand": "vite",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://pplp.click/api/:path*" }
+    { "source": "/api/:path*", "destination": "https://pplp.click/api/:path*" },
+    { "source": "/hubs/:path*", "destination": "https://pplp.click/hubs/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "github": {
     "enabled": true

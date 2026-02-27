@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect } from 'react'
 import { SubjectService, GoalService, LearningPathService } from '../../../services'
 import type { Subject } from '../../../services/SubjectService'
@@ -5,6 +6,10 @@ import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
+import StepHeader from './components/StepHeader'
+import LanguageCard from './components/LanguageCard'
+import SingleGoalCard from './components/SingleGoalCard'
+import Stepper from './components/Stepper'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -22,234 +27,6 @@ const palette = [
 
 // Step 2: Goals
 type GoalItem = { key: string; label: string };
-const GOAL_GROUPS: { key: string; title: string; colorClass: string; icon?: string; items: GoalItem[] }[] = [
-  {
-    key: 'career',
-    title: 'Phát triển sự nghiệp',
-    colorClass: 'icon--indigo',
-    icon: '💼',
-    items: [
-      { key: 'get-promo', label: 'Thăng tiến vị trí hiện tại' },
-      { key: 'career-switch', label: 'Chuyển đổi nghề nghiệp' },
-      { key: 'new-job', label: 'Tìm việc làm mới' },
-    ],
-  },
-  {
-    key: 'new-skills',
-    title: 'Học kỹ năng mới',
-    colorClass: 'icon--emerald',
-    icon: '🧠',
-    items: [
-      { key: 'web-dev', label: 'Lập trình & Phát triển web' },
-      { key: 'design', label: 'Thiết kế & Sáng tạo' },
-      { key: 'marketing', label: 'Marketing & Kinh doanh' },
-    ],
-  },
-  {
-    key: 'self-dev',
-    title: 'Phát triển bản thân',
-    colorClass: 'icon--violet',
-    icon: '🚀',
-    items: [
-      { key: 'communication', label: 'Kỹ năng giao tiếp' },
-      { key: 'time-mgt', label: 'Quản lý thời gian' },
-      { key: 'creative', label: 'Tư duy sáng tạo' },
-    ],
-  },
-];
-
-const StepHeader: React.FC<{ title: string; subtitle: string; icon?: string }> = ({
-  title,
-  subtitle,
-  icon,
-}) => (
-  <div className="step-header">
-    <div className="step-header__icon">{icon ?? '🎯'}</div>
-    <h1 id="plans-title" className="step-header__title">{title}</h1>
-    <p className="step-header__subtitle">{subtitle}</p>
-  </div>
-);
-
-const LanguageCard: React.FC<{
-  active?: boolean;
-  name: string;
-  tag?: string;
-  colorClass: string;
-  icon?: string;
-  desc?: string;
-  onClick?: () => void;
-}> = ({ active, name, tag, colorClass, icon, desc, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-pressed={!!active}
-    className={`card card__pad text-left ${active ? 'card--active' : ''}`}
-  >
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <div className={`icon-12 ${colorClass}`}>{icon ?? '🔖'}</div>
-        <div>
-          <div className="font-semibold text-gray-900">{name}</div>
-          {desc ? <div className="text-xs text-gray-500">{desc}</div> : null}
-        </div>
-      </div>
-      {tag ? (
-        <div className="mt-1">
-          <span className="pill"><span className="pill__dot" />{tag}</span>
-        </div>
-      ) : null}
-    </div>
-    {active && (
-      <span className="badge-selected">Selected</span>
-    )}
-  </button>
-);
-
-const GoalCard: React.FC<{
-  active?: boolean;
-  title: string;
-  colorClass: string;
-  icon?: string;
-  items: GoalItem[];
-  toggleItem: (key: string) => void;
-}> = ({ active, title, colorClass, icon, items, toggleItem }) => (
-  <div className={`card card__pad ${active ? 'card--active' : ''} text-left`}>
-    <div className="flex items-center gap-3 mb-3">
-      <div className={`icon-12 ${colorClass}`}>{icon ?? '📦'}</div>
-      <div>
-        <div className="font-semibold text-gray-900">{title}</div>
-      </div>
-    </div>
-    <ul className="flex flex-col gap-2 p-0 m-0 list-none">
-      {items.map((it) => (
-        <li key={it.key}>
-          <button
-            type="button"
-            onClick={() => toggleItem(it.key)}
-            className="w-full text-left flex items-center gap-2 rounded-[10px] px-3 py-2 border border-transparent btn-outline"
-          >
-            <span className="inline-block w-5 h-5 rounded-full border border-gray-300 mr-1" />
-            <span className="text-sm text-gray-700">{it.label}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
-
-// Updated: Card hiển thị một goal duy nhất với Edit/Delete
-const SingleGoalCard: React.FC<{
-  id: string;
-  active?: boolean;
-  title: string;
-  colorClass: string;
-  icon?: string;
-  onToggle: (key: string) => void;
-  onStartEdit: (id: string, currTitle: string) => void;
-  onDelete: (id: string) => void;
-  isEditing: boolean;
-  editingTitle: string;
-  setEditingTitle: (v: string) => void;
-  onSaveEdit: () => void;
-  onCancelEdit: () => void;
-  saving: boolean;
-  deleting: boolean;
-}> = ({
-  id,
-  active,
-  title,
-  colorClass,
-  icon,
-  onToggle,
-  onStartEdit,
-  onDelete,
-  isEditing,
-  editingTitle,
-  setEditingTitle,
-  onSaveEdit,
-  onCancelEdit,
-  saving,
-  deleting,
-}) => {
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  return (
-    <div
-      className={`card card__pad ${active ? 'card--active' : ''}`}
-      role={!isEditing ? 'button' : undefined}
-      aria-pressed={!!active}
-      onClick={() => { if (!isEditing && !menuOpen) onToggle(id) }}
-      style={{ textAlign: 'left', position: 'relative', cursor: isEditing ? 'default' : 'pointer' }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className={`icon-12 ${colorClass}`}>{icon ?? '🧠'}</div>
-          <div>
-            <div style={{ fontWeight: 600, color: '#111827' }}>{title}</div>
-          </div>
-        </div>
-        {!isEditing && (
-          <div>
-            <button
-              type="button"
-              aria-label="More options"
-              className="btn btn-ghost"
-              onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}
-              disabled={saving || deleting}
-            >
-              ⋮
-            </button>
-            {menuOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{ position: 'absolute', top: 10, right: 10, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', minWidth: 140, zIndex: 20 }}
-              >
-                <button
-                  type="button"
-                  className="btn btn-ghost w-full text-left"
-                  onClick={() => { setMenuOpen(false); onStartEdit(id, title) }}
-                  disabled={saving || deleting}
-                  style={{ borderBottom: '1px solid #f3f4f6', borderRadius: '8px 8px 0 0' }}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger w-full text-left"
-                  onClick={() => { setMenuOpen(false); onDelete(id) }}
-                  disabled={saving || deleting}
-                  style={{ borderRadius: '0 0 8px 8px' }}
-                >
-                  {deleting ? 'Deleting…' : 'Delete'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {isEditing && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
-          <input
-            type="text"
-            value={editingTitle}
-            onChange={(e) => setEditingTitle(e.target.value)}
-            className="input"
-            placeholder="Goal title"
-          />
-          <button type="button" className={`btn btn-primary ${saving ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={onSaveEdit} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" className="btn" onClick={onCancelEdit} disabled={saving}>Cancel</button>
-        </div>
-      )}
-
-      {active && !isEditing && (
-        <span className="badge-selected" style={{ marginTop: 8, display: 'inline-block' }}>Selected</span>
-      )}
-    </div>
-  )
-}
 
 const PlansPage: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -439,7 +216,7 @@ const PlansPage: React.FC = () => {
         }
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Không thể tải danh sách subject.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load subjects.'
         if (active) setSubjectsError(msg)
       } finally {
         if (active) setSubjectsLoading(false)
@@ -458,7 +235,7 @@ const PlansPage: React.FC = () => {
         if (active) setGoals(Array.isArray(data) ? data : [])
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Không thể tải danh sách goals.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load goals.'
         if (active) setGoalsError(msg)
       } finally {
         if (active) setGoalsLoading(false)
@@ -552,26 +329,12 @@ const PlansPage: React.FC = () => {
     : []
 
   return (
-    <div className="layout">
+    <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
       <Header />
-      <main className="page-main" role="main" aria-labelledby="plans-title">
-        <div className="page-container">
+      <main className="page-main py-12" role="main" aria-labelledby="plans-title">
+        <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Stepper */}
-          <nav className="stepper" aria-label="progress">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center">
-                <div
-                  className={`stepper__dot ${step >= i ? 'stepper__dot--active' : ''}`}
-                  aria-current={step === i ? 'step' : undefined}
-                >
-                  {i}
-                </div>
-                {i !== 3 && (
-                  <div className={`stepper__line ${step > i ? 'stepper__line--active' : ''}`} />
-                )}
-              </div>
-            ))}
-          </nav>
+          <Stepper currentStep={step} totalSteps={3} />
 
           {/* Content */}
           {step === 1 && (
@@ -581,25 +344,24 @@ const PlansPage: React.FC = () => {
                 subtitle="Select the programming language you want to learn."
                 icon="🧩"
               />
-              <section className="grid-subjects" aria-label="subject-list">
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6" aria-label="subject-list">
                 {subjectsLoading ? (
                   Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="card card__pad">
-                      <div className="flex flex-col gap-3">
+                    <div key={i} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                      <div className="flex flex-col gap-4">
                         <div className="flex items-center gap-3">
-                          <div className="icon-12 bg-gray-200" />
-                          <div>
-                            <div className="w-24 h-4 bg-gray-200 rounded-[6px]" />
-                            <div className="w-[72px] h-3 bg-gray-100 rounded-[6px] mt-1.5" />
+                          <div className="w-14 h-14 bg-gray-200 rounded-xl" />
+                          <div className="flex-1">
+                            <div className="w-24 h-5 bg-gray-200 rounded" />
+                            <div className="w-20 h-3 bg-gray-100 rounded mt-2" />
                           </div>
                         </div>
-                        <div className="w-20 h-3 bg-gray-100 rounded-[6px]" />
                       </div>
                     </div>
                   ))
                 ) : subjectsError ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#dc2626' }}>
-                    Không tải được danh sách subject: {subjectsError}
+                  <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
+                    Failed to load subjects: {subjectsError}
                   </div>
                 ) : subjects.length > 0 ? (
                   subjects.map((s, idx) => (
@@ -611,11 +373,14 @@ const PlansPage: React.FC = () => {
                       icon={undefined}
                       desc={`Explore the learning path for ${s.name}`}
                       active={language === String((s as any).id ?? (s as any).subjectId)}
-                      onClick={() => { setLanguage(String((s as any).id ?? (s as any).subjectId)); setStep(2); }}
+                      onClick={() => {
+                        setLanguage(String((s as any).id ?? (s as any).subjectId))
+                        setStep(2)
+                      }}
                     />
                   ))
                 ) : (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280' }}>
+                  <div className="col-span-full text-center py-8 text-gray-500">
                     No subjects available.
                   </div>
                 )}
@@ -631,97 +396,116 @@ const PlansPage: React.FC = () => {
                 icon="📍"
               />
               {goalsLive && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }} aria-live="polite">
-                  <span style={{ width: 6, height: 6, borderRadius: 999, background: '#22c55e', display: 'inline-block', animation: 'pulse 1.6s infinite' }} />
-                  <span style={{ fontSize: 12, color: '#16a34a' }}>Live updates enabled</span>
+                <div className="flex items-center gap-2 mb-6 px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl" aria-live="polite">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-medium text-green-700">Live updates enabled</span>
                 </div>
               )}
               {selectedGoals.length > 0 && (
-                <div className="card card__pad" style={{ marginBottom: 12 }}>
-                  <h3 style={{ fontWeight: 600, color: '#111827', marginBottom: 8, fontSize: 14 }}>Thời lượng mục tiêu (ngày)</h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div className="mb-6 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm">
+                  <h3 className="text-base font-semibold text-gray-900 mb-4">Goal duration (days)</h3>
+                  <div className="flex flex-wrap gap-3">
                     {selectedGoals.map((gId) => (
-                      <label key={gId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 8px' }}>
-                        <span style={{ fontSize: 12, color: '#374151' }}>{goalItems.find((x) => x.key === gId)?.label || 'Goal'}</span>
+                      <label
+                        key={gId}
+                        className="inline-flex items-center gap-2 bg-gradient-to-br from-teal-50 to-cyan-50 border-2 border-teal-200 rounded-xl px-3 py-2"
+                      >
+                        <span className="text-sm font-medium text-gray-700">
+                          {goalItems.find((x) => x.key === gId)?.label || 'Goal'}
+                        </span>
                         <input
                           type="number"
                           min={1}
                           value={goalDurations[gId] ?? 30}
                           onChange={(e) => {
                             const v = parseInt(e.target.value, 10)
-                            setGoalDurations((prev) => ({ ...prev, [gId]: isNaN(v) || v <= 0 ? 1 : v }))
+                            setGoalDurations((prev) => ({
+                              ...prev,
+                              [gId]: isNaN(v) || v <= 0 ? 1 : v,
+                            }))
                           }}
-                          title="Số ngày"
-                          style={{ width: 64 }}
-                          className="input"
+                          title="Days"
+                          className="w-16 px-2 py-1 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none text-center font-medium"
                         />
-                        <span style={{ fontSize: 12, color: '#6b7280' }}>ngày</span>
+                        <span className="text-sm text-gray-600">days</span>
                       </label>
                     ))}
                   </div>
                 </div>
               )}
-              <section className="grid-goals" aria-label="goal-list">
+              <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-label="goal-list">
 
                 {/* Create goal card */}
-                <div className="card card__pad" style={{ textAlign: 'left' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                    <div className={`icon-12 icon--blue`}>➕</div>
+                <div className="rounded-2xl border-2 border-dashed border-teal-300 bg-gradient-to-br from-teal-50 to-cyan-50 p-6 hover:border-teal-400 hover:shadow-md transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 text-white text-xl shadow-md">
+                      ➕
+                    </div>
                     <div>
-                      <div style={{ fontWeight: 600, color: '#111827' }}>Add New Goal</div>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>Create a goal and include it in your plan</div>
+                      <div className="font-semibold text-gray-900">Add New Goal</div>
+                      <div className="text-sm text-gray-600">Create a goal and include it in your plan</div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       placeholder="Goal title"
                       value={newGoalTitle}
                       onChange={(e) => setNewGoalTitle(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateGoal() }}
-                      className="input"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCreateGoal()
+                      }}
+                      className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
                     />
                     <button
                       type="button"
-                      className={`btn btn-primary ${creatingGoal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`px-4 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg font-medium hover:from-teal-600 hover:to-teal-700 transition-all shadow-md hover:shadow-lg ${
+                        creatingGoal ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                       disabled={creatingGoal}
                       onClick={handleCreateGoal}
                     >
-                      {creatingGoal ? 'Creating…' : 'Add Goal'}
+                      {creatingGoal ? 'Creating…' : 'Add'}
                     </button>
                   </div>
-                  {createGoalError ? (
-                    <div style={{ marginTop: 8, color: '#dc2626' }}>{createGoalError}</div>
-                  ) : null}
+                  {createGoalError && (
+                    <div className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
+                      {createGoalError}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Thông báo hành động goal */}
-                {(goalNotice || goalActionError) ? (
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    {goalNotice ? (
-                      <div className="notice notice--info">{goalNotice}</div>
-                    ) : null}
-                    {goalActionError ? (
-                      <div className="notice notice--danger" style={{ marginTop: 6 }}>{goalActionError}</div>
-                    ) : null}
+                {(goalNotice || goalActionError) && (
+                  <div className="col-span-full">
+                    {goalNotice && (
+                      <div className="px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl text-green-700 font-medium">
+                        {goalNotice}
+                      </div>
+                    )}
+                    {goalActionError && (
+                      <div className="px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 font-medium mt-3">
+                        {goalActionError}
+                      </div>
+                    )}
                   </div>
-                ) : null}
+                )}
                 
                 {/* Render each goal as its own card */}
                 {goalsLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
-                    <div key={`goal-skel-${i}`} className="card card__pad">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div className="icon-12" style={{ background: '#e5e7eb' }} />
-                        <div>
-                          <div style={{ width: 120, height: 16, background: '#e5e7eb', borderRadius: 6 }} />
+                    <div key={`goal-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                        <div className="flex-1">
+                          <div className="w-32 h-5 bg-gray-200 rounded" />
                         </div>
                       </div>
                     </div>
                   ))
                 ) : goalsError ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#dc2626' }}>
-                    Không tải được goals: {goalsError}
+                  <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
+                    Failed to load goals: {goalsError}
                   </div>
                 ) : goalItems.length > 0 ? (
                   goals.map((g: any, idx: number) => {
@@ -749,7 +533,7 @@ const PlansPage: React.FC = () => {
                     )
                   })
                 ) : (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280' }}>
+                  <div className="col-span-full text-center py-8 text-gray-500">
                     No goals available.
                   </div>
                 )}
@@ -764,39 +548,44 @@ const PlansPage: React.FC = () => {
                 subtitle="Confirm selections and generate with the backend"
                 icon="🛠️"
               />
-              <section aria-label="summary" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 16 }}>
-                <div className={`card card__pad`}>
-                  <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>Selected Language</h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <section aria-label="summary" className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Selected Language</h2>
+                  <div className="flex items-center gap-3">
                     {language ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999, background: '#f3f4f6', padding: '6px 12px', fontSize: 14, color: '#374151' }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 999, background: '#4f46e5' }} />
+                      <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-teal-500 to-teal-600 text-white font-medium shadow-md">
+                        <span className="w-2 h-2 rounded-full bg-white" />
                         {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Selected'}
                       </span>
                     ) : (
-                      <span style={{ color: '#6b7280', fontSize: 14 }}>Not selected</span>
+                      <span className="text-gray-500">Not selected</span>
                     )}
                   </div>
                 </div>
-                <div className={`card card__pad`}>
-                  <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>Your Goals</h2>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div className="p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Goals</h2>
+                  <div className="flex flex-wrap gap-2">
                     {selectedGoals.length > 0 ? (
                       selectedGoals.map((g) => (
-                        <span key={g} style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 999, background: '#f3f4f6', padding: '6px 12px', fontSize: 14, color: '#374151' }}>
+                        <span
+                          key={g}
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-100 to-teal-100 border border-teal-300 text-sm font-medium text-gray-800"
+                        >
                           {goalItems.find((x) => x.key === g)?.label || 'Selected'}
                         </span>
                       ))
                     ) : (
-                      <span style={{ color: '#6b7280', fontSize: 14 }}>Not selected</span>
+                      <span className="text-gray-500">Not selected</span>
                     )}
                   </div>
                 </div>
               </section>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <div className="flex items-center justify-center gap-4">
                 <button
                   type="button"
-                  className={`btn btn-primary ${generating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`px-8 py-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-semibold text-lg hover:from-teal-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${
+                    !canGenerate || generating ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                   disabled={!canGenerate || generating}
                   onClick={async () => {
                     if (!language) {
@@ -824,7 +613,7 @@ const PlansPage: React.FC = () => {
                       let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path')
                       const lower = String(serverMsg || e?.message || '').toLowerCase()
                       if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
-                        msg = 'AI service chưa được cấu hình hợp lệ (Invalid API Key). Vui lòng cấu hình GROQ_API_KEY trên backend và thử lại.'
+                        msg = 'AI service is not configured properly (Invalid API Key). Please set GROQ_API_KEY on the backend and try again.'
                       }
                       setPlanError(msg)
                     } finally {
@@ -832,60 +621,74 @@ const PlansPage: React.FC = () => {
                     }
                   }}
                 >
-                  {generating ? 'Generating…' : 'Generate Learning Path'}
+                  {generating ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Generating…
+                    </span>
+                  ) : (
+                    'Generate Learning Path'
+                  )}
                 </button>
               </div>
-              {planError ? (
-                <div style={{ marginTop: 12, textAlign: 'center', color: '#dc2626' }}>{planError}</div>
-              ) : null}
+              {planError && (
+                <div className="mt-6 text-center px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 font-medium">
+                  {planError}
+                </div>
+              )}
               {planGenerated && skeleton && (
-                <section className="mt-8" aria-label="generated-plan">
-                  <div className="card card__pad">
-                    <h2 style={{ fontWeight: 600, color: '#111827', marginBottom: 12 }}>Learning Path Result</h2>
-                    {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
-                      <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
-                        {skeleton.lessons.map((ls: any) => (
-                          <li key={ls.id ?? ls.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                            <span style={{ marginTop: 4, width: 8, height: 8, borderRadius: 999, background: '#4f46e5' }} />
-                            <div>
-                              <div style={{ fontWeight: 600, color: '#1f2937' }}>{ls.title ?? 'Lesson'}</div>
-                              {ls.description ? (<div style={{ fontSize: 14, color: '#6b7280' }}>{ls.description}</div>) : null}
-                              {Array.isArray(ls.chapters) && ls.chapters.length > 0 ? (
-                                <ul style={{ marginTop: 6, paddingLeft: 18 }}>
-                                  {ls.chapters.map((ch: any) => (
-                                    <li key={ch.id ?? ch.title} style={{ color: '#4b5563', fontSize: 14 }}>{ch.title ?? 'Chapter'}</li>
-                                  ))}
-                                </ul>
-                              ) : null}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div style={{ color: '#6b7280' }}>No learning path data from server.</div>
-                    )}
-                  </div>
+                <section className="mt-8 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm" aria-label="generated-plan">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Learning Path Result</h2>
+                  {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
+                    <ul className="space-y-4">
+                      {skeleton.lessons.map((ls: any) => (
+                        <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200">
+                          <span className="mt-1 w-2 h-2 rounded-full bg-teal-500 flex-shrink-0" />
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900">{ls.title ?? 'Lesson'}</div>
+                            {ls.description && <div className="text-sm text-gray-600 mt-1">{ls.description}</div>}
+                            {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
+                              <ul className="mt-2 ml-4 space-y-1">
+                                {ls.chapters.map((ch: any) => (
+                                  <li key={ch.id ?? ch.title} className="text-sm text-gray-700">
+                                    • {ch.title ?? 'Chapter'}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-gray-500 text-center py-4">No learning path data from server.</div>
+                  )}
                 </section>
               )}
             </>
           )}
 
           {/* Footer actions */}
-          <div className="actions">
+          <div className="flex items-center justify-center gap-4 mt-10">
             <button
               type="button"
-              className="btn"
+              className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow-md"
               onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))}
-            >
-              Quay lại
+> 
+              Back
             </button>
             <button
               type="button"
-              className={`btn btn-primary ${!canNext ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`px-6 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-semibold hover:from-teal-600 hover:to-teal-700 transition-all shadow-md hover:shadow-lg ${
+                !canNext ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
               disabled={!canNext}
               onClick={() => setStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s))}
-            >
-              Tiếp tục
+> 
+              Continue
             </button>
           </div>
         </div>

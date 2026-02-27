@@ -1,237 +1,215 @@
 import * as signalR from '@microsoft/signalr'
 import useAuthStore from '../../store/useAuthStore'
 
-const rawBase = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_BASE_URL as string) || ''
+// ==== Hub URLs ====
+const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
+  || (import.meta.env.VITE_BASE_URL as string)
+  || (import.meta.env.PROD ? 'https://pplp.click/api' : '')
 const trimmed = (rawBase || '').replace(/\/+$/, '')
 const isDev = typeof window !== 'undefined' && import.meta.env.DEV
 const HUB_BASE = isDev
-  ? ''
+  ? '' // same-origin in dev (rely on dev proxy)
   : trimmed
     ? (trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed)
     : ''
 
 const LESSON_HUB_URL = `${HUB_BASE}/hubs/lesson`
 const CHAPTER_HUB_URL = `${HUB_BASE}/hubs/chapter`
-const REQUEST_TIMEOUT = 120000 // 2 minutes timeout
+const REQUEST_TIMEOUT = 120000 // 2m timeout
 
+// ==== State ====
 let lessonHub: signalR.HubConnection | null = null
 let chapterHub: signalR.HubConnection | null = null
 
+// single-flight guards (avoid duplicate invokes for the same id)
+const inflightLesson = new Map<string, Promise<any>>()
+const inflightChapter = new Map<string, Promise<any>>()
+
+// ==== Utils ====
 function getToken(): string | undefined {
   try { return useAuthStore.getState().token ?? undefined } catch { return undefined }
 }
 
-async function ensureStarted(conn: signalR.HubConnection) {
+function isGuid(value: any): value is string {
+  return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)
+}
+
+async function ensureStarted(conn: signalR.HubConnection, _name: string) {
   if (conn.state === signalR.HubConnectionState.Disconnected) {
-    try {
-      await conn.start()
-    } catch (err) {
-      console.error('Failed to start hub connection:', err)
-      throw err
-    }
+    await conn.start()
   }
+}
+
+function buildConnection(url: string): signalR.HubConnection {
+  return new signalR.HubConnectionBuilder()
+    .withUrl(url, {
+      accessTokenFactory: () => getToken() || '',
+      withCredentials: true,
+    } as signalR.IHttpConnectionOptions)
+    .withAutomaticReconnect({
+      nextRetryDelayInMilliseconds: (ctx) => ctx.previousRetryCount === 0 ? 0 : Math.min(1000 << ctx.previousRetryCount, 30000),
+    })
+    .configureLogging(signalR.LogLevel.None)
+    .build()
 }
 
 export async function getLessonHub(): Promise<signalR.HubConnection> {
   if (!lessonHub) {
-    lessonHub = new signalR.HubConnectionBuilder()
-      .withUrl(LESSON_HUB_URL, {
-        accessTokenFactory: () => getToken() || '',
-        withCredentials: true,
-      } as signalR.IHttpConnectionOptions)
-      .withAutomaticReconnect({
-        nextRetryDelayInMilliseconds: (retryContext) => {
-          if (retryContext.previousRetryCount === 0) return 0
-          return Math.min(1000 << retryContext.previousRetryCount, 30000)
-        },
-      })
-      .build()
+    lessonHub = buildConnection(LESSON_HUB_URL)
   }
-  await ensureStarted(lessonHub)
+  await ensureStarted(lessonHub, 'lesson')
   return lessonHub
 }
 
 export async function getChapterHub(): Promise<signalR.HubConnection> {
   if (!chapterHub) {
-    chapterHub = new signalR.HubConnectionBuilder()
-      .withUrl(CHAPTER_HUB_URL, {
-        accessTokenFactory: () => getToken() || '',
-        withCredentials: true,
-      } as signalR.IHttpConnectionOptions)
-      .withAutomaticReconnect({
-        nextRetryDelayInMilliseconds: (retryContext) => {
-          if (retryContext.previousRetryCount === 0) return 0
-          return Math.min(1000 << retryContext.previousRetryCount, 30000)
-        },
-      })
-      .build()
+    chapterHub = buildConnection(CHAPTER_HUB_URL)
   }
-  await ensureStarted(chapterHub)
+  await ensureStarted(chapterHub, 'chapter')
   return chapterHub
 }
 
-/**
- * Request lesson content from SignalR hub.
- * Waits for ReceiveLessonContent event or times out.
- * Events: LessonContentLoading, ReceiveLessonContent, LessonContentError
- *
- * @param lessonId - The GUID of the lesson
- * @param onLoading - Optional callback when loading starts
- * @returns Promise with lesson content
- */
-export async function requestLessonContent(
-  lessonId: string,
-  onLoading?: () => void,
-): Promise<any> {
+// ==== Request lesson content (pure SignalR, per spec) ====
+export async function requestLessonContent(lessonId: string, onLoading?: () => void): Promise<any> {
+  if (!isGuid(lessonId)) {
+    return Promise.reject(new Error('lessonId phải là GUID hợp lệ'))
+  }
+  // single-flight: return running promise for same lessonId
+  if (inflightLesson.has(lessonId)) {
+    return inflightLesson.get(lessonId)!
+  }
+
   const hub = await getLessonHub()
 
-  return new Promise((resolve, reject) => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    let isResolved = false
+  const p = new Promise<any>((resolve, reject) => {
+    let done = false
+    const cleanup = () => {
+      hub.off('LessonContentLoading', handleLoading)
+      hub.off('ReceiveLessonContent', handleContent)
+      hub.off('LessonContentError', handleError)
+      inflightLesson.delete(lessonId)
+    }
 
-    const handleLoadingStart = () => {
+    const handleLoading = () => {
       onLoading?.()
     }
 
     const handleContent = (content: any) => {
-      if (isResolved) return
-      isResolved = true
-
-      if (timeoutId) clearTimeout(timeoutId)
-      hub.off('LessonContentLoading', handleLoadingStart)
-      hub.off('ReceiveLessonContent', handleContent)
-      hub.off('LessonContentError', handleError)
-
+      if (done) return
+      done = true
+      cleanup()
       resolve(content)
     }
 
-    const handleError = (error: any) => {
-      if (isResolved) return
-      isResolved = true
-
-      if (timeoutId) clearTimeout(timeoutId)
-      hub.off('LessonContentLoading', handleLoadingStart)
-      hub.off('ReceiveLessonContent', handleContent)
-      hub.off('LessonContentError', handleError)
-
-      reject(new Error(error?.message || 'Failed to load lesson content'))
+    const handleError = (err: any) => {
+      if (done) return
+      done = true
+      cleanup()
+      reject(new Error(err?.message || 'Failed to load lesson content'))
     }
 
-    // Setup timeout
-    timeoutId = setTimeout(() => {
-      if (isResolved) return
-      isResolved = true
-
-      hub.off('LessonContentLoading', handleLoadingStart)
-      hub.off('ReceiveLessonContent', handleContent)
-      hub.off('LessonContentError', handleError)
-
+    // timeout safety
+    const to = setTimeout(() => {
+      if (done) return
+      done = true
+      cleanup()
       reject(new Error('Lesson content request timeout'))
     }, REQUEST_TIMEOUT)
 
-    // Register event listeners
-    hub.on('LessonContentLoading', handleLoadingStart)
-    hub.on('ReceiveLessonContent', handleContent)
-    hub.on('LessonContentError', handleError)
+    // ensure timeout cleared in all paths
+    const clearTo = () => { try { clearTimeout(to) } catch {} }
 
-    // Send request
+    // rewrap to clear timeout then delegate
+    const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+    hub.on('LessonContentLoading', handleLoading)
+    hub.on('ReceiveLessonContent', handleContentWrap)
+    hub.on('LessonContentError', handleErrorWrap)
+
     try {
-      hub.invoke('RequestLessonContent', lessonId).catch((err) => {
-        handleError(err)
-      })
-    } catch (err) {
-      handleError(err)
+      hub.invoke('RequestLessonContent', lessonId).catch(handleErrorWrap)
+    } catch (e) {
+      handleErrorWrap(e)
     }
   })
+
+  inflightLesson.set(lessonId, p)
+  return p
 }
 
-/**
- * Request chapter content from SignalR hub.
- * Waits for ReceiveChapterContent event or times out.
- * Events: ChapterContentLoading, ReceiveChapterContent, ChapterContentError
- *
- * @param chapterId - The GUID of the chapter
- * @param onLoading - Optional callback when loading starts
- * @returns Promise with chapter content
- */
-export async function requestChapterContent(
-  chapterId: string,
-  onLoading?: () => void,
-): Promise<any> {
+// ==== Request chapter content (pure SignalR) ====
+export async function requestChapterContent(chapterId: string, onLoading?: () => void): Promise<any> {
+  if (!isGuid(chapterId)) {
+    return Promise.reject(new Error('chapterId phải là GUID hợp lệ'))
+  }
+  if (inflightChapter.has(chapterId)) {
+    return inflightChapter.get(chapterId)!
+  }
+
   const hub = await getChapterHub()
 
-  return new Promise((resolve, reject) => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    let isResolved = false
+  const p = new Promise<any>((resolve, reject) => {
+    let done = false
+    const cleanup = () => {
+      hub.off('ChapterContentLoading', handleLoading)
+      hub.off('ReceiveChapterContent', handleContent)
+      hub.off('ChapterContentError', handleError)
+      inflightChapter.delete(chapterId)
+    }
 
-    const handleLoadingStart = () => {
+    const handleLoading = () => {
       onLoading?.()
     }
 
     const handleContent = (content: any) => {
-      if (isResolved) return
-      isResolved = true
-
-      if (timeoutId) clearTimeout(timeoutId)
-      hub.off('ChapterContentLoading', handleLoadingStart)
-      hub.off('ReceiveChapterContent', handleContent)
-      hub.off('ChapterContentError', handleError)
-
+      if (done) return
+      done = true
+      cleanup()
       resolve(content)
     }
 
-    const handleError = (error: any) => {
-      if (isResolved) return
-      isResolved = true
-
-      if (timeoutId) clearTimeout(timeoutId)
-      hub.off('ChapterContentLoading', handleLoadingStart)
-      hub.off('ReceiveChapterContent', handleContent)
-      hub.off('ChapterContentError', handleError)
-
-      reject(new Error(error?.message || 'Failed to load chapter content'))
+    const handleError = (err: any) => {
+      if (done) return
+      done = true
+      cleanup()
+      reject(new Error(err?.message || 'Failed to load chapter content'))
     }
 
-    // Setup timeout
-    timeoutId = setTimeout(() => {
-      if (isResolved) return
-      isResolved = true
-
-      hub.off('ChapterContentLoading', handleLoadingStart)
-      hub.off('ReceiveChapterContent', handleContent)
-      hub.off('ChapterContentError', handleError)
-
+    const to = setTimeout(() => {
+      if (done) return
+      done = true
+      cleanup()
       reject(new Error('Chapter content request timeout'))
     }, REQUEST_TIMEOUT)
+    const clearTo = () => { try { clearTimeout(to) } catch {} }
+    const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
 
-    // Register event listeners
-    hub.on('ChapterContentLoading', handleLoadingStart)
-    hub.on('ReceiveChapterContent', handleContent)
-    hub.on('ChapterContentError', handleError)
+    hub.on('ChapterContentLoading', handleLoading)
+    hub.on('ReceiveChapterContent', handleContentWrap)
+    hub.on('ChapterContentError', handleErrorWrap)
 
-    // Send request
     try {
-      hub.invoke('RequestChapterContent', chapterId).catch((err) => {
-        handleError(err)
-      })
-    } catch (err) {
-      handleError(err)
+      hub.invoke('RequestChapterContent', chapterId).catch(handleErrorWrap)
+    } catch (e) {
+      handleErrorWrap(e)
     }
   })
+
+  inflightChapter.set(chapterId, p)
+  return p
 }
 
-/**
- * Disconnect both lesson and chapter hubs (cleanup on component unmount)
- */
 export async function disconnectHubs(): Promise<void> {
   try {
-    if (lessonHub && lessonHub.state === signalR.HubConnectionState.Connected) {
+    if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
       await lessonHub.stop()
     }
-    if (chapterHub && chapterHub.state === signalR.HubConnectionState.Connected) {
+    if (chapterHub && chapterHub.state !== signalR.HubConnectionState.Disconnected) {
       await chapterHub.stop()
     }
-  } catch (err) {
-    console.error('Error disconnecting hubs:', err)
+  } catch {
+    // ignore
   }
 }

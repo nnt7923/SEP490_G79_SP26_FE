@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
-import { ResourceService } from '../../../services'
+import ResourceService from '../../../services/ResourceService'
 import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import { LogOut, Settings, HelpCircle, FileText, Calendar, Loader2, Plus, Trash2, Edit, Eye } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
@@ -159,9 +160,7 @@ const MyResourcesPage: React.FC = () => {
       {
         label: 'Help',
         icon: <HelpCircle className="w-5 h-5" />,
-        onClick: () => {
-          // TODO: Implement help functionality
-        },
+        onClick: () => {},
       },
       {
         label: 'Logout',

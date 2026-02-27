@@ -1,7 +1,8 @@
-import React from 'react'
+
 import { createBrowserRouter } from 'react-router-dom'
 import ROUTER from './ROUTER'
 import ROUTER_META from './ROUTER_META'
+import React, { Suspense } from 'react'
 
 // Layouts
 const LayoutCommon = React.lazy(() => import('../components/Layout'))
@@ -16,6 +17,10 @@ const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
 const ForgotPassword = React.lazy(() => import('../pages/public/ForgotPassword'))
 const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
+const MyPlans = React.lazy(() => import('../pages/private/Student/MyPlans'))
+const MyPlansDetail = React.lazy(() => import('../pages/private/Student/MyPlans/Detail'))
+const Goals = React.lazy(() => import('../pages/private/Student/Goals'))
+const GoalsDetail = React.lazy(() => import('../pages/private/Student/Goals/Detail'))
 const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
 const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
 const MyResources = React.lazy(() => import('../pages/private/MyResources'))
@@ -23,11 +28,14 @@ const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
+const Plans = React.lazy(() => import('../pages/private/Plans'))
+const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 
+const Fallback = () => <div />
 
 const router = createBrowserRouter([
   {
-    element: <React.Suspense fallback={<div />}> <LayoutCommon /> </React.Suspense>,
+    element: <Suspense fallback={<div />}> <LayoutCommon /> </Suspense>,
     handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
     children: [
       { index: true, path: ROUTER.HOME, element: <Home /> },
@@ -36,7 +44,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: <React.Suspense fallback={<div />}> <LayoutCommon /> </React.Suspense>,
+    element: <Suspense fallback={<div />}> <LayoutCommon /> </Suspense>,
     children: [
       { path: ROUTER.LOGIN, element: <Login /> },
       { path: ROUTER.REGISTER, element: <Register /> },
@@ -47,26 +55,30 @@ const router = createBrowserRouter([
   },
   // General protected routes (any logged-in user)
   {
-    element: <React.Suspense fallback={<div />}> <ProtectedRoute /> </React.Suspense>,
+    element: <Suspense fallback={<div />}> <ProtectedRoute /> </Suspense>,
     children: [
       { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
+      { path: ROUTER.MY_PLANS, element: <MyPlans /> },
+      { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
+      { path: ROUTER.GOALS, element: <Goals /> },
+      { path: '/goals/:goalId', element: <GoalsDetail /> },
       { path: ROUTER.PROFILE, element: <Profile /> },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
       { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
       {
-        element: <React.Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </React.Suspense>,
+        element: <Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </Suspense>,
         children: [
-          { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
-          { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
+          { path: ROUTER.PROFILE, element: <Profile /> },
+          { path: ROUTER.PLANS, element: <Plans /> },
+          { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },
         ],
       },
-      { path: ROUTER.PLANS, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans')))} </React.Suspense> },
-      { path: ROUTER.PLANS_RESULT, element: <React.Suspense fallback={<div />}> {React.createElement(React.lazy(() => import('../pages/private/Plans/skeleton')))} </React.Suspense> },
+      { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },
   // Admin-only routes
   {
-    element: <React.Suspense fallback={<div />}> <ProtectedRoute role="Admin" /> </React.Suspense>,
+    element: <Suspense fallback={<div />}> <ProtectedRoute role="Admin" /> </Suspense>,
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
@@ -75,9 +87,10 @@ const router = createBrowserRouter([
   },
   // Mentor-only routes
   {
-    element: <React.Suspense fallback={<div />}> <ProtectedRoute role="Mentor" /> </React.Suspense>,
+    element: <Suspense fallback={<div />}> <ProtectedRoute role="Mentor" /> </Suspense>,
     children: [
       { path: ROUTER.MENTOR_DASHBOARD, element: <MentorDashboard /> },
+      { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
     ],
   },
 ])

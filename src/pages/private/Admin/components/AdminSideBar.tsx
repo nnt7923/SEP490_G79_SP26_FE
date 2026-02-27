@@ -1,3 +1,4 @@
+import React from 'react'
 import { LayoutDashboard, Users, Clipboard, BarChart2, Settings, KeyRound } from 'lucide-react'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 import ROUTER from '../../../../router/ROUTER'
@@ -24,11 +25,6 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
       label: 'API Key',
       path: ROUTER.ADMIN_API_KEY,
       icon: <KeyRound className="w-5 h-5" />,
-    },
-    {
-      label: 'Settings',
-      path: '/admin/settings',
-      icon: <Settings className="w-5 h-5" />,
     },
   ]
 }

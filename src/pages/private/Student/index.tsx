@@ -1,41 +1,60 @@
 import React from 'react'
 import useAuthStore from '../../../store/useAuthStore'
-import ROUTER_META from '../../../router/ROUTER_META'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { getStudentSidebarConfig } from './components/StudentSideBar'
-import { LogOut, Settings, HelpCircle } from 'lucide-react'
+import { LogOut, Target, BookMarked } from 'lucide-react'
+import { listGoals } from '../../../services/GoalService'
+import { getUserLearningPaths } from '../../../services/LearningPathService'
 
 const StudentIndex: React.FC = () => {
   const { user, logout } = useAuthStore()
   const displayName = user?.name || user?.username || 'Student'
-  // Robust role handling: backend may return role as string or object
-  const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name ?? '—'
   const navigate = useNavigate()
+  const [goalsCount, setGoalsCount] = React.useState(0)
+  const [plansCount, setPlansCount] = React.useState(0)
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        setLoading(true)
+        const goals = await listGoals()
+        const paths = await getUserLearningPaths(user?.id || 'me', { pageSize: 1 })
+        
+        const goalsLength = Array.isArray(goals) ? goals.length : 0
+        const plansTotal = paths?.totalCount || 0
+        
+        setGoalsCount(goalsLength)
+        setPlansCount(plansTotal)
+      } catch (error) {
+        // Removed console.error in counts fetch catch
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCounts()
+  }, [])
 
   const handleLogout = async () => {
     await logout()
     navigate(ROUTER.LOGIN)
   }
 
-  const handleSettings = () => {
-    navigate(ROUTER.PROFILE)
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
   }
 
   const sidebarConfig = {
     navItems: getStudentSidebarConfig(),
     actions: [
-      {
-        label: 'Settings',
-        icon: <Settings className="w-5 h-5" />,
-        onClick: handleSettings,
-      },
-      {
-        label: 'Help',
-        icon: <HelpCircle className="w-5 h-5" />,
-        onClick: () => {},
-      },
       {
         label: 'Logout',
         icon: <LogOut className="w-5 h-5" />,
@@ -51,50 +70,90 @@ const StudentIndex: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold mb-3">{ROUTER_META[ROUTER.STUDENT_DASHBOARD]?.title || 'Dashboard'}</h1>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(ROUTER.HOME)}
-              className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Back Home
-            </button>
+      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+        {/* ========== PROFILE HEADER ========== */}
+        <div className="mb-8">
+          <div className="bg-gradient-to-r from-[#2f80ed] via-[#7c3aed] to-[#2f80ed] rounded-2xl overflow-hidden shadow-lg">
+            <div className="px-8 py-8">
+              <div className="flex items-center gap-6">
+                <div className="w-28 h-28 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <span className="text-white font-bold text-4xl">{getInitials(displayName)}</span>
+                </div>
+                
+                <div className="flex-1">
+                  <h1 className="text-4xl font-bold text-white mb-2">{displayName}</h1>
+                  <p className="text-white/80 text-base mb-4">{user?.email ?? '—'}</p>
+                  
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <p className="text-gray-600 dark:text-gray-300 mb-6">Hello, {displayName}! This is the basic Student dashboard.</p>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          {/* Goals Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow border border-[#e5e7eb]">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#fef3c7] to-[#fde68a] flex items-center justify-center">
+                <Target size={24} className="text-[#f59e0b]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#6b7280]">Goals</p>
+                <p className="text-3xl font-bold text-[#111827]">
+                  {loading ? '—' : goalsCount}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-[#6b7280]">Learning objectives</p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Profile Summary</h2>
-            <ul className="m-0 pl-4 text-sm text-gray-700 dark:text-gray-300">
-              <li>Name: {user?.name ?? '—'}</li>
-              <li>Username: {user?.username ?? '—'}</li>
-              <li>Email: {user?.email ?? '—'}</li>
-              <li>Role: {roleName}</li>
-            </ul>
-          </section>
-
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Upcoming Classes</h2>
-            <p className="text-sm text-gray-500">No data yet. Coming soon.</p>
-          </section>
-
-          <section className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-            <h2 className="text-lg font-medium mb-2">Study Progress</h2>
-            <p className="text-sm text-gray-500">Updating. You will see statistics here.</p>
-          </section>
+          {/* Plans Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow border border-[#e5e7eb]">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe] flex items-center justify-center">
+                <BookMarked size={24} className="text-[#2f80ed]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#6b7280]">Plans</p>
+                <p className="text-3xl font-bold text-[#111827]">
+                  {loading ? '—' : plansCount}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-[#6b7280]">Learning paths</p>
+          </div>
         </div>
 
-        <div className="mt-6">
-          <h2 className="text-lg font-medium mb-3">Quick Actions</h2>
-          <div className="flex flex-wrap gap-3">
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Enroll in class</a>
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">View schedule</a>
-            <a href="#" className="inline-block px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Update profile</a>
-          </div>
+        {/* Quick Navigation */}
+        <div className="grid grid-cols-2 gap-6">
+          <button
+            type="button"
+            onClick={() => navigate(ROUTER.GOALS)}
+            className="bg-white border border-[#e5e7eb] rounded-2xl p-6 hover:shadow-lg hover:border-[#2f80ed] transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-[#fef3c7] group-hover:bg-[#fcd34d] transition-colors flex items-center justify-center">
+                <Target size={20} className="text-[#f59e0b]" />
+              </div>
+              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors text-lg">View Goals</span>
+            </div>
+            <p className="text-sm text-[#6b7280]">Check your learning objectives</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate(ROUTER.MY_PLANS)}
+            className="bg-white border border-[#e5e7eb] rounded-2xl p-6 hover:shadow-lg hover:border-[#2f80ed] transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-[#dbeafe] group-hover:bg-[#bfdbfe] transition-colors flex items-center justify-center">
+                <BookMarked size={20} className="text-[#2f80ed]" />
+              </div>
+              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors text-lg">View Plans</span>
+            </div>
+            <p className="text-sm text-[#6b7280]">Explore your learning paths</p>
+          </button>
         </div>
       </div>
     </Layout>

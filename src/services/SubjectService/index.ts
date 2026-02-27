@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { listSubjectsUrl } from './url'
+import { listSubjectsUrl, createSubjectUrl } from './url'
 
 export type Subject = {
   id: string
@@ -30,4 +30,12 @@ export async function listSubjects(): Promise<Subject[]> {
   }))
 }
 
-export default { listSubjects }
+export async function createSubject(payload: { name: string; slug?: string }): Promise<Subject> {
+  const res: any = await api.post(createSubjectUrl, payload)
+  // Unwrap common API envelope patterns
+  const data = res?.data ?? res
+  if (data?.value) return data.value as Subject
+  return data as Subject
+}
+
+export default { listSubjects, createSubject }

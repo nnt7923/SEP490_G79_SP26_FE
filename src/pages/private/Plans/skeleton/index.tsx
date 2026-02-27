@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Header from '../../../../components/Layout/Header'
@@ -5,7 +6,7 @@ import Footer from '../../../../components/Layout/Footer'
 import ROUTER from '../../../../router/ROUTER'
 import { requestLessonContent, requestChapterContent } from '../../../../services/SignalR'
 import { generateAllContent } from '../../../../services/ContentGenerator'
-import ReactMarkdown from 'react-markdown'
+import LessonContent from '../components/LessonContent'
 
 const ResultPage: React.FC = () => {
   const location = useLocation() as any
@@ -31,19 +32,21 @@ const ResultPage: React.FC = () => {
       if (!import.meta.env.DEV || !skeleton) return
       const lessonCount = Array.isArray(skeleton?.lessons) ? skeleton.lessons.length : 0
       if (lessonCount === 0) {
-        console.warn('[Generate] skipped: skeleton has no lessons. Run Generate Learning Path.')
-        return
-      }
-      try {
-        // Hubs will be started on first request; content generation is stubbed
-        const summary = await generateAllContent(skeleton, { concurrency: 2 })
-        console.info('[Generate] done:', summary)
-      } catch (err: any) {
-        console.error('[Generate] failed:', err?.message || err)
-      }
-    }
-    run()
-  }, [skeleton])
+
+        /* no-op: skip background generation when no lessons */
+         return
+       }
+       try {
+         // Hubs will be started on first request; content generation is stubbed
+         const summary = await generateAllContent(skeleton, { concurrency: 2 })
+
+        // generation summary available if needed in DEV via debugger
+       } catch (err: any) {
+         // Removed console.error in Generate error handler
+       }
+     }
+     run()
+   }, [skeleton])
 
   // Lessons list from skeleton (normalize id/title)
   const lessons = useMemo(() => {
@@ -51,13 +54,15 @@ const ResultPage: React.FC = () => {
     return raw
       .map((ls: any, idx: number) => ({
         id: ls?.id ?? ls?.lessonId ?? ls?.LessonId,
-        title: ls?.title || `Bài học ${idx + 1}`,
+        title: ls?.title || `Lesson ${idx + 1}`,
+        content: ls?.content ?? null,
         chapters: Array.isArray(ls?.chapters) ? ls.chapters : [],
       }))
       .filter((x: any) => !!x.id)
   }, [skeleton])
 
-  const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>(() => lessons?.[0]?.id)
+  const selectedFromNav: string | undefined = location?.state?.selectedLessonId
+  const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>(() => selectedFromNav || lessons?.[0]?.id)
   useEffect(() => {
     if (!selectedLessonId && lessons?.[0]?.id) setSelectedLessonId(lessons[0].id)
   }, [lessons, selectedLessonId])
@@ -90,6 +95,18 @@ const ResultPage: React.FC = () => {
       if (!selectedLessonId) { setMd(''); setError(null); return }
       setLoading(true)
       setError(null)
+
+      // 1) Prefer content provided directly in skeleton
+      const found = lessons.find((x: any) => x.id === selectedLessonId)
+      const fromSkeleton = extractMarkdown(found?.content)
+      if (!disposed && fromSkeleton && fromSkeleton.trim().length > 0) {
+        setMd(fromSkeleton)
+        setLoading(false)
+        try { sessionStorage.setItem(`lessonContent:${selectedLessonId}`, JSON.stringify(found?.content)) } catch {}
+        return
+      }
+
+      // 2) Fallback to SignalR request
       try {
         const content = await requestLessonContent(selectedLessonId, () => {
           if (!disposed) setLoading(true)
@@ -99,158 +116,109 @@ const ResultPage: React.FC = () => {
         setMd(extractMarkdown(content))
       } catch (e: any) {
         if (disposed) return
-        const msg = e?.message || 'Không thể tải nội dung bài học.'
+        const msg = e?.message || 'Unable to load lesson content.'
         // Fallback to any cached content
         const cached = getStored(`lessonContent:${selectedLessonId}`)
         if (cached) {
           setMd(extractMarkdown(cached))
+        } else {
+          setError(msg)
         }
-        setError(msg)
       } finally {
         if (!disposed) setLoading(false)
       }
     }
     run()
     return () => { disposed = true }
-  }, [selectedLessonId])
+  }, [selectedLessonId, lessons])
 
-  // Load cached content initially if any
-  useEffect(() => {
-    if (!selectedLessonId) { setMd(''); return }
-    const payload = getStored(`lessonContent:${selectedLessonId}`)
-    if (payload) setMd(extractMarkdown(payload))
-  }, [selectedLessonId])
-
-  // Fetch chapter content when clicking a chapter item
-  const handleChapterClick = async (chapterId?: string) => {
-    if (!chapterId) return
+  // Allow chapter content loading as well
+  const loadChapterContent = async (chapterId: string) => {
     setLoading(true)
     setError(null)
     try {
       const content = await requestChapterContent(chapterId, () => setLoading(true))
-      try { sessionStorage.setItem(`chapterContent:${chapterId}`, JSON.stringify(content)) } catch {}
       setMd(extractMarkdown(content))
     } catch (e: any) {
-      const msg = e?.message || 'Không thể tải nội dung chương.'
-      // Fallback to cached chapter content
-      try {
-        const cached = getStored(`chapterContent:${chapterId}`)
-        if (cached) setMd(extractMarkdown(cached))
-      } catch {}
+      const msg = e?.message || 'Unable to load chapter content.'
       setError(msg)
     } finally {
       setLoading(false)
     }
   }
 
-  // Path meta for hero section
+  // Header info
+  const pathTitle: string = skeleton?.title || skeleton?.path?.title || 'Learning Path'
+  const pathDescription: string = skeleton?.description || skeleton?.path?.description || ''
+  const chapterCount: number | undefined = (() => {
+    const fromArray = Array.isArray(skeleton?.chapters) ? skeleton.chapters.length : undefined
+    if (typeof fromArray === 'number') return fromArray
+    const lessonsRaw = Array.isArray(skeleton?.lessons) ? skeleton.lessons : []
+    return lessonsRaw.flatMap((ls: any) => ls?.chapters || []).length || undefined
+  })()
   const pathId: string | undefined = skeleton?.pathId ?? skeleton?.PathId ?? skeleton?.Id ?? skeleton?.path?.pathId ?? skeleton?.path?.id
-  const pathTitle: string = (skeleton?.title ?? skeleton?.path?.title ?? 'Learning Path') as string
-  const pathDescription: string | undefined = skeleton?.description ?? skeleton?.path?.description
-  const chapterCount: number | undefined = skeleton?.chapterCount ?? skeleton?.ChapterCount
   const createdAt: string | undefined = (skeleton?.createdAt ?? skeleton?.CreatedAt) as any
 
-  const stageCount = useMemo(() => (Array.isArray(skeleton?.lessons) && skeleton.lessons.length) ? skeleton.lessons.length : 6, [skeleton])
-
-  if (!skeleton) return null
+  // Chapters tree (new API)
+  const chapters = useMemo(() => {
+    return Array.isArray(skeleton?.chapters) ? skeleton.chapters : []
+  }, [skeleton])
 
   return (
-    <div className="layout">
+    <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
       <Header />
-      <main className="page-main" role="main" aria-label="learning-path">
-        <div className="page-container">
+      <main className="page-main py-12" role="main" aria-label="learning-path">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero frame */}
-          <section className="rounded-xl bg-indigo-600 p-6 shadow-sm text-white">
+          <section className="rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 p-8 shadow-xl text-white mb-8">
             <div className="flex items-start justify-between">
-              <div className="space-y-2 w-full max-w-[720px]">
-                <h1 className="text-xl sm:text-2xl font-semibold">{pathTitle}</h1>
+              <div className="space-y-3 w-full max-w-3xl">
+                <h1 className="text-2xl sm:text-3xl font-bold font-heading">{pathTitle}</h1>
                 {pathDescription ? (
-                  <p className="text-white/90 text-sm sm:text-base">{pathDescription}</p>
+                  <p className="text-white/95 text-base sm:text-lg">{pathDescription}</p>
                 ) : (
-                  <p className="text-white/80 text-sm">Không có mô tả đường học.</p>
+                  <p className="text-white/80 text-sm">No learning path description.</p>
                 )}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {pathId ? (
-                    <span className="inline-flex items-center rounded bg-white/10 px-2 py-1 text-xs">
-                      <span className="opacity-80">PathID:</span>&nbsp;
-                      <code>{String(pathId).slice(0, 8)}…</code>
-                    </span>
-                  ) : null}
-                  {typeof chapterCount === 'number' ? (
-                    <span className="inline-flex items-center rounded bg-white/10 px-2 py-1 text-xs">Chapters: {chapterCount}</span>
-                  ) : null}
-                  {createdAt ? (
-                    <span className="inline-flex items-center rounded bg-white/10 px-2 py-1 text-xs">
-                      Created: {new Date(createdAt).toLocaleString()}
-                    </span>
-                  ) : null}
-                </div>
+                {/* Removed badges: PathID, Chapters, Created */}
               </div>
             </div>
           </section>
 
-          {/* Grid layout: left lesson/chapter content, right skeleton list */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <div className="card card__pad">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold">Nội dung bài/chương</h2>
+          {/* Grid layout: full width lesson/chapter content */}
+          <section className="grid grid-cols-1 gap-6">
+            <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 font-heading">Lesson / Chapter Content</h2>
                 <div className="flex items-center gap-2">
                   <select
-                    className="border rounded px-2 py-1 text-sm"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none text-sm font-medium transition-colors"
                     value={selectedLessonId || ''}
                     onChange={(e) => setSelectedLessonId(e.target.value || undefined)}
+                    aria-label="Select lesson"
                   >
                     {lessons.map((ls: any) => (
                       <option key={ls.id} value={ls.id}>{ls.title}</option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    className="px-3 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition"
+                    title="View lesson content"
+                    onClick={() => selectedLessonId && setSelectedLessonId(selectedLessonId)}
+                  >
+                    View
+                  </button>
                 </div>
               </div>
 
-              <div className="prose max-w-none overflow-auto" style={{ maxHeight: 480 }}>
-                {loading ? (
-                  <div className="text-gray-500 text-sm">Đang tải nội dung…</div>
-                ) : error ? (
-                  <div className="text-red-600 text-sm">{error}</div>
-                ) : md ? (
-                  <ReactMarkdown>{md}</ReactMarkdown>
-                ) : (
-                  <div className="text-gray-500 text-sm">Chưa có nội dung cho bài/chương đã chọn.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="card card__pad">
-              <h2 className="text-lg font-semibold mb-3">Khung kế hoạch</h2>
-              {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
-                <ul className="space-y-2">
-                  {skeleton.lessons.map((ls: any, idx: number) => (
-                    <li key={ls.id ?? ls.title}>
-                      <div className="font-medium text-gray-800">{ls.title ?? `Bài học ${idx + 1}`}</div>
-                      {Array.isArray(ls.chapters) && ls.chapters.length > 0 ? (
-                        <ul className="mt-1 ml-4 list-disc text-sm text-gray-600">
-                          {ls.chapters.map((ch: any) => (
-                            <li
-                              key={ch.id ?? ch.title}
-                              className="cursor-pointer hover:text-gray-800"
-                              onClick={() => handleChapterClick(ch.id)}
-                              title="Xem nội dung chương"
-                            >
-                              {ch.title ?? 'Chapter'}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="text-gray-500 text-sm">Chưa có chapters.</div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-gray-500">Chưa có danh sách bài/chương trong skeleton.</div>
-              )}
+              <LessonContent content={md} loading={loading} error={error || undefined} />
             </div>
           </section>
+
+          {/* Empty state */}
+          {(!Array.isArray(chapters) || chapters.length === 0) && (
+            <div className="text-gray-500 text-center py-8">No chapter/lesson list found in the skeleton.</div>
+          )}
         </div>
       </main>
       <Footer />

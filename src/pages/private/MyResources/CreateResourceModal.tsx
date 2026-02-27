@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react'
 import { X, Loader2, BookOpen } from 'lucide-react'
 import { SubjectService } from '../../../services'
@@ -33,7 +34,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       const data = await SubjectService.listSubjects()
       setSubjects(data)
     } catch (err) {
-      console.error('Failed to load subjects:', err)
+      // silently ignore in UI; optional: onShowToast later
     } finally {
       setLoadingSubjects(false)
     }
@@ -74,7 +75,30 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       formData.append('Type', 'PDF')
       formData.append('Description', description)
       formData.append('SubjectId', subjectId)
-      formData.append('File', file)
+
+      if (type === 'Link') {
+        formData.append('Url', url)
+      } else if (type === 'File' && file) {
+        formData.append('File', file)
+      }
+
+      // Debug: Log FormData contents
+      console.log('=== FormData Debug ===')
+      console.log('Title:', title)
+      console.log('Type:', type)
+      console.log('SubjectId:', subjectId)
+      console.log('Description:', description)
+      if (type === 'Link') {
+        console.log('Url:', url)
+      } else if (file) {
+        console.log('File:', file.name, file.type, file.size)
+      }
+      
+      // Log all FormData entries
+      console.log('=== FormData Entries ===')
+      for (const pair of formData.entries()) {
+        console.log(pair[0], ':', pair[1])
+      }
 
       const { ResourceService } = await import('../../../services')
       await ResourceService.createResource(formData)
