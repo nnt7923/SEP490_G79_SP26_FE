@@ -7,9 +7,8 @@ const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
   || (import.meta.env.PROD ? 'https://pplp.click/api' : '')
 const trimmed = (rawBase || '').replace(/\/+$/, '')
 const isDev = typeof window !== 'undefined' && import.meta.env.DEV
-const isVercel = typeof window !== 'undefined' && /vercel\.app$/i.test(window.location.hostname)
-const HUB_BASE = (isDev || isVercel)
-  ? '' // same-origin in dev & vercel; rely on rewrites
+const HUB_BASE = isDev
+  ? '' // same-origin in dev (rely on dev proxy)
   : trimmed
     ? (trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed)
     : ''
