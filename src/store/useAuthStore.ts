@@ -201,8 +201,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const res = await UserService.changePassword(payload)
 
-      console.log('API response:', res)
-
       return {
         isOk: true,
         msg: res?.msg || res?.message || 'Password changed successfully!',

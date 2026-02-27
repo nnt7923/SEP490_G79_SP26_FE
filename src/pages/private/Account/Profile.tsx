@@ -39,7 +39,7 @@ const Profile: React.FC = () => {
             {
                 label: 'Help',
                 icon: <HelpCircle className="w-5 h-5" />,
-                onClick: () => console.log('Help clicked'),
+                onClick: () => {},
             },
             {
                 label: 'Logout',

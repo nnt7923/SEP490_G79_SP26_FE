@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Upload, Link as LinkIcon, Loader2, BookOpen } from 'lucide-react'
+import { X, Loader2, BookOpen } from 'lucide-react'
 import { SubjectService } from '../../../services'
 import type { Subject } from '../../../services/SubjectService'
 
@@ -10,13 +10,9 @@ interface CreateResourceModalProps {
   onShowToast: (message: string, type: 'success' | 'error') => void
 }
 
-type ResourceType = 'Link' | 'File'
-
 const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClose, onSuccess, onShowToast }) => {
-  const [type, setType] = useState<ResourceType>('Link')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [subjectId, setSubjectId] = useState('')
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -65,13 +61,8 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       return
     }
 
-    if (type === 'Link' && !url.trim()) {
-      setError('URL is required for Link type')
-      return
-    }
-
-    if (type === 'File' && !file) {
-      setError('File is required for File type')
+    if (!file) {
+      setError('File is required')
       return
     }
 
@@ -80,15 +71,10 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
 
       const formData = new FormData()
       formData.append('Title', title)
-      formData.append('Type', type)
+      formData.append('Type', 'PDF')
       formData.append('Description', description)
       formData.append('SubjectId', subjectId)
-
-      if (type === 'Link') {
-        formData.append('Url', url)
-      } else if (type === 'File' && file) {
-        formData.append('File', file)
-      }
+      formData.append('File', file)
 
       const { ResourceService } = await import('../../../services')
       await ResourceService.createResource(formData)
@@ -96,10 +82,8 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       // Reset form
       setTitle('')
       setDescription('')
-      setUrl('')
       setFile(null)
       setSubjectId('')
-      setType('Link')
       
       // Show success toast
       onShowToast('Resource created successfully!', 'success')
@@ -127,10 +111,8 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
     if (!loading) {
       setTitle('')
       setDescription('')
-      setUrl('')
       setFile(null)
       setSubjectId('')
-      setType('Link')
       setError(null)
       onClose()
     }
@@ -214,83 +196,29 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
             )}
           </div>
 
-          {/* Type */}
+          {/* File Upload */}
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Type <span className="text-red-500">*</span>
+              File <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setType('Link')}
-                disabled={loading}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all cursor-pointer disabled:opacity-50 ${
-                  type === 'Link'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
-                }`}
-              >
-                <LinkIcon className="w-5 h-5" />
-                <span className="font-medium">Link</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setType('File')}
-                disabled={loading}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all cursor-pointer disabled:opacity-50 ${
-                  type === 'File'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
-                }`}
-              >
-                <Upload className="w-5 h-5" />
-                <span className="font-medium">File</span>
-              </button>
-            </div>
-          </div>
-
-          {/* URL (only for Link type) */}
-          {type === 'Link' && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                URL <span className="text-red-500">*</span>
-              </label>
+            <div className="relative">
               <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                type="file"
+                onChange={handleFileChange}
                 disabled={loading}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="https://example.com"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300 dark:hover:file:bg-blue-900/50 file:cursor-pointer cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
-          )}
-
-          {/* File (only for File type) */}
-          {type === 'File' && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                File <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  disabled={loading}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300 dark:hover:file:bg-blue-900/50 file:cursor-pointer cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-              {file && (
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                  Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </p>
-              )}
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">
-                Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, ZIP, RAR
+            {file && (
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
               </p>
-            </div>
-          )}
+            )}
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">
+              Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, ZIP, RAR
+            </p>
+          </div>
 
           {/* Description */}
           <div>

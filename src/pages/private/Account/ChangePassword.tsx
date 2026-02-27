@@ -26,7 +26,7 @@ const ChangePassword = () => {
       {
         label: 'Help',
         icon: <HelpCircle className="w-5 h-5" />,
-        onClick: () => console.log('Help clicked'),
+        onClick: () => {},
       },
       {
         label: 'Logout',
@@ -79,8 +79,6 @@ const ChangePassword = () => {
       currentPassword: form.currentPassword,
       newPassword: form.newPassword,
     })
-
-    console.log('API response:', res)
 
     if (res?.isOk) {
       alert(res.msg || 'Password changed successfully!')
