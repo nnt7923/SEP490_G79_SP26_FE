@@ -72,7 +72,6 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
 
       const formData = new FormData()
       formData.append('Title', title)
-      formData.append('Type', 'PDF')
       formData.append('Description', description)
       formData.append('SubjectId', subjectId)
       formData.append('File', file)
