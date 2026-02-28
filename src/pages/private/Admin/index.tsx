@@ -57,10 +57,10 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+      <div className="px-4 py-6 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#111827]">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-[#111827]">Admin Dashboard</h1>
           <p className="text-[#6b7280] mt-1">Welcome back, {name}</p>
         </div>
 

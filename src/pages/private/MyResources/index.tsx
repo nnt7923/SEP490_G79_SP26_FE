@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import ResourceService from '../../../services/ResourceService'
 import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
-import { LogOut, Settings, HelpCircle, FileText, Calendar, ExternalLink, Loader2, Plus, Download, Trash2, Edit } from 'lucide-react'
+import { LogOut, Settings, HelpCircle, FileText, Calendar, Loader2, Plus, Trash2, Edit, Eye } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
 // @ts-ignore - JS module without types
 import ROUTER from '../../../router/ROUTER'
@@ -14,6 +14,7 @@ import CreateResourceModal from './CreateResourceModal'
 import EditResourceModal from './EditResourceModal'
 import Toast from '../../../components/Toast'
 import ConfirmDialog from '../../../components/ConfirmDialog'
+import ResourcePageViewer from '../../../components/ResourcePageViewer'
 
 interface Resource {
   id: number
@@ -22,7 +23,7 @@ interface Resource {
   description?: string
   url?: string
   filePath?: string
-  originalFilename?: string
+  originalFileName?: string
   type: string
   createdAt?: string
   updatedAt?: string
@@ -38,8 +39,10 @@ const MyResourcesPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isPageViewerOpen, setIsPageViewerOpen] = useState(false)
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null)
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null)
+  const [resourceToView, setResourceToView] = useState<Resource | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
   useEffect(() => {
@@ -99,24 +102,11 @@ const MyResourcesPage: React.FC = () => {
   const handleDownload = (resource: Resource) => {
     const downloadUrl = resource.filePath || resource.url
     if (downloadUrl) {
-      // For file type, download directly
-      if (resource.type === 'File') {
-        window.open(downloadUrl, '_blank')
-      } else {
-        // For link type, just open the URL
-        window.open(downloadUrl, '_blank')
-      }
+      // Open ResourcePageViewer for all resources
+      setResourceToView(resource)
+      setIsPageViewerOpen(true)
     } else {
       showToast('No download URL available', 'warning')
-    }
-  }
-
-  const handleView = (resource: Resource) => {
-    const viewUrl = resource.url || resource.filePath
-    if (viewUrl) {
-      window.open(viewUrl, '_blank')
-    } else {
-      showToast('No URL available', 'warning')
     }
   }
 
@@ -293,27 +283,15 @@ const MyResourcesPage: React.FC = () => {
                   
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 ml-4">
-                    {/* Show appropriate button based on type */}
+                    {/* View button for all resources */}
                     {(resource.filePath || resource.url) && (
-                      <>
-                        {resource.type === 'Link' ? (
-                          <button
-                            onClick={() => handleView(resource)}
-                            className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
-                            title="Open link"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleDownload(resource)}
-                            className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-green-600 dark:hover:text-green-400 transition-colors cursor-pointer"
-                            title="Download file"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                        )}
-                      </>
+                      <button
+                        onClick={() => handleDownload(resource)}
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+                        title="View document"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     )}
                     <button
                       onClick={() => handleEdit(resource)}
@@ -367,6 +345,19 @@ const MyResourcesPage: React.FC = () => {
           onConfirm={confirmDelete}
           onCancel={cancelDelete}
         />
+
+        {/* Resource Page Viewer (for all file types with backend page processing) */}
+        {resourceToView && (
+          <ResourcePageViewer
+            isOpen={isPageViewerOpen}
+            resourceId={resourceToView.resourceId}
+            fileName={resourceToView.originalFileName || resourceToView.title}
+            onClose={() => {
+              setIsPageViewerOpen(false)
+              setResourceToView(null)
+            }}
+          />
+        )}
 
         {/* Toast Notification */}
         {toast && (
