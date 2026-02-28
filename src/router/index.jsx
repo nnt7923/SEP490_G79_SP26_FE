@@ -8,6 +8,7 @@ import React, { Suspense } from 'react'
 const LayoutCommon = React.lazy(() => import('../components/Layout'))
 const ProtectedRoute = React.lazy(() => import('../components/Authorization/ProtectedRoute'))
 const ForbidRole = React.lazy(() => import('../components/Authorization/ForbidRole'))
+const RequireRole = React.lazy(() => import('../components/Authorization/RequireRole'))
 
 // Pages
 const Home = React.lazy(() => import('../pages/public/Home'))
@@ -57,23 +58,28 @@ const router = createBrowserRouter([
   {
     element: <Suspense fallback={<div />}> <ProtectedRoute /> </Suspense>,
     children: [
-      { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
-      { path: ROUTER.MY_PLANS, element: <MyPlans /> },
-      { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
-      { path: ROUTER.GOALS, element: <Goals /> },
-      { path: '/goals/:goalId', element: <GoalsDetail /> },
-      { path: ROUTER.PROFILE, element: <Profile /> },
-      { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
-      { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
+      // Student-only routes
       {
-        element: <Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </Suspense>,
+        element: <Suspense fallback={<div />}> <RequireRole role="Student" /> </Suspense>,
         children: [
-          { path: ROUTER.PROFILE, element: <Profile /> },
+          { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
+          { path: ROUTER.MY_PLANS, element: <MyPlans /> },
+          { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
+          { path: ROUTER.GOALS, element: <Goals /> },
+          { path: '/goals/:goalId', element: <GoalsDetail /> },
+          { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
           { path: ROUTER.PLANS, element: <Plans /> },
           { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },
         ],
       },
-      { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
+      // Shared routes (Student & Mentor)
+      {
+        element: <Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </Suspense>,
+        children: [
+          { path: ROUTER.PROFILE, element: <Profile /> },
+          { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
+        ],
+      },
     ],
   },
   // Admin-only routes
@@ -83,6 +89,7 @@ const router = createBrowserRouter([
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
+      { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },
   // Mentor-only routes
