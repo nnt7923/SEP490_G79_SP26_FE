@@ -180,25 +180,25 @@ const AdminApiKeyPage: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
-        {/* ========== PAGE HEADER ========== */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-[#2f80ed] via-[#7c3aed] to-[#2f80ed] rounded-2xl overflow-hidden shadow-lg">
-            <div className="px-8 py-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-4xl font-bold text-white mb-2">API Keys</h1>
-                  <p className="text-white/80 text-base">Manage AI provider configurations</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setShowForm((s) => !s); setIsEditMode(false); resetForm() }}
-                  className="px-6 py-3 rounded-lg bg-white text-[#2f80ed] font-semibold hover:bg-white/90 transition-all duration-200 shadow-md hover:shadow-lg"
-                >{showForm && !isEditMode ? 'Close' : '+ Add API Key'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="px-4 py-6 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen max-w-6xl mx-auto">
+           {/* ========== PAGE HEADER ========== */}
+           <div className="mb-8">
+             <div className="bg-gradient-to-r from-[#2f80ed] via-[#7c3aed] to-[#2f80ed] rounded-2xl overflow-hidden shadow-lg">
+               <div className="px-8 py-8">
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <h1 className="text-3xl font-bold text-white mb-2">API Keys</h1>
+                     <p className="text-white/80 text-sm">Manage AI provider configurations</p>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={() => { setShowForm((s) => !s); setIsEditMode(false); resetForm() }}
+                     className="px-6 py-3 rounded-lg bg-white text-[#2f80ed] font-semibold hover:bg-white/90 transition-all duration-200 shadow-md hover:shadow-lg"
+                   >{showForm && !isEditMode ? 'Close' : '+ Add API Key'}</button>
+                 </div>
+               </div>
+             </div>
+           </div>
 
         {/* ========== ALERTS ========== */}
         {error && (
@@ -215,7 +215,7 @@ const AdminApiKeyPage: React.FC = () => {
           <div className="mb-6 text-sm text-green-700 bg-green-50 border-l-4 border-green-500 rounded-r-lg px-4 py-3" role="status">
             <div className="flex items-start gap-3">
               <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               <span>{notice}</span>
             </div>
