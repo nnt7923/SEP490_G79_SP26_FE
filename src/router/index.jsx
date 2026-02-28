@@ -30,6 +30,9 @@ const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
+const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
+const MentorClasses = React.lazy(() => import('../pages/private/Mentor/Classes'))
+const MentorStudents = React.lazy(() => import('../pages/private/Mentor/Students'))
 
 const Fallback = () => <div />
 
@@ -90,6 +93,9 @@ const router = createBrowserRouter([
     element: <Suspense fallback={<div />}> <ProtectedRoute role="Mentor" /> </Suspense>,
     children: [
       { path: ROUTER.MENTOR_DASHBOARD, element: <MentorDashboard /> },
+      { path: '/mentor/subjects', element: <MentorSubjects /> },
+      { path: '/mentor/classes', element: <MentorClasses /> },
+      { path: '/mentor/students', element: <MentorStudents /> },
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
     ],
   },
