@@ -259,9 +259,7 @@ const ResultPage: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setSelectedLessonId(lesson.id)
-                                    setShowLessonContent(true)
-                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                    navigate(`/lesson/${lesson.id}`, { state: { skeleton } })
                                   }}
                                   className="font-medium text-gray-900 text-left hover:text-teal-600 underline decoration-transparent hover:decoration-teal-600 transition-colors"
                                 >

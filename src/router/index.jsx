@@ -31,6 +31,7 @@ const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
+const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
 
 const Fallback = () => <div />
 
@@ -70,6 +71,7 @@ const router = createBrowserRouter([
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
           { path: ROUTER.PLANS, element: <Plans /> },
           { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },
+          { path: '/lesson/:lessonId', element: <LessonDetail /> },
         ],
       },
       // Shared routes (Student & Mentor)

@@ -212,7 +212,7 @@ const MyPlansDetailPage: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch {}
-                                  navigate(ROUTER.PLANS_RESULT, { state: { skeleton: plan, selectedLessonId: lesson.id } })
+                                  navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
                                 }}
                                 title="View lesson content"
                                 className="font-medium text-[#111827] text-left hover:text-[#2f80ed] underline decoration-transparent hover:decoration-[#2f80ed]"
