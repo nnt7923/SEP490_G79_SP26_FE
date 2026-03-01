@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../../hook/useAuth'
@@ -64,7 +65,7 @@ const Login: React.FC = () => {
       })
       // google.accounts.id.prompt()
     } catch (e) {
-      console.error('Init Google failed:', e)
+      // Removed console.error in Google init failure
     }
   }
 

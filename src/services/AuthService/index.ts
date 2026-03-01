@@ -38,34 +38,44 @@ export async function login(payload: { Identifier: string; Password: string }) {
   const res: any = await api.post(loginUrl, payload)
   const data = res?.data ?? res
 
+  // Handle both old and new API response formats
   const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
+  const refreshToken: string | undefined = data?.refreshToken ?? data?.data?.refreshToken
 
   const user: any = {
     id: data?.userId ?? data?.data?.userId,
-    username: data?.username ?? data?.data?.username,
+    username: data?.username ?? data?.data?.username ?? data?.identifier ?? data?.data?.identifier,
     name:
-      data?.username ?? data?.data?.username ??
+      data?.username ?? data?.data?.username ?? data?.identifier ?? data?.data?.identifier ??
       (data?.email ?? data?.data?.email)?.split?.('@')?.[0] ?? 'User',
     email: data?.email ?? data?.data?.email,
-    role: { name: data?.roleName ?? data?.data?.roleName },
+    role: { name: data?.roleName ?? data?.data?.roleName ?? 'Student' },
   }
 
   if (!token || !user?.id) throw new Error('Login response missing token/user')
-  return { user, token }
+
+  // Store refresh token if provided
+  if (refreshToken) {
+    try {
+      localStorage.setItem('refreshToken', refreshToken)
+    } catch { }
+  }
+
+  return { user, token, refreshToken }
 }
 
 export async function logout() {
   // Call backend to invalidate session/token
   try {
     await api.post(logoutUrl)
-  } catch {}
+  } catch { }
   // Ensure axios does not carry Authorization after logout
   try {
     const defaults: any = api?.defaults
     if (defaults?.headers?.common) {
       delete defaults.headers.common['Authorization']
     }
-  } catch {}
+  } catch { }
 }
 
 export function isAuthenticated(): boolean {
@@ -77,22 +87,26 @@ export function setAccessToken(token: string) {
   try {
     if (token) {
       localStorage.setItem('accessToken', token)
-      ;(api.defaults.headers.common as any).Authorization = `Bearer ${token}`
+        ; (api.defaults.headers.common as any).Authorization = `Bearer ${token}`
     } else {
       localStorage.removeItem('accessToken')
       delete (api.defaults.headers.common as any).Authorization
     }
-  } catch {}
+  } catch { }
 }
 
 export function clearState() {
+  // Clear refresh token
+  try {
+    localStorage.removeItem('refreshToken')
+  } catch { }
   // Ensure axios does not carry Authorization after clearing
   try {
     const defaults: any = api?.defaults
     if (defaults?.headers?.common) {
       delete defaults.headers.common['Authorization']
     }
-  } catch {}
+  } catch { }
 }
 
 export async function verifyOtp(payload: { Email: string; Otp: string }) {
@@ -138,7 +152,7 @@ export async function refresh() {
   const data = res?.data ?? res
   const newToken: string | undefined = data?.data?.token ?? data?.token ?? data
   if (newToken) {
-    try { setAccessToken(newToken) } catch {}
+    try { setAccessToken(newToken) } catch { }
   }
   return { token: newToken }
 }

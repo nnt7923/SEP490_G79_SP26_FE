@@ -23,19 +23,13 @@ const StudentIndex: React.FC = () => {
         const goals = await listGoals()
         const paths = await getUserLearningPaths(user?.id || 'me', { pageSize: 1 })
         
-        console.log('Goals fetched:', goals)
-        console.log('Paths fetched:', paths)
-        
         const goalsLength = Array.isArray(goals) ? goals.length : 0
         const plansTotal = paths?.totalCount || 0
-        
-        console.log('Setting goals count to:', goalsLength)
-        console.log('Setting plans count to:', plansTotal)
         
         setGoalsCount(goalsLength)
         setPlansCount(plansTotal)
       } catch (error) {
-        console.error('Error fetching counts:', error)
+        // Removed console.error in counts fetch catch
       } finally {
         setLoading(false)
       }

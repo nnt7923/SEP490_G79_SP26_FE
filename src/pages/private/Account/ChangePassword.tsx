@@ -1,3 +1,4 @@
+import React from 'react'
 import { useState, useMemo } from 'react'
 import Layout from '../../../components/Layout'
 import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
@@ -85,7 +86,7 @@ const ChangePassword = () => {
       alert(res?.msg || 'Change password failed')
     }
   } catch (error) {
-    console.error(error)
+    // Removed console.error in change password error catch
     alert('Something went wrong')
   }
 }
