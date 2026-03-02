@@ -44,11 +44,8 @@ const MyPlansDetailPage: React.FC = () => {
       const foundPlan = response.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         setPlan(foundPlan)
-        // Expand all chapters by default
-        if (foundPlan.chapters) {
-          const allChapterIds = new Set(foundPlan.chapters.map(ch => ch.id))
-          setExpandedChapters(allChapterIds)
-        }
+        // Start with all chapters collapsed
+        setExpandedChapters(new Set())
       } else {
         setError('Learning path not found')
       }
