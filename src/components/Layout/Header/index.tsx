@@ -30,21 +30,26 @@ const Header: React.FC = () => {
   // Determine dashboard path by role (case-insensitive)
   const roleName = (user?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0] || '').toString()
   const normalizedRole = roleName.trim().toLowerCase()
-  const dashboardPath = normalizedRole === 'admin'
+  
+  const isAdmin = normalizedRole === 'admin'
+  const isMentor = normalizedRole === 'mentor'
+  const isStudent = normalizedRole === 'student' || (!isAdmin && !isMentor)
+  
+  const dashboardPath = isAdmin
     ? ROUTER.ADMIN_DASHBOARD
-    : normalizedRole === 'mentor'
+    : isMentor
       ? ROUTER.MENTOR_DASHBOARD
       : ROUTER.STUDENT_DASHBOARD
 
   // Decide profile path by role; admin has no profile
-  const profilePath = normalizedRole === 'admin' ? '' : (normalizedRole === 'mentor' ? ROUTER.MENTOR_PROFILE : ROUTER.PROFILE)
+  const profilePath = isAdmin ? '' : (isMentor ? ROUTER.MENTOR_PROFILE : ROUTER.PROFILE)
 
-  const showPlansLink = normalizedRole !== 'admin'
+  const showPlansLink = !isAdmin
 
-  // Build markdown menu dynamically
+  // Build markdown menu dynamically - only show My Plans for students
   const mdLines = [`- [Dashboard](${dashboardPath})`]
   if (profilePath) mdLines.push(`- [Profile](${profilePath})`)
-  if (normalizedRole === 'student') mdLines.push(`- [My Plans](${ROUTER.MY_PLANS})`)
+  if (isStudent) mdLines.push(`- [My Plans](${ROUTER.MY_PLANS})`)
   mdLines.push('- [Logout](#logout)')
   const md = mdLines.join('\n')
 

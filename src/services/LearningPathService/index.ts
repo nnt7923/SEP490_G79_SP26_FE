@@ -32,7 +32,6 @@ export type Chapter = {
 }
 
 export type SkeletonResponse = {
-  // New top-level fields from backend
   pathId?: string
   title?: string
   description?: string | null
@@ -52,19 +51,15 @@ export type SkeletonResponse = {
   chapterCount?: number
   createdAt?: string
   isContentGenerating?: boolean
-  // Normalized fields for UI compatibility
   lessons?: Lesson[]
   chapters?: Chapter[]
   [key: string]: any
 }
 
-// Consistent unwrap for ApiEnvelope or raw data
 function unwrap<T>(res: any): T {
   const data = (res?.data ?? res) as any
   if (data && typeof data === 'object') {
-    // prefer .value if present (ApiEnvelope)
     if ('value' in data) return data.value as T
-    // some APIs wrap under .data.value
     if ('data' in data && data?.data && typeof data.data === 'object' && 'value' in data.data) {
       return data.data.value as T
     }
@@ -105,7 +100,6 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
     }))
     : payload?.chapters
 
-  // Flatten lessons for existing UI components
   const lessons: Lesson[] | undefined = hasChapterDtos
     ? (chapters || []).flatMap((ch) => ch.lessons || [])
     : Array.isArray(payload?.lessons)
@@ -131,47 +125,27 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
   } as SkeletonResponse
 }
 
-// Normalize payload to backend-expected format
 export async function generateSkeleton(payload: any): Promise<SkeletonResponse> {
-  const subjectIds: string[] = Array.isArray(payload?.subjectIds)
-    ? payload.subjectIds
-    : Array.isArray(payload?.subjects)
-      ? payload.subjects.map((s: any) => s?.id ?? s?.subjectId).filter(Boolean)
-      : []
+  const subjectId: string | undefined =
+    payload?.subjectId ??
+    payload?.SubjectId ??
+    (Array.isArray(payload?.subjectIds) ? payload.subjectIds[0] : undefined) ??
+    (Array.isArray(payload?.subjects) ? (payload.subjects[0]?.id ?? payload.subjects[0]?.subjectId) : undefined)
 
-  const goalIds: string[] = Array.isArray(payload?.goalIds)
-    ? payload.goalIds
-    : Array.isArray(payload?.goals)
-      ? payload.goals.map((g: any) => g?.id ?? g?.goalId).filter(Boolean)
-      : []
+  const goalId: string | undefined =
+    payload?.goalId ??
+    payload?.GoalId ??
+    (Array.isArray(payload?.goalIds) ? payload.goalIds[0] : undefined) ??
+    (Array.isArray(payload?.goals) ? (payload.goals[0]?.id ?? payload.goals[0]?.goalId) : undefined)
 
-  // Support per-goal duration in request body
-  const goalsWithDurations: { GoalId: string; DurationDay: number; Description?: string }[] = Array.isArray(payload?.goals)
-    ? payload.goals
-      .map((g: any) => {
-        const id = g?.GoalId ?? g?.goalId ?? g?.id
-        const d = g?.DurationDay ?? g?.durationDay ?? g?.duration
-        if (!id || !d) return null
-        const desc = g?.Description ?? g?.description
-        return desc ? { GoalId: String(id), DurationDay: Number(d), Description: String(desc) } : { GoalId: String(id), DurationDay: Number(d) }
-      })
-      .filter(Boolean) as any
-    : Array.isArray(payload?.goalsWithDurations)
-      ? payload.goalsWithDurations
-        .map((g: any) => {
-          const id = g?.GoalId ?? g?.goalId ?? g?.id
-          const d = g?.DurationDay ?? g?.durationDay ?? g?.duration
-          if (!id || !d) return null
-          const desc = g?.Description ?? g?.description
-          return desc ? { GoalId: String(id), DurationDay: Number(d), Description: String(desc) } : { GoalId: String(id), DurationDay: Number(d) }
-        })
-        .filter(Boolean) as any
-      : []
+  const complexityLevel: string | undefined =
+    payload?.complexityLevel ?? payload?.ComplexityLevel ?? payload?.level ?? payload?.Level
 
-  const reqBody: any = { SubjectIds: subjectIds, GoalIds: goalIds }
-  if (subjectIds.length === 1) reqBody.SubjectId = subjectIds[0]
-  if (goalIds.length === 1) reqBody.GoalId = goalIds[0]
-  if (goalsWithDurations.length > 0) reqBody.Goals = goalsWithDurations
+  const reqBody: any = {
+    subjectId,
+    goalId,
+    complexityLevel,
+  }
 
   const res: any = await api.post(skeletonUrl, reqBody)
   const raw = unwrap<SkeletonResponse>(res)
@@ -179,20 +153,8 @@ export async function generateSkeleton(payload: any): Promise<SkeletonResponse> 
 }
 
 export async function generateLessonContent(lessonId: string, payload?: any): Promise<Lesson> {
-  const subjectIds: string[] = Array.isArray(payload?.subjectIds)
-    ? payload.subjectIds
-    : Array.isArray(payload?.subjects)
-      ? payload.subjects.map((s: any) => s?.id).filter(Boolean)
-      : []
-
-  const goalIds: string[] = Array.isArray(payload?.goalIds)
-    ? payload.goalIds
-    : Array.isArray(payload?.goals)
-      ? payload.goals.map((g: any) => g?.id).filter(Boolean)
-      : []
-
-  const reqBody = { SubjectIds: subjectIds, GoalIds: goalIds }
-  const res: any = await api.post(lessonContentUrl(lessonId), reqBody)
+  const body = payload && typeof payload === 'object' ? payload : {}
+  const res: any = await api.post(lessonContentUrl(lessonId), body)
   return unwrap<Lesson>(res)
 }
 
