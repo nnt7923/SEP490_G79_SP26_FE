@@ -1,13 +1,11 @@
 
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { getStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService } from '../../../../services'
 import { Search, ChevronRight, Loader, AlertCircle, BookOpen } from 'lucide-react'
 
 const GoalsPage: React.FC = () => {
-  const navigate = useNavigate()
   const [goals, setGoals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +26,7 @@ const GoalsPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await GoalService.listGoals()
+      const data = await GoalService.getMyGoals()
       setGoals(Array.isArray(data) ? data : [])
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to load goals'
@@ -139,18 +137,6 @@ const GoalsPage: React.FC = () => {
                     <p className="text-sm text-[#374151]">{selectedGoal.description || 'No description available'}</p>
                   </div>
 
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#e5e7eb]">
-                    <div className="bg-[#f3f4f6] rounded-lg p-3">
-                      <div className="text-2xl font-bold text-[#2f80ed]">{selectedGoal.durationDays || 0}</div>
-                      <div className="text-xs text-[#6b7280] mt-1">Days</div>
-                    </div>
-                    <div className="bg-[#f3f4f6] rounded-lg p-3">
-                      <div className="text-2xl font-bold text-[#7c3aed]">{selectedGoal.isCompleted ? '100' : '0'}%</div>
-                      <div className="text-xs text-[#6b7280] mt-1">Progress</div>
-                    </div>
-                  </div>
-
                   {/* Status */}
                   <div className="pt-4 border-t border-[#e5e7eb]">
                     <h3 className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide mb-2">Status</h3>
@@ -190,14 +176,6 @@ const GoalsPage: React.FC = () => {
                       </p>
                     </div>
                   )}
-
-                  {/* Action Button */}
-                  <button
-                    onClick={() => navigate(`/goals/${selectedGoal.goalId || selectedGoal.id}`)}
-                    className="w-full mt-4 px-4 py-2 bg-[#2f80ed] text-white rounded-lg font-medium hover:bg-[#1e5fb8] transition-all duration-200"
-                  >
-                    View Details
-                  </button>
                 </div>
               </div>
             ) : (

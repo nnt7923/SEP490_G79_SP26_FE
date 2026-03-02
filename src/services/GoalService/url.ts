@@ -1,5 +1,6 @@
 export const basePath = '/goals'
 export const listGoalsUrl = `${basePath}`
+export const myGoalsUrl = `${basePath}/me`
 export const createGoalUrl = `${basePath}`
 export const goalUrl = (id: string | number) => `${basePath}/${id}`
 export const userGoalsUrl = (userId: string | number) => `/users/${userId}/goals`

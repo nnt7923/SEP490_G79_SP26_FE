@@ -33,7 +33,7 @@ const GoalsDetailPage: React.FC = () => {
     setError(null)
     try {
       // Fetch all goals and find the one matching goalId
-      const data = await GoalService.listGoals()
+      const data = await GoalService.getMyGoals()
       const foundGoal = (Array.isArray(data) ? data : []).find(g => (g.goalId || g.id) === goalId)
       
       if (foundGoal) {
