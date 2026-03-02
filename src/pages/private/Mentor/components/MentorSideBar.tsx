@@ -11,14 +11,19 @@ export const getMentorSidebarConfig = (): SidebarNavItem[] => {
       icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
-      label: 'Classes',
-      path: '/mentor/classes',
+      label: 'Subjects',
+      path: '/mentor/subjects',
       icon: <BookOpen className="w-5 h-5" />,
     },
     {
-      label: 'Assignments',
-      path: '/mentor/assignments',
+      label: 'Classes',
+      path: '/mentor/classes',
       icon: <ClipboardList className="w-5 h-5" />,
+    },
+    {
+      label: 'Students',
+      path: '/mentor/students',
+      icon: <User className="w-5 h-5" />,
     },
     {
       label: 'Messages',
