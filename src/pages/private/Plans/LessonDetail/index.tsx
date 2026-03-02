@@ -66,6 +66,9 @@ const LessonDetailPage: React.FC = () => {
   useEffect(() => {
     if (!lessonId) return
     
+    // Scroll to top when lesson changes
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    
     let disposed = false
     const run = async () => {
       setLoading(true)

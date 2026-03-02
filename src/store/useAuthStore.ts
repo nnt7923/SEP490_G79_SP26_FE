@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { AuthService, UserService } from '../services'
 
 export type User = {
-  id: number
+  id: number | string // Support both number and GUID
   username: string
   firstName?: string
   lastName?: string
