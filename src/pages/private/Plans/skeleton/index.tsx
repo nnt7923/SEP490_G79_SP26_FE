@@ -7,6 +7,7 @@ import ROUTER from '../../../../router/ROUTER'
 import { requestLessonContent, requestChapterContent } from '../../../../services/SignalR'
 import { generateAllContent } from '../../../../services/ContentGenerator'
 import LessonContent from '../components/LessonContent'
+import ChapterTasks from '../components/ChapterTasks'
 
 const ResultPage: React.FC = () => {
   const location = useLocation() as any
@@ -165,18 +166,28 @@ const ResultPage: React.FC = () => {
   }, [skeleton])
 
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(() => {
-    const allIds = new Set(chapters.map((ch: any) => ch.id))
-    return allIds
+    return new Set<string>() // Start with all chapters collapsed
   })
 
-  useEffect(() => {
-    if (chapters.length > 0) {
-      const allIds = new Set(chapters.map((ch: any) => ch.id))
-      setExpandedChapters(allIds)
-    }
-  }, [chapters])
+  // Remove auto-expand effect
+  // useEffect(() => {
+  //   if (chapters.length > 0) {
+  //     const allIds = new Set<string>(chapters.map((ch: any) => String(ch.id)))
+  //     setExpandedChapters(allIds)
+  //   }
+  // }, [chapters])
 
   const [showLessonContent, setShowLessonContent] = useState(false)
+
+  // Track chapter completion status based on tasks
+  const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
+
+  const handleChapterTasksCompleted = (chapterId: string, completed: boolean) => {
+    setChapterCompletionStatus(prev => ({
+      ...prev,
+      [chapterId]: completed
+    }))
+  }
 
   return (
     <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
@@ -205,93 +216,117 @@ const ResultPage: React.FC = () => {
           {/* Chapters & Lessons Display */}
           {chapters.length > 0 ? (
             <div className="space-y-4 mb-8">
-              {chapters.map((chapter: any, chapterIdx: number) => (
-                <div key={chapter.id || chapterIdx} className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden shadow-sm">
-                  {/* Chapter Header */}
-                  <button
-                    onClick={() => {
-                      const newExpanded = new Set(expandedChapters)
-                      if (newExpanded.has(chapter.id)) {
-                        newExpanded.delete(chapter.id)
-                      } else {
-                        newExpanded.add(chapter.id)
-                      }
-                      setExpandedChapters(newExpanded)
-                    }}
-                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-teal-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4 flex-1 text-left">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-teal-600 text-white flex items-center justify-center font-semibold">
-                        {chapterIdx + 1}
+              {chapters.map((chapter: any, chapterIdx: number) => {
+                const isExpanded = expandedChapters.has(chapter.id)
+                const isCompleted = chapterCompletionStatus[chapter.id] === true
+                
+                return (
+                  <div key={chapter.id || chapterIdx} className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden shadow-sm">
+                    {/* Chapter Header */}
+                    <button
+                      onClick={() => {
+                        const newExpanded = new Set(expandedChapters)
+                        if (newExpanded.has(chapter.id)) {
+                          newExpanded.delete(chapter.id)
+                        } else {
+                          newExpanded.add(chapter.id)
+                        }
+                        setExpandedChapters(newExpanded)
+                      }}
+                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-teal-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1 text-left">
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-semibold ${
+                          isCompleted 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-teal-600 text-white'
+                        }`}>
+                          {isCompleted ? (
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            chapterIdx + 1
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 text-lg">{chapter.title}</h3>
+                          {chapter.lessons && chapter.lessons.length > 0 && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {chapter.lessons.length} lessons
+                              {isCompleted && <span className="ml-2 text-green-600 font-medium">✓ Completed</span>}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-lg">{chapter.title}</h3>
-                        {chapter.lessons && chapter.lessons.length > 0 && (
-                          <p className="text-sm text-gray-600 mt-1">{chapter.lessons.length} lessons</p>
-                        )}
+                      <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
                       </div>
-                    </div>
-                    <div className={`transform transition-transform ${expandedChapters.has(chapter.id) ? 'rotate-180' : ''}`}>
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </button>
+                    </button>
 
-                  {/* Chapter Content */}
-                  {chapter.content && (
-                    <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-                      <p className="text-sm text-gray-700">{chapter.content}</p>
-                    </div>
-                  )}
+                    {/* Chapter Content */}
+                    {chapter.content && (
+                      <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+                        <p className="text-sm text-gray-700">{chapter.content}</p>
+                      </div>
+                    )}
 
-                  {/* Lessons */}
-                  {expandedChapters.has(chapter.id) && chapter.lessons && chapter.lessons.length > 0 && (
-                    <div className="border-t border-gray-200">
-                      <div className="divide-y divide-gray-200">
-                        {chapter.lessons.map((lesson: any, lessonIdx: number) => (
-                          <div key={lesson.id || lessonIdx} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                            <div className="flex items-start gap-4">
-                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-semibold">
-                                {lessonIdx + 1}
-                              </div>
-                              <div className="flex-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigate(`/lesson/${lesson.id}`, { state: { skeleton } })
-                                  }}
-                                  className="font-medium text-gray-900 text-left hover:text-teal-600 underline decoration-transparent hover:decoration-teal-600 transition-colors"
-                                >
-                                  {lesson.title}
-                                </button>
-                                {lesson.description && (
-                                  <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
-                                )}
-                                {lesson.quizzes && lesson.quizzes.length > 0 && (
-                                  <div className="mt-3 space-y-2">
-                                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Quizzes:</p>
-                                    <div className="space-y-1">
-                                      {lesson.quizzes.map((quiz: any, quizIdx: number) => (
-                                        <div key={quiz.id || quizIdx} className="flex items-center gap-2 text-sm text-gray-700">
-                                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                          </svg>
-                                          {quiz.title}
-                                        </div>
-                                      ))}
+                    {/* Lessons - Only show when expanded */}
+                    {isExpanded && chapter.lessons && chapter.lessons.length > 0 && (
+                      <div className="border-t border-gray-200">
+                        <div className="divide-y divide-gray-200">
+                          {chapter.lessons.map((lesson: any, lessonIdx: number) => (
+                            <div key={lesson.id || lessonIdx} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                              <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-semibold">
+                                  {lessonIdx + 1}
+                                </div>
+                                <div className="flex-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigate(`/lesson/${lesson.id}`, { state: { skeleton } })
+                                    }}
+                                    className="font-medium text-gray-900 text-left hover:text-teal-600 underline decoration-transparent hover:decoration-teal-600 transition-colors"
+                                  >
+                                    {lesson.title}
+                                  </button>
+                                  {lesson.description && (
+                                    <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
+                                  )}
+                                  {lesson.quizzes && lesson.quizzes.length > 0 && (
+                                    <div className="mt-3 space-y-2">
+                                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Quizzes:</p>
+                                      <div className="space-y-1">
+                                        {lesson.quizzes.map((quiz: any, quizIdx: number) => (
+                                          <div key={quiz.id || quizIdx} className="flex items-center gap-2 text-sm text-gray-700">
+                                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            {quiz.title}
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+
+                          {/* Chapter Tasks Section */}
+                          <ChapterTasks 
+                            chapterId={chapter.id} 
+                            onAllTasksCompleted={handleChapterTasksCompleted}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className="text-gray-500 text-center py-8 bg-white rounded-2xl border-2 border-gray-200 mb-8">

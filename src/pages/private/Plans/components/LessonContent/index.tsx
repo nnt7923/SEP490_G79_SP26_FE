@@ -350,6 +350,11 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
           em: ({ children }) => (
             <em className="italic text-gray-800">{children}</em>
           ),
+
+          // Handle unknown HTML tags (like <subject>) - render as span
+          subject: ({ children }: any) => (
+            <span className="inline">{children}</span>
+          ),
         }}
       >
         {processedContent}
