@@ -145,23 +145,9 @@ const MyResourcesPage: React.FC = () => {
     navigate(ROUTER.LOGIN)
   }
 
-  const handleSettings = () => {
-    navigate(ROUTER.PROFILE)
-  }
-
   const sidebarConfig = {
     navItems: getStudentSidebarConfig(),
     actions: [
-      {
-        label: 'Settings',
-        icon: <Settings className="w-5 h-5" />,
-        onClick: handleSettings,
-      },
-      {
-        label: 'Help',
-        icon: <HelpCircle className="w-5 h-5" />,
-        onClick: () => {},
-      },
       {
         label: 'Logout',
         icon: <LogOut className="w-5 h-5" />,

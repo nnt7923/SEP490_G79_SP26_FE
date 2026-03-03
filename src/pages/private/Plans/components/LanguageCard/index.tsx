@@ -25,8 +25,8 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
     aria-pressed={active ? 'true' : 'false'}
     className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 text-left p-6 ${
       active
-        ? 'border-teal-500 bg-gradient-to-br from-teal-50 to-cyan-50 shadow-lg shadow-teal-500/20 scale-[1.02]'
-        : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-md hover:-translate-y-1'
+        ? 'border-blue-500 bg-blue-50 shadow-lg scale-[1.02]'
+        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:-translate-y-1'
     }`}
   >
     <div className="flex flex-col gap-4">

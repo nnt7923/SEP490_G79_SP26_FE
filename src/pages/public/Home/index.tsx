@@ -197,84 +197,47 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* ========== POPULAR COURSES SECTION ========== */}
+      {/* ========== HOW IT WORKS SECTION ========== */}
       <section className="courses-section">
         <div className="courses-container">
           <div className="section-header">
-            <h2>Most Popular Courses</h2>
-            <p>Start with our trending courses loved by thousands</p>
+            <h2>How It Works</h2>
+            <p>Create your personalized learning path in 4 simple steps</p>
           </div>
 
-          <div className="courses-grid">
-            <CourseCard level="Beginner" title="Web Development Fundamentals" students={2450} rating={5} />
-            <CourseCard level="Intermediate" title="React Advanced Patterns" students={1890} rating={5} />
-            <CourseCard level="Advanced" title="System Design Masterclass" students={1250} rating={4} />
-            <CourseCard level="Beginner" title="JavaScript Essentials" students={3100} rating={5} />
-            <CourseCard level="Intermediate" title="Node.js & Databases" students={1670} rating={5} />
-            <CourseCard level="Advanced" title="DevOps & Cloud Architecture" students={980} rating={4} />
+          <div className="how-it-works-grid">
+            <div className="step-card">
+              <div className="step-number">1</div>
+              <div className="step-icon">🧩</div>
+              <h3 className="step-title">Choose Programming Language</h3>
+              <p className="step-description">Select the programming language you want to learn from our curated list</p>
+            </div>
+
+            <div className="step-card">
+              <div className="step-number">2</div>
+              <div className="step-icon">📍</div>
+              <h3 className="step-title">Choose Your Goal</h3>
+              <p className="step-description">Pick a learning goal that matches your career aspirations</p>
+            </div>
+
+            <div className="step-card">
+              <div className="step-number">3</div>
+              <div className="step-icon">🎯</div>
+              <h3 className="step-title">Choose Level</h3>
+              <p className="step-description">Select your current skill level: Beginner, Intermediate, or Advanced</p>
+            </div>
+
+            <div className="step-card">
+              <div className="step-number">4</div>
+              <div className="step-icon">🛠️</div>
+              <h3 className="step-title">Generate Learning Path</h3>
+              <p className="step-description">Get your personalized learning path with AI-powered recommendations</p>
+            </div>
           </div>
 
           <div className="courses-footer">
-            <button className="btn btn-outline">
-              View All Courses <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ========== TESTIMONIALS SECTION ========== */}
-      <section className="testimonials-section">
-        <div className="testimonials-container">
-          <div className="section-header">
-            <h2>Success Stories</h2>
-            <p>Join thousands of developers who transformed their careers</p>
-          </div>
-
-          <div className="testimonials-grid">
-            <TestimonialCard
-              name="Alex Johnson"
-              role="Frontend Developer @ Google"
-              text="The curriculum was incredibly comprehensive and well-structured. Within 3 months, I landed an offer at Google. Highly recommended!"
-              avatar="AJ"
-            />
-            <TestimonialCard
-              name="Sarah Chen"
-              role="Full-Stack Developer @ Meta"
-              text="The mentorship from industry experts was invaluable. They helped me prepare for technical interviews and land my dream job."
-              avatar="SC"
-            />
-            <TestimonialCard
-              name="Mike Rodriguez"
-              role="Backend Engineer @ Amazon"
-              text="The real-world projects helped me build a portfolio that impressed recruiters. This platform delivers on its promises!"
-              avatar="MR"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ========== CTA SECTION ========== */}
-      <section className="cta-section">
-        <div className="cta-container">
-          <div className="cta-content">
-            <h2>Ready to Start Your Coding Journey?</h2>
-            <p>Join thousands of developers learning on our platform today</p>
-            <div className="cta-checklist">
-              <div className="cta-item">
-                <CheckCircle2 size={20} color="#10b981" />
-                <span>No credit card required</span>
-              </div>
-              <div className="cta-item">
-                <CheckCircle2 size={20} color="#10b981" />
-                <span>7-day free trial</span>
-              </div>
-              <div className="cta-item">
-                <CheckCircle2 size={20} color="#10b981" />
-                <span>Cancel anytime</span>
-              </div>
-            </div>
-            <button className="btn btn-primary btn-lg">
-              Get Started Free <ArrowRight size={18} />
+            <button type="button" className="btn btn-primary" onClick={() => navigate(ROUTER.PLANS)}>
+              Start Your Journey <ArrowRight size={16} />
             </button>
           </div>
         </div>

@@ -104,7 +104,7 @@ const LessonDetailPage: React.FC = () => {
 
   if (!skeleton) {
     return (
-      <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+      <div className="layout min-h-screen  from-teal-50 via-cyan-50 to-blue-50">
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
@@ -124,7 +124,7 @@ const LessonDetailPage: React.FC = () => {
 
   if (!currentLesson) {
     return (
-      <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+      <div className="layout min-h-screen  from-teal-50 via-cyan-50 to-blue-50">
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
@@ -143,7 +143,7 @@ const LessonDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+    <div className="layout min-h-screen  from-teal-50 via-cyan-50 to-blue-50">
       <Header />
       <main className="page-main py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -99,7 +99,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
   }
 
   return (
-    <div className="px-6 py-4 bg-gradient-to-r from-amber-50 to-orange-50 relative">
+    <div className="px-6 py-4 bg-orange-50 relative">
       {/* Celebration Message */}
       {showCelebration && (
         <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">
@@ -173,7 +173,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-300"
+                className="h-full bg-orange-500 transition-all duration-300"
                 style={{ 
                   width: `${tasks.length > 0 ? (tasks.filter(t => t.completed === true).length / tasks.length) * 100 : 0}%` 
                 }}
