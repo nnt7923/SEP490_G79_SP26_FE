@@ -1,7 +1,10 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Code2, Terminal, Zap, Users, Award, TrendingUp, ArrowRight, Star, CheckCircle2 } from 'lucide-react'
 import GroupImg from '../../../assets/img-code.png'
 import LanguageOrbit from '../../../components/Icons/Orbit'
+import useAuthStore from '../../../store/useAuthStore'
+import ROUTER from '../../../router/ROUTER'
 
 const Stat: React.FC<{ value: string; label: string }> = ({ value, label }) => (
   <div className="stat">
@@ -78,6 +81,23 @@ const TestimonialCard: React.FC<{ name: string; role: string; text: string; avat
 )
 
 const Home: React.FC = () => {
+  const navigate = useNavigate()
+  const { token, user } = useAuthStore()
+
+  useEffect(() => {
+    // Auto redirect if user is already logged in
+    if (token && user) {
+      const roleName = String((user as any)?.role?.name || '').toLowerCase()
+      if (roleName === 'admin') {
+        navigate(ROUTER.ADMIN_DASHBOARD, { replace: true })
+      } else if (roleName === 'mentor') {
+        navigate(ROUTER.MENTOR_DASHBOARD, { replace: true })
+      } else if (roleName === 'student') {
+        navigate(ROUTER.STUDENT_OVERVIEW, { replace: true })
+      }
+    }
+  }, [token, user, navigate])
+
   return (
     <div className="page">
       {/* ========== HERO SECTION ========== */}

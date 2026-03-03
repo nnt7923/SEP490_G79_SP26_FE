@@ -73,7 +73,7 @@ const Login: React.FC = () => {
     const normalized = (roleRaw || '').toString().trim().toLowerCase()
     if (normalized === 'admin') return navigate(ROUTER.ADMIN_DASHBOARD)
     if (normalized === 'mentor') return navigate(ROUTER.MENTOR_DASHBOARD)
-    if (normalized === 'student') return navigate(ROUTER.STUDENT_DASHBOARD)
+    if (normalized === 'student') return navigate(ROUTER.STUDENT_OVERVIEW)
     return navigate(ROUTER.HOME)
   }
 
