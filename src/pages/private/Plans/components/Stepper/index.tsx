@@ -13,7 +13,7 @@ const Stepper: React.FC<StepperProps> = ({ currentStep, totalSteps }) => {
           <div
             className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm transition-all duration-300 ${
               currentStep >= step
-                ? 'bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/30 scale-110'
+                ? 'bg-blue-500 text-white shadow-lg scale-110'
                 : 'bg-gray-200 text-gray-500'
             }`}
             aria-current={currentStep === step ? 'step' : undefined}
@@ -23,7 +23,7 @@ const Stepper: React.FC<StepperProps> = ({ currentStep, totalSteps }) => {
           {step !== totalSteps && (
             <div
               className={`w-12 md:w-16 h-1 mx-2 rounded-full transition-all duration-300 ${
-                currentStep > step ? 'bg-gradient-to-r from-teal-500 to-teal-600' : 'bg-gray-200'
+                currentStep > step ? 'bg-blue-500' : 'bg-gray-200'
               }`}
             />
           )}

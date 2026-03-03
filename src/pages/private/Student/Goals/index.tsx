@@ -3,18 +3,34 @@ import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { getStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService } from '../../../../services'
-import { Search, ChevronRight, Loader, AlertCircle, BookOpen } from 'lucide-react'
+import useAuthStore from '../../../../store/useAuthStore'
+import ROUTER from '../../../../router/ROUTER'
+import { Search, ChevronRight, Loader, AlertCircle, BookOpen, LogOut } from 'lucide-react'
 
 const GoalsPage: React.FC = () => {
+  const { logout } = useAuthStore()
+  const navigate = useNavigate()
   const [goals, setGoals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGoal, setSelectedGoal] = useState<any | null>(null)
 
+  const handleLogout = async () => {
+    await logout()
+    navigate(ROUTER.LOGIN)
+  }
+
   const sidebarConfig = {
     navItems: getStudentSidebarConfig(),
-    actions: [],
+    actions: [
+      {
+        label: 'Logout',
+        icon: <LogOut className="w-5 h-5" />,
+        onClick: handleLogout,
+        variant: 'danger' as const,
+      },
+    ],
     brand: { name: 'Goals', subtitle: 'Learning' },
   }
 
@@ -26,7 +42,8 @@ const GoalsPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await GoalService.getMyGoals()
+      // Use /goals/me endpoint to get current user's goals
+      const data = await GoalService.getUserGoals()
       setGoals(Array.isArray(data) ? data : [])
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to load goals'
@@ -46,10 +63,10 @@ const GoalsPage: React.FC = () => {
     <Layout sidebar={sidebarConfig}>
       <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
         {/* Header */}
-        <div className="mb-8">
+        {/* <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#111827] mb-2">My Goals</h1>
           <p className="text-[#6b7280]">View and manage your learning goals</p>
-        </div>
+        </div> */}
 
         {/* Search Bar */}
         <div className="mb-6">
@@ -176,6 +193,15 @@ const GoalsPage: React.FC = () => {
                       </p>
                     </div>
                   )}
+
+                  {/* Action Button */}
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/goals/${selectedGoal.goalId || selectedGoal.id}`)}
+                    className="w-full mt-4 px-4 py-2 bg-[#2f80ed] text-white rounded-lg font-medium hover:bg-[#1e5fb8] transition-all duration-200"
+                  >
+                    View Details
+                  </button>
                 </div>
               </div>
             ) : (

@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { listGoalsUrl, myGoalsUrl, createGoalUrl, goalUrl } from './url'
+import { listGoalsUrl, createGoalUrl, goalUrl, basePath } from './url'
 
 export interface Goal {
   goalId: string
@@ -18,9 +18,40 @@ export async function listGoals(): Promise<Goal[]> {
   const root: any = res?.data ?? res
   let items: any[] = []
   if (Array.isArray(root)) items = root
+  else if (Array.isArray(root?.items)) items = root.items
   else if (Array.isArray(root?.goals)) items = root.goals
   else if (Array.isArray(root?.value)) items = root.value
   else if (Array.isArray(root?.data)) items = root.data
+  else if (Array.isArray(root?.data?.items)) items = root.data.items
+  else if (Array.isArray(root?.data?.value)) items = root.data.value
+  else if (Array.isArray(root?.data?.goals)) items = root.data.goals
+
+  // Normalize to consistent Goal shape
+  return items.map((g: any) => ({
+    goalId: g?.goalId ?? g?.id,
+    title: g?.title ?? g?.name ?? 'Goal',
+    description: g?.description ?? null,
+    durationDays: g?.durationDays,
+    isCompleted: g?.isCompleted,
+    completedAt: g?.completedAt ?? null,
+    createdAt: g?.createdAt,
+    ...g,
+  }))
+}
+
+export async function getUserGoals(): Promise<Goal[]> {
+  // Use /goals/me endpoint to get current user's goals
+  const res: any = await api.get(`${basePath}/me`)
+
+  // Unwrap various envelopes from backend
+  const root: any = res?.data ?? res
+  let items: any[] = []
+  if (Array.isArray(root)) items = root
+  else if (Array.isArray(root?.items)) items = root.items
+  else if (Array.isArray(root?.goals)) items = root.goals
+  else if (Array.isArray(root?.value)) items = root.value
+  else if (Array.isArray(root?.data)) items = root.data
+  else if (Array.isArray(root?.data?.items)) items = root.data.items
   else if (Array.isArray(root?.data?.value)) items = root.data.value
   else if (Array.isArray(root?.data?.goals)) items = root.data.goals
 
@@ -107,4 +138,4 @@ export async function deleteGoal(id: string | number): Promise<any> {
   return res?.data ?? res
 }
 
-export default { listGoals, getMyGoals, createGoal, updateGoal, deleteGoal }
+export default { listGoals, getUserGoals, createGoal, updateGoal, deleteGoal }

@@ -227,10 +227,20 @@ const MyPlansDetailPage: React.FC = () => {
                                   <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Quizzes:</p>
                                   <div className="space-y-1">
                                     {lesson.quizzes.map((quiz, quizIdx) => (
-                                      <div key={quiz.id || quizIdx} className="flex items-center gap-2 text-sm text-[#374151]">
+                                      <button
+                                        key={quiz.id || quizIdx}
+                                        type="button"
+                                        onClick={() => navigate(`/quiz/${quiz.id}`, { 
+                                          state: { 
+                                            quizTitle: quiz.title,
+                                            skeleton: plan 
+                                          } 
+                                        })}
+                                        className="flex items-center gap-2 text-sm text-[#374151] hover:text-[#2f80ed] transition-colors cursor-pointer"
+                                      >
                                         <CheckCircle2 className="w-4 h-4 text-[#059669]" />
-                                        {quiz.title}
-                                      </div>
+                                        <span className="underline decoration-transparent hover:decoration-[#2f80ed]">{quiz.title}</span>
+                                      </button>
                                     ))}
                                   </div>
                                 </div>

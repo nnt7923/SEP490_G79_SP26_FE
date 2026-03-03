@@ -70,20 +70,19 @@ const StudentIndex: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+      <div className="px-4 py-4 bg-gray-50 min-h-screen">
         {/* ========== PROFILE HEADER ========== */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-[#2f80ed] via-[#7c3aed] to-[#2f80ed] rounded-2xl overflow-hidden shadow-lg">
-            <div className="px-8 py-8">
-              <div className="flex items-center gap-6">
-                <div className="w-28 h-28 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <span className="text-white font-bold text-4xl">{getInitials(displayName)}</span>
+        <div className="mb-4">
+          <div className="bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 rounded-xl overflow-hidden shadow-md">
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center flex-shrink-0 shadow-md">
+                  <span className="text-white font-bold text-2xl">{getInitials(displayName)}</span>
                 </div>
                 
-                <div className="flex-1">
-                  <h1 className="text-4xl font-bold text-white mb-2">{displayName}</h1>
-                  <p className="text-white/80 text-base mb-4">{user?.email ?? '—'}</p>
-                  
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl font-bold text-white mb-1 truncate">{displayName}</h1>
+                  <p className="text-white/80 text-sm truncate">{user?.email ?? '—'}</p>
                 </div>
               </div>
             </div>
@@ -91,68 +90,68 @@ const StudentIndex: React.FC = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Goals Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow border border-[#e5e7eb]">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#fef3c7] to-[#fde68a] flex items-center justify-center">
-                <Target size={24} className="text-[#f59e0b]" />
+          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow border border-gray-200">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex items-center justify-center flex-shrink-0">
+                <Target size={20} className="text-yellow-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-[#6b7280]">Goals</p>
-                <p className="text-3xl font-bold text-[#111827]">
+                <p className="text-xs font-medium text-gray-600">Goals</p>
+                <p className="text-2xl font-bold text-gray-900">
                   {loading ? '—' : goalsCount}
                 </p>
               </div>
             </div>
-            <p className="text-xs text-[#6b7280]">Learning objectives</p>
+            <p className="text-xs text-gray-500">Learning objectives</p>
           </div>
 
           {/* Plans Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow border border-[#e5e7eb]">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe] flex items-center justify-center">
-                <BookMarked size={24} className="text-[#2f80ed]" />
+          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow border border-gray-200">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center flex-shrink-0">
+                <BookMarked size={20} className="text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-[#6b7280]">Plans</p>
-                <p className="text-3xl font-bold text-[#111827]">
+                <p className="text-xs font-medium text-gray-600">Plans</p>
+                <p className="text-2xl font-bold text-gray-900">
                   {loading ? '—' : plansCount}
                 </p>
               </div>
             </div>
-            <p className="text-xs text-[#6b7280]">Learning paths</p>
+            <p className="text-xs text-gray-500">Learning paths</p>
           </div>
         </div>
 
         {/* Quick Navigation */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-4">
           <button
             type="button"
             onClick={() => navigate(ROUTER.GOALS)}
-            className="bg-white border border-[#e5e7eb] rounded-2xl p-6 hover:shadow-lg hover:border-[#2f80ed] transition-all duration-200 text-left group"
+            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-500 transition-all duration-200 text-left group cursor-pointer"
           >
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-[#fef3c7] group-hover:bg-[#fcd34d] transition-colors flex items-center justify-center">
-                <Target size={20} className="text-[#f59e0b]" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-yellow-100 group-hover:bg-yellow-200 transition-colors flex items-center justify-center">
+                <Target size={18} className="text-yellow-600" />
               </div>
-              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors text-lg">View Goals</span>
+              <span className="font-semibold text-gray-900 group-hover:text-blue-500 transition-colors text-base">View Goals</span>
             </div>
-            <p className="text-sm text-[#6b7280]">Check your learning objectives</p>
+            <p className="text-xs text-gray-600">Check your learning objectives</p>
           </button>
 
           <button
             type="button"
             onClick={() => navigate(ROUTER.MY_PLANS)}
-            className="bg-white border border-[#e5e7eb] rounded-2xl p-6 hover:shadow-lg hover:border-[#2f80ed] transition-all duration-200 text-left group"
+            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-500 transition-all duration-200 text-left group cursor-pointer"
           >
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-[#dbeafe] group-hover:bg-[#bfdbfe] transition-colors flex items-center justify-center">
-                <BookMarked size={20} className="text-[#2f80ed]" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors flex items-center justify-center">
+                <BookMarked size={18} className="text-blue-600" />
               </div>
-              <span className="font-semibold text-[#111827] group-hover:text-[#2f80ed] transition-colors text-lg">View Plans</span>
+              <span className="font-semibold text-gray-900 group-hover:text-blue-500 transition-colors text-base">View Plans</span>
             </div>
-            <p className="text-sm text-[#6b7280]">Explore your learning paths</p>
+            <p className="text-xs text-gray-600">Explore your learning paths</p>
           </button>
         </div>
       </div>

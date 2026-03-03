@@ -35,6 +35,8 @@ const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects
 const MentorClasses = React.lazy(() => import('../pages/private/Mentor/Classes'))
 const MentorStudents = React.lazy(() => import('../pages/private/Mentor/Students'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
+const Quiz = React.lazy(() => import('../pages/private/Quiz'))
+const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
 
 const Fallback = () => <div />
 
@@ -67,6 +69,7 @@ const router = createBrowserRouter([
         element: <Suspense fallback={<div />}> <RequireRole role="Student" /> </Suspense>,
         children: [
           { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
+          { path: ROUTER.STUDENT_OVERVIEW, element: <StudentOverview /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
           { path: ROUTER.GOALS, element: <Goals /> },
@@ -75,6 +78,7 @@ const router = createBrowserRouter([
           { path: ROUTER.PLANS, element: <Plans /> },
           { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },
           { path: '/lesson/:lessonId', element: <LessonDetail /> },
+          { path: '/quiz/:quizId', element: <Quiz /> },
         ],
       },
       // Shared routes (Student & Mentor)

@@ -190,12 +190,12 @@ const ResultPage: React.FC = () => {
   }
 
   return (
-    <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+    <div className="layout min-h-screen bg-blue-50">
       <Header />
       <main className="page-main py-12" role="main" aria-label="learning-path">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero frame */}
-          <section className="rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 p-8 shadow-xl text-white mb-8">
+          <section className="rounded-2xl bg-blue-500 p-8 shadow-xl text-white mb-8">
             <div className="flex items-start justify-between">
               <div className="space-y-3 w-full max-w-3xl">
                 <h1 className="text-2xl sm:text-3xl font-bold font-heading">{pathTitle}</h1>
@@ -233,13 +233,13 @@ const ResultPage: React.FC = () => {
                         }
                         setExpandedChapters(newExpanded)
                       }}
-                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-teal-50 transition-colors"
+                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-blue-50 transition-colors"
                     >
                       <div className="flex items-center gap-4 flex-1 text-left">
                         <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-semibold ${
                           isCompleted 
                             ? 'bg-green-600 text-white' 
-                            : 'bg-teal-600 text-white'
+                            : 'bg-blue-500 text-white'
                         }`}>
                           {isCompleted ? (
                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -289,7 +289,7 @@ const ResultPage: React.FC = () => {
                                     onClick={() => {
                                       navigate(`/lesson/${lesson.id}`, { state: { skeleton } })
                                     }}
-                                    className="font-medium text-gray-900 text-left hover:text-teal-600 underline decoration-transparent hover:decoration-teal-600 transition-colors"
+                                    className="font-medium text-gray-900 text-left hover:text-blue-500 underline decoration-transparent hover:decoration-blue-500 transition-colors"
                                   >
                                     {lesson.title}
                                   </button>
@@ -301,12 +301,22 @@ const ResultPage: React.FC = () => {
                                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Quizzes:</p>
                                       <div className="space-y-1">
                                         {lesson.quizzes.map((quiz: any, quizIdx: number) => (
-                                          <div key={quiz.id || quizIdx} className="flex items-center gap-2 text-sm text-gray-700">
+                                          <button
+                                            key={quiz.id || quizIdx}
+                                            type="button"
+                                            onClick={() => navigate(`/quiz/${quiz.id}`, { 
+                                              state: { 
+                                                quizTitle: quiz.title,
+                                                skeleton 
+                                              } 
+                                            })}
+                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-500 transition-colors cursor-pointer"
+                                          >
                                             <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            {quiz.title}
-                                          </div>
+                                            <span className="underline decoration-transparent hover:decoration-teal-600">{quiz.title}</span>
+                                          </button>
                                         ))}
                                       </div>
                                     </div>
@@ -342,7 +352,7 @@ const ResultPage: React.FC = () => {
                   <h2 className="text-xl font-semibold text-gray-900 font-heading">Lesson Content</h2>
                   <div className="flex items-center gap-2">
                     <select
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none text-sm font-medium transition-colors"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none text-sm font-medium transition-colors"
                       value={selectedLessonId || ''}
                       onChange={(e) => setSelectedLessonId(e.target.value || undefined)}
                       aria-label="Select lesson"

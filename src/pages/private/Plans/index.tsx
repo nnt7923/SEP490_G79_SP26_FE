@@ -376,7 +376,7 @@ const PlansPage: React.FC = () => {
      : []
 
    return (
-     <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+     <div className="layout min-h-screen bg-blue-50">
        <Header />
        <main className="page-main py-12" role="main" aria-labelledby="plans-title">
          <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -442,7 +442,15 @@ const PlansPage: React.FC = () => {
                  subtitle="Select a goal from system goals or your personal goals"
                  icon="📍"
                />
-               
+              <div className="flex items-center justify-end mb-4">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-blue-400 text-blue-500 hover:bg-blue-50 font-medium"
+                >
+                  <Plus size={18} /> Add Goal
+                </button>
+              </div>
                {goalsLive && (
                  <div className="flex items-center gap-2 mb-6 px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl" aria-live="polite">
                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -622,7 +630,7 @@ const PlansPage: React.FC = () => {
                           type="button"
                           disabled={creatingGoal}
                           onClick={handleCreateGoalModal}
-                          className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60"
+                          className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-60"
                         >{creatingGoal ? 'Saving…' : 'Save Goal'}</button>
                       </div>
                     </div>
@@ -646,7 +654,7 @@ const PlansPage: React.FC = () => {
                      type="button"
                      onClick={() => setLevel(lv)}
                      className={`p-6 rounded-2xl border-2 transition-all shadow-sm hover:shadow-md ${
-                       level === lv ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'
+                       level === lv ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white'
                      }`}
                    >
                      <div className="text-lg font-semibold text-gray-900">{lv}</div>
@@ -669,7 +677,7 @@ const PlansPage: React.FC = () => {
                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Selected Language</h2>
                    <div className="flex items-center gap-3">
                      {language ? (
-                       <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-teal-500 to-teal-600 text-white font-medium shadow-md">
+                       <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500 text-white font-medium shadow-md">
                          <span className="w-2 h-2 rounded-full bg-white" />
                          {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Selected'}
                        </span>
@@ -685,7 +693,7 @@ const PlansPage: React.FC = () => {
                        selectedGoals.map((g) => (
                          <span
                            key={g}
-                           className="inline-flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-100 to-teal-100 border border-teal-300 text-sm font-medium text-gray-800"
+                           className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 border border-blue-300 text-sm font-medium text-gray-800"
                          >
                            {goalItems.find((x) => x.key === g)?.label || 'Selected'}
                          </span>
@@ -699,7 +707,7 @@ const PlansPage: React.FC = () => {
                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Level</h2>
                    <div className="flex items-center gap-3">
                      {level ? (
-                       <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500 to-teal-600 text-white font-medium shadow-md">
+                       <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500 text-white font-medium shadow-md">
                          <span className="w-2 h-2 rounded-full bg-white" />
                          {level}
                        </span>
@@ -712,7 +720,7 @@ const PlansPage: React.FC = () => {
                <div className="flex items-center justify-center gap-4">
                  <button
                    type="button"
-                   className={`px-8 py-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-semibold text-lg hover:from-teal-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${
+                   className={`px-8 py-4 bg-blue-500 text-white rounded-xl font-semibold text-lg hover:bg-blue-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${
                      !canGenerate || generating ? 'opacity-50 cursor-not-allowed' : ''
                    }`}
                    disabled={!canGenerate || generating}
@@ -777,8 +785,8 @@ const PlansPage: React.FC = () => {
                    {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
                      <ul className="space-y-4">
                        {skeleton.lessons.map((ls: any) => (
-                         <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200">
-                           <span className="mt-1 w-2 h-2 rounded-full bg-teal-500 flex-shrink-0" />
+                         <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
+                           <span className="mt-1 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                            <div className="flex-1">
                              <div className="font-semibold text-gray-900">{ls.title ?? 'Lesson'}</div>
                              {ls.description && <div className="text-sm text-gray-600 mt-1">{ls.description}</div>}
@@ -814,7 +822,7 @@ const PlansPage: React.FC = () => {
              </button>
              <button
                type="button"
-               className={`px-6 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-semibold hover:from-teal-600 hover:to-teal-700 transition-all shadow-md hover:shadow-lg ${
+               className={`px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all shadow-md hover:shadow-lg ${
                  !canNext ? 'opacity-50 cursor-not-allowed' : ''
                }`}
                disabled={!canNext}
