@@ -26,6 +26,8 @@ const ROUTER = {
   MENTOR_PROFILE: "/mentor/profile",
   // Student resources
   MY_RESOURCES: "/my-resources",
+  // Quiz
+  QUIZ: "/quiz/:quizId",
 };
 
 export default ROUTER;

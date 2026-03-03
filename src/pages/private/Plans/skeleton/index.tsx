@@ -301,12 +301,22 @@ const ResultPage: React.FC = () => {
                                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Quizzes:</p>
                                       <div className="space-y-1">
                                         {lesson.quizzes.map((quiz: any, quizIdx: number) => (
-                                          <div key={quiz.id || quizIdx} className="flex items-center gap-2 text-sm text-gray-700">
+                                          <button
+                                            key={quiz.id || quizIdx}
+                                            type="button"
+                                            onClick={() => navigate(`/quiz/${quiz.id}`, { 
+                                              state: { 
+                                                quizTitle: quiz.title,
+                                                skeleton 
+                                              } 
+                                            })}
+                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-teal-600 transition-colors cursor-pointer"
+                                          >
                                             <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            {quiz.title}
-                                          </div>
+                                            <span className="underline decoration-transparent hover:decoration-teal-600">{quiz.title}</span>
+                                          </button>
                                         ))}
                                       </div>
                                     </div>
