@@ -13,6 +13,7 @@ const ROUTER = {
   ABOUT: "/about",
   // Private routes
   STUDENT_DASHBOARD: "/dashboard",
+  STUDENT_OVERVIEW: "/overview",
   MY_PLANS: "/my-plans",
   GOALS: "/goals",
   PROFILE: "/profile", // Student profile

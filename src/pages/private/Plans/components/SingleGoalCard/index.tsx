@@ -42,8 +42,8 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
     <div
       className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 p-6 ${
         active
-          ? 'border-teal-500 bg-gradient-to-br from-teal-50 to-cyan-50 shadow-lg shadow-teal-500/20'
-          : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-md'
+          ? 'border-blue-500 bg-blue-50 shadow-lg'
+          : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
       } ${!isEditing && !menuOpen ? 'cursor-pointer' : 'cursor-default'}`}
       role={!isEditing ? 'button' : 'group'}
       aria-pressed={!isEditing && active ? 'true' : 'false'}

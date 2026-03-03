@@ -5,10 +5,11 @@ import Layout from '../../../../components/Layout'
 import { getStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
-import { Search, ChevronRight, Loader, AlertCircle, BookOpen } from 'lucide-react'
+import ROUTER from '../../../../router/ROUTER'
+import { Search, ChevronRight, Loader, AlertCircle, BookOpen, LogOut } from 'lucide-react'
 
 const MyPlansPage: React.FC = () => {
-  const { user } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const [plans, setPlans] = useState<SkeletonResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -18,9 +19,21 @@ const MyPlansPage: React.FC = () => {
   const [pageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
 
+  const handleLogout = async () => {
+    await logout()
+    navigate(ROUTER.LOGIN)
+  }
+
   const sidebarConfig = {
     navItems: getStudentSidebarConfig(),
-    actions: [],
+    actions: [
+      {
+        label: 'Logout',
+        icon: <LogOut className="w-5 h-5" />,
+        onClick: handleLogout,
+        variant: 'danger' as const,
+      },
+    ],
     brand: { name: 'My Plans', subtitle: 'Learning' },
   }
 
@@ -61,10 +74,10 @@ const MyPlansPage: React.FC = () => {
     <Layout sidebar={sidebarConfig}>
       <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
         {/* Header */}
-        <div className="mb-8">
+        {/* <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#111827] mb-2">My Learning Plans</h1>
           <p className="text-[#6b7280]">View and manage your personalized learning paths</p>
-        </div>
+        </div> */}
 
         {/* Search Bar */}
         <div className="mb-6">
@@ -141,6 +154,7 @@ const MyPlansPage: React.FC = () => {
             {totalPages > 1 && (
               <div className="mt-6 flex items-center justify-between">
                 <button
+                  type="button"
                   onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
                   disabled={pageNumber === 1}
                   className="px-4 py-2 border border-[#e5e7eb] rounded-lg text-sm font-medium text-[#374151] hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -151,6 +165,7 @@ const MyPlansPage: React.FC = () => {
                   Page {pageNumber} of {totalPages}
                 </span>
                 <button
+                  type="button"
                   onClick={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
                   disabled={pageNumber === totalPages}
                   className="px-4 py-2 border border-[#e5e7eb] rounded-lg text-sm font-medium text-[#374151] hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
