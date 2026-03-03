@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { getStudentSidebarConfig } from './components/StudentSideBar'
 import { LogOut, Target, BookMarked } from 'lucide-react'
-import { listGoals } from '../../../services/GoalService'
+import { getMyGoals } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
 
 const StudentIndex: React.FC = () => {
@@ -20,7 +20,7 @@ const StudentIndex: React.FC = () => {
     const fetchCounts = async () => {
       try {
         setLoading(true)
-        const goals = await listGoals()
+        const goals = await getMyGoals()
         const paths = await getUserLearningPaths(user?.id || 'me', { pageSize: 1 })
         
         const goalsLength = Array.isArray(goals) ? goals.length : 0

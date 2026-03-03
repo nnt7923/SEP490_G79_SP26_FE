@@ -1,6 +1,5 @@
 
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { getStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService } from '../../../../services'
@@ -153,18 +152,6 @@ const GoalsPage: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide mb-2">Description</h3>
                     <p className="text-sm text-[#374151]">{selectedGoal.description || 'No description available'}</p>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#e5e7eb]">
-                    <div className="bg-[#f3f4f6] rounded-lg p-3">
-                      <div className="text-2xl font-bold text-[#2f80ed]">{selectedGoal.durationDays || 0}</div>
-                      <div className="text-xs text-[#6b7280] mt-1">Days</div>
-                    </div>
-                    <div className="bg-[#f3f4f6] rounded-lg p-3">
-                      <div className="text-2xl font-bold text-[#7c3aed]">{selectedGoal.isCompleted ? '100' : '0'}%</div>
-                      <div className="text-xs text-[#6b7280] mt-1">Progress</div>
-                    </div>
                   </div>
 
                   {/* Status */}

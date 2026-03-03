@@ -1,5 +1,18 @@
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { 
+  SiJavascript, 
+  SiTypescript, 
+  SiPython, 
+  SiReact, 
+  SiNodedotjs, 
+  SiDocker, 
+  SiKubernetes,
+  SiMongodb,
+  SiPostgresql,
+  SiGit,
+  SiAmazon
+} from 'react-icons/si'
 
 interface SingleGoalCardProps {
   id: string
@@ -37,10 +50,50 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
   deleting,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Select icon based on goal ID for variety - using tech/programming icons
+  const getIconComponent = () => {
+    const icons = [
+      SiJavascript,    // JavaScript
+      SiTypescript,    // TypeScript
+      SiPython,        // Python
+      SiReact,         // React
+      SiNodedotjs,     // Node.js
+      SiDocker,        // Docker
+      SiKubernetes,    // Kubernetes
+      SiMongodb,       // MongoDB
+      SiPostgresql,    // PostgreSQL
+      SiGit,           // Git
+      SiAmazon         // AWS
+    ]
+    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const IconComponent = icons[hash % icons.length]
+    return IconComponent
+  }
+
+  const IconComponent = getIconComponent()
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [menuOpen])
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 p-6 ${
+      className={`group relative overflow-visible rounded-2xl border-2 transition-all duration-300 p-6 bg-white ${
         active
           ? 'border-blue-500 bg-blue-50 shadow-lg'
           : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
@@ -54,18 +107,22 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-1">
           <div
-            className={`flex items-center justify-center w-12 h-12 rounded-xl ${colorClass} text-white text-xl shadow-md transition-transform duration-300 ${
+            className={`flex items-center justify-center w-12 h-12 rounded-xl ${colorClass} shadow-md transition-transform duration-300 ${
               active ? 'scale-110' : 'group-hover:scale-105'
             }`}
           >
-            {icon ?? '🧠'}
+            {icon ? (
+              <span className="text-xl text-white">{icon}</span>
+            ) : (
+              <IconComponent className="w-6 h-6 text-white" />
+            )}
           </div>
           <div className="flex-1">
             <div className="font-semibold text-gray-900 text-base">{title}</div>
           </div>
         </div>
         {!isEditing && (
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               type="button"
               aria-label="More options"
@@ -81,11 +138,11 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
             {menuOpen && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute top-10 right-0 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[140px] z-20 overflow-hidden"
+                className="absolute top-10 right-0 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[140px] z-50 overflow-hidden"
               >
                 <button
                   type="button"
-                  className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 border-b border-gray-100"
+                  className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
                   onClick={() => {
                     setMenuOpen(false)
                     onStartEdit(id, title)

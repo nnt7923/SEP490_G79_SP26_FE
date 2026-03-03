@@ -64,11 +64,14 @@ const PlansPage: React.FC = () => {
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(true)
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
   // Load goals from API + generation states
-  const [goals, setGoals] = useState<any[]>([])
+  const [systemGoals, setSystemGoals] = useState<any[]>([])
+  const [myGoals, setMyGoals] = useState<any[]>([])
   const [goalsLoading, setGoalsLoading] = useState<boolean>(true)
+  const [myGoalsLoading, setMyGoalsLoading] = useState<boolean>(true)
   // Enable Live auto-update for goals
   const [goalsLive, setGoalsLive] = useState<boolean>(true)
   const [goalsError, setGoalsError] = useState<string | null>(null)
+  const [myGoalsError, setMyGoalsError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<boolean>(false)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
@@ -113,7 +116,7 @@ const PlansPage: React.FC = () => {
     setGoalActionError(null)
     try {
       const updated = await GoalService.updateGoal(id, { title })
-      setGoals((prev) => prev.map((g: any) => (String(g?.id ?? g?.goalId ?? g?.key) === String(id) ? { ...g, ...updated } : g)))
+      setMyGoals((prev) => prev.map((g: any) => (String(g?.id ?? g?.goalId ?? g?.key) === String(id) ? { ...g, ...updated } : g)))
       setGoalNotice('Goal updated successfully')
       setTimeout(() => setGoalNotice(null), 2500)
       setEditingGoalId(null)
@@ -131,7 +134,7 @@ const PlansPage: React.FC = () => {
     setGoalActionError(null)
     try {
       await GoalService.deleteGoal(id)
-      setGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
+      setMyGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
       setSelectedGoals((prev) => prev.filter((k) => String(k) !== String(id)))
       setGoalNotice('Goal deleted successfully')
       setTimeout(() => setGoalNotice(null), 2500)
@@ -248,19 +251,40 @@ const PlansPage: React.FC = () => {
       active = false
     }
   }, [])
-  // Load goals from backend
+  // Load system goals from backend (isSystemDefined = true)
   useEffect(() => {
     let active = true
     ;(async () => {
       try {
         const data = await GoalService.listGoals()
-        if (active) setGoals(Array.isArray(data) ? data : [])
+        if (active) {
+          const filtered = (Array.isArray(data) ? data : []).filter((g: any) => g.isSystemDefined === true)
+          setSystemGoals(filtered)
+        }
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load goals.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load system goals.'
         if (active) setGoalsError(msg)
       } finally {
         if (active) setGoalsLoading(false)
+      }
+    })()
+    return () => { active = false }
+  }, [])
+
+  // Load my goals from backend
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const data = await GoalService.getMyGoals()
+        if (active) setMyGoals(Array.isArray(data) ? data : [])
+      } catch (e: any) {
+        const d = e?.response?.data
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load your goals.'
+        if (active) setMyGoalsError(msg)
+      } finally {
+        if (active) setMyGoalsLoading(false)
       }
     })()
     return () => { active = false }
@@ -273,8 +297,15 @@ const PlansPage: React.FC = () => {
 
     const fetchGoals = async () => {
       try {
-        const data = await GoalService.listGoals()
-        if (!disposed) setGoals(Array.isArray(data) ? data : [])
+        const [systemData, myData] = await Promise.all([
+          GoalService.listGoals(),
+          GoalService.getMyGoals()
+        ])
+        if (!disposed) {
+          const filtered = (Array.isArray(systemData) ? systemData : []).filter((g: any) => g.isSystemDefined === true)
+          setSystemGoals(filtered)
+          setMyGoals(Array.isArray(myData) ? myData : [])
+        }
       } catch {}
     }
 
@@ -318,7 +349,7 @@ const PlansPage: React.FC = () => {
     try {
       const created = await GoalService.createGoal({ title, description })
       const newKey = String(created?.goalId ?? created?.id ?? created?.key ?? '')
-      setGoals((prev) => [created, ...prev])
+      setMyGoals((prev) => [created, ...prev])
       if (newKey) setSelectedGoals([newKey])
       setGoalNotice('Goal created successfully')
       setTimeout(() => setGoalNotice(null), 2500)
@@ -334,8 +365,9 @@ const PlansPage: React.FC = () => {
   }
 
    // Map API goals to GoalCard items
-   const goalItems: GoalItem[] = Array.isArray(goals)
-     ? goals
+   const allGoals = [...systemGoals, ...myGoals]
+   const goalItems: GoalItem[] = Array.isArray(allGoals)
+     ? allGoals
          .map((g: any) => ({
            key: g?.id ?? g?.goalId ?? g?.key,
            label: g?.title ?? g?.name ?? g?.label ?? 'Goal',
@@ -407,7 +439,7 @@ const PlansPage: React.FC = () => {
              <>
                <StepHeader
                  title="Choose Your Goal"
-                 subtitle="Select a single goal from system data"
+                 subtitle="Select a goal from system goals or your personal goals"
                  icon="📍"
                />
               <div className="flex items-center justify-end mb-4">
@@ -426,70 +458,136 @@ const PlansPage: React.FC = () => {
                  </div>
                )}
 
-              <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-label="goal-list">
-                 {/* Thông báo hành động goal */}
-                 {(goalNotice || goalActionError) && (
-                   <div className="col-span-full">
-                     {goalNotice && (
-                       <div className="px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl text-green-700 font-medium">
-                         {goalNotice}
-                       </div>
-                     )}
-                     {goalActionError && (
-                       <div className="px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 font-medium mt-3">
-                         {goalActionError}
-                       </div>
-                     )}
-                   </div>
-                 )}
-                 
-                 {/* Render each goal as its own card */}
-                 {goalsLoading ? (
-                   Array.from({ length: 6 }).map((_, i) => (
-                     <div key={`goal-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
-                       <div className="flex items-center gap-3">
-                         <div className="w-12 h-12 bg-gray-200 rounded-xl" />
-                         <div className="flex-1">
-                           <div className="w-32 h-5 bg-gray-200 rounded" />
+               {/* Thông báo hành động goal */}
+               {(goalNotice || goalActionError) && (
+                 <div className="mb-6">
+                   {goalNotice && (
+                     <div className="px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl text-green-700 font-medium">
+                       {goalNotice}
+                     </div>
+                   )}
+                   {goalActionError && (
+                     <div className="px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 font-medium mt-3">
+                       {goalActionError}
+                     </div>
+                   )}
+                 </div>
+               )}
+
+               {/* System Goals Section */}
+               <div className="mb-10">
+                 <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-xl font-semibold text-gray-900">Suggest Goals</h3>
+                 </div>
+                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-label="system-goals">
+                   {goalsLoading ? (
+                     Array.from({ length: 3 }).map((_, i) => (
+                       <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                         <div className="flex items-center gap-3">
+                           <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                           <div className="flex-1">
+                             <div className="w-32 h-5 bg-gray-200 rounded" />
+                           </div>
                          </div>
                        </div>
+                     ))
+                   ) : goalsError ? (
+                     <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
+                       Failed to load system goals: {goalsError}
                      </div>
-                   ))
-                 ) : goalsError ? (
-                   <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
-                     Failed to load goals: {goalsError}
-                   </div>
-                 ) : goalItems.length > 0 ? (
-                   goals.map((g: any, idx: number) => {
-                     const id = g?.id ?? g?.goalId ?? g?.key
-                     const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                     return (
-                       <SingleGoalCard
-                         key={String(id)}
-                         id={String(id)}
-                         title={title}
-                         colorClass={palette[idx % palette.length]}
-                         icon={undefined}
-                         active={selectedGoals.includes(String(id))}
-                         onToggle={toggleGoal}
-                         onStartEdit={startEditGoal}
-                         onDelete={handleDeleteGoal}
-                         isEditing={String(editingGoalId) === String(id)}
-                         editingTitle={editingTitle}
-                         setEditingTitle={setEditingTitle}
-                         onSaveEdit={saveEditGoal}
-                         onCancelEdit={cancelEditGoal}
-                         saving={savingGoal}
-                         deleting={String(deletingGoalId) === String(id)}
-                       />
-                     )
-                   })
-                 ) : (
-                   <div className="col-span-full text-center py-8 text-gray-500">
-                     No goals available.
-                   </div>
-                 )}
-               </section>
+                   ) : systemGoals.length > 0 ? (
+                     systemGoals.map((g: any, idx: number) => {
+                       const id = g?.id ?? g?.goalId ?? g?.key
+                       const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                       return (
+                         <SingleGoalCard
+                           key={String(id)}
+                           id={String(id)}
+                           title={title}
+                           colorClass={palette[idx % palette.length]}
+                           icon={undefined}
+                           active={selectedGoals.includes(String(id))}
+                           onToggle={toggleGoal}
+                           onStartEdit={() => {}}
+                           onDelete={() => {}}
+                           isEditing={false}
+                           editingTitle=""
+                           setEditingTitle={() => {}}
+                           onSaveEdit={() => {}}
+                           onCancelEdit={() => {}}
+                           saving={false}
+                           deleting={false}
+                         />
+                       )
+                     })
+                   ) : (
+                     <div className="col-span-full text-center py-8 text-gray-500 bg-white rounded-2xl border-2 border-gray-200">
+                       No system goals available.
+                     </div>
+                   )}
+                 </section>
+               </div>
+
+               {/* My Goals Section */}
+               <div>
+                 <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-xl font-semibold text-gray-900">My Goals</h3>
+                   <button
+                     type="button"
+                     onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
+                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-teal-500 text-teal-600 hover:bg-teal-50 font-medium"
+                   >
+                     <Plus size={18} /> Add Goal
+                   </button>
+                 </div>
+                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-label="my-goals">
+                   {myGoalsLoading ? (
+                     Array.from({ length: 3 }).map((_, i) => (
+                       <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                         <div className="flex items-center gap-3">
+                           <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                           <div className="flex-1">
+                             <div className="w-32 h-5 bg-gray-200 rounded" />
+                           </div>
+                         </div>
+                       </div>
+                     ))
+                   ) : myGoalsError ? (
+                     <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
+                       Failed to load your goals: {myGoalsError}
+                     </div>
+                   ) : myGoals.length > 0 ? (
+                     myGoals.map((g: any, idx: number) => {
+                       const id = g?.id ?? g?.goalId ?? g?.key
+                       const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                       return (
+                         <SingleGoalCard
+                           key={String(id)}
+                           id={String(id)}
+                           title={title}
+                           colorClass={palette[(systemGoals.length + idx) % palette.length]}
+                           icon={undefined}
+                           active={selectedGoals.includes(String(id))}
+                           onToggle={toggleGoal}
+                           onStartEdit={startEditGoal}
+                           onDelete={handleDeleteGoal}
+                           isEditing={String(editingGoalId) === String(id)}
+                           editingTitle={editingTitle}
+                           setEditingTitle={setEditingTitle}
+                           onSaveEdit={saveEditGoal}
+                           onCancelEdit={cancelEditGoal}
+                           saving={savingGoal}
+                           deleting={String(deletingGoalId) === String(id)}
+                         />
+                       )
+                     })
+                   ) : (
+                     <div className="col-span-full text-center py-8 text-gray-500 bg-white rounded-2xl border-2 border-gray-200">
+                       No personal goals yet. Click "Add Goal" to create one.
+                     </div>
+                   )}
+                 </section>
+               </div>
 
               {/* Add Goal Modal */}
               {showAddGoal && (
