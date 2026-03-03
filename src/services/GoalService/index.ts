@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { listGoalsUrl, createGoalUrl, goalUrl, basePath } from './url'
+import { listGoalsUrl, createGoalUrl, goalUrl, basePath, myGoalsUrl } from './url'
 
 export interface Goal {
   goalId: string
@@ -138,4 +138,4 @@ export async function deleteGoal(id: string | number): Promise<any> {
   return res?.data ?? res
 }
 
-export default { listGoals, getUserGoals, createGoal, updateGoal, deleteGoal }
+export default { listGoals, getUserGoals, getMyGoals, createGoal, updateGoal, deleteGoal }
