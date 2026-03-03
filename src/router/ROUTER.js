@@ -13,6 +13,7 @@ const ROUTER = {
   ABOUT: "/about",
   // Private routes
   STUDENT_DASHBOARD: "/dashboard",
+  STUDENT_OVERVIEW: "/overview",
   MY_PLANS: "/my-plans",
   GOALS: "/goals",
   PROFILE: "/profile", // Student profile
@@ -26,6 +27,8 @@ const ROUTER = {
   MENTOR_PROFILE: "/mentor/profile",
   // Student resources
   MY_RESOURCES: "/my-resources",
+  // Quiz
+  QUIZ: "/quiz/:quizId",
 };
 
 export default ROUTER;

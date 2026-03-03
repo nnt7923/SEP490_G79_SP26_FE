@@ -44,11 +44,8 @@ const MyPlansDetailPage: React.FC = () => {
       const foundPlan = response.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         setPlan(foundPlan)
-        // Expand all chapters by default
-        if (foundPlan.chapters) {
-          const allChapterIds = new Set(foundPlan.chapters.map(ch => ch.id))
-          setExpandedChapters(allChapterIds)
-        }
+        // Start with all chapters collapsed
+        setExpandedChapters(new Set())
       } else {
         setError('Learning path not found')
       }
@@ -212,7 +209,7 @@ const MyPlansDetailPage: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch {}
-                                  navigate(ROUTER.PLANS_RESULT, { state: { skeleton: plan, selectedLessonId: lesson.id } })
+                                  navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
                                 }}
                                 title="View lesson content"
                                 className="font-medium text-[#111827] text-left hover:text-[#2f80ed] underline decoration-transparent hover:decoration-[#2f80ed]"
@@ -230,10 +227,20 @@ const MyPlansDetailPage: React.FC = () => {
                                   <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Quizzes:</p>
                                   <div className="space-y-1">
                                     {lesson.quizzes.map((quiz, quizIdx) => (
-                                      <div key={quiz.id || quizIdx} className="flex items-center gap-2 text-sm text-[#374151]">
+                                      <button
+                                        key={quiz.id || quizIdx}
+                                        type="button"
+                                        onClick={() => navigate(`/quiz/${quiz.id}`, { 
+                                          state: { 
+                                            quizTitle: quiz.title,
+                                            skeleton: plan 
+                                          } 
+                                        })}
+                                        className="flex items-center gap-2 text-sm text-[#374151] hover:text-[#2f80ed] transition-colors cursor-pointer"
+                                      >
                                         <CheckCircle2 className="w-4 h-4 text-[#059669]" />
-                                        {quiz.title}
-                                      </div>
+                                        <span className="underline decoration-transparent hover:decoration-[#2f80ed]">{quiz.title}</span>
+                                      </button>
                                     ))}
                                   </div>
                                 </div>

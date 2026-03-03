@@ -10,6 +10,9 @@ declare const ROUTER: {
   PLANS_RESULT: string
   ABOUT: string
   STUDENT_DASHBOARD: string
+  STUDENT_OVERVIEW: string
+  MY_PLANS: string
+  GOALS: string
   PROFILE: string
   CHANGE_PASSWORD: string
   MY_RESOURCES: string
@@ -17,6 +20,8 @@ declare const ROUTER: {
   MENTOR_DASHBOARD: string
   ADMIN_API_KEY: string
   ADMIN_USERS: string
+  MENTOR_PROFILE: string
+  QUIZ: string
 }
 
 export default ROUTER

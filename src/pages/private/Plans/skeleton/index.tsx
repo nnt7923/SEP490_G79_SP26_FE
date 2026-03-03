@@ -7,6 +7,7 @@ import ROUTER from '../../../../router/ROUTER'
 import { requestLessonContent, requestChapterContent } from '../../../../services/SignalR'
 import { generateAllContent } from '../../../../services/ContentGenerator'
 import LessonContent from '../components/LessonContent'
+import ChapterTasks from '../components/ChapterTasks'
 
 const ResultPage: React.FC = () => {
   const location = useLocation() as any
@@ -164,13 +165,37 @@ const ResultPage: React.FC = () => {
     return Array.isArray(skeleton?.chapters) ? skeleton.chapters : []
   }, [skeleton])
 
+  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(() => {
+    return new Set<string>() // Start with all chapters collapsed
+  })
+
+  // Remove auto-expand effect
+  // useEffect(() => {
+  //   if (chapters.length > 0) {
+  //     const allIds = new Set<string>(chapters.map((ch: any) => String(ch.id)))
+  //     setExpandedChapters(allIds)
+  //   }
+  // }, [chapters])
+
+  const [showLessonContent, setShowLessonContent] = useState(false)
+
+  // Track chapter completion status based on tasks
+  const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
+
+  const handleChapterTasksCompleted = (chapterId: string, completed: boolean) => {
+    setChapterCompletionStatus(prev => ({
+      ...prev,
+      [chapterId]: completed
+    }))
+  }
+
   return (
-    <div className="layout min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+    <div className="layout min-h-screen bg-blue-50">
       <Header />
       <main className="page-main py-12" role="main" aria-label="learning-path">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero frame */}
-          <section className="rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 p-8 shadow-xl text-white mb-8">
+          <section className="rounded-2xl bg-blue-500 p-8 shadow-xl text-white mb-8">
             <div className="flex items-start justify-between">
               <div className="space-y-3 w-full max-w-3xl">
                 <h1 className="text-2xl sm:text-3xl font-bold font-heading">{pathTitle}</h1>
@@ -179,45 +204,177 @@ const ResultPage: React.FC = () => {
                 ) : (
                   <p className="text-white/80 text-sm">No learning path description.</p>
                 )}
-                {/* Removed badges: PathID, Chapters, Created */}
-              </div>
-            </div>
-          </section>
-
-          {/* Grid layout: full width lesson/chapter content */}
-          <section className="grid grid-cols-1 gap-6">
-            <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 font-heading">Lesson / Chapter Content</h2>
-                <div className="flex items-center gap-2">
-                  <select
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none text-sm font-medium transition-colors"
-                    value={selectedLessonId || ''}
-                    onChange={(e) => setSelectedLessonId(e.target.value || undefined)}
-                    aria-label="Select lesson"
-                  >
-                    {lessons.map((ls: any) => (
-                      <option key={ls.id} value={ls.id}>{ls.title}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition"
-                    title="View lesson content"
-                    onClick={() => selectedLessonId && setSelectedLessonId(selectedLessonId)}
-                  >
-                    View
-                  </button>
+                <div className="flex items-center gap-4 mt-4 text-sm">
+                  <span>📚 {chapters.length} chapters</span>
+                  <span>📝 {lessons.length} lessons</span>
+                  {createdAt && <span>📅 {new Date(createdAt).toLocaleDateString()}</span>}
                 </div>
               </div>
-
-              <LessonContent content={md} loading={loading} error={error || undefined} />
             </div>
           </section>
 
-          {/* Empty state */}
-          {(!Array.isArray(chapters) || chapters.length === 0) && (
-            <div className="text-gray-500 text-center py-8">No chapter/lesson list found in the skeleton.</div>
+          {/* Chapters & Lessons Display */}
+          {chapters.length > 0 ? (
+            <div className="space-y-4 mb-8">
+              {chapters.map((chapter: any, chapterIdx: number) => {
+                const isExpanded = expandedChapters.has(chapter.id)
+                const isCompleted = chapterCompletionStatus[chapter.id] === true
+                
+                return (
+                  <div key={chapter.id || chapterIdx} className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden shadow-sm">
+                    {/* Chapter Header */}
+                    <button
+                      onClick={() => {
+                        const newExpanded = new Set(expandedChapters)
+                        if (newExpanded.has(chapter.id)) {
+                          newExpanded.delete(chapter.id)
+                        } else {
+                          newExpanded.add(chapter.id)
+                        }
+                        setExpandedChapters(newExpanded)
+                      }}
+                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1 text-left">
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-semibold ${
+                          isCompleted 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-blue-500 text-white'
+                        }`}>
+                          {isCompleted ? (
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            chapterIdx + 1
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 text-lg">{chapter.title}</h3>
+                          {chapter.lessons && chapter.lessons.length > 0 && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {chapter.lessons.length} lessons
+                              {isCompleted && <span className="ml-2 text-green-600 font-medium">✓ Completed</span>}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Chapter Content */}
+                    {chapter.content && (
+                      <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+                        <p className="text-sm text-gray-700">{chapter.content}</p>
+                      </div>
+                    )}
+
+                    {/* Lessons - Only show when expanded */}
+                    {isExpanded && chapter.lessons && chapter.lessons.length > 0 && (
+                      <div className="border-t border-gray-200">
+                        <div className="divide-y divide-gray-200">
+                          {chapter.lessons.map((lesson: any, lessonIdx: number) => (
+                            <div key={lesson.id || lessonIdx} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                              <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-semibold">
+                                  {lessonIdx + 1}
+                                </div>
+                                <div className="flex-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigate(`/lesson/${lesson.id}`, { state: { skeleton } })
+                                    }}
+                                    className="font-medium text-gray-900 text-left hover:text-blue-500 underline decoration-transparent hover:decoration-blue-500 transition-colors"
+                                  >
+                                    {lesson.title}
+                                  </button>
+                                  {lesson.description && (
+                                    <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
+                                  )}
+                                  {lesson.quizzes && lesson.quizzes.length > 0 && (
+                                    <div className="mt-3 space-y-2">
+                                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Quizzes:</p>
+                                      <div className="space-y-1">
+                                        {lesson.quizzes.map((quiz: any, quizIdx: number) => (
+                                          <button
+                                            key={quiz.id || quizIdx}
+                                            type="button"
+                                            onClick={() => navigate(`/quiz/${quiz.id}`, { 
+                                              state: { 
+                                                quizTitle: quiz.title,
+                                                skeleton 
+                                              } 
+                                            })}
+                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-500 transition-colors cursor-pointer"
+                                          >
+                                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span className="underline decoration-transparent hover:decoration-teal-600">{quiz.title}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Chapter Tasks Section */}
+                          <ChapterTasks 
+                            chapterId={chapter.id} 
+                            onAllTasksCompleted={handleChapterTasksCompleted}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-gray-500 text-center py-8 bg-white rounded-2xl border-2 border-gray-200 mb-8">
+              No chapters found in the learning path.
+            </div>
+          )}
+
+          {/* Lesson Content Viewer (shown when user clicks a lesson) */}
+          {showLessonContent && (
+            <section className="grid grid-cols-1 gap-6">
+              <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 font-heading">Lesson Content</h2>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none text-sm font-medium transition-colors"
+                      value={selectedLessonId || ''}
+                      onChange={(e) => setSelectedLessonId(e.target.value || undefined)}
+                      aria-label="Select lesson"
+                    >
+                      {lessons.map((ls: any) => (
+                        <option key={ls.id} value={ls.id}>{ls.title}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+                      title="Close lesson content"
+                      onClick={() => setShowLessonContent(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+
+                <LessonContent content={md} loading={loading} error={error || undefined} />
+              </div>
+            </section>
           )}
         </div>
       </main>

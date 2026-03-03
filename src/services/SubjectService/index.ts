@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { listSubjectsUrl, createSubjectUrl } from './url'
+import { listSubjectsUrl, createSubjectUrl, basePath } from './url'
 
 export type Subject = {
   id: string
@@ -7,6 +7,11 @@ export type Subject = {
   name: string
   slug?: string
   description?: string
+  color?: string
+  icon?: string
+  createdBy?: string
+  createdByUserId?: string
+  createdAt?: string
 }
 
 export async function listSubjects(): Promise<Subject[]> {
@@ -27,10 +32,20 @@ export async function listSubjects(): Promise<Subject[]> {
     name: s.name,
     slug: s.slug,
     description: s.description,
+    color: s.color,
+    icon: s.icon,
+    createdBy: s.createdBy,
+    createdByUserId: s.createdByUserId,
+    createdAt: s.createdAt,
   }))
 }
 
-export async function createSubject(payload: { name: string; slug?: string }): Promise<Subject> {
+export async function createSubject(payload: { 
+  name: string
+  description?: string
+  color?: string
+  icon?: string
+}): Promise<Subject> {
   const res: any = await api.post(createSubjectUrl, payload)
   // Unwrap common API envelope patterns
   const data = res?.data ?? res
@@ -38,4 +53,20 @@ export async function createSubject(payload: { name: string; slug?: string }): P
   return data as Subject
 }
 
-export default { listSubjects, createSubject }
+export async function updateSubject(subjectId: string, payload: { 
+  name: string
+  description?: string
+  color?: string
+  icon?: string
+}): Promise<Subject> {
+  const res: any = await api.put(`${basePath}/${subjectId}`, payload)
+  const data = res?.data ?? res
+  if (data?.value) return data.value as Subject
+  return data as Subject
+}
+
+export async function deleteSubject(subjectId: string): Promise<void> {
+  await api.delete(`${basePath}/${subjectId}`)
+}
+
+export default { listSubjects, createSubject, updateSubject, deleteSubject }

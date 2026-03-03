@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { AuthService, UserService } from '../services'
 
 export type User = {
-  id: number
+  id: number | string // Support both number and GUID
   username: string
   firstName?: string
   lastName?: string
@@ -53,11 +53,20 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user) => {
     set({ user })
+    // Persist role to localStorage
+    if (user?.role?.name) {
+      try {
+        localStorage.setItem('userRole', user.role.name)
+      } catch { }
+    }
   },
 
   clearState: () => {
     set({ token: null, user: null, loading: false })
-    try { localStorage.removeItem('accessToken') } catch { }
+    try {
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('userRole')
+    } catch { }
     try { AuthService.clearState?.() } catch { }
   },
 
@@ -87,7 +96,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true })
     try {
       const resp: any = await AuthService.login({ Identifier: username, Password: password })
-      
+
 
       const token: string | undefined = resp?.token
       const rawUser: any = resp?.user ?? resp
@@ -106,8 +115,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
           role: { name: roleName || 'Student' },
         }
 
-        set({ user: loginUser })
-        
+        // Use setUser to persist role to localStorage
+        get().setUser(loginUser)
+
 
         // Load full profile after token; preserve role if profile lacks it
         await get().fetchProfile()
@@ -137,6 +147,21 @@ const useAuthStore = create<AuthState>((set, get) => ({
     if (raw) {
       set({ token: raw })
       AuthService.setAccessToken?.(raw)
+
+      // Restore role from localStorage before fetching profile
+      const storedRole = localStorage.getItem('userRole')
+
+      if (storedRole) {
+        set({
+          user: {
+            id: 0,
+            username: '',
+            name: '',
+            role: { name: storedRole }
+          } as User
+        })
+      }
+
       await get().fetchProfile()
     }
   },
@@ -145,20 +170,25 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data: any = await UserService.getProfile()
       const profileData: any = data?.data ?? data
-      
+
       const currentUser = get().user
 
       // Determine role from profile if available; otherwise keep current role
       const profileRoleName: string | undefined = profileData?.role?.name || profileData?.roleName || (Array.isArray(profileData?.roles) ? profileData.roles[0] : undefined)
 
+      // IMPORTANT: Always preserve current role if profile doesn't provide one
+      const finalRole = profileRoleName
+        ? { name: profileRoleName }
+        : (currentUser?.role || undefined)
+
       const user: User = {
         ...(currentUser || {} as any),
         ...profileData,
-        role: profileRoleName ? { name: profileRoleName } : currentUser?.role,
+        role: finalRole,
       }
 
-      
-      set({ user })
+      // Use setUser to persist role to localStorage
+      get().setUser(user)
     } catch {
       get().clearState()
     }
@@ -201,7 +231,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const res = await UserService.changePassword(payload)
 
-      
+
 
       return {
         isOk: true,

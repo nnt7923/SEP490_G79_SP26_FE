@@ -15,15 +15,21 @@ const HUB_BASE = isDev
 
 const LESSON_HUB_URL = `${HUB_BASE}/hubs/lesson`
 const CHAPTER_HUB_URL = `${HUB_BASE}/hubs/chapter`
+const TASK_HUB_URL = `${HUB_BASE}/hubs/task`
+const QUIZ_HUB_URL = `${HUB_BASE}/hubs/quiz`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
 // ==== State ====
 let lessonHub: signalR.HubConnection | null = null
 let chapterHub: signalR.HubConnection | null = null
+let taskHub: signalR.HubConnection | null = null
+let quizHub: signalR.HubConnection | null = null
 
 // single-flight guards (avoid duplicate invokes for the same id)
 const inflightLesson = new Map<string, Promise<any>>()
 const inflightChapter = new Map<string, Promise<any>>()
+const inflightTask = new Map<string, Promise<any>>()
+const inflightQuiz = new Map<string, Promise<any>>()
 
 // ==== Utils ====
 function getToken(): string | undefined {
@@ -67,6 +73,22 @@ export async function getChapterHub(): Promise<signalR.HubConnection> {
   }
   await ensureStarted(chapterHub, 'chapter')
   return chapterHub
+}
+
+export async function getTaskHub(): Promise<signalR.HubConnection> {
+  if (!taskHub) {
+    taskHub = buildConnection(TASK_HUB_URL)
+  }
+  await ensureStarted(taskHub, 'task')
+  return taskHub
+}
+
+export async function getQuizHub(): Promise<signalR.HubConnection> {
+  if (!quizHub) {
+    quizHub = buildConnection(QUIZ_HUB_URL)
+  }
+  await ensureStarted(quizHub, 'quiz')
+  return quizHub
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
@@ -117,7 +139,7 @@ export async function requestLessonContent(lessonId: string, onLoading?: () => v
     }, REQUEST_TIMEOUT)
 
     // ensure timeout cleared in all paths
-    const clearTo = () => { try { clearTimeout(to) } catch {} }
+    const clearTo = () => { try { clearTimeout(to) } catch { } }
 
     // rewrap to clear timeout then delegate
     const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
@@ -182,7 +204,7 @@ export async function requestChapterContent(chapterId: string, onLoading?: () =>
       cleanup()
       reject(new Error('Chapter content request timeout'))
     }, REQUEST_TIMEOUT)
-    const clearTo = () => { try { clearTimeout(to) } catch {} }
+    const clearTo = () => { try { clearTimeout(to) } catch { } }
     const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
     const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
 
@@ -201,6 +223,138 @@ export async function requestChapterContent(chapterId: string, onLoading?: () =>
   return p
 }
 
+// ==== Request chapter tasks (pure SignalR) ====
+export async function requestChapterTasks(chapterId: string, onLoading?: () => void): Promise<any> {
+  if (!isGuid(chapterId)) {
+    return Promise.reject(new Error('chapterId phải là GUID hợp lệ'))
+  }
+  if (inflightTask.has(chapterId)) {
+    return inflightTask.get(chapterId)!
+  }
+
+  const hub = await getTaskHub()
+
+  const p = new Promise<any>((resolve, reject) => {
+    let done = false
+    const cleanup = () => {
+      hub.off('ChapterTasksLoading', handleLoading)
+      hub.off('ReceiveChapterTasks', handleContent)
+      hub.off('ChapterTasksError', handleError)
+      inflightTask.delete(chapterId)
+    }
+
+    const handleLoading = () => {
+      onLoading?.()
+    }
+
+    const handleContent = (tasks: any) => {
+      if (done) return
+      done = true
+      cleanup()
+      resolve(tasks)
+    }
+
+    const handleError = (err: any) => {
+      if (done) return
+      done = true
+      cleanup()
+      reject(new Error(err?.message || 'Failed to load chapter tasks'))
+    }
+
+    const to = setTimeout(() => {
+      if (done) return
+      done = true
+      cleanup()
+      reject(new Error('Chapter tasks request timeout'))
+    }, REQUEST_TIMEOUT)
+    const clearTo = () => { try { clearTimeout(to) } catch { } }
+    const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+    hub.on('ChapterTasksLoading', handleLoading)
+    hub.on('ReceiveChapterTasks', handleContentWrap)
+    hub.on('ChapterTasksError', handleErrorWrap)
+
+    try {
+      hub.invoke('RequestChapterTasks', chapterId).catch(handleErrorWrap)
+    } catch (e) {
+      handleErrorWrap(e)
+    }
+  })
+
+  inflightTask.set(chapterId, p)
+  return p
+}
+
+// ==== Request quiz questions (pure SignalR) ====
+export async function requestQuizQuestions(quizId: string, onLoading?: () => void): Promise<any> {
+  if (!isGuid(quizId)) {
+    return Promise.reject(new Error('quizId phải là GUID hợp lệ'))
+  }
+  // single-flight: return running promise for same quizId
+  if (inflightQuiz.has(quizId)) {
+    return inflightQuiz.get(quizId)!
+  }
+
+  const hub = await getQuizHub()
+
+  const p = new Promise<any>((resolve, reject) => {
+    let done = false
+    const cleanup = () => {
+      hub.off('QuizQuestionsLoading', handleLoading)
+      hub.off('ReceiveQuizQuestions', handleQuestions)
+      hub.off('QuizQuestionsError', handleError)
+      inflightQuiz.delete(quizId)
+    }
+
+    const handleLoading = () => {
+      onLoading?.()
+    }
+
+    const handleQuestions = (questions: any) => {
+      if (done) return
+      done = true
+      cleanup()
+      resolve(questions)
+    }
+
+    const handleError = (err: any) => {
+      if (done) return
+      done = true
+      cleanup()
+      reject(new Error(err?.message || 'Failed to load quiz questions'))
+    }
+
+    // timeout safety
+    const to = setTimeout(() => {
+      if (done) return
+      done = true
+      cleanup()
+      reject(new Error('Quiz questions request timeout'))
+    }, REQUEST_TIMEOUT)
+
+    // ensure timeout cleared in all paths
+    const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+    // rewrap to clear timeout then delegate
+    const handleQuestionsWrap = (q: any) => { clearTo(); handleQuestions(q) }
+    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+    hub.on('QuizQuestionsLoading', handleLoading)
+    hub.on('ReceiveQuizQuestions', handleQuestionsWrap)
+    hub.on('QuizQuestionsError', handleErrorWrap)
+
+    try {
+      hub.invoke('RequestQuizQuestions', quizId).catch(handleErrorWrap)
+    } catch (e) {
+      handleErrorWrap(e)
+    }
+  })
+
+  inflightQuiz.set(quizId, p)
+  return p
+}
+
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
@@ -208,6 +362,12 @@ export async function disconnectHubs(): Promise<void> {
     }
     if (chapterHub && chapterHub.state !== signalR.HubConnectionState.Disconnected) {
       await chapterHub.stop()
+    }
+    if (taskHub && taskHub.state !== signalR.HubConnectionState.Disconnected) {
+      await taskHub.stop()
+    }
+    if (quizHub && quizHub.state !== signalR.HubConnectionState.Disconnected) {
+      await quizHub.stop()
     }
   } catch {
     // ignore

@@ -9,6 +9,8 @@ export default defineConfig({
     })
   ],
   server: {
+    port: 5713,
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'https://pplp.click',
