@@ -1,6 +1,13 @@
 import api from '../Axios'
 import { listGoalsUrl, createGoalUrl, goalUrl, basePath, myGoalsUrl } from './url'
 
+export const LanguageSelection = {
+  Vietnamese: 1,
+  English: 2,
+} as const
+
+export type LanguageSelection = typeof LanguageSelection[keyof typeof LanguageSelection]
+
 export interface Goal {
   goalId: string
   title: string

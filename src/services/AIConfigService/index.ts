@@ -9,10 +9,20 @@ export type ConfigJson = {
   [key: string]: any
 }
 
+export const AIUsageType = {
+  StructureGeneration: 1,
+  ContentGeneration: 2,
+  Verification: 3,
+  Assistant: 4,
+} as const
+
+export type AIUsageType = typeof AIUsageType[keyof typeof AIUsageType]
+
 export type AIConfig = {
   apiKey?: string
   providerName?: string
   isEnabled?: boolean
+  aiUsageType?: AIUsageType
   lastUpdated?: string
   configJson?: ConfigJson
   provider?: string // fallback field

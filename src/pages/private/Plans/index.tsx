@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
-import { SubjectService, GoalService, LearningPathService } from '../../../services'
+import { SubjectService, GoalService, LearningPathService, LanguageSelection } from '../../../services'
 import type { Subject } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
@@ -10,7 +10,7 @@ import StepHeader from './components/StepHeader'
 import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
-import { Plus } from 'lucide-react'
+import { Plus, Globe, Code2, Target, BarChart3, Languages, Sparkles } from 'lucide-react'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -34,7 +34,7 @@ type GoalItem = { key: string; label: string };
 type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 
 const PlansPage: React.FC = () => {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [language, setLanguage] = useState<string | null>(() => {
     try {
       const v = sessionStorage.getItem('plans.language') || null
@@ -54,6 +54,14 @@ const PlansPage: React.FC = () => {
   const [level, setLevel] = useState<Level | null>(() => {
     try {
       return (sessionStorage.getItem('plans.level') as Level | null) || null
+    } catch {
+      return null
+    }
+  })
+  const [languageSelection, setLanguageSelection] = useState<LanguageSelection | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('plans.languageSelection')
+      return stored ? Number(stored) as LanguageSelection : null
     } catch {
       return null
     }
@@ -172,6 +180,13 @@ const PlansPage: React.FC = () => {
       else sessionStorage.removeItem('plans.level')
     } catch {}
   }, [level])
+
+  useEffect(() => {
+    try {
+      if (languageSelection) sessionStorage.setItem('plans.languageSelection', String(languageSelection))
+      else sessionStorage.removeItem('plans.languageSelection')
+    } catch {}
+  }, [languageSelection])
 
   // SEO: title, meta description, canonical & JSON-LD
   useEffect(() => {
@@ -323,10 +338,11 @@ const PlansPage: React.FC = () => {
     if (step === 1) return !!language
     if (step === 2) return selectedGoals.length > 0
     if (step === 3) return !!level
+    if (step === 4) return !!languageSelection
     return true
-  }, [step, language, selectedGoals, level])
+  }, [step, language, selectedGoals, level, languageSelection])
 
-  const canGenerate = useMemo(() => !!language && selectedGoals.length > 0 && !!level, [language, selectedGoals, level])
+  const canGenerate = useMemo(() => !!language && selectedGoals.length > 0 && !!level && !!languageSelection, [language, selectedGoals, level, languageSelection])
 
   const toggleGoal = (key: string) => {
     setSelectedGoals((prev) => {
@@ -381,7 +397,7 @@ const PlansPage: React.FC = () => {
        <main className="page-main py-12" role="main" aria-labelledby="plans-title">
          <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            {/* Stepper */}
-           <Stepper currentStep={step} totalSteps={4} />
+           <Stepper currentStep={step} totalSteps={5} />
 
            {/* Content */}
            {step === 1 && (
@@ -668,60 +684,223 @@ const PlansPage: React.FC = () => {
            {step === 4 && (
              <>
                <StepHeader
-                 title="Generate Learning Path"
-                 subtitle="Confirm selections and generate with the backend"
-                 icon="🛠️"
+                 title="Choose Language"
+                 subtitle="Select your preferred language for the learning materials"
+                 icon="🌐"
                />
-               <section aria-label="summary" className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                 <div className="p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm">
-                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Selected Language</h2>
-                   <div className="flex items-center gap-3">
-                     {language ? (
-                       <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500 text-white font-medium shadow-md">
-                         <span className="w-2 h-2 rounded-full bg-white" />
-                         {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Selected'}
-                       </span>
-                     ) : (
-                       <span className="text-gray-500">Not selected</span>
-                     )}
+               <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto" aria-label="language-selection">
+                 {/* Vietnamese Option */}
+                 <button
+                   type="button"
+                   onClick={() => setLanguageSelection(LanguageSelection.Vietnamese)}
+                   className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${
+                     languageSelection === LanguageSelection.Vietnamese
+                       ? 'border-blue-500 bg-gradient-to-br from-blue-50 via-blue-50 to-indigo-50 shadow-xl ring-4 ring-blue-100'
+                       : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:bg-gray-50'
+                   }`}
+                 >
+                   {/* Icon Container */}
+                   <div className="flex justify-center mb-5">
+                     <div className={`relative w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                       languageSelection === LanguageSelection.Vietnamese
+                         ? 'bg-gradient-to-br from-red-500 to-yellow-500 shadow-xl scale-110 ring-4 ring-red-200'
+                         : 'bg-gradient-to-br from-red-400 to-yellow-400 group-hover:shadow-md group-hover:scale-105'
+                     }`}>
+                       {/* Vietnamese Flag Star */}
+                       <svg className="w-12 h-12 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
+                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                       </svg>
+                     </div>
                    </div>
-                 </div>
-                 <div className="p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm">
-                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Goals</h2>
-                   <div className="flex flex-wrap gap-2">
-                     {selectedGoals.length > 0 ? (
-                       selectedGoals.map((g) => (
-                         <span
-                           key={g}
-                           className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 border border-blue-300 text-sm font-medium text-gray-800"
-                         >
-                           {goalItems.find((x) => x.key === g)?.label || 'Selected'}
+                   
+                   {/* Content */}
+                   <div className="text-center">
+                     <h3 className={`text-xl font-bold mb-2 transition-colors ${
+                       languageSelection === LanguageSelection.Vietnamese ? 'text-blue-700' : 'text-gray-900'
+                     }`}>
+                       Tiếng Việt
+                     </h3>
+                     <p className="text-sm text-gray-600 leading-relaxed">
+                       Học với nội dung bằng tiếng Việt, dễ hiểu và phù hợp với người Việt
+                     </p>
+                   </div>
+                   
+                   {/* Status Indicator */}
+                   <div className={`mt-5 pt-4 border-t transition-colors ${
+                     languageSelection === LanguageSelection.Vietnamese
+                       ? 'border-blue-200'
+                       : 'border-gray-100 group-hover:border-blue-100'
+                   }`}>
+                     <div className="flex items-center justify-center gap-2 text-xs font-semibold">
+                       {languageSelection === LanguageSelection.Vietnamese ? (
+                         <span className="inline-flex items-center gap-1.5 text-blue-600">
+                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                           </svg>
+                           Selected
                          </span>
-                       ))
-                     ) : (
-                       <span className="text-gray-500">Not selected</span>
-                     )}
+                       ) : (
+                         <span className="text-gray-400">Click to select</span>
+                       )}
+                     </div>
                    </div>
-                 </div>
-                 <div className="p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm">
-                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Level</h2>
-                   <div className="flex items-center gap-3">
-                     {level ? (
-                       <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500 text-white font-medium shadow-md">
-                         <span className="w-2 h-2 rounded-full bg-white" />
-                         {level}
-                       </span>
-                     ) : (
-                       <span className="text-gray-500">Not selected</span>
-                     )}
+                 </button>
+
+                 {/* English Option */}
+                 <button
+                   type="button"
+                   onClick={() => setLanguageSelection(LanguageSelection.English)}
+                   className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${
+                     languageSelection === LanguageSelection.English
+                       ? 'border-blue-500 bg-gradient-to-br from-blue-50 via-blue-50 to-indigo-50 shadow-xl ring-4 ring-blue-100'
+                       : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:bg-gray-50'
+                   }`}
+                 >
+                   {/* Icon Container */}
+                   <div className="flex justify-center mb-5">
+                     <div className={`relative w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                       languageSelection === LanguageSelection.English
+                         ? 'bg-gradient-to-br from-blue-600 to-red-600 shadow-xl scale-110 ring-4 ring-blue-200'
+                         : 'bg-gradient-to-br from-blue-500 to-red-500 group-hover:shadow-md group-hover:scale-105'
+                     }`}>
+                       {/* Globe Icon */}
+                       <div className="relative w-full h-full flex items-center justify-center">
+                         <Globe className="w-12 h-12 text-white" strokeWidth={2} />
+                       </div>
+                     </div>
+                   </div>
+                   
+                   {/* Content */}
+                   <div className="text-center">
+                     <h3 className={`text-xl font-bold mb-2 transition-colors ${
+                       languageSelection === LanguageSelection.English ? 'text-blue-700' : 'text-gray-900'
+                     }`}>
+                       English
+                     </h3>
+                     <p className="text-sm text-gray-600 leading-relaxed">
+                       Learn with English content, widely used in tech industry
+                     </p>
+                   </div>
+                   
+                   {/* Status Indicator */}
+                   <div className={`mt-5 pt-4 border-t transition-colors ${
+                     languageSelection === LanguageSelection.English
+                       ? 'border-blue-200'
+                       : 'border-gray-100 group-hover:border-blue-100'
+                   }`}>
+                     <div className="flex items-center justify-center gap-2 text-xs font-semibold">
+                       {languageSelection === LanguageSelection.English ? (
+                         <span className="inline-flex items-center gap-1.5 text-blue-600">
+                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                           </svg>
+                           Selected
+                         </span>
+                       ) : (
+                         <span className="text-gray-400">Click to select</span>
+                       )}
+                     </div>
+                   </div>
+                 </button>
+               </section>
+             </>
+           )}
+
+           {step === 5 && (
+             <>
+               <StepHeader
+                 title="Review & Generate"
+                 subtitle="Review your selections and generate your personalized learning path"
+                 icon="✨"
+               />
+               
+               {/* Summary Cards with Icons */}
+               <section aria-label="summary" className="max-w-4xl mx-auto mb-10">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                   {/* Programming Language Card */}
+                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-blue-50 rounded-2xl border-2 border-blue-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
+                     <div className="flex items-start gap-4">
+                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                         <Code2 className="w-6 h-6 text-white" strokeWidth={2.5} />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <h3 className="text-sm font-medium text-gray-500 mb-2">Programming Language</h3>
+                         {language ? (
+                           <p className="text-lg font-semibold text-gray-900 truncate">
+                             {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Selected'}
+                           </p>
+                         ) : (
+                           <p className="text-gray-400 italic">Not selected</p>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Learning Goal Card */}
+                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-teal-50 rounded-2xl border-2 border-teal-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
+                     <div className="flex items-start gap-4">
+                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                         <Target className="w-6 h-6 text-white" strokeWidth={2.5} />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <h3 className="text-sm font-medium text-gray-500 mb-2">Learning Goal</h3>
+                         {selectedGoals.length > 0 ? (
+                           <p className="text-lg font-semibold text-gray-900 truncate">
+                             {goalItems.find((x) => x.key === selectedGoals[0])?.label || 'Selected'}
+                           </p>
+                         ) : (
+                           <p className="text-gray-400 italic">Not selected</p>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Difficulty Level Card */}
+                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-orange-50 rounded-2xl border-2 border-orange-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
+                     <div className="flex items-start gap-4">
+                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg">
+                         <BarChart3 className="w-6 h-6 text-white" strokeWidth={2.5} />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <h3 className="text-sm font-medium text-gray-500 mb-2">Difficulty Level</h3>
+                         {level ? (
+                           <p className="text-lg font-semibold text-gray-900">{level}</p>
+                         ) : (
+                           <p className="text-gray-400 italic">Not selected</p>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Content Language Card */}
+                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-purple-50 rounded-2xl border-2 border-purple-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
+                     <div className="flex items-start gap-4">
+                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+                         <Languages className="w-6 h-6 text-white" strokeWidth={2.5} />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <h3 className="text-sm font-medium text-gray-500 mb-2">Content Language</h3>
+                         {languageSelection ? (
+                           <p className="text-lg font-semibold text-gray-900">
+                             {languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English'}
+                           </p>
+                         ) : (
+                           <p className="text-gray-400 italic">Not selected</p>
+                         )}
+                       </div>
+                     </div>
                    </div>
                  </div>
                </section>
-               <div className="flex items-center justify-center gap-4">
+
+               {/* Generate Button */}
+               <div className="flex items-center justify-center">
                  <button
                    type="button"
-                   className={`px-8 py-4 bg-blue-500 text-white rounded-xl font-semibold text-lg hover:bg-blue-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${
-                     !canGenerate || generating ? 'opacity-50 cursor-not-allowed' : ''
+                   className={`group relative px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold text-lg transition-all duration-300 ${
+                     !canGenerate || generating 
+                       ? 'opacity-50 cursor-not-allowed' 
+                       : 'hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:-translate-y-1'
                    }`}
                    disabled={!canGenerate || generating}
                    onClick={async () => {
@@ -737,10 +916,19 @@ const PlansPage: React.FC = () => {
                        setPlanError('Please select a level')
                        return
                      }
+                     if (!languageSelection) {
+                       setPlanError('Please select a language')
+                       return
+                     }
                      setPlanError(null)
                      setGenerating(true)
                      try {
-                       const payload: any = { subjectId: language, goalId: selectedGoals[0], complexityLevel: level }
+                       const payload: any = { 
+                         subjectId: language, 
+                         goalId: selectedGoals[0], 
+                         complexityLevel: level,
+                         languageSelection: languageSelection
+                       }
                        const sk = await LearningPathService.generateSkeleton(payload)
                        setSkeleton(sk)
                        setPlanGenerated(true)
@@ -761,21 +949,27 @@ const PlansPage: React.FC = () => {
                      }
                    }}
                  >
-                   {generating ? (
-                     <span className="flex items-center gap-2">
-                       <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                       </svg>
-                       Generating…
-                     </span>
-                   ) : (
-                     'Generate Learning Path'
-                   )}
+                   <span className="flex items-center gap-3">
+                     {generating ? (
+                       <>
+                         <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                         </svg>
+                         <span>Generating your path...</span>
+                       </>
+                     ) : (
+                       <>
+                         <Sparkles className="w-5 h-5" />
+                         <span>Generate Learning Path</span>
+                       </>
+                     )}
+                   </span>
                  </button>
                </div>
+
                {planError && (
-                 <div className="mt-6 text-center px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 font-medium">
+                 <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-red-50 border-2 border-red-200 rounded-2xl text-red-700 font-medium text-center shadow-sm">
                    {planError}
                  </div>
                )}
@@ -816,7 +1010,7 @@ const PlansPage: React.FC = () => {
              <button
                type="button"
                className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow-md"
-               onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4) : s))}
+               onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
              >
                Back
              </button>
@@ -826,7 +1020,7 @@ const PlansPage: React.FC = () => {
                  !canNext ? 'opacity-50 cursor-not-allowed' : ''
                }`}
                disabled={!canNext}
-               onClick={() => setStep((s) => (s < 4 ? ((s + 1) as 1 | 2 | 3 | 4) : s))}
+               onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
              >
                Continue
              </button>

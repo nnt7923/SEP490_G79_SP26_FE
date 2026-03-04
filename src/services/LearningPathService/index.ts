@@ -141,10 +141,14 @@ export async function generateSkeleton(payload: any): Promise<SkeletonResponse> 
   const complexityLevel: string | undefined =
     payload?.complexityLevel ?? payload?.ComplexityLevel ?? payload?.level ?? payload?.Level
 
+  const languageSelection: number | undefined =
+    payload?.languageSelection ?? payload?.LanguageSelection
+
   const reqBody: any = {
     subjectId,
     goalId,
     complexityLevel,
+    languageSelection,
   }
 
   const res: any = await api.post(skeletonUrl, reqBody)
