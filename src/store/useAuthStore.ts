@@ -126,7 +126,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       return { isOk: false, msg: 'No token received' }
     } catch (error: any) {
       const data = error?.response?.data
-      const msg = data?.msg || data?.detail || data?.title || data?.message || error?.message || 'Login failed.'
+      const msg = data?.errorMessage || data?.msg || data?.message || data?.detail || data?.title || error?.message || 'Login failed.'
       return { isOk: false, msg }
     } finally {
       set({ loading: false })

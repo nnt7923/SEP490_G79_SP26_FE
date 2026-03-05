@@ -1,19 +1,16 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../../../hook/useAuth'
 import GroupImg from '../../../assets/img-code.png'
 import LanguageOrbit from '../../../components/Icons/Orbit'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
-import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
 import { useResponsive } from '../../../hook/useResponsive'
 import { AuthService } from '../../../services'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login } = useAuth()
   const authStore = useAuthStore()
 
   const [username, setUsername] = useState('')
@@ -26,6 +23,28 @@ const Login: React.FC = () => {
   const googleBtnRef = useRef<HTMLDivElement | null>(null)
   const CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
     '241803303859-6jds7jhib6rgupj2pfmnr9pr0akla4n2.apps.googleusercontent.com'
+
+  // Check for error in URL params (persists across remounts)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam))
+      // Clean URL without triggering navigation
+      searchParams.delete('error')
+      const newSearch = searchParams.toString()
+      window.history.replaceState({}, '', `${location.pathname}${newSearch ? '?' + newSearch : ''}`)
+    }
+  }, [location.search, location.pathname])
+
+  // Check for persisted login error on mount
+  useEffect(() => {
+    const loginError = localStorage.getItem('loginError')
+    if (loginError) {
+      setError(loginError)
+      localStorage.removeItem('loginError')
+    }
+  }, [])
 
   useEffect(() => {
     const state: any = location.state
@@ -89,22 +108,41 @@ const Login: React.FC = () => {
       const roleName = (authStore.user?.role?.name) || (user as any)?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0]
       navigateByRole(roleName)
     } catch (err: any) {
-      setError(extractErrorMessage(err, 'Google login failed'))
+      const errorMsg = err?.message || 'Google login failed'
+      setError(errorMsg)
+      navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true })
     }
   }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    localStorage.removeItem('loginError')
+    
     try {
-      await login(username.trim(), password)
+      // Call authStore.login directly to get full error details
+      const result = await authStore.login(username.trim(), password)
+      
+      if (!result.isOk) {
+        // Login failed, show error message from backend
+        const errorMsg = result.msg || 'Invalid email or password.'
+        setError(errorMsg)
+        navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true })
+        return false
+      }
+      
+      // Only navigate if login successful
       if (remember) {
         // Could persist longer session here
       }
       const roleName = (authStore.user?.role?.name) || (authStore.user as any)?.roleName || (authStore.user as any)?.roles?.[0]
       navigateByRole(roleName)
     } catch (err: any) {
-      setError(extractErrorMessage(err, 'Login failed'))
+      // Unexpected error (network error, etc.)
+      const errorMsg = 'Network error. Please check your connection and try again.'
+      setError(errorMsg)
+      navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true })
+      return false
     }
   }
 
@@ -146,7 +184,24 @@ const Login: React.FC = () => {
               required
             />
 
-            {error && <div className="form__error" role="alert">{error}</div>}
+            {error && (
+              <div 
+                style={{
+                  backgroundColor: '#fee2e2',
+                  border: '2px solid #ef4444',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginTop: '12px',
+                  marginBottom: '12px',
+                  color: '#991b1b',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+                role="alert"
+              >
+                ⚠️ {error}
+              </div>
+            )}
 
             <div className="auth__links" style={{ justifyContent: 'space-between' }}>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>

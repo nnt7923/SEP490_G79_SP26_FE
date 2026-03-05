@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import ResourceService from '../../../services/ResourceService'
 import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
-import { LogOut, Settings, HelpCircle, FileText, Calendar, Loader2, Plus, Trash2, Edit, Eye } from 'lucide-react'
+import { LogOut, FileText, Calendar, Loader2, Plus, Trash2, Edit, Eye } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
 // @ts-ignore - JS module without types
 import ROUTER from '../../../router/ROUTER'
@@ -13,6 +13,7 @@ import ROUTER_META from '../../../router/ROUTER_META'
 import CreateResourceModal from './CreateResourceModal'
 import EditResourceModal from './EditResourceModal'
 import Toast from '../../../components/Toast'
+import ProgressToast from '../../../components/Toast/ProgressToast'
 import ConfirmDialog from '../../../components/ConfirmDialog'
 import ResourcePageViewer from '../../../components/ResourcePageViewer'
 
@@ -44,6 +45,8 @@ const MyResourcesPage: React.FC = () => {
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null)
   const [resourceToView, setResourceToView] = useState<Resource | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
+  const [progressToast, setProgressToast] = useState<{ message: string; progress: number; status: 'loading' | 'success' | 'error' } | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
     fetchResources()
@@ -92,6 +95,24 @@ const MyResourcesPage: React.FC = () => {
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
     setToast({ message, type })
+  }
+
+  const showProgressToast = (message: string, progress: number, status: 'loading' | 'success' | 'error') => {
+    setProgressToast({ message, progress, status })
+    
+    // Set uploading state
+    if (status === 'loading') {
+      setIsUploading(true)
+    } else {
+      setIsUploading(false)
+    }
+    
+    // Auto-close success/error after 3 seconds
+    if (status === 'success' || status === 'error') {
+      setTimeout(() => {
+        setProgressToast(null)
+      }, 3000)
+    }
   }
 
   const handleEdit = (resource: Resource) => {
@@ -189,14 +210,16 @@ const MyResourcesPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm transition-colors duration-200 cursor-pointer"
+              disabled={isUploading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
               Create Resource
             </button>
             <button
               onClick={() => navigate(ROUTER.STUDENT_DASHBOARD)}
-              className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-200 cursor-pointer"
+              disabled={isUploading}
+              className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Back to Dashboard
             </button>
@@ -273,7 +296,8 @@ const MyResourcesPage: React.FC = () => {
                     {(resource.filePath || resource.url) && (
                       <button
                         onClick={() => handleDownload(resource)}
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+                        disabled={isUploading}
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         title="View document"
                       >
                         <Eye className="w-4 h-4" />
@@ -281,14 +305,16 @@ const MyResourcesPage: React.FC = () => {
                     )}
                     <button
                       onClick={() => handleEdit(resource)}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                      disabled={isUploading}
+                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Edit resource"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(resource)}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
+                      disabled={isUploading}
+                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Delete resource"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -306,6 +332,7 @@ const MyResourcesPage: React.FC = () => {
           onClose={() => setIsModalOpen(false)}
           onSuccess={handleCreateSuccess}
           onShowToast={showToast}
+          onShowProgressToast={showProgressToast}
         />
 
         {/* Edit Resource Modal */}
@@ -352,6 +379,21 @@ const MyResourcesPage: React.FC = () => {
             type={toast.type}
             onClose={() => setToast(null)}
           />
+        )}
+
+        {/* Progress Toast */}
+        {progressToast && (
+          <ProgressToast
+            message={progressToast.message}
+            progress={progressToast.progress}
+            status={progressToast.status}
+            onClose={() => setProgressToast(null)}
+          />
+        )}
+
+        {/* Uploading Overlay - Block interactions during upload */}
+        {isUploading && (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9998]" />
         )}
       </div>
     </Layout>

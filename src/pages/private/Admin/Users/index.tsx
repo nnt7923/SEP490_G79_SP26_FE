@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { getAdminSidebarConfig } from '../components/AdminSideBar'
 import { UserService } from '../../../../services'
-import { Search, RefreshCw, ChevronDown, Mail, Calendar, Shield } from 'lucide-react'
+import { Search, RefreshCw, ChevronDown, Mail, Calendar, Shield, Ban, CheckCircle } from 'lucide-react'
 
 const AdminUsersPage: React.FC = () => {
   const sidebarConfig = useMemo(() => ({
@@ -17,6 +17,8 @@ const AdminUsersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const unwrapUsers = (raw: any): any[] => {
     const value = raw?.data ?? raw
@@ -43,6 +45,27 @@ const AdminUsersPage: React.FC = () => {
   }
 
   useEffect(() => { fetchUsers() }, [])
+
+  const handleBanUser = async (userId: string, currentlyBanned: boolean) => {
+    setActionLoading(userId)
+    try {
+      if (currentlyBanned) {
+        await UserService.unbanUser(userId)
+        setToast({ message: 'User unbanned successfully', type: 'success' })
+      } else {
+        await UserService.banUser(userId)
+        setToast({ message: 'User banned successfully', type: 'success' })
+      }
+      // Refresh users list
+      await fetchUsers()
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Failed to update user status'
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setActionLoading(null)
+      setTimeout(() => setToast(null), 3000)
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -171,6 +194,14 @@ const AdminUsersPage: React.FC = () => {
                      {role}
                    </div>
 
+                   {/* Banned Badge */}
+                   {u?.status?.toLowerCase() === 'banned' && (
+                     <div className="px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 bg-red-100 text-red-700 border border-red-300 flex items-center gap-1">
+                       <Ban size={12} />
+                       <span>Banned</span>
+                     </div>
+                   )}
+
                    {/* Expand Icon */}
                    <ChevronDown
                      size={20}
@@ -223,8 +254,8 @@ const AdminUsersPage: React.FC = () => {
                        <div>
                          <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide mb-1">Status</p>
                          <div className="flex items-center gap-2">
-                           <div className={`w-2 h-2 rounded-full ${u?.isActive !== false ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}></div>
-                           <span className="text-sm text-[#111827]">{u?.isActive !== false ? 'Active' : 'Inactive'}</span>
+                           <div className={`w-2 h-2 rounded-full ${u?.status?.toLowerCase() === 'banned' ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}></div>
+                           <span className="text-sm text-[#111827]">{u?.status || 'Active'}</span>
                          </div>
                        </div>
 
@@ -240,6 +271,45 @@ const AdminUsersPage: React.FC = () => {
                          <p className="text-sm text-[#111827]">{u?.lastName ?? '—'}</p>
                        </div>
                      </div>
+
+                     {/* Action Buttons */}
+                     <div className="pt-4 border-t border-[#e5e7eb] flex gap-3">
+                       {u?.status?.toLowerCase() === 'banned' ? (
+                         <button
+                           onClick={() => handleBanUser(uid, true)}
+                           disabled={actionLoading === uid}
+                           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-60 cursor-pointer"
+                         >
+                           {actionLoading === uid ? (
+                             <>
+                               <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                               <span>Unbanning...</span>
+                             </>
+                           ) : (
+                             <>
+                               <span>Unban</span>
+                             </>
+                           )}
+                         </button>
+                       ) : (
+                         <button
+                           onClick={() => handleBanUser(uid, false)}
+                           disabled={actionLoading === uid}
+                           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-60 cursor-pointer"
+                         >
+                           {actionLoading === uid ? (
+                             <>
+                               <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                               <span>Banning...</span>
+                             </>
+                           ) : (
+                             <>
+                               <span>Ban</span>
+                             </>
+                           )}
+                         </button>
+                       )}
+                     </div>
                    </div>
                  )}
                </div>
@@ -251,6 +321,32 @@ const AdminUsersPage: React.FC = () => {
          {!loading && filtered.length > 0 && (
            <div className="mt-6 text-sm text-[#6b7280]">
              Showing {filtered.length} of {users.length} users
+           </div>
+         )}
+
+         {/* Toast Notification */}
+         {toast && (
+           <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
+             <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg min-w-[300px] max-w-md ${
+               toast.type === 'success' 
+                 ? 'bg-green-50 border-green-200 text-green-800' 
+                 : 'bg-red-50 border-red-200 text-red-800'
+             }`}>
+               {toast.type === 'success' ? (
+                 <CheckCircle className="w-5 h-5 text-green-500" />
+               ) : (
+                 <Ban className="w-5 h-5 text-red-500" />
+               )}
+               <p className="flex-1 text-sm font-medium">{toast.message}</p>
+               <button
+                 onClick={() => setToast(null)}
+                 className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+               >
+                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                 </svg>
+               </button>
+             </div>
            </div>
          )}
        </div>
