@@ -37,6 +37,7 @@ function pickFirstMessage(data?: BackendErrorData): string | undefined {
 export function extractErrorMessage(err: any, fallback = 'An unexpected error occurred.'): string {
   try {
     const data: BackendErrorData | undefined = err?.response?.data
+    const status: number | undefined = err?.response?.status
     const code: string | undefined = data?.code || data?.errorCode
 
     // Prefer mapped message by error code
@@ -44,6 +45,21 @@ export function extractErrorMessage(err: any, fallback = 'An unexpected error oc
 
     // Fallback to server-provided message fields
     if (!message) message = pickFirstMessage(data)
+
+    // Check if data is a string (some backends return plain text)
+    if (!message && typeof data === 'string' && data.trim()) {
+      message = data.trim()
+    }
+
+    // Status-based fallback messages
+    if (!message && status) {
+      if (status === 400) message = 'Invalid email or password.'
+      else if (status === 401) message = 'Incorrect email or password.'
+      else if (status === 403) message = 'Your account has been banned or restricted.'
+      else if (status === 404) message = 'Account not found.'
+      else if (status === 429) message = 'Too many login attempts. Please try again later.'
+      else if (status >= 500) message = 'Server error. Please try again later.'
+    }
 
     // Fallback to generic error message
     if (!message) message = err?.message || fallback

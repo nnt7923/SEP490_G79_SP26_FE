@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { getAdminSidebarConfig } from '../components/AdminSideBar'
-import { AIConfigService } from '../../../../services'
+import { AIConfigService, AIUsageType } from '../../../../services'
 import { X, Plus } from 'lucide-react'
 
 const AdminApiKeyPage: React.FC = () => {
@@ -23,6 +23,7 @@ const AdminApiKeyPage: React.FC = () => {
   const [providerName, setProviderName] = useState<string>('')
   const [apiKey, setApiKey] = useState<string>('')
   const [isEnabel, setIsEnabel] = useState<boolean>(true)
+  const [aiUsageType, setAiUsageType] = useState<AIUsageType>(AIUsageType.StructureGeneration)
   const [additionalProps, setAdditionalProps] = useState<Array<{ key: string; value: string }>>([])
 
   const maskKey = (key?: string) => (key ? key.replace(/.(?=.{4})/g, '*') : '')
@@ -31,6 +32,7 @@ const AdminApiKeyPage: React.FC = () => {
     setProviderName('')
     setApiKey('')
     setIsEnabel(true)
+    setAiUsageType(AIUsageType.StructureGeneration)
     setAdditionalProps([])
     setIsEditMode(false)
     setEditingProvider('')
@@ -89,6 +91,7 @@ const AdminApiKeyPage: React.FC = () => {
         providerName,
         apiKey,
         configJson,
+        aiUsageType,
         isEnabled: isEnabel,
         isEnabel,
       }
@@ -104,7 +107,7 @@ const AdminApiKeyPage: React.FC = () => {
     }
   }
 
-  const startEdit = (it: any, idx: number) => {
+  const startEdit = (it: any) => {
     setShowForm(true)
     setIsEditMode(true)
     const name = it.providerName ?? it.provider ?? ''
@@ -112,6 +115,10 @@ const AdminApiKeyPage: React.FC = () => {
 
     setProviderName(name)
     setApiKey(it.apiKey ?? it.ApiKey ?? '')
+    
+    // Set aiUsageType
+    const usageType = it.aiUsageType ?? AIUsageType.StructureGeneration
+    setAiUsageType(usageType)
     
     // Convert configJson to additionalProps
     const cj = it.configJson ?? it.GroqSettings ?? {}
@@ -144,6 +151,7 @@ const AdminApiKeyPage: React.FC = () => {
       const payload = {
         apiKey,
         configJson,
+        aiUsageType,
         isEnabled: isEnabel,
         isEnabel,
       }
@@ -253,6 +261,21 @@ const AdminApiKeyPage: React.FC = () => {
                     onChange={(e) => setApiKey(e.target.value)}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-[#111827] mb-2">AI Usage Type</label>
+                <select
+                  className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all bg-white"
+                  value={aiUsageType}
+                  onChange={(e) => setAiUsageType(Number(e.target.value) as AIUsageType)}
+                >
+                  <option value={AIUsageType.StructureGeneration}>Structure Generation</option>
+                  <option value={AIUsageType.ContentGeneration}>Content Generation</option>
+                  <option value={AIUsageType.Verification}>Verification</option>
+                  <option value={AIUsageType.Assistant}>Assistant</option>
+                </select>
+                <p className="text-xs text-[#6b7280] mt-1.5">Select the primary usage type for this AI configuration</p>
               </div>
 
               <div>
@@ -402,7 +425,7 @@ const AdminApiKeyPage: React.FC = () => {
                         <button
                           type="button"
                           title="Edit configuration"
-                          onClick={() => startEdit(it, idx)}
+                          onClick={() => startEdit(it)}
                           className="px-4 py-2 rounded-lg border border-[#e5e7eb] text-[#374151] font-medium hover:bg-[#f9fafb] transition-all"
                         >Edit</button>
                         <button
@@ -431,13 +454,25 @@ const AdminApiKeyPage: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className="pt-4 border-t border-[#e5e7eb]">
-                        <div className="text-xs font-semibold text-[#6b7280] mb-1">Status</div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium" style={{
-                          backgroundColor: (typeof it.isEnabel === 'boolean' ? it.isEnabel : (typeof it.isEnabled === 'boolean' ? it.isEnabled : false)) ? '#dcfce7' : '#fee2e2',
-                          color: (typeof it.isEnabel === 'boolean' ? it.isEnabel : (typeof it.isEnabled === 'boolean' ? it.isEnabled : false)) ? '#166534' : '#991b1b'
-                        }}>
-                          {typeof it.isEnabel === 'boolean' ? (it.isEnabel ? '✓ Enabled' : '✗ Disabled') : (typeof it.isEnabled === 'boolean' ? (it.isEnabled ? '✓ Enabled' : '✗ Disabled') : '—')}
+                      <div className="pt-4 border-t border-[#e5e7eb] grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-xs font-semibold text-[#6b7280] mb-1">Status</div>
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium" style={{
+                            backgroundColor: (typeof it.isEnabel === 'boolean' ? it.isEnabel : (typeof it.isEnabled === 'boolean' ? it.isEnabled : false)) ? '#dcfce7' : '#fee2e2',
+                            color: (typeof it.isEnabel === 'boolean' ? it.isEnabel : (typeof it.isEnabled === 'boolean' ? it.isEnabled : false)) ? '#166534' : '#991b1b'
+                          }}>
+                            {typeof it.isEnabel === 'boolean' ? (it.isEnabel ? '✓ Enabled' : '✗ Disabled') : (typeof it.isEnabled === 'boolean' ? (it.isEnabled ? '✓ Enabled' : '✗ Disabled') : '—')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-[#6b7280] mb-1">AI Usage Type</div>
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
+                            {it.aiUsageType === AIUsageType.StructureGeneration && '📐 Structure Generation'}
+                            {it.aiUsageType === AIUsageType.ContentGeneration && '✍️ Content Generation'}
+                            {it.aiUsageType === AIUsageType.Verification && '✅ Verification'}
+                            {it.aiUsageType === AIUsageType.Assistant && '🤖 Assistant'}
+                            {!it.aiUsageType && '—'}
+                          </div>
                         </div>
                       </div>
                     </div>

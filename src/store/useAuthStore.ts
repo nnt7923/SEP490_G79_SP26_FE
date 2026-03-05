@@ -18,9 +18,11 @@ export type User = {
 
 interface AuthState {
   token: string | null
+  refreshToken: string | null
   user: User | null
   loading: boolean
   setToken: (token: string | null) => void
+  setRefreshToken: (refreshToken: string | null) => void
   setUser: (user: User | null) => void
   clearState: () => void
   login: (username: string, password: string) => Promise<{ isOk: boolean; msg?: string }>
@@ -35,6 +37,7 @@ interface AuthState {
 
 const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
+  refreshToken: null,
   user: null,
   loading: false,
 
@@ -51,20 +54,39 @@ const useAuthStore = create<AuthState>((set, get) => ({
     } catch { }
   },
 
+  setRefreshToken: (refreshToken) => {
+    set({ refreshToken })
+    try {
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken)
+      } else {
+        localStorage.removeItem('refreshToken')
+      }
+    } catch { }
+  },
+
   setUser: (user) => {
     set({ user })
-    // Persist role to localStorage
-    if (user?.role?.name) {
-      try {
-        localStorage.setItem('userRole', user.role.name)
-      } catch { }
-    }
+    // Persist user and role to localStorage
+    try {
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user))
+        if (user?.role?.name) {
+          localStorage.setItem('userRole', user.role.name)
+        }
+      } else {
+        localStorage.removeItem('user')
+        localStorage.removeItem('userRole')
+      }
+    } catch { }
   },
 
   clearState: () => {
-    set({ token: null, user: null, loading: false })
+    set({ token: null, refreshToken: null, user: null, loading: false })
     try {
       localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('user')
       localStorage.removeItem('userRole')
     } catch { }
     try { AuthService.clearState?.() } catch { }
@@ -97,12 +119,17 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const resp: any = await AuthService.login({ Identifier: username, Password: password })
 
-
       const token: string | undefined = resp?.token
+      const refreshToken: string | undefined = resp?.refreshToken
       const rawUser: any = resp?.user ?? resp
 
       if (token) {
         get().setToken(token)
+
+        // Save refresh token if provided
+        if (refreshToken) {
+          get().setRefreshToken(refreshToken)
+        }
 
         // Normalize role name from various possible shapes
         const roleName: string | undefined = rawUser?.role?.name || rawUser?.roleName || (Array.isArray(rawUser?.roles) ? rawUser.roles[0] : undefined)
@@ -117,7 +144,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
         // Use setUser to persist role to localStorage
         get().setUser(loginUser)
-
 
         // Load full profile after token; preserve role if profile lacks it
         await get().fetchProfile()
@@ -144,24 +170,53 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   init: async () => {
     const raw = localStorage.getItem('accessToken')
+    const storedRefreshToken = localStorage.getItem('refreshToken')
+    const storedUser = localStorage.getItem('user')
+
     if (raw) {
       set({ token: raw })
       AuthService.setAccessToken?.(raw)
 
-      // Restore role from localStorage before fetching profile
-      const storedRole = localStorage.getItem('userRole')
-
-      if (storedRole) {
-        set({
-          user: {
-            id: 0,
-            username: '',
-            name: '',
-            role: { name: storedRole }
-          } as User
-        })
+      // Restore refresh token if available
+      if (storedRefreshToken) {
+        set({ refreshToken: storedRefreshToken })
       }
 
+      // Restore user from localStorage if available
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser)
+          set({ user: parsedUser })
+        } catch {
+          // If parsing fails, restore role only
+          const storedRole = localStorage.getItem('userRole')
+          if (storedRole) {
+            set({
+              user: {
+                id: 0,
+                username: '',
+                name: '',
+                role: { name: storedRole }
+              } as User
+            })
+          }
+        }
+      } else {
+        // Fallback: restore role from localStorage before fetching profile
+        const storedRole = localStorage.getItem('userRole')
+        if (storedRole) {
+          set({
+            user: {
+              id: 0,
+              username: '',
+              name: '',
+              role: { name: storedRole }
+            } as User
+          })
+        }
+      }
+
+      // Fetch fresh profile data from server
       await get().fetchProfile()
     }
   },

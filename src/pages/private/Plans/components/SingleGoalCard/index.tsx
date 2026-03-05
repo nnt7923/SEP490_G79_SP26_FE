@@ -200,12 +200,6 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
           </button>
         </div>
       )}
-
-      {active && !isEditing && (
-        <div className="absolute top-3 right-3 flex items-center justify-center w-7 h-7 rounded-full bg-teal-500 text-white text-xs font-bold shadow-md">
-          ✓
-        </div>
-      )}
     </div>
   )
 }
