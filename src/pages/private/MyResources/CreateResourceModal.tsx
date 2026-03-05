@@ -9,9 +9,10 @@ interface CreateResourceModalProps {
   onClose: () => void
   onSuccess: () => void
   onShowToast: (message: string, type: 'success' | 'error') => void
+  onShowProgressToast?: (message: string, progress: number, status: 'loading' | 'success' | 'error') => void
 }
 
-const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClose, onSuccess, onShowToast }) => {
+const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClose, onSuccess, onShowToast, onShowProgressToast }) => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -76,20 +77,48 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
       formData.append('SubjectId', subjectId)
       formData.append('File', file)
 
-      const { ResourceService } = await import('../../../services')
-      await ResourceService.createResource(formData)
+      // Store form values before resetting
+      const formDataToUpload = formData
 
+      // Close modal immediately
       // Reset form
       setTitle('')
       setDescription('')
       setFile(null)
       setSubjectId('')
-      
+      setLoading(false)
+      onClose()
+
+      // Show progress toast if available
+      if (onShowProgressToast) {
+        onShowProgressToast('Uploading resource...', 0, 'loading')
+      }
+
+      const { ResourceService } = await import('../../../services')
+      await ResourceService.createResource(formDataToUpload, (progressEvent: any) => {
+        if (onShowProgressToast) {
+          // Upload progress is 0-80%, reserve 20% for backend processing
+          const uploadProgress = Math.min((progressEvent.percent || 0) * 0.8, 80)
+          onShowProgressToast('Uploading resource...', uploadProgress, 'loading')
+        }
+      })
+
+      // Show processing state (80-100%)
+      if (onShowProgressToast) {
+        onShowProgressToast('Processing resource...', 90, 'loading')
+      }
+
+      // Small delay to show processing state
+      await new Promise(resolve => setTimeout(resolve, 300))
+
       // Show success toast
-      onShowToast('Resource created successfully!', 'success')
+      if (onShowProgressToast) {
+        onShowProgressToast('Resource uploaded successfully!', 100, 'success')
+      } else {
+        onShowToast('Resource created successfully!', 'success')
+      }
       
       onSuccess()
-      onClose()
     } catch (err: any) {
       
       const errorMsg = 
@@ -100,9 +129,13 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({ isOpen, onClo
         err?.message ||
         'Failed to create resource'
       
-      onShowToast(errorMsg, 'error')
-      setError(errorMsg)
-    } finally {
+      if (onShowProgressToast) {
+        onShowProgressToast(errorMsg, 0, 'error')
+      } else {
+        onShowToast(errorMsg, 'error')
+      }
+      
+      // Don't set error in modal since it's already closed
       setLoading(false)
     }
   }
