@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import { Target, BookMarked, TrendingUp, Award, BookOpen, CheckCircle2, Loader2, ArrowRight } from 'lucide-react'
-import { listGoals } from '../../../services/GoalService'
+import { getMyGoals } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
 
 const StudentOverview: React.FC = () => {
@@ -28,7 +28,7 @@ const StudentOverview: React.FC = () => {
       try {
         setLoading(true)
         const [goals, pathsResponse] = await Promise.all([
-          listGoals(),
+          getMyGoals(), // Changed from listGoals() to getMyGoals()
           getUserLearningPaths(user?.id || 'me', { pageNumber: 1, pageSize: 10 })
         ])
         

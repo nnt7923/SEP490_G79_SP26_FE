@@ -30,6 +30,7 @@ interface SingleGoalCardProps {
   onCancelEdit: () => void
   saving: boolean
   deleting: boolean
+  isSystemGoal?: boolean // New prop to identify system goals
 }
 
 const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
@@ -48,6 +49,7 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
   onCancelEdit,
   saving,
   deleting,
+  isSystemGoal = false, // Default to false (user goal)
 }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -121,7 +123,8 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
             <div className="font-semibold text-gray-900 text-base">{title}</div>
           </div>
         </div>
-        {!isEditing && (
+        {/* Only show menu for user goals, not system goals */}
+        {!isEditing && !isSystemGoal && (
           <div className="relative" ref={menuRef}>
             <button
               type="button"
