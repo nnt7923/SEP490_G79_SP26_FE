@@ -108,25 +108,14 @@ const QuizPage: React.FC = () => {
   const calculateScore = () => {
     let correct = 0
     
-    console.log('=== CALCULATING QUIZ SCORE ===')
-    console.log('Total questions:', questions.length)
-    console.log('Selected answers:', selectedAnswers)
-    
     questions.forEach((q, idx) => {
       const userAnswer = selectedAnswers[idx]
       
-      console.log(`\nQuestion ${idx + 1}:`)
-      console.log('Question data:', q)
-      console.log('User answer:', userAnswer)
-      
       // Try to find correct answer from various possible field names
       const correctAnswer = q.correctAnswer ?? q.correctAnswerIndex ?? q.answer ?? q.correctOption ?? q.correct
-      console.log('Correct answer (found):', correctAnswer)
-      console.log('Question type:', q.type || q.questionType)
       
       // Skip if no answer provided
       if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
-        console.log('❌ Skipped - No answer provided')
         return
       }
       
@@ -137,11 +126,6 @@ const QuizPage: React.FC = () => {
           // Case-insensitive comparison, trim whitespace
           if (userAnswer.trim().toLowerCase() === correctText.trim().toLowerCase()) {
             correct++
-            console.log('✅ CORRECT (Fill-in-the-blank)')
-          } else {
-            console.log('❌ WRONG (Fill-in-the-blank)')
-            console.log('Expected:', correctText.trim().toLowerCase())
-            console.log('Got:', userAnswer.trim().toLowerCase())
           }
         }
       } 
@@ -153,36 +137,18 @@ const QuizPage: React.FC = () => {
           const selectedOptionText = q.options[userAnswer]
           const correctAnswerText = String(correctAnswer || '')
           
-          console.log('Selected option text:', selectedOptionText)
-          console.log('Correct answer text:', correctAnswerText)
-          
           // Compare the text values (case-insensitive, trimmed)
           if (selectedOptionText.trim().toLowerCase() === correctAnswerText.trim().toLowerCase()) {
             correct++
-            console.log('✅ CORRECT (Multiple choice)')
-          } else {
-            console.log('❌ WRONG (Multiple choice)')
           }
         } else if (typeof userAnswer === 'string' && typeof correctAnswer === 'string') {
           // Direct string comparison for cases where userAnswer is already text
           if (userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
             correct++
-            console.log('✅ CORRECT (Direct text match)')
-          } else {
-            console.log('❌ WRONG (Direct text match)')
           }
-        } else {
-          console.log('❌ Invalid answer format or missing options')
-          console.log('User answer type:', typeof userAnswer)
-          console.log('Correct answer type:', typeof correctAnswer)
         }
       }
     })
-    
-    console.log('\n=== FINAL SCORE ===')
-    console.log('Correct:', correct)
-    console.log('Total:', questions.length)
-    console.log('Percentage:', Math.round((correct / questions.length) * 100) + '%')
     
     return { correct, total: questions.length }
   }

@@ -288,15 +288,25 @@ export async function requestChapterTasks(chapterId: string, onLoading?: () => v
 
 // ==== Request quiz questions (pure SignalR) ====
 export async function requestQuizQuestions(quizId: string, onLoading?: () => void): Promise<any> {
-  if (!isGuid(quizId)) {
-    return Promise.reject(new Error('quizId phải là GUID hợp lệ'))
+  if (!quizId || typeof quizId !== 'string') {
+    return Promise.reject(new Error('quizId is required and must be a string'))
   }
+
+  if (!isGuid(quizId)) {
+    return Promise.reject(new Error(`quizId phải là GUID hợp lệ. Received: ${quizId}`))
+  }
+
   // single-flight: return running promise for same quizId
   if (inflightQuiz.has(quizId)) {
     return inflightQuiz.get(quizId)!
   }
 
-  const hub = await getQuizHub()
+  let hub: signalR.HubConnection
+  try {
+    hub = await getQuizHub()
+  } catch (error) {
+    return Promise.reject(new Error('Failed to establish SignalR connection'))
+  }
 
   const p = new Promise<any>((resolve, reject) => {
     let done = false

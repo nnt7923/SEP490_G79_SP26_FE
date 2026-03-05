@@ -6,7 +6,6 @@ import { getStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
 import { ArrowLeft, Loader, AlertCircle, BookOpen, CheckCircle2, Clock } from 'lucide-react'
-import ROUTER from '../../../../router/ROUTER'
 
 const MyPlansDetailPage: React.FC = () => {
   const { pathId } = useParams<{ pathId: string }>()
@@ -230,12 +229,19 @@ const MyPlansDetailPage: React.FC = () => {
                                       <button
                                         key={quiz.id || quizIdx}
                                         type="button"
-                                        onClick={() => navigate(`/quiz/${quiz.id}`, { 
-                                          state: { 
-                                            quizTitle: quiz.title,
-                                            skeleton: plan 
-                                          } 
-                                        })}
+                                        onClick={() => {
+                                          if (!quiz.id) {
+                                            alert('Quiz ID is missing! Cannot navigate to quiz.')
+                                            return
+                                          }
+                                          
+                                          navigate(`/quiz/${quiz.id}`, { 
+                                            state: { 
+                                              quizTitle: quiz.title,
+                                              skeleton: plan 
+                                            } 
+                                          })
+                                        }}
                                         className="flex items-center gap-2 text-sm text-[#374151] hover:text-[#2f80ed] transition-colors cursor-pointer"
                                       >
                                         <CheckCircle2 className="w-4 h-4 text-[#059669]" />
