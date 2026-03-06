@@ -23,29 +23,27 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
     type="button"
     onClick={onClick}
     aria-pressed={active ? 'true' : 'false'}
-    className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 text-left p-6 ${
+    className={`group relative overflow-hidden rounded-xl border transition-all duration-200 text-left p-5 cursor-pointer h-full ${
       active
-        ? 'border-blue-500 bg-blue-50 shadow-lg scale-[1.02]'
-        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:-translate-y-1'
+        ? 'border-teal-600 bg-teal-50 shadow-sm'
+        : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
     }`}
   >
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full">
+      <div className="flex items-start gap-3 flex-1">
         <div
-          className={`flex items-center justify-center w-14 h-14 rounded-xl ${colorClass} text-white text-2xl shadow-md transition-transform duration-300 ${
-            active ? 'scale-110' : 'group-hover:scale-105'
-          }`}
+          className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-lg ${colorClass} text-white text-xl transition-colors duration-200`}
         >
           {icon ?? '🔖'}
         </div>
-        <div className="flex-1">
-          <div className="font-semibold text-gray-900 text-lg">{name}</div>
-          {desc && <div className="text-sm text-gray-600 mt-1">{desc}</div>}
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-gray-900 text-base mb-1">{name}</div>
+          {desc && <div className="text-sm text-gray-600 line-clamp-2">{desc}</div>}
         </div>
       </div>
       {tag && (
-        <span className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-white/80 border border-gray-200 text-xs font-medium text-gray-700">
-          <span className="w-2 h-2 rounded-full bg-teal-500" />
+        <span className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-md bg-gray-100 text-xs font-medium text-gray-700 mt-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
           {tag}
         </span>
       )}
