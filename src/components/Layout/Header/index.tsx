@@ -50,6 +50,7 @@ const Header: React.FC = () => {
   const mdLines = [`- [Dashboard](${dashboardPath})`]
   if (profilePath) mdLines.push(`- [Profile](${profilePath})`)
   if (isStudent) mdLines.push(`- [My Plans](${ROUTER.MY_PLANS})`)
+  mdLines.push(`- [Change Password](${ROUTER.CHANGE_PASSWORD})`)
   mdLines.push('- [Logout](#logout)')
   const md = mdLines.join('\n')
 

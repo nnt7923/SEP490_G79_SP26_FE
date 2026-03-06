@@ -21,6 +21,8 @@ interface AuthState {
   refreshToken: string | null
   user: User | null
   loading: boolean
+  updatingProfile: boolean
+  updatingAvatar: boolean
   setToken: (token: string | null) => void
   setRefreshToken: (refreshToken: string | null) => void
   setUser: (user: User | null) => void
@@ -31,7 +33,7 @@ interface AuthState {
   init: () => Promise<void>
   fetchProfile: () => Promise<void>
   updateProfile: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
-  uploadAvatar: (file: File) => Promise<{ isOk: boolean; url?: string; msg?: string }>
+  uploadAvatar: (file: File, onProgress?: (progress: number) => void) => Promise<{ isOk: boolean; msg: string }>
   changePassword: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
 }
 
@@ -40,7 +42,8 @@ const useAuthStore = create<AuthState>((set, get) => ({
   refreshToken: null,
   user: null,
   loading: false,
-
+  updatingProfile: false,
+  updatingAvatar: false,
   setToken: (token) => {
     set({ token })
     try {
@@ -251,11 +254,15 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   updateProfile: async (payload) => {
     try {
-      set({ loading: true })
+      set({ updatingProfile: true })
 
       await UserService.updateProfile(payload)
-
-      await get().fetchProfile()
+      set((state) => ({
+        user: {
+          ...state.user,
+          ...payload
+        }
+      }))
 
       return { isOk: true, msg: 'Update profile successfully' }
     } catch {
@@ -265,20 +272,22 @@ const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  uploadAvatar: async (file: File) => {
-
+  uploadAvatar: async (file: File, onProgress?: (progress: number) => void) => {
     try {
-      set({ loading: true })
+      set({ updatingAvatar: true })
 
       const formData = new FormData()
       formData.append('file', file)
-      await UserService.uploadAvatarProfile(formData)
+
+      await UserService.uploadAvatarProfile(formData, onProgress)
+
       await get().fetchProfile()
+
       return { isOk: true, msg: 'Avatar uploaded successfully' }
     } catch {
       return { isOk: false, msg: 'Avatar upload failed' }
     } finally {
-      set({ loading: false })
+      set({ updatingAvatar: false })
     }
   },
 
