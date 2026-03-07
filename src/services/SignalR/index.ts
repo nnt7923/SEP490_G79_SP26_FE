@@ -17,6 +17,7 @@ const LESSON_HUB_URL = `${HUB_BASE}/hubs/lesson`
 const CHAPTER_HUB_URL = `${HUB_BASE}/hubs/chapter`
 const TASK_HUB_URL = `${HUB_BASE}/hubs/task`
 const QUIZ_HUB_URL = `${HUB_BASE}/hubs/quiz`
+const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
 // ==== State ====
@@ -24,12 +25,14 @@ let lessonHub: signalR.HubConnection | null = null
 let chapterHub: signalR.HubConnection | null = null
 let taskHub: signalR.HubConnection | null = null
 let quizHub: signalR.HubConnection | null = null
+let summaryHub: signalR.HubConnection | null = null
 
 // single-flight guards (avoid duplicate invokes for the same id)
 const inflightLesson = new Map<string, Promise<any>>()
 const inflightChapter = new Map<string, Promise<any>>()
 const inflightTask = new Map<string, Promise<any>>()
 const inflightQuiz = new Map<string, Promise<any>>()
+const inflightSummary = new Map<string, Promise<any>>()
 
 // ==== Utils ====
 function getToken(): string | undefined {
@@ -89,6 +92,14 @@ export async function getQuizHub(): Promise<signalR.HubConnection> {
   }
   await ensureStarted(quizHub, 'quiz')
   return quizHub
+}
+
+export async function getSummaryHub(): Promise<signalR.HubConnection> {
+  if (!summaryHub) {
+    summaryHub = buildConnection(SUMMARY_HUB_URL)
+  }
+  await ensureStarted(summaryHub, 'summary')
+  return summaryHub
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
@@ -355,6 +366,102 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
   return p
 }
 
+// ==== Request resource summary (pure SignalR) ====
+export async function requestResourceSummary(
+  resourceId: string,
+  startPage: number,
+  endPage: number,
+  onLoading?: () => void
+): Promise<any> {
+  if (!isGuid(resourceId)) {
+    return Promise.reject(new Error('resourceId phải là GUID hợp lệ'))
+  }
+  if (startPage < 1 || endPage < 1) {
+    return Promise.reject(new Error('Số trang phải lớn hơn 0'))
+  }
+  if (startPage > endPage) {
+    return Promise.reject(new Error('Trang bắt đầu phải nhỏ hơn hoặc bằng trang kết thúc'))
+  }
+
+  // single-flight: return running promise for same resourceId:startPage-endPage
+  const key = `${resourceId}:${startPage}-${endPage}`
+  if (inflightSummary.has(key)) {
+    return inflightSummary.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getSummaryHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('SummaryLoading', handleLoading)
+        hub.off('ReceiveSummary', handleSummary)
+        hub.off('SummaryError', handleError)
+        inflightSummary.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleSummary = (summary: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        resolve(summary)
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error(err?.errorMessage || 'Failed to generate summary'))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Summary request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleSummaryWrap = (s: any) => { clearTo(); handleSummary(s) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('SummaryLoading', handleLoading)
+      hub.on('ReceiveSummary', handleSummaryWrap)
+      hub.on('SummaryError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestResourceSummary', resourceId, startPage, endPage).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightSummary.set(key, p)
+  return p
+}
+
+export async function disconnectSummaryHub(): Promise<void> {
+  try {
+    if (summaryHub && summaryHub.state !== signalR.HubConnectionState.Disconnected) {
+      await summaryHub.stop()
+    }
+    inflightSummary.clear()
+  } catch {
+    // ignore
+  }
+}
+
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
@@ -368,6 +475,9 @@ export async function disconnectHubs(): Promise<void> {
     }
     if (quizHub && quizHub.state !== signalR.HubConnectionState.Disconnected) {
       await quizHub.stop()
+    }
+    if (summaryHub && summaryHub.state !== signalR.HubConnectionState.Disconnected) {
+      await summaryHub.stop()
     }
   } catch {
     // ignore
