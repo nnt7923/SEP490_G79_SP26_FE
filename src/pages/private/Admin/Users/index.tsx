@@ -4,6 +4,7 @@ import Layout from '../../../../components/Layout'
 import { getAdminSidebarConfig } from '../components/AdminSideBar'
 import { UserService } from '../../../../services'
 import { Search, RefreshCw, ChevronDown, Mail, Calendar, Shield, Ban, CheckCircle } from 'lucide-react'
+import { formatDateTimeVN } from '../../../../utils/dateUtils'
 
 const AdminUsersPage: React.FC = () => {
   const sidebarConfig = useMemo(() => ({
@@ -19,6 +20,7 @@ const AdminUsersPage: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [roleFilter, setRoleFilter] = useState<string>('all')
 
   const unwrapUsers = (raw: any): any[] => {
     const value = raw?.data ?? raw
@@ -69,15 +71,29 @@ const AdminUsersPage: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return users
-    return users.filter((u) => {
-      const name = (u?.name || `${u?.firstName || ''} ${u?.lastName || ''}` || '').toLowerCase()
-      const email = (u?.email || '').toLowerCase()
-      const username = (u?.username || '').toLowerCase()
-      const role = (u?.role?.name || u?.roleName || '').toLowerCase()
-      return name.includes(q) || email.includes(q) || username.includes(q) || role.includes(q)
-    })
-  }, [users, query])
+    let result = users
+    
+    // Filter by role
+    if (roleFilter !== 'all') {
+      result = result.filter((u) => {
+        const role = (u?.role?.name || u?.roleName || '').toLowerCase()
+        return role === roleFilter.toLowerCase()
+      })
+    }
+    
+    // Filter by search query
+    if (q) {
+      result = result.filter((u) => {
+        const name = (u?.name || `${u?.firstName || ''} ${u?.lastName || ''}` || '').toLowerCase()
+        const email = (u?.email || '').toLowerCase()
+        const username = (u?.username || '').toLowerCase()
+        const role = (u?.role?.name || u?.roleName || '').toLowerCase()
+        return name.includes(q) || email.includes(q) || username.includes(q) || role.includes(q)
+      })
+    }
+    
+    return result
+  }, [users, query, roleFilter])
 
   const getInitials = (name: string) => {
     return name
@@ -97,18 +113,18 @@ const AdminUsersPage: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-4 py-6 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen max-w-6xl mx-auto">
+      <div className="px-4 py-6 bg-[#F8FAFC] min-h-screen max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-[#111827]">Users</h1>
-              <p className="text-[#6b7280] mt-1">Manage system users and permissions</p>
+              <h1 className="text-2xl font-bold text-[#1E293B]">Users</h1>
+              <p className="text-[#64748B] mt-1">Manage system users and permissions</p>
             </div>
              <button
                onClick={fetchUsers}
                disabled={loading}
-               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#2f80ed] to-[#7c3aed] text-white text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-60 cursor-pointer"
+               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-medium hover:bg-[#2563EB] hover:shadow-lg transition-all duration-200 disabled:opacity-60 cursor-pointer"
                title="Reload"
              >
                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -126,6 +142,26 @@ const AdminUsersPage: React.FC = () => {
              placeholder="Search by name, username, email, or role..."
              className="pl-11 pr-4 py-3 w-full rounded-lg border border-[#e5e7eb] bg-white focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all"
            />
+         </div>
+
+         {/* Role Filter */}
+         <div className="mb-6 flex items-center gap-3">
+           <span className="text-sm font-medium text-[#64748B]">Filter by role:</span>
+           <div className="flex gap-2">
+             {['all', 'Student', 'Mentor', 'Admin'].map((role) => (
+               <button
+                 key={role}
+                 onClick={() => setRoleFilter(role)}
+                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                   roleFilter === role
+                     ? 'bg-[#3B82F6] text-white shadow-md'
+                     : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:border-[#3B82F6]'
+                 }`}
+               >
+                 {role === 'all' ? 'All Users' : role}
+               </button>
+             ))}
+           </div>
          </div>
 
          {/* Error Message */}
@@ -171,7 +207,7 @@ const AdminUsersPage: React.FC = () => {
                     className="w-full px-6 py-4 flex items-center gap-4 hover:bg-[#f9fafb] transition-colors text-left cursor-pointer"
                   >
                    {/* Avatar */}
-                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#2f80ed] to-[#7c3aed] flex items-center justify-center flex-shrink-0">
+                   <div className="w-10 h-10 rounded-lg bg-[#3B82F6] flex items-center justify-center flex-shrink-0">
                      <span className="text-white font-semibold text-sm">{getInitials(name)}</span>
                    </div>
 
@@ -246,7 +282,7 @@ const AdminUsersPage: React.FC = () => {
                            <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Last Login</p>
                          </div>
                          <p className="text-sm text-[#111827]">
-                           {u?.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never'}
+                           {u?.lastLogin ? formatDateTimeVN(u.lastLogin) : 'Never'}
                          </p>
                        </div>
 
