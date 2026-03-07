@@ -18,6 +18,10 @@ const MentorDashboard: React.FC = () => {
   const [subjectError, setSubjectError] = React.useState<string | null>(null)
   const [subjectSuccess, setSubjectSuccess] = React.useState<string | null>(null)
 
+  // Students data
+  const [students, setStudents] = React.useState<any[]>([])
+  const [loadingStudents, setLoadingStudents] = React.useState(false)
+
   const sidebarConfig = {
     navItems: getMentorSidebarConfig(),
     actions: [
@@ -41,6 +45,37 @@ const MentorDashboard: React.FC = () => {
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
+
+  const unwrapUsers = (raw: any): any[] => {
+    const value = raw?.data ?? raw
+    if (Array.isArray(value)) return value
+    if (Array.isArray(value?.items)) return value.items
+    if (Array.isArray(value?.results)) return value.results
+    if (Array.isArray(value?.records)) return value.records
+    return []
+  }
+
+  const fetchStudents = async () => {
+    setLoadingStudents(true)
+    try {
+      const data = await UserService.listUsers()
+      const allUsers = unwrapUsers(data)
+      const activeStudents = allUsers.filter((u) => {
+        const userRole = (u?.role?.name || u?.roleName || '').toLowerCase()
+        const userStatus = (u?.status || '').toLowerCase()
+        return userRole === 'student' && userStatus !== 'banned'
+      })
+      setStudents(activeStudents)
+    } catch (e) {
+      setStudents([])
+    } finally {
+      setLoadingStudents(false)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchStudents()
+  }, [])
 
   const openSubjectModal = () => {
     setShowSubjectModal(true)
@@ -115,13 +150,15 @@ const MentorDashboard: React.FC = () => {
                   <Users size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-600 text-[#6b7280]">My Students</h3>
+                  <h3 className="text-sm font-600 text-[#6b7280]">Total Students</h3>
                 </div>
               </div>
             </div>
             <div className="dashboard-card__body">
               <div className="metric-large">
-                <span className="metric-large__value">0</span>
+                <span className="metric-large__value">
+                  {loadingStudents ? '...' : students.length}
+                </span>
                 <span className="metric-large__label">Active learners</span>
               </div>
             </div>
@@ -190,6 +227,63 @@ const MentorDashboard: React.FC = () => {
 
         {/* ========== MAIN CONTENT SECTIONS ========== */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* STUDENT LIST */}
+          <div className="dashboard-card">
+            <div className="dashboard-card__header">
+              <div className="flex items-center gap-3">
+                <div className="icon-badge icon-badge--primary">
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#111827]">My Students</h2>
+                  <p className="text-xs text-[#6b7280]">Active student list</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="dashboard-card__body">
+              {loadingStudents ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 rounded-full border-2 border-[#2f80ed] border-t-transparent animate-spin"></div>
+                </div>
+              ) : students.length === 0 ? (
+                <div className="empty-state">
+                  <Users size={32} className="text-[#d1d5db]" />
+                  <p className="text-sm text-[#6b7280]">No students yet</p>
+                  <p className="text-xs text-[#9ca3af]">Students will appear here when they enroll</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {students.map((student) => {
+                    const studentName = student?.name || [student?.firstName, student?.lastName].filter(Boolean).join(' ') || 'Student'
+                    const studentEmail = student?.email || '—'
+                    const initials = studentName
+                      .split(' ')
+                      .map(n => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)
+                    
+                    return (
+                      <div
+                        key={student?.id || student?.userId || studentEmail}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-[#e5e7eb] bg-white hover:bg-[#f9fafb] transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#2f80ed] to-[#7c3aed] flex items-center justify-center flex-shrink-0">
+                          <span className="text-white font-semibold text-sm">{initials}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-[#111827] text-sm truncate">{studentName}</p>
+                          <p className="text-xs text-[#6b7280] truncate">{studentEmail}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* MY LESSONS */}
           <div className="dashboard-card">
             <div className="dashboard-card__header">
@@ -212,7 +306,10 @@ const MentorDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
+        {/* ========== RESOURCES & MATERIALS ========== */}
+        <div className="grid grid-cols-1 gap-6 mb-6">
           {/* RESOURCES & MATERIALS */}
           <div className="dashboard-card">
             <div className="dashboard-card__header">

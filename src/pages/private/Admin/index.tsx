@@ -10,9 +10,18 @@ import { Users, KeyRound, TrendingUp, Activity } from 'lucide-react'
 const AdminDashboard: React.FC = () => {
   const { user } = useAuthStore()
   const name = user?.name || user?.username || 'Admin'
-  const [userCount, setUserCount] = useState(0)
+  const [studentCount, setStudentCount] = useState(0)
   const [apiKeyCount, setApiKeyCount] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  const unwrapUsers = (raw: any): any[] => {
+    const value = raw?.data ?? raw
+    if (Array.isArray(value)) return value
+    if (Array.isArray(value?.items)) return value.items
+    if (Array.isArray(value?.results)) return value.results
+    if (Array.isArray(value?.records)) return value.records
+    return []
+  }
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -23,9 +32,14 @@ const AdminDashboard: React.FC = () => {
           AIConfigService.getAIConfig(),
         ])
 
-        // Extract user count
-        const users = Array.isArray(usersData) ? usersData : usersData?.data ?? []
-        setUserCount(users.length)
+        // Extract student count (only role=Student and status≠Banned)
+        const users = unwrapUsers(usersData)
+        const activeStudents = users.filter((u) => {
+          const userRole = (u?.role?.name || u?.roleName || '').toLowerCase()
+          const userStatus = (u?.status || '').toLowerCase()
+          return userRole === 'student' && userStatus !== 'banned'
+        })
+        setStudentCount(activeStudents.length)
 
         // Extract API key count
         const configs = Array.isArray(configData) ? configData : [configData]
@@ -48,9 +62,9 @@ const AdminDashboard: React.FC = () => {
 
   // Simple pie chart for user distribution (mock data)
   const roleDistribution = [
-    { name: 'Students', count: Math.max(1, Math.floor(userCount * 0.7)), color: '#2f80ed' },
-    { name: 'Mentors', count: Math.max(1, Math.floor(userCount * 0.2)), color: '#7c3aed' },
-    { name: 'Admins', count: Math.max(1, Math.ceil(userCount * 0.1)), color: '#f59e0b' },
+    { name: 'Students', count: Math.max(1, Math.floor(studentCount * 0.7)), color: '#2f80ed' },
+    { name: 'Mentors', count: Math.max(1, Math.floor(studentCount * 0.2)), color: '#7c3aed' },
+    { name: 'Admins', count: Math.max(1, Math.ceil(studentCount * 0.1)), color: '#f59e0b' },
   ]
 
   const totalForChart = roleDistribution.reduce((sum, item) => sum + item.count, 0)
@@ -66,7 +80,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Users Card */}
+          {/* Students Card */}
           <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm overflow-hidden hover:shadow-md transition-shadow">
             <div className="h-2 bg-gradient-to-r from-[#2f80ed] to-[#7c3aed]"></div>
             <div className="p-6">
@@ -76,11 +90,11 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <span className="text-xs font-semibold text-[#10b981] bg-[#ecfdf5] px-2 py-1 rounded-full">Active</span>
               </div>
-              <p className="text-[#6b7280] text-sm font-medium mb-1">Total Users</p>
+              <p className="text-[#6b7280] text-sm font-medium mb-1">Total Students</p>
               <div className="text-4xl font-bold text-[#111827]">
-                {loading ? '—' : userCount}
+                {loading ? '—' : studentCount}
               </div>
-              <p className="text-xs text-[#9ca3af] mt-3">Across all roles</p>
+              <p className="text-xs text-[#9ca3af] mt-3">Active student accounts</p>
             </div>
           </div>
 
