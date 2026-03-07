@@ -4,12 +4,15 @@ import { SubjectService, GoalService, LearningPathService, LanguageSelection } f
 import type { Subject } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
+import ConfirmDialog from '../../../components/ConfirmDialog'
+import Toast from '../../../components/Toast'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
 import StepHeader from './components/StepHeader'
 import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
+import PlanIcon from '../../../assets/plan.png'
 import { Plus, Globe, Code2, Target, BarChart3, Languages, Sparkles } from 'lucide-react'
 
 // Palette classes used for subject icon blocks (defined in global.css)
@@ -100,6 +103,13 @@ const PlansPage: React.FC = () => {
   const [goalNotice, setGoalNotice] = useState<string | null>(null)
   const [goalActionError, setGoalActionError] = useState<string | null>(null)
 
+  // Confirm dialog states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false)
+  const [goalToDelete, setGoalToDelete] = useState<{ id: string; title: string } | null>(null)
+
+  // Toast states
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
+
   const startEditGoal = (id: string, currTitle: string) => {
     setEditingGoalId(id)
     setEditingTitle(currTitle)
@@ -125,8 +135,7 @@ const PlansPage: React.FC = () => {
     try {
       const updated = await GoalService.updateGoal(id, { title })
       setMyGoals((prev) => prev.map((g: any) => (String(g?.id ?? g?.goalId ?? g?.key) === String(id) ? { ...g, ...updated } : g)))
-      setGoalNotice('Goal updated successfully')
-      setTimeout(() => setGoalNotice(null), 2500)
+      setToast({ message: 'Goal updated successfully', type: 'success' })
       setEditingGoalId(null)
       setEditingTitle('')
     } catch (e: any) {
@@ -138,19 +147,32 @@ const PlansPage: React.FC = () => {
   }
 
   const handleDeleteGoal = async (id: string) => {
+    const goal = myGoals.find((g: any) => String(g?.id ?? g?.goalId ?? g?.key) === String(id))
+    const title = goal?.title ?? goal?.name ?? goal?.label ?? 'this goal'
+    
+    setGoalToDelete({ id, title })
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteGoal = async () => {
+    if (!goalToDelete) return
+    
+    const { id } = goalToDelete
     setDeletingGoalId(id)
     setGoalActionError(null)
+    setShowDeleteConfirm(false)
+    
     try {
       await GoalService.deleteGoal(id)
       setMyGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
       setSelectedGoals((prev) => prev.filter((k) => String(k) !== String(id)))
-      setGoalNotice('Goal deleted successfully')
-      setTimeout(() => setGoalNotice(null), 2500)
+      setToast({ message: 'Goal deleted successfully', type: 'success' })
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to delete goal'
-      setGoalActionError(msg)
+      setToast({ message: msg, type: 'error' })
     } finally {
       setDeletingGoalId(null)
+      setGoalToDelete(null)
     }
   }
 
@@ -367,8 +389,7 @@ const PlansPage: React.FC = () => {
       const newKey = String(created?.goalId ?? created?.id ?? created?.key ?? '')
       setMyGoals((prev) => [created, ...prev])
       if (newKey) setSelectedGoals([newKey])
-      setGoalNotice('Goal created successfully')
-      setTimeout(() => setGoalNotice(null), 2500)
+      setToast({ message: 'Goal created successfully', type: 'success' })
       setShowAddGoal(false)
       setNewGoalTitle('')
       setNewGoalDesc('')
@@ -394,7 +415,7 @@ const PlansPage: React.FC = () => {
    return (
      <div className="layout min-h-screen bg-blue-50">
        <Header />
-       <main className="page-main py-12" role="main" aria-labelledby="plans-title">
+       <main className="page-main " role="main" aria-labelledby="plans-title">
          <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            {/* Stepper */}
            <Stepper currentStep={step} totalSteps={5} />
@@ -405,17 +426,17 @@ const PlansPage: React.FC = () => {
                <StepHeader
                  title="Choose Programming Language"
                  subtitle="Select the programming language you want to learn."
-                 icon="🧩"
+                 icon={<img src={PlanIcon} alt="plan" className="w-60 h-75 object-contain" />}
                />
-               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6" aria-label="subject-list">
+               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 items-stretch" aria-label="subject-list">
                  {subjectsLoading ? (
                    Array.from({ length: 8 }).map((_, i) => (
-                     <div key={i} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
-                       <div className="flex flex-col gap-4">
+                     <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white p-5">
+                       <div className="flex flex-col gap-3">
                          <div className="flex items-center gap-3">
-                           <div className="w-14 h-14 bg-gray-200 rounded-xl" />
+                           <div className="w-12 h-12 bg-gray-200 rounded-lg" />
                            <div className="flex-1">
-                             <div className="w-24 h-5 bg-gray-200 rounded" />
+                             <div className="w-24 h-4 bg-gray-200 rounded" />
                              <div className="w-20 h-3 bg-gray-100 rounded mt-2" />
                            </div>
                          </div>
@@ -423,7 +444,7 @@ const PlansPage: React.FC = () => {
                      </div>
                    ))
                  ) : subjectsError ? (
-                   <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
+                   <div className="col-span-full text-center py-6 text-red-600 bg-red-50 rounded-xl border border-red-200">
                      Failed to load subjects: {subjectsError}
                    </div>
                  ) : subjects.length > 0 ? (
@@ -432,13 +453,11 @@ const PlansPage: React.FC = () => {
                        key={`${(s as any).id ?? (s as any).subjectId ?? s.slug ?? idx}`}
                        name={s.name}
                        tag={s.slug ?? undefined}
-                       colorClass={palette[idx % palette.length]}
-                       icon={undefined}
+                       icon={s.icon}
                        desc={`Explore the learning path for ${s.name}`}
                        active={language === String((s as any).id ?? (s as any).subjectId)}
                        onClick={() => {
                          setLanguage(String((s as any).id ?? (s as any).subjectId))
-                         setStep(2)
                        }}
                      />
                    ))
@@ -458,21 +477,15 @@ const PlansPage: React.FC = () => {
                  subtitle="Select a goal from system goals or your personal goals"
                  icon="📍"
                />
-              <div className="flex items-center justify-end mb-4">
-                <button
+              <div className="flex items-center justify-end ">
+                {/* <button
                   type="button"
                   onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-blue-400 text-blue-500 hover:bg-blue-50 font-medium"
                 >
                   <Plus size={18} /> Add Goal
-                </button>
+                </button> */}
               </div>
-               {goalsLive && (
-                 <div className="flex items-center gap-2 mb-6 px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl" aria-live="polite">
-                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                   <span className="text-sm font-medium text-green-700">Live updates enabled</span>
-                 </div>
-               )}
 
                {/* Thông báo hành động goal */}
                {(goalNotice || goalActionError) && (
@@ -521,7 +534,7 @@ const PlansPage: React.FC = () => {
                            id={String(id)}
                            title={title}
                            colorClass={palette[idx % palette.length]}
-                           icon={undefined}
+                           icon='🔖'
                            active={selectedGoals.includes(String(id))}
                            onToggle={toggleGoal}
                            onStartEdit={() => {}}
@@ -533,6 +546,7 @@ const PlansPage: React.FC = () => {
                            onCancelEdit={() => {}}
                            saving={false}
                            deleting={false}
+                           isSystemGoal={true}
                          />
                        )
                      })
@@ -581,8 +595,8 @@ const PlansPage: React.FC = () => {
                            key={String(id)}
                            id={String(id)}
                            title={title}
-                           colorClass={palette[(systemGoals.length + idx) % palette.length]}
-                           icon={undefined}
+                           colorClass={palette[idx % palette.length]}
+                           icon='🔖'
                            active={selectedGoals.includes(String(id))}
                            onToggle={toggleGoal}
                            onStartEdit={startEditGoal}
@@ -669,8 +683,8 @@ const PlansPage: React.FC = () => {
                      key={lv}
                      type="button"
                      onClick={() => setLevel(lv)}
-                     className={`p-6 rounded-2xl border-2 transition-all shadow-sm hover:shadow-md ${
-                       level === lv ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white'
+                     className={`p-5 rounded-xl border transition-all cursor-pointer ${
+                       level === lv ? 'border-teal-600 bg-teal-50' : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
                      }`}
                    >
                      <div className="text-lg font-semibold text-gray-900">{lv}</div>
@@ -693,21 +707,21 @@ const PlansPage: React.FC = () => {
                  <button
                    type="button"
                    onClick={() => setLanguageSelection(LanguageSelection.Vietnamese)}
-                   className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${
+                   className={`group relative p-6 rounded-xl border transition-all duration-200 cursor-pointer ${
                      languageSelection === LanguageSelection.Vietnamese
-                       ? 'border-blue-500 bg-gradient-to-br from-blue-50 via-blue-50 to-indigo-50 shadow-xl ring-4 ring-blue-100'
-                       : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:bg-gray-50'
+                       ? 'border-teal-600 bg-teal-50'
+                       : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
                    }`}
                  >
                    {/* Icon Container */}
-                   <div className="flex justify-center mb-5">
-                     <div className={`relative w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                   <div className="flex justify-center mb-4">
+                     <div className={`relative w-20 h-20 rounded-lg flex items-center justify-center transition-all duration-200 ${
                        languageSelection === LanguageSelection.Vietnamese
-                         ? 'bg-gradient-to-br from-red-500 to-yellow-500 shadow-xl scale-110 ring-4 ring-red-200'
-                         : 'bg-gradient-to-br from-red-400 to-yellow-400 group-hover:shadow-md group-hover:scale-105'
+                         ? 'bg-gradient-to-br from-red-500 to-yellow-500'
+                         : 'bg-gradient-to-br from-red-400 to-yellow-400'
                      }`}>
                        {/* Vietnamese Flag Star */}
-                       <svg className="w-12 h-12 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
+                       <svg className="w-10 h-10 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                        </svg>
                      </div>
@@ -715,8 +729,8 @@ const PlansPage: React.FC = () => {
                    
                    {/* Content */}
                    <div className="text-center">
-                     <h3 className={`text-xl font-bold mb-2 transition-colors ${
-                       languageSelection === LanguageSelection.Vietnamese ? 'text-blue-700' : 'text-gray-900'
+                     <h3 className={`text-lg font-bold mb-2 transition-colors ${
+                       languageSelection === LanguageSelection.Vietnamese ? 'text-teal-700' : 'text-gray-900'
                      }`}>
                        Tiếng Việt
                      </h3>
@@ -726,16 +740,16 @@ const PlansPage: React.FC = () => {
                    </div>
                    
                    {/* Status Indicator */}
-                   <div className={`mt-5 pt-4 border-t transition-colors ${
+                   <div className={`mt-4 pt-3 border-t transition-colors ${
                      languageSelection === LanguageSelection.Vietnamese
-                       ? 'border-blue-300'
-                       : 'border-gray-100 group-hover:border-blue-100'
+                       ? 'border-teal-200'
+                       : 'border-gray-200'
                    }`}>
                      <div className="flex items-center justify-center text-xs font-semibold">
                        {languageSelection === LanguageSelection.Vietnamese ? (
-                         <span className="text-blue-600">Selected</span>
+                         <span className="text-teal-600">Selected</span>
                        ) : (
-                         <span className="text-gray-400 group-hover:text-gray-500">Click to select</span>
+                         <span className="text-gray-400">Click to select</span>
                        )}
                      </div>
                    </div>
@@ -745,30 +759,30 @@ const PlansPage: React.FC = () => {
                  <button
                    type="button"
                    onClick={() => setLanguageSelection(LanguageSelection.English)}
-                   className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${
+                   className={`group relative p-6 rounded-xl border transition-all duration-200 cursor-pointer ${
                      languageSelection === LanguageSelection.English
-                       ? 'border-blue-500 bg-gradient-to-br from-blue-50 via-blue-50 to-indigo-50 shadow-xl ring-4 ring-blue-100'
-                       : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:bg-gray-50'
+                       ? 'border-teal-600 bg-teal-50'
+                       : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
                    }`}
                  >
                    {/* Icon Container */}
-                   <div className="flex justify-center mb-5">
-                     <div className={`relative w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                   <div className="flex justify-center mb-4">
+                     <div className={`relative w-20 h-20 rounded-lg flex items-center justify-center transition-all duration-200 ${
                        languageSelection === LanguageSelection.English
-                         ? 'bg-gradient-to-br from-blue-600 to-red-600 shadow-xl scale-110 ring-4 ring-blue-200'
-                         : 'bg-gradient-to-br from-blue-500 to-red-500 group-hover:shadow-md group-hover:scale-105'
+                         ? 'bg-gradient-to-br from-blue-600 to-indigo-600'
+                         : 'bg-gradient-to-br from-blue-500 to-indigo-500'
                      }`}>
                        {/* Globe Icon */}
                        <div className="relative w-full h-full flex items-center justify-center">
-                         <Globe className="w-12 h-12 text-white" strokeWidth={2} />
+                         <Globe className="w-10 h-10 text-white" strokeWidth={2} />
                        </div>
                      </div>
                    </div>
                    
                    {/* Content */}
                    <div className="text-center">
-                     <h3 className={`text-xl font-bold mb-2 transition-colors ${
-                       languageSelection === LanguageSelection.English ? 'text-blue-700' : 'text-gray-900'
+                     <h3 className={`text-lg font-bold mb-2 transition-colors ${
+                       languageSelection === LanguageSelection.English ? 'text-teal-700' : 'text-gray-900'
                      }`}>
                        English
                      </h3>
@@ -778,16 +792,16 @@ const PlansPage: React.FC = () => {
                    </div>
                    
                    {/* Status Indicator */}
-                   <div className={`mt-5 pt-4 border-t transition-colors ${
+                   <div className={`mt-4 pt-3 border-t transition-colors ${
                      languageSelection === LanguageSelection.English
-                       ? 'border-blue-300'
-                       : 'border-gray-100 group-hover:border-blue-100'
+                       ? 'border-teal-200'
+                       : 'border-gray-200'
                    }`}>
                      <div className="flex items-center justify-center text-xs font-semibold">
                        {languageSelection === LanguageSelection.English ? (
-                         <span className="text-blue-600">Selected</span>
+                         <span className="text-teal-600">Selected</span>
                        ) : (
-                         <span className="text-gray-400 group-hover:text-gray-500">Click to select</span>
+                         <span className="text-gray-400">Click to select</span>
                        )}
                      </div>
                    </div>
@@ -805,18 +819,18 @@ const PlansPage: React.FC = () => {
                />
                
                {/* Summary Cards with Icons */}
-               <section aria-label="summary" className="max-w-4xl mx-auto mb-10">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+               <section aria-label="summary" className="max-w-4xl mx-auto mb-8">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {/* Programming Language Card */}
-                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-blue-50 rounded-2xl border-2 border-blue-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
-                     <div className="flex items-start gap-4">
-                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                         <Code2 className="w-6 h-6 text-white" strokeWidth={2.5} />
+                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
+                     <div className="flex items-start gap-3">
+                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                         <Code2 className="w-5 h-5 text-white" strokeWidth={2.5} />
                        </div>
                        <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-2">Programming Language</h3>
+                         <h3 className="text-sm font-medium text-gray-500 mb-1">Programming Language</h3>
                          {language ? (
-                           <p className="text-lg font-semibold text-gray-900 truncate">
+                           <p className="text-base font-semibold text-gray-900 truncate">
                              {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Selected'}
                            </p>
                          ) : (
@@ -827,15 +841,15 @@ const PlansPage: React.FC = () => {
                    </div>
 
                    {/* Learning Goal Card */}
-                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-teal-50 rounded-2xl border-2 border-teal-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
-                     <div className="flex items-start gap-4">
-                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-lg">
-                         <Target className="w-6 h-6 text-white" strokeWidth={2.5} />
+                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
+                     <div className="flex items-start gap-3">
+                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
+                         <Target className="w-5 h-5 text-white" strokeWidth={2.5} />
                        </div>
                        <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-2">Learning Goal</h3>
+                         <h3 className="text-sm font-medium text-gray-500 mb-1">Learning Goal</h3>
                          {selectedGoals.length > 0 ? (
-                           <p className="text-lg font-semibold text-gray-900 truncate">
+                           <p className="text-base font-semibold text-gray-900 truncate">
                              {goalItems.find((x) => x.key === selectedGoals[0])?.label || 'Selected'}
                            </p>
                          ) : (
@@ -846,15 +860,15 @@ const PlansPage: React.FC = () => {
                    </div>
 
                    {/* Difficulty Level Card */}
-                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-orange-50 rounded-2xl border-2 border-orange-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
-                     <div className="flex items-start gap-4">
-                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg">
-                         <BarChart3 className="w-6 h-6 text-white" strokeWidth={2.5} />
+                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
+                     <div className="flex items-start gap-3">
+                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                         <BarChart3 className="w-5 h-5 text-white" strokeWidth={2.5} />
                        </div>
                        <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-2">Difficulty Level</h3>
+                         <h3 className="text-sm font-medium text-gray-500 mb-1">Difficulty Level</h3>
                          {level ? (
-                           <p className="text-lg font-semibold text-gray-900">{level}</p>
+                           <p className="text-base font-semibold text-gray-900">{level}</p>
                          ) : (
                            <p className="text-gray-400 italic">Not selected</p>
                          )}
@@ -863,15 +877,15 @@ const PlansPage: React.FC = () => {
                    </div>
 
                    {/* Content Language Card */}
-                   <div className="group relative overflow-hidden bg-gradient-to-br from-white to-purple-50 rounded-2xl border-2 border-purple-100 p-6 shadow-md hover:shadow-xl transition-all duration-300">
-                     <div className="flex items-start gap-4">
-                       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
-                         <Languages className="w-6 h-6 text-white" strokeWidth={2.5} />
+                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
+                     <div className="flex items-start gap-3">
+                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                         <Languages className="w-5 h-5 text-white" strokeWidth={2.5} />
                        </div>
                        <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-2">Content Language</h3>
+                         <h3 className="text-sm font-medium text-gray-500 mb-1">Content Language</h3>
                          {languageSelection ? (
-                           <p className="text-lg font-semibold text-gray-900">
+                           <p className="text-base font-semibold text-gray-900">
                              {languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English'}
                            </p>
                          ) : (
@@ -887,10 +901,10 @@ const PlansPage: React.FC = () => {
                <div className="flex items-center justify-center">
                  <button
                    type="button"
-                   className={`group relative px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold text-lg transition-all duration-300 ${
+                   className={`group relative px-8 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl font-semibold text-base transition-all duration-200 ${
                      !canGenerate || generating 
                        ? 'opacity-50 cursor-not-allowed' 
-                       : 'hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:-translate-y-1'
+                       : 'hover:from-teal-700 hover:to-emerald-700 cursor-pointer'
                    }`}
                    disabled={!canGenerate || generating}
                    onClick={async () => {
@@ -996,18 +1010,18 @@ const PlansPage: React.FC = () => {
            )}
 
            {/* Footer actions */}
-           <div className="flex items-center justify-center gap-4 mt-10">
+           <div className="flex items-center justify-center gap-4 mt-8">
              <button
                type="button"
-               className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow-md"
+               className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer"
                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
              >
                Back
              </button>
              <button
                type="button"
-               className={`px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all shadow-md hover:shadow-lg ${
-                 !canNext ? 'opacity-50 cursor-not-allowed' : ''
+               className={`px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all ${
+                 !canNext ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                }`}
                disabled={!canNext}
                onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
@@ -1018,6 +1032,30 @@ const PlansPage: React.FC = () => {
          </div>
        </main>
        <Footer />
+
+       {/* Confirm Delete Dialog */}
+       <ConfirmDialog
+         isOpen={showDeleteConfirm}
+         title="Delete Goal"
+         message={`Are you sure you want to delete "${goalToDelete?.title}"? This action cannot be undone.`}
+         confirmText="Delete"
+         cancelText="Cancel"
+         variant="danger"
+         onConfirm={confirmDeleteGoal}
+         onCancel={() => {
+           setShowDeleteConfirm(false)
+           setGoalToDelete(null)
+         }}
+       />
+
+       {/* Toast Notification */}
+       {toast && (
+         <Toast
+           message={toast.message}
+           type={toast.type}
+           onClose={() => setToast(null)}
+         />
+       )}
      </div>
    )
  }

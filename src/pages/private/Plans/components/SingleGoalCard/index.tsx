@@ -30,6 +30,7 @@ interface SingleGoalCardProps {
   onCancelEdit: () => void
   saving: boolean
   deleting: boolean
+  isSystemGoal?: boolean // New prop to identify system goals
 }
 
 const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
@@ -48,6 +49,7 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
   onCancelEdit,
   saving,
   deleting,
+  isSystemGoal = false, // Default to false (user goal)
 }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -93,12 +95,12 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
 
   return (
     <div
-      className={`group relative overflow-visible rounded-2xl border-2 transition-all duration-300 p-6 bg-white ${
+      className={`group relative overflow-visible rounded-xl border transition-all duration-200 p-5 bg-white ${
         active
-          ? 'border-blue-500 bg-blue-50 shadow-lg'
-          : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+          ? 'border-teal-600 bg-teal-50 shadow-sm'
+          : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
       } ${!isEditing && !menuOpen ? 'cursor-pointer' : 'cursor-default'}`}
-      role={!isEditing ? 'button' : 'group'}
+      role={!isEditing ? 'button' : undefined}
       aria-pressed={!isEditing && active ? 'true' : 'false'}
       onClick={() => {
         if (!isEditing && !menuOpen) onToggle(id)
@@ -107,21 +109,20 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-1">
           <div
-            className={`flex items-center justify-center w-12 h-12 rounded-xl ${colorClass} shadow-md transition-transform duration-300 ${
-              active ? 'scale-110' : 'group-hover:scale-105'
-            }`}
+            className={`flex items-center justify-center w-11 h-11 rounded-lg ${colorClass} transition-colors duration-200`}
           >
             {icon ? (
-              <span className="text-xl text-white">{icon}</span>
+              <span className="text-lg text-white">{icon}</span>
             ) : (
-              <IconComponent className="w-6 h-6 text-white" />
+              <IconComponent className="w-5 h-5 text-white" />
             )}
           </div>
           <div className="flex-1">
             <div className="font-semibold text-gray-900 text-base">{title}</div>
           </div>
         </div>
-        {!isEditing && (
+        {/* Only show menu for user goals, not system goals */}
+        {!isEditing && !isSystemGoal && (
           <div className="relative" ref={menuRef}>
             <button
               type="button"
@@ -177,7 +178,7 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
             type="text"
             value={editingTitle}
             onChange={(e) => setEditingTitle(e.target.value)}
-            className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
             placeholder="Goal title"
           />
           <button

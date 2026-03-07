@@ -107,13 +107,23 @@ const QuizPage: React.FC = () => {
 
   const calculateScore = () => {
     let correct = 0
+    
     questions.forEach((q, idx) => {
       const userAnswer = selectedAnswers[idx]
       
+      // Try to find correct answer from various possible field names
+      const correctAnswer = q.correctAnswer ?? q.correctAnswerIndex ?? q.answer ?? q.correctOption ?? q.correct
+      
+      // Skip if no answer provided
+      if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
+        return
+      }
+      
       // For FillInTheBlank questions (type = 4)
       if (q.type === 4 || q.questionType === 4) {
-        const correctText = q.correctAnswerText || q.correctAnswer
-        if (typeof userAnswer === 'string' && typeof correctText === 'string') {
+        const correctText = (q.correctAnswerText || correctAnswer || '').toString()
+        if (typeof userAnswer === 'string') {
+          // Case-insensitive comparison, trim whitespace
           if (userAnswer.trim().toLowerCase() === correctText.trim().toLowerCase()) {
             correct++
           }
@@ -121,12 +131,59 @@ const QuizPage: React.FC = () => {
       } 
       // For multiple choice, single choice, true/false questions
       else {
-        if (userAnswer === q.correctAnswer) {
-          correct++
+        // Backend returns correctAnswer as TEXT, not INDEX
+        // So we need to compare the selected option text with correctAnswer
+        if (typeof userAnswer === 'number' && q.options && q.options[userAnswer]) {
+          const selectedOptionText = q.options[userAnswer]
+          const correctAnswerText = String(correctAnswer || '')
+          
+          // Compare the text values (case-insensitive, trimmed)
+          if (selectedOptionText.trim().toLowerCase() === correctAnswerText.trim().toLowerCase()) {
+            correct++
+          }
+        } else if (typeof userAnswer === 'string' && typeof correctAnswer === 'string') {
+          // Direct string comparison for cases where userAnswer is already text
+          if (userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
+            correct++
+          }
         }
       }
     })
+    
     return { correct, total: questions.length }
+  }
+
+  // Helper function to check if current answer is correct
+  const isAnswerCorrect = () => {
+    if (!currentQuestion) return false
+    const userAnswer = selectedAnswers[currentQuestionIndex]
+    
+    if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
+      return false
+    }
+    
+    const correctAnswer = currentQuestion.correctAnswer ?? currentQuestion.correctAnswerIndex ?? currentQuestion.answer ?? currentQuestion.correctOption ?? currentQuestion.correct
+    
+    // For FillInTheBlank questions (type = 4)
+    if (currentQuestion.type === 4 || currentQuestion.questionType === 4) {
+      const correctText = (currentQuestion.correctAnswerText || correctAnswer || '').toString()
+      if (typeof userAnswer === 'string') {
+        return userAnswer.trim().toLowerCase() === correctText.trim().toLowerCase()
+      }
+      return false
+    }
+    
+    // For multiple choice
+    if (typeof userAnswer === 'number' && currentQuestion.options && currentQuestion.options[userAnswer]) {
+      const selectedOptionText = currentQuestion.options[userAnswer]
+      const correctAnswerText = String(correctAnswer || '')
+      return selectedOptionText.trim().toLowerCase() === correctAnswerText.trim().toLowerCase()
+    } else if (typeof userAnswer === 'string' && typeof correctAnswer === 'string') {
+      // Direct string comparison for cases where userAnswer is already text
+      return userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
+    }
+    
+    return false
   }
 
   const currentQuestion = questions[currentQuestionIndex]
@@ -264,20 +321,31 @@ const QuizPage: React.FC = () => {
                   {/* Show correct answer after submission */}
                   {showResults && (
                     <div className={`p-4 rounded-xl border-2 ${
-                      typeof selectedAnswer === 'string' && 
-                      (selectedAnswer.trim().toLowerCase() === (currentQuestion.correctAnswerText || currentQuestion.correctAnswer || '').toString().trim().toLowerCase())
-                        ? 'bg-green-50 border-green-500'
-                        : 'bg-red-50 border-red-500'
+                      (() => {
+                        const correctText = (currentQuestion.correctAnswerText || currentQuestion.correctAnswer || '').toString()
+                        const userText = typeof selectedAnswer === 'string' ? selectedAnswer : ''
+                        return userText.trim().toLowerCase() === correctText.trim().toLowerCase()
+                          ? 'bg-green-50 border-green-500'
+                          : 'bg-red-50 border-red-500'
+                      })()
                     }`}>
                       <p className="font-semibold text-sm mb-1">
-                        {typeof selectedAnswer === 'string' && 
-                         (selectedAnswer.trim().toLowerCase() === (currentQuestion.correctAnswerText || currentQuestion.correctAnswer || '').toString().trim().toLowerCase())
-                          ? '✅ Correct!'
-                          : '❌ Incorrect'}
+                        {(() => {
+                          const correctText = (currentQuestion.correctAnswerText || currentQuestion.correctAnswer || '').toString()
+                          const userText = typeof selectedAnswer === 'string' ? selectedAnswer : ''
+                          return userText.trim().toLowerCase() === correctText.trim().toLowerCase()
+                            ? '✅ Correct!'
+                            : '❌ Incorrect'
+                        })()}
                       </p>
                       <p className="text-sm">
                         <span className="font-medium">Correct answer:</span> {currentQuestion.correctAnswerText || currentQuestion.correctAnswer}
                       </p>
+                      {typeof selectedAnswer === 'string' && selectedAnswer.trim() && (
+                        <p className="text-sm mt-1">
+                          <span className="font-medium">Your answer:</span> {selectedAnswer}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -286,7 +354,9 @@ const QuizPage: React.FC = () => {
                 <div className="space-y-3">
                   {currentQuestion.options?.map((option, idx) => {
                   const isSelected = selectedAnswer === idx
-                  const isCorrect = idx === currentQuestion.correctAnswer
+                  // Compare option text with correctAnswer text (backend returns text, not index)
+                  const correctAnswerText = String(currentQuestion.correctAnswer || '')
+                  const isCorrect = option.trim().toLowerCase() === correctAnswerText.trim().toLowerCase()
                   const showCorrectAnswer = showResults && isCorrect
                   const showWrongAnswer = showResults && isSelected && !isCorrect
 
@@ -325,6 +395,21 @@ const QuizPage: React.FC = () => {
                   )
                 })}
               </div>
+              )}
+
+              {/* Show correct answer when user is wrong - for Multiple Choice */}
+              {showResults && !isAnswerCorrect() && (currentQuestion.type !== 4 && currentQuestion.questionType !== 4) && (
+                <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+                  <p className="text-sm font-semibold text-red-900 mb-1">❌ Incorrect</p>
+                  <p className="text-sm text-red-800">
+                    <span className="font-semibold">Correct answer:</span> {currentQuestion.correctAnswer}
+                  </p>
+                  {typeof selectedAnswer === 'number' && currentQuestion.options && currentQuestion.options[selectedAnswer] && (
+                    <p className="text-sm text-red-800 mt-1">
+                      <span className="font-semibold">Your answer:</span> {currentQuestion.options[selectedAnswer]}
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* Explanation */}

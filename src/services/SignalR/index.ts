@@ -41,6 +41,26 @@ function isGuid(value: any): value is string {
 }
 
 async function ensureStarted(conn: signalR.HubConnection, _name: string) {
+  // If already connected, return immediately
+  if (conn.state === signalR.HubConnectionState.Connected) {
+    return
+  }
+
+  // If connecting or reconnecting, wait for it to complete
+  if (conn.state === signalR.HubConnectionState.Connecting || conn.state === signalR.HubConnectionState.Reconnecting) {
+    // Wait up to 10 seconds for connection to be established
+    const maxWait = 10000
+    const startTime = Date.now()
+    while (conn.state !== signalR.HubConnectionState.Connected && Date.now() - startTime < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    if (conn.state !== signalR.HubConnectionState.Connected) {
+      throw new Error(`Connection timeout: ${_name} hub failed to connect`)
+    }
+    return
+  }
+
+  // If disconnected, start the connection
   if (conn.state === signalR.HubConnectionState.Disconnected) {
     await conn.start()
   }
@@ -288,15 +308,25 @@ export async function requestChapterTasks(chapterId: string, onLoading?: () => v
 
 // ==== Request quiz questions (pure SignalR) ====
 export async function requestQuizQuestions(quizId: string, onLoading?: () => void): Promise<any> {
-  if (!isGuid(quizId)) {
-    return Promise.reject(new Error('quizId phải là GUID hợp lệ'))
+  if (!quizId || typeof quizId !== 'string') {
+    return Promise.reject(new Error('quizId is required and must be a string'))
   }
+
+  if (!isGuid(quizId)) {
+    return Promise.reject(new Error(`quizId phải là GUID hợp lệ. Received: ${quizId}`))
+  }
+
   // single-flight: return running promise for same quizId
   if (inflightQuiz.has(quizId)) {
     return inflightQuiz.get(quizId)!
   }
 
-  const hub = await getQuizHub()
+  let hub: signalR.HubConnection
+  try {
+    hub = await getQuizHub()
+  } catch (error) {
+    return Promise.reject(new Error('Failed to establish SignalR connection'))
+  }
 
   const p = new Promise<any>((resolve, reject) => {
     let done = false
