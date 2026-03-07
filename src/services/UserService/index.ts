@@ -10,8 +10,22 @@ export async function updateProfile(payload: any) {
   const res: any = await api.put(updateProfileUrl, payload)
   return res?.data ?? res
 }
-export async function uploadAvatarProfile(payload: any) {
-  const res: any = await api.post(updateAvatarProfile, payload)
+export async function uploadAvatarProfile(
+  payload: FormData,
+  onProgress?: (progress: number) => void
+) {
+  const res = await api.post(updateAvatarProfile, payload, {
+    onUploadProgress: (progressEvent) => {
+      if (!onProgress) return
+
+      const percent = Math.round(
+        (progressEvent.loaded * 100) / (progressEvent.total || 1)
+      )
+
+      onProgress(percent)
+    }
+  })
+
   return res?.data ?? res
 }
 export async function changePassword(payload: any) {

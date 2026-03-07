@@ -9,21 +9,22 @@ import { getMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Camera, X, Loader } from 'lucide-react'
-
-/**
- * Profile page for students and mentors
- * Displays and allows editing of personal information
- */
-
+import ProgressToast from '../../../components/Toast/ProgressToast'
 interface ProfileForm extends Partial<User> {
     dateOfBirth?: string
 }
 
 const Profile: React.FC = () => {
-    const { user, updateProfile, uploadAvatar, loading, logout } = useAuthStore()
+    const { user, updateProfile, uploadAvatar, updatingProfile, logout } = useAuthStore()
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const [open, setOpen] = useState<boolean>(false)
     const [form, setForm] = useState<ProfileForm | null>(null)
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [toast, setToast] = useState<{
+        message: string
+        progress: number
+        status: 'loading' | 'success' | 'error'
+    } | null>(null)
     const [message, setMessage] = useState<{
         type: 'success' | 'error'
         text: string
@@ -79,14 +80,14 @@ const Profile: React.FC = () => {
     }, [user])
 
     useEffect(() => {
-        if (!message) return
+        if (!toast) return
 
         const timer = setTimeout(() => {
-            setMessage(null)
+            setToast(null)
         }, 3000)
 
         return () => clearTimeout(timer)
-    }, [message])
+    }, [toast])
 
     const handleChange = (field: keyof ProfileForm, value: string) => {
         setForm(prev => {
@@ -125,19 +126,20 @@ const Profile: React.FC = () => {
 
     const handleSubmit = async () => {
         if (!validate()) return
-
         const res = await updateProfile(form)
 
         if (res?.isOk) {
-            setMessage({
-                type: 'success',
-                text: res.msg || 'Profile updated successfully'
+            setToast({
+                message: res.msg || 'Profile updated successfully',
+                progress: 100,
+                status: 'success'
             })
             setOpen(false)
         } else {
-            setMessage({
-                type: 'error',
-                text: res?.msg || 'Update failed'
+            setToast({
+                message: res?.msg || 'Update failed',
+                progress: 100,
+                status: 'error'
             })
         }
     }
@@ -156,28 +158,60 @@ const Profile: React.FC = () => {
         ]
 
         if (!allowedTypes.includes(file.type)) {
-            alert('Only image files are allowed (jpg, jpeg, png, webp)')
+            setToast({
+                message: 'Only image files are allowed',
+                progress: 100,
+                status: 'error'
+            })
             return
         }
 
         if (file.size > 10 * 1024 * 1024) {
-            alert('Maximum file size is 10MB')
+            setToast({
+                message: 'Maximum file size is 10MB',
+                progress: 100,
+                status: 'error'
+            })
             return
         }
 
-        const res = await uploadAvatar(file)
+        setUploadingAvatar(true)
 
-        if (res.isOk) {
-            setMessage({
-                type: 'success',
-                text: res.msg || 'Avatar uploaded successfully'
+        setToast({
+            message: 'Uploading avatar...',
+            progress: 0,
+            status: 'loading'
+        })
+
+        const res = await uploadAvatar(file, (progress) => {
+            setToast(prev =>
+                prev
+                    ? { ...prev, progress }
+                    : {
+                        message: 'Uploading avatar...',
+                        progress,
+                        status: 'loading'
+                    }
+            )
+        })
+
+        setUploadingAvatar(false)
+
+        if (res?.isOk) {
+            setToast({
+                message: res.msg || 'Avatar uploaded successfully',
+                progress: 100,
+                status: 'success'
             })
         } else {
-            setMessage({
-                type: 'error',
-                text: res?.msg || 'Update failed'
+            setToast({
+                message: res?.msg || 'Upload failed',
+                progress: 100,
+                status: 'error'
             })
         }
+
+        e.target.value = ''
     }
 
     const formatDate = (dateStr?: string): string => {
@@ -191,14 +225,21 @@ const Profile: React.FC = () => {
 
     return (
         <Layout sidebar={sidebarConfig}>
+            {toast && (
+                <ProgressToast
+                    message={toast.message}
+                    progress={toast.progress}
+                    status={toast.status}
+                    onClose={() => setToast(null)}
+                />
+            )}
             <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
                 {/* Message Alert */}
                 {message && (
-                    <div className={`mb-6 p-4 rounded-lg border-l-4 ${
-                        message.type === 'success' 
-                            ? 'bg-[#dcfce7] border-[#16a34a]' 
-                            : 'bg-[#fee2e2] border-[#dc2626]'
-                    }`}>
+                    <div className={`mb-6 p-4 rounded-lg border-l-4 ${message.type === 'success'
+                        ? 'bg-[#dcfce7] border-[#16a34a]'
+                        : 'bg-[#fee2e2] border-[#dc2626]'
+                        }`}>
                         <p className={message.type === 'success' ? 'text-[#15803d]' : 'text-[#991b1b]'}>
                             {message.text}
                         </p>
@@ -208,7 +249,7 @@ const Profile: React.FC = () => {
                 {/* Profile Header Card */}
                 <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm mb-8">
                     <div className="h-24 bg-gradient-to-r "></div>
-                    
+
                     <div className="px-6 pb-6 -mt-12 relative">
                         <div className="flex items-end gap-4 mb-6">
                             {/* Avatar */}
@@ -225,8 +266,13 @@ const Profile: React.FC = () => {
                                             {getInitials(user.firstName, user.lastName)}
                                         </span>
                                     )}
+                                    {uploadingAvatar && (
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                            <Loader size={30} className="text-white animate-spin" />
+                                        </div>
+                                    )}
                                 </div>
-                                
+
                                 {/* Avatar Upload Overlay */}
                                 <label className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer">
                                     <Camera size={24} className="text-white" />
@@ -238,7 +284,7 @@ const Profile: React.FC = () => {
                                     />
                                 </label>
                             </div>
-                            
+
                             {/* Profile Info */}
                             <div className="flex-1 pb-2">
                                 <h1 className="text-2xl font-bold text-[#111827]">
@@ -312,7 +358,7 @@ const Profile: React.FC = () => {
                                 value={user.address || 'Not updated'}
                             />
                         </div>
-                        
+
                         <div className="mt-6 pt-6 border-t border-[#e5e7eb]">
                             <h3 className="text-sm font-600 text-[#6b7280] mb-3">Bio</h3>
                             <p className="text-sm text-[#374151] leading-relaxed">
@@ -404,11 +450,11 @@ const Profile: React.FC = () => {
 
                             <button
                                 onClick={handleSubmit}
-                                disabled={loading}
+                                disabled={updatingProfile}
                                 className="px-6 py-2 rounded-lg bg-[#2f80ed] text-white font-600 hover:bg-[#1d5ed4] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
                             >
-                                {loading && <Loader size={16} className="animate-spin" />}
-                                {loading ? 'Updating...' : 'Update Profile'}
+                                {updatingProfile && <Loader size={16} className="animate-spin" />}
+                                {updatingProfile ? 'Updating...' : 'Update Profile'}
                             </button>
                         </div>
                     </div>
@@ -460,11 +506,10 @@ const FormInput: React.FC<FormInputProps> = ({
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className={`px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all duration-200 ${
-                error
-                    ? 'border-[#dc2626] focus:ring-[#dc2626]'
-                    : 'border-[#e5e7eb]'
-            }`}
+            className={`px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all duration-200 ${error
+                ? 'border-[#dc2626] focus:ring-[#dc2626]'
+                : 'border-[#e5e7eb]'
+                }`}
         />
         {error && (
             <p className="text-xs text-[#dc2626]">
