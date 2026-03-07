@@ -13,7 +13,6 @@ import ROUTER_META from '../../../router/ROUTER_META'
 import CreateResourceModal from './CreateResourceModal'
 import EditResourceModal from './EditResourceModal'
 import Toast from '../../../components/Toast'
-import ProgressToast from '../../../components/Toast/ProgressToast'
 import ConfirmDialog from '../../../components/ConfirmDialog'
 import ResourcePageViewer from '../../../components/ResourcePageViewer'
 
@@ -29,6 +28,8 @@ interface Resource {
   createdAt?: string
   updatedAt?: string
   subjectName?: string
+  uploading?: boolean
+  uploadProgress?: number
 }
 
 const MyResourcesPage: React.FC = () => {
@@ -97,6 +98,20 @@ const MyResourcesPage: React.FC = () => {
   const handleCreateSuccess = () => {
     fetchResources()
   }
+  
+  const handleUploadStart = (tempResource: Resource) => {
+    // Add temp resource to the beginning of the list
+    setResources(prev => [tempResource, ...prev])
+  }
+  
+  const handleUploadProgress = (uploadId: string, progress: number) => {
+    // Update progress for the uploading resource
+    setResources(prev => prev.map(resource => 
+      resource.resourceId === uploadId 
+        ? { ...resource, uploadProgress: progress }
+        : resource
+    ))
+  }
 
   const handleEditSuccess = () => {
     fetchResources()
@@ -104,24 +119,6 @@ const MyResourcesPage: React.FC = () => {
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
     setToast({ message, type })
-  }
-
-  const showProgressToast = (message: string, progress: number, status: 'loading' | 'success' | 'error') => {
-    setProgressToast({ message, progress, status })
-    
-    // Set uploading state
-    if (status === 'loading') {
-      setIsUploading(true)
-    } else {
-      setIsUploading(false)
-    }
-    
-    // Auto-close success/error after 3 seconds
-    if (status === 'success' || status === 'error') {
-      setTimeout(() => {
-        setProgressToast(null)
-      }, 3000)
-    }
   }
 
   const handleEdit = (resource: Resource) => {
@@ -219,16 +216,14 @@ const MyResourcesPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsModalOpen(true)}
-              disabled={isUploading}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm transition-colors duration-200 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Create Resource
             </button>
             <button
               onClick={() => navigate(ROUTER.STUDENT_DASHBOARD)}
-              disabled={isUploading}
-              className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-200 cursor-pointer"
             >
               Back to Dashboard
             </button>
@@ -349,12 +344,22 @@ const MyResourcesPage: React.FC = () => {
             {resources.map((resource, index) => (
               <div
                 key={resource.resourceId || resource.id || `resource-${index}`}
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 hover:border-blue-300 dark:hover:border-blue-700 transition-colors duration-200"
+                className={`bg-white dark:bg-slate-800 border rounded-lg p-6 transition-colors duration-200 ${
+                  resource.uploading 
+                    ? 'border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-900/10' 
+                    : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700'
+                }`}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  {/* Number Column */}
+                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium">
+                    {index + 1}
+                  </div>
+                  
+                  {/* Content */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <FileText className={`w-5 h-5 ${resource.uploading ? 'text-blue-600 dark:text-blue-400 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`} />
                       <h3 className="text-lg font-medium text-slate-900 dark:text-white">
                         {resource.title}
                       </h3>
@@ -368,52 +373,58 @@ const MyResourcesPage: React.FC = () => {
                           {resource.subjectName}
                         </span>
                       )}
+                      {resource.uploading && (
+                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded animate-pulse">
+                          Uploading...
+                        </span>
+                      )}
                     </div>
                     {resource.description && (
                       <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                         {resource.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-500">
-                      {resource.createdAt && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>{formatDate(resource.createdAt)}</span>
-                        </div>
-                      )}
-                    </div>
+                    {!resource.uploading && (
+                      <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-500">
+                        {resource.createdAt && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            <span>{formatDate(resource.createdAt)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 ml-4">
-                    {/* View button for all resources */}
-                    {(resource.filePath || resource.url) && (
+                  {/* Action Buttons - Disabled during upload */}
+                  {!resource.uploading && (
+                    <div className="flex items-center gap-2">
+                      {/* View button for all resources */}
+                      {(resource.filePath || resource.url) && (
+                        <button
+                          onClick={() => handleDownload(resource)}
+                          className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+                          title="View document"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleDownload(resource)}
-                        disabled={isUploading}
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="View document"
+                        onClick={() => handleEdit(resource)}
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                        title="Edit resource"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Edit className="w-4 h-4" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleEdit(resource)}
-                      disabled={isUploading}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Edit resource"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(resource)}
-                      disabled={isUploading}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Delete resource"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                      <button
+                        onClick={() => handleDelete(resource)}
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
+                        title="Delete resource"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -425,8 +436,8 @@ const MyResourcesPage: React.FC = () => {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSuccess={handleCreateSuccess}
-          onShowToast={showToast}
-          onShowProgressToast={showProgressToast}
+          onUploadStart={handleUploadStart}
+          onUploadProgress={handleUploadProgress}
         />
 
         {/* Edit Resource Modal */}
@@ -473,21 +484,6 @@ const MyResourcesPage: React.FC = () => {
             type={toast.type}
             onClose={() => setToast(null)}
           />
-        )}
-
-        {/* Progress Toast */}
-        {progressToast && (
-          <ProgressToast
-            message={progressToast.message}
-            progress={progressToast.progress}
-            status={progressToast.status}
-            onClose={() => setProgressToast(null)}
-          />
-        )}
-
-        {/* Uploading Overlay - Block interactions during upload */}
-        {isUploading && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9998]" />
         )}
       </div>
     </Layout>
