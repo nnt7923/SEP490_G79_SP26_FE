@@ -4,7 +4,7 @@
   padding: 0;
   text-align: left;
   min-height: 100vh;
-  background: #fff;
+  background: var(--bg-main);
 }
 
 .logo {
@@ -45,7 +45,7 @@
 
 .profile-container {
   padding: 40px;
-  background: #ffffff;
+  background: var(--bg-surface);
   min-height: 100vh;
 }
 
@@ -68,7 +68,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  background: #fff;
+  background: var(--bg-surface);
   padding: 20px;
   border-radius: 16px;
   border: 2px solid #e5e7eb;
@@ -96,7 +96,7 @@
 }
 
 .info-card {
-  background: white;
+  background: var(--bg-surface);
   padding: 25px;
   border-radius: 12px;
   border: 2px solid #e5e7eb;
@@ -130,7 +130,7 @@
 
 /* Modal Card */
 .modal-card {
-  background: #ffffff;
+  background: var(--bg-surface);
   width: 100%;
   max-width: 600px;
   border-radius: 16px;
@@ -246,7 +246,7 @@
 
 /* Info Card */
 .info-card {
-  background: #f9fafb;
+  background: var(--bg-surface);
   padding: 12px 16px;
   border-radius: 10px;
   margin-bottom: 12px;

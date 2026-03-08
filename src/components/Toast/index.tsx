@@ -19,21 +19,21 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 3000 }
   }, [duration, onClose])
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-500" />,
-    error: <XCircle className="w-5 h-5 text-red-500" />,
+    success: <CheckCircle className="w-5 h-5 text-status-green" />,
+    error: <XCircle className="w-5 h-5 text-status-red-muted" />,
     warning: <AlertCircle className="w-5 h-5 text-orange-500" />,
   }
 
   const bgColors = {
-    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-    warning: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
+    success: 'bg-status-green-bg border-green-200',
+    error: 'bg-status-red-bg border-red-200',
+    warning: 'bg-orange-50 border-orange-200',
   }
 
   const textColors = {
-    success: 'text-green-800 dark:text-green-200',
-    error: 'text-red-800 dark:text-red-200',
-    warning: 'text-orange-800 dark:text-orange-200',
+    success: 'text-status-green-darker',
+    error: 'text-status-red-darker',
+    warning: 'text-orange-800',
   }
 
   return (
@@ -43,7 +43,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 3000 }
         <p className={`flex-1 text-sm font-medium ${textColors[type]}`}>{message}</p>
         <button
           onClick={onClose}
-          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+          className="text-sl-400 hover:text-sl-600 transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>

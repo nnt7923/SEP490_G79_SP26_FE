@@ -90,14 +90,14 @@ const ResetPassword: React.FC = () => {
         <div className="auth__card">
           {toast && (
             <div style={{
-              background: '#10b981', color: '#fff', padding: '8px 12px', borderRadius: 6,
+              background: 'var(--color-emerald-500)', color: 'var(--bg-surface-short)', padding: '8px 12px', borderRadius: 6,
               marginBottom: 12, fontSize: 14
             }} role="status">{toast}</div>
           )}
           <h2 className="auth__title">Reset Password</h2>
           <p className="auth__subtitle">Enter your new password</p>
           {!tokenFromQuery && (
-            <div style={{ color: '#6b7280', fontSize: 13, marginBottom: 8 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}>
               We have sent a reset link to your email. Please open the link from your email to continue.
             </div>
           )}

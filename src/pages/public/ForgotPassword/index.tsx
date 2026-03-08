@@ -68,7 +68,7 @@ const ForgotPassword: React.FC = () => {
             />
 
             {error && <div className="form__error" role="alert">{error}</div>}
-            {message && <div style={{ color: '#10b981', fontSize: 14 }}>{message}</div>}
+            {message && <div style={{ color: 'var(--color-emerald-500)', fontSize: 14 }}>{message}</div>}
 
             <button type="submit" className="btn btn-primary auth__submit" disabled={submitting}>
               {submitting ? 'Sending...' : 'Send Instructions'}

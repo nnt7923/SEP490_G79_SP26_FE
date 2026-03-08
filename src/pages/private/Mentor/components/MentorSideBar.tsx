@@ -1,39 +1,37 @@
 import React from 'react'
-import { LayoutDashboard, BookOpen, ClipboardList, MessageSquare, User } from 'lucide-react'
 import ROUTER from '../../../../router/ROUTER'
-import type { SidebarNavItem } from '../../../../components/Sidebar'
 
-export const getMentorSidebarConfig = (): SidebarNavItem[] => {
+export type MentorNavItem = {
+  label: string
+  path: string
+  icon?: React.ReactNode
+}
+
+export const getMentorSidebarConfig = (): MentorNavItem[] => {
   return [
     {
-      label: 'Overview',
+      label: '[ovw] Overview',
       path: ROUTER.MENTOR_DASHBOARD,
-      icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
-      label: 'Subjects',
+      label: '[sub] Subjects',
       path: '/mentor/subjects',
-      icon: <BookOpen className="w-5 h-5" />,
     },
     {
-      label: 'Classes',
+      label: '[cls] Classes',
       path: '/mentor/classes',
-      icon: <ClipboardList className="w-5 h-5" />,
     },
     {
-      label: 'Students',
+      label: '[std] Students',
       path: '/mentor/students',
-      icon: <User className="w-5 h-5" />,
     },
     {
-      label: 'Messages',
+      label: '[msg] Messages',
       path: '/mentor/messages',
-      icon: <MessageSquare className="w-5 h-5" />,
     },
     {
-      label: 'Profile',
+      label: '[prf] Profile',
       path: ROUTER.MENTOR_PROFILE,
-      icon: <User className="w-5 h-5" />,
     },
   ]
 }

@@ -91,7 +91,7 @@ const VerifyOtp: React.FC = () => {
             <input id="otp" type="text" className="form__input" placeholder="Enter OTP" value={code} onChange={(e) => setCode(e.target.value)} />
 
             {error && <div className="form__error" role="alert">{error}</div>}
-            {message && <div style={{ color: '#10b981', fontSize: 14 }}>{message}</div>}
+            {message && <div style={{ color: 'var(--color-emerald-500)', fontSize: 14 }}>{message}</div>}
 
             <button type="submit" className="btn btn-primary auth__submit" disabled={verifying}>Verify OTP</button>
 

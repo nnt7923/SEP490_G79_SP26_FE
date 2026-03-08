@@ -58,9 +58,9 @@ const MentorStudents: React.FC = () => {
   }
 
   const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'bg-green-500'
-    if (progress >= 50) return 'bg-blue-500'
-    return 'bg-yellow-500'
+    if (progress >= 80) return 'text-status-green bg-status-green-bg'
+    if (progress >= 50) return 'text-status-blue bg-status-blue-bg'
+    return 'text-yellow-600 bg-yellow-50'
   }
 
   const sidebarConfig = {
@@ -71,58 +71,55 @@ const MentorStudents: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-[var(--gray-100)] px-4 py-8 font-mono">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#EC4899] to-[#DB2777] flex items-center justify-center shadow-lg">
-                <Users className="w-6 h-6 text-white" />
-              </div>
+          <div className="mb-6 border-b border-bd pb-4">
+            <div className="flex items-center gap-3">
+              <Users className="w-6 h-6 text-pink-600" />
               <div>
-                <h1 className="text-3xl font-bold text-[#1E293B]">My Students</h1>
-                <p className="text-sm text-[#64748B] mt-1">Track and manage student progress</p>
+                <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
+                  <span className="text-pink-600 mr-2">{'>_'}</span>
+                  my_students
+                </h1>
+                <p className="text-xs text-label mt-1 font-mono">
+                  {'//'} track and manage student progress
+                </p>
               </div>
             </div>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm">
+            <div className="bg-th-card border border-bd-strong p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-600" />
-                </div>
+                <Users className="w-5 h-5 text-status-blue" />
                 <div>
-                  <p className="text-sm text-[#64748B]">Total Students</p>
-                  <p className="text-2xl font-bold text-[#1E293B]">{students.length}</p>
+                  <p className="text-xs font-bold text-muted uppercase">total_students</p>
+                  <p className="text-xl font-bold text-heading">[{students.length}]</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm">
+            <div className="bg-th-card border border-bd-strong p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                </div>
+                <TrendingUp className="w-5 h-5 text-status-green" />
                 <div>
-                  <p className="text-sm text-[#64748B]">Avg Progress</p>
-                  <p className="text-2xl font-bold text-[#1E293B]">
-                    {Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)}%
+                  <p className="text-xs font-bold text-muted uppercase">avg_progress</p>
+                  <p className="text-xl font-bold text-heading">
+                    [{Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)}%]
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm">
+            <div className="bg-th-card border border-bd-strong p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <Award className="w-5 h-5 text-purple-600" />
-                </div>
+                <Award className="w-5 h-5 text-purple-600" />
                 <div>
-                  <p className="text-sm text-[#64748B]">Active Students</p>
-                  <p className="text-2xl font-bold text-[#1E293B]">
-                    {students.filter(s => s.status === 'active').length}
+                  <p className="text-xs font-bold text-muted uppercase">active_students</p>
+                  <p className="text-xl font-bold text-heading">
+                    [{students.filter(s => s.status === 'active').length}]
                   </p>
                 </div>
               </div>
@@ -130,92 +127,84 @@ const MentorStudents: React.FC = () => {
           </div>
 
           {/* Search Bar */}
-          <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 mb-6">
+          <div className="bg-th-card border border-bd-strong p-4 mb-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
               <input
                 type="text"
-                placeholder="Search students by name or email..."
+                placeholder="grep 'students'..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all text-[#1E293B] placeholder:text-[#94A3B8]"
+                className="w-full pl-10 pr-4 py-2 border border-bd-strong focus:outline-none focus:border-pink-600 transition-colors text-heading placeholder:text-placeholder font-mono"
               />
             </div>
           </div>
 
           {/* Students List */}
           {filteredStudents.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center">
-              <Users className="w-16 h-16 text-[#CBD5E1] mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-[#1E293B] mb-2">No students found</h3>
-              <p className="text-sm text-[#64748B]">
-                {searchQuery ? 'Try adjusting your search' : 'No students enrolled yet'}
+            <div className="bg-th-card border border-bd-strong p-12 text-center">
+              <Users className="w-12 h-12 text-disabled mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-heading mb-2">no_students_found()</h3>
+              <p className="text-sm text-muted font-mono">
+                {'//'} {searchQuery ? 'try adjusting your search' : 'no students enrolled yet'}
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+            <div className="bg-th-card border border-bd-strong overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                  <thead className="bg-th-input border-b border-bd">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider">
-                        Student
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
+                        student
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider">
-                        Email
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
+                        email
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider">
-                        Classes
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
+                        classes
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider">
-                        Progress
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
+                        progress
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider">
-                        Actions
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
+                        actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E2E8F0]">
+                  <tbody className="divide-y divide-gray-300">
                     {filteredStudents.map((student) => (
-                      <tr key={student.id} className="hover:bg-[#F8FAFC] transition-colors">
+                      <tr key={student.id} className="hover:bg-th-page transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#2563EB] flex items-center justify-center text-white font-semibold text-sm">
+                            <div className="w-10 h-10 border border-bd-strong bg-th-card flex items-center justify-center text-heading font-bold text-sm uppercase">
                               {getInitials(student.name)}
                             </div>
                             <div>
-                              <p className="font-medium text-[#1E293B]">{student.name}</p>
-                              <p className="text-xs text-[#64748B]">{student.status}</p>
+                              <p className="font-bold text-heading uppercase">{student.name}</p>
+                              <p className="text-xs text-muted">[{student.status}]</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-[#64748B]">
-                            <Mail className="w-4 h-4" />
+                          <div className="flex items-center gap-2 text-sm text-label">
+                            <Mail className="w-4 h-4 text-placeholder" />
                             <span>{student.email}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm font-medium text-[#1E293B]">
-                            {student.enrolledClasses} classes
+                          <span className="text-sm font-bold text-heading">
+                            [{student.enrolledClasses}] classes
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-[#E2E8F0] rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${getProgressColor(student.progress)} transition-all duration-300`}
-                                style={{ width: `${student.progress}%` }}
-                              />
-                            </div>
-                            <span className="text-sm font-medium text-[#1E293B] w-12">
-                              {student.progress}%
-                            </span>
-                          </div>
+                          <span className={`px-2 py-1 border text-xs font-bold uppercase ${getProgressColor(student.progress)}`}>
+                            {student.progress}% cmpltd
+                          </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button className="px-3 py-1.5 bg-[#2563EB] text-white text-sm font-medium rounded-lg hover:bg-[#1D4ED8] transition-colors">
-                            View
+                          <button className="text-sm font-bold text-pink-600 hover:text-pink-800 transition-colors uppercase">
+                            [ view ]
                           </button>
                         </td>
                       </tr>

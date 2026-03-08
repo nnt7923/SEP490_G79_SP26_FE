@@ -6,7 +6,7 @@ import { getStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService } from '../../../../services'
 import useAuthStore from '../../../../store/useAuthStore'
 import ROUTER from '../../../../router/ROUTER'
-import { Search, ChevronRight, Loader, AlertCircle, BookOpen, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 
 const GoalsPage: React.FC = () => {
   const { logout } = useAuthStore()
@@ -24,31 +24,20 @@ const GoalsPage: React.FC = () => {
 
   const sidebarConfig = {
     navItems: getStudentSidebarConfig(),
-    actions: [
-      {
-        label: 'Logout',
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: 'danger' as const,
-      },
-    ],
+    actions: [{ label: 'Logout', icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
     brand: { name: 'Goals', subtitle: 'Learning' },
   }
 
-  useEffect(() => {
-    fetchGoals()
-  }, [])
+  useEffect(() => { fetchGoals() }, [])
 
   const fetchGoals = async () => {
     setLoading(true)
     setError(null)
     try {
-      // Use /goals/me endpoint to get current user's goals
       const data = await GoalService.getUserGoals()
       setGoals(Array.isArray(data) ? data : [])
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to load goals'
-      setError(msg)
+      setError(err?.response?.data?.message || err?.message || 'Failed to load goals')
     } finally {
       setLoading(false)
     }
@@ -56,159 +45,118 @@ const GoalsPage: React.FC = () => {
 
   const filteredGoals = goals.filter(goal => {
     const q = searchTerm.toLowerCase()
-    return (goal?.title || '').toLowerCase().includes(q) || 
-           (goal?.description || '').toLowerCase().includes(q)
+    return (goal?.title || '').toLowerCase().includes(q) || (goal?.description || '').toLowerCase().includes(q)
   })
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
-        {/* Header */}
-        {/* <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#111827] mb-2">My Goals</h1>
-          <p className="text-[#6b7280]">View and manage your learning goals</p>
-        </div> */}
-
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#9ca3af] w-5 h-5" />
+      <div style={{ padding: 24, background: 'var(--bg-surface)', minHeight: '100vh' }}>
+        {/* Search */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-secondary)' }}>$</span>
             <input
-              type="text"
-              placeholder="Search goals..."
-              value={searchTerm}
+              type="text" placeholder="search goals..." value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-[#e5e7eb] rounded-lg bg-white text-[#111827] placeholder-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all"
+              style={{ width: '100%', padding: '8px 12px 8px 32px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' as const }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
             />
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
           {/* Goals List */}
-          <div className="lg:col-span-2">
+          <div>
             {loading ? (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-8 flex items-center justify-center">
-                <div className="text-center">
-                  <Loader className="w-8 h-8 text-[#2f80ed] animate-spin mx-auto mb-3" />
-                  <p className="text-[#6b7280]">Loading your goals...</p>
-                </div>
-              </div>
+              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>// loading goals...</div>
             ) : error ? (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-8">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-[#111827]">Error loading goals</h3>
-                    <p className="text-sm text-[#6b7280] mt-1">{error}</p>
-                  </div>
-                </div>
-              </div>
+              <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
             ) : filteredGoals.length === 0 ? (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-12 text-center">
-                <BookOpen className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-[#111827] mb-2">No goals yet</h3>
-                <p className="text-[#6b7280]">
-                  {searchTerm ? 'No goals match your search.' : 'Start creating your first goal!'}
-                </p>
+              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>// No goals found</p>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{searchTerm ? 'No goals match your search.' : 'Start creating your first goal!'}</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredGoals.map((goal) => (
-                  <div
-                    key={goal.goalId || goal.id}
-                    onClick={() => setSelectedGoal(goal)}
-                    className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all duration-200 ${
-                      selectedGoal?.goalId === goal.goalId || selectedGoal?.id === goal.id
-                        ? 'border-[#2f80ed] shadow-md'
-                        : 'border-[#e5e7eb] hover:border-[#d1d5db] hover:shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-[#111827] text-lg mb-1">{goal.title || 'Untitled Goal'}</h3>
-                        <p className="text-sm text-[#6b7280] line-clamp-2">{goal.description || 'No description'}</p>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-[#9ca3af]">
-                          <span>⏱️ {goal.durationDays || 0} days</span>
-                          <span>{goal.isCompleted ? '✅ Completed' : '⏳ In Progress'}</span>
-                          {goal.createdAt && <span>📅 {new Date(goal.createdAt).toLocaleDateString()}</span>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {filteredGoals.map((goal) => {
+                  const isSelected = selectedGoal?.goalId === goal.goalId || selectedGoal?.id === goal.id
+                  return (
+                    <div
+                      key={goal.goalId || goal.id}
+                      onClick={() => setSelectedGoal(goal)}
+                      style={{
+                        border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-base)',
+                        borderRadius: 2, padding: 16, cursor: 'pointer', transition: 'border-color 0.2s', background: isSelected ? 'var(--bg-blue-hover)' : 'var(--bg-surface-short)',
+                      }}
+                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{goal.title || 'Untitled Goal'}</h3>
+                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.description || 'No description'}</p>
+                          <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)' }}>
+                            <span>{goal.durationDays || 0} days</span>
+                            <span>{goal.isCompleted ? '[done]' : '[active]'}</span>
+                            {goal.createdAt && <span>{new Date(goal.createdAt).toLocaleDateString()}</span>}
+                          </div>
                         </div>
+                        <span style={{ fontSize: 14, color: 'var(--text-secondary)', flexShrink: 0, marginLeft: 12 }}>→</span>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-[#d1d5db] flex-shrink-0 ml-2" />
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* Goal Details */}
-          <div className="lg:col-span-1">
+          {/* Goal Details Panel */}
+          <div>
             {selectedGoal ? (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-6 sticky top-6">
-                <h2 className="text-xl font-bold text-[#111827] mb-4">{selectedGoal.title || 'Goal Details'}</h2>
-                
-                <div className="space-y-4">
-                  {/* Description */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide mb-2">Description</h3>
-                    <p className="text-sm text-[#374151]">{selectedGoal.description || 'No description available'}</p>
-                  </div>
+              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 20, position: 'sticky', top: 24 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>{'>'} {selectedGoal.title || 'Goal Details'}</h2>
 
-                  {/* Status */}
-                  <div className="pt-4 border-t border-[#e5e7eb]">
-                    <h3 className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide mb-2">Status</h3>
-                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-                      selectedGoal.isCompleted 
-                        ? 'bg-[#d1fae5] text-[#065f46]' 
-                        : 'bg-[#fef3c7] text-[#92400e]'
-                    }`}>
-                      {selectedGoal.isCompleted ? '✅ Completed' : '⏳ In Progress'}
-                    </div>
-                  </div>
-
-                  {/* Created Date */}
-                  {selectedGoal.createdAt && (
-                    <div className="pt-4 border-t border-[#e5e7eb]">
-                      <h3 className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide mb-2">Created</h3>
-                      <p className="text-sm text-[#374151]">
-                        {new Date(selectedGoal.createdAt).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        })}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Completed Date */}
-                  {selectedGoal.completedAt && (
-                    <div className="pt-4 border-t border-[#e5e7eb]">
-                      <h3 className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide mb-2">Completed</h3>
-                      <p className="text-sm text-[#374151]">
-                        {new Date(selectedGoal.completedAt).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        })}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Action Button */}
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/goals/${selectedGoal.goalId || selectedGoal.id}`)}
-                    className="w-full mt-4 px-4 py-2 bg-[#2f80ed] text-white rounded-lg font-medium hover:bg-[#1e5fb8] transition-all duration-200"
-                  >
-                    View Details
-                  </button>
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ description</h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{selectedGoal.description || 'No description available'}</p>
                 </div>
+
+                <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-base)', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ status</h3>
+                  <span style={{ fontSize: 12, padding: '4px 10px', border: '1px solid var(--border-base)', borderRadius: 2, color: selectedGoal.isCompleted ? 'var(--success-primary)' : 'var(--text-secondary)' }}>
+                    {selectedGoal.isCompleted ? 'completed' : 'in progress'}
+                  </span>
+                </div>
+
+                {selectedGoal.createdAt && (
+                  <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-base)', marginBottom: 16 }}>
+                    <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ created</h3>
+                    <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{new Date(selectedGoal.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  </div>
+                )}
+
+                {selectedGoal.completedAt && (
+                  <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-base)', marginBottom: 16 }}>
+                    <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ completed</h3>
+                    <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{new Date(selectedGoal.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => navigate(`/goals/${selectedGoal.goalId || selectedGoal.id}`)}
+                  style={{ width: '100%', marginTop: 8, padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
+                >
+                  {'>'} view details
+                </button>
               </div>
             ) : (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-6 text-center sticky top-6">
-                <BookOpen className="w-12 h-12 text-[#d1d5db] mx-auto mb-3" />
-                <p className="text-[#6b7280]">Select a goal to view details</p>
+              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 24, textAlign: 'center', position: 'sticky', top: 24 }}>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>// select a goal to view details</p>
               </div>
             )}
           </div>

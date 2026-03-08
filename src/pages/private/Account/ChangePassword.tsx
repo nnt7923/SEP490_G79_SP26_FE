@@ -134,8 +134,8 @@ const ChangePassword = () => {
           onClose={() => setToast(null)}
         />
       )}
-      <div className="px-6 py-8 bg-gray-50 min-h-screen">
-        <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl border-2 border-gray-200 shadow-sm">
+      <div className="px-6 py-8 bg-th-page min-h-screen">
+        <div className="max-w-2xl mx-auto bg-th-card p-8 rounded-2xl border-2 border-bd-muted shadow-sm">
           <h2 className="text-2xl font-bold mb-6">
             Change Password
           </h2>
@@ -148,7 +148,7 @@ const ChangePassword = () => {
               placeholder="Current Password"
               value={form.currentPassword}
               onChange={handleChange}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg"
+              className="w-full px-4 py-2 border-2 border-bd-muted rounded-lg"
             />
 
             <input
@@ -157,7 +157,7 @@ const ChangePassword = () => {
               placeholder="New Password"
               value={form.newPassword}
               onChange={handleChange}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg"
+              className="w-full px-4 py-2 border-2 border-bd-muted rounded-lg"
             />
 
             <input
@@ -166,7 +166,7 @@ const ChangePassword = () => {
               placeholder="Confirm Password"
               value={form.confirmPassword}
               onChange={handleChange}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg"
+              className="w-full px-4 py-2 border-2 border-bd-muted rounded-lg"
             />
 
             <button
