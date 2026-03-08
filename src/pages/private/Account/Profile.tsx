@@ -149,12 +149,12 @@ const Profile: React.FC = () => {
                                         <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)' }}>{getInitials(user.firstName, user.lastName)}</span>
                                     )}
                                     {uploadingAvatar && (
-                                        <div style={{ position: 'absolute', inset: 0, background: 'var(--color-hex-24)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <div style={{ position: 'absolute', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Loader size={24} className="animate-spin" style={{ color: 'var(--bg-surface-short)' }} />
                                         </div>
                                     )}
                                 </div>
-                                <label style={{ position: 'absolute', inset: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-hex-82)', opacity: 0, transition: 'opacity 0.2s', borderRadius: 2, fontSize: 11, color: 'var(--bg-surface-short)', fontWeight: 600 }}
+                                <label style={{ position: 'absolute', inset: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--shadow-lg)', opacity: 0, transition: 'opacity 0.2s', borderRadius: 2, fontSize: 11, color: 'var(--bg-surface-short)', fontWeight: 600 }}
                                     onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0' }}>
                                     upload
                                     <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
@@ -167,7 +167,7 @@ const Profile: React.FC = () => {
                             </div>
 
                             <button onClick={() => setOpen(true)} style={{ padding: '8px 20px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hex-25)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}>
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}>
                                 {'>'} edit profile
                             </button>
                         </div>
@@ -205,7 +205,7 @@ const Profile: React.FC = () => {
 
             {/* Edit Modal */}
             {open && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--color-hex-24)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
                     <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 640, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
                         {/* Modal Header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottom: '1px solid var(--border-base)', position: 'sticky', top: 0, background: 'var(--bg-surface-short)', zIndex: 1 }}>

@@ -64,7 +64,7 @@ a {
   transition: color 0.2s ease;
 }
 a:hover {
-  color: var(--color-hex-81);
+  color: var(--link-hover);
   text-decoration: underline;
 }
 
@@ -96,7 +96,7 @@ button {
 }
 button:hover {
   border-color: var(--accent-primary);
-  background-color: var(--color-hex-21);
+  background-color: var(--bg-blue-hover);
 }
 button:focus,
 button:focus-visible {
@@ -140,3 +140,40 @@ button:focus-visible {
   display: block;
   user-select: none;
 }
+
+/* Lesson content: raw HTML pre/code and table styling */
+.lesson-content pre {
+  background: var(--code-block-bg);
+  color: #e6edf3;
+  padding: 12px 16px;
+  margin: 0;
+  overflow-x: auto;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  border-radius: 0;
+}
+
+.lesson-content pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border: none;
+  font-size: inherit;
+}
+
+.lesson-content table {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.lesson-content table td {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.lesson-content table th {
+  background: var(--code-block-bg);
+  color: #e6edf3;
+}
+

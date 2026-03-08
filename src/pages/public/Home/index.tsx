@@ -56,22 +56,22 @@ const Home: React.FC = () => {
 
   // Terminal code lines for hero visual
   const heroCode = [
-    { num: 1, content: '// CodeNexus Platform', color: 'var(--text-secondary)' },
+    { num: 1, content: '// CodeNexus Platform', color: '#8b949e' },
     { num: 2, content: '', color: '' },
-    { num: 3, content: 'const platform = {', color: 'var(--gray-200)' },
-    { num: 4, content: '  courses: 1000,', color: 'var(--gray-200)' },
-    { num: 5, content: '  students: 5000,', color: 'var(--gray-200)' },
-    { num: 6, content: '  experts: 200,', color: 'var(--gray-200)' },
-    { num: 7, content: '  features: [', color: 'var(--gray-200)' },
-    { num: 8, content: '    "ai-powered-paths",', color: 'var(--accent-primary)' },
-    { num: 9, content: '    "hands-on-projects",', color: 'var(--accent-primary)' },
-    { num: 10, content: '    "expert-mentoring",', color: 'var(--accent-primary)' },
-    { num: 11, content: '    "certifications"', color: 'var(--accent-primary)' },
-    { num: 12, content: '  ]', color: 'var(--gray-200)' },
-    { num: 13, content: '};', color: 'var(--gray-200)' },
+    { num: 3, content: 'const platform = {', color: '#e6edf3' },
+    { num: 4, content: '  courses: 1000,', color: '#e6edf3' },
+    { num: 5, content: '  students: 5000,', color: '#e6edf3' },
+    { num: 6, content: '  experts: 200,', color: '#e6edf3' },
+    { num: 7, content: '  features: [', color: '#e6edf3' },
+    { num: 8, content: '    "ai-powered-paths",', color: '#79c0ff' },
+    { num: 9, content: '    "hands-on-projects",', color: '#79c0ff' },
+    { num: 10, content: '    "expert-mentoring",', color: '#79c0ff' },
+    { num: 11, content: '    "certifications"', color: '#79c0ff' },
+    { num: 12, content: '  ]', color: '#e6edf3' },
+    { num: 13, content: '};', color: '#e6edf3' },
     { num: 14, content: '', color: '' },
-    { num: 15, content: 'platform.launch();', color: 'var(--success-primary)' },
-    { num: 16, content: '// → Ready to code!', color: 'var(--text-secondary)' },
+    { num: 15, content: 'platform.launch();', color: '#3fb950' },
+    { num: 16, content: '// → Ready to code!', color: '#8b949e' },
   ]
 
   return (
@@ -94,7 +94,7 @@ const Home: React.FC = () => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              background: 'var(--color-hex-21)',
+              background: 'var(--bg-blue-hover)',
               border: '1px solid var(--border-base)',
               borderRadius: 2,
               padding: '4px 12px',
@@ -156,7 +156,7 @@ const Home: React.FC = () => {
           style={{
             border: '1px solid var(--border-base)',
             borderRadius: 2,
-            background: 'var(--text-primary)',
+            background: 'var(--code-block-bg)',
             overflow: 'hidden',
           }}
         >
@@ -167,14 +167,14 @@ const Home: React.FC = () => {
               alignItems: 'center',
               gap: 6,
               padding: '10px 14px',
-              borderBottom: '1px solid var(--color-hex-25)',
-              background: 'var(--color-hex-107)',
+              borderBottom: '1px solid var(--text-strong)',
+              background: 'var(--terminal-bg)',
             }}
           >
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-108)' }} />
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-109)' }} />
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-110)' }} />
-            <span style={{ marginLeft: 12, fontSize: 11, color: 'var(--color-hex-111)' }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-red)' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-yellow)' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-green)' }} />
+            <span style={{ marginLeft: 12, fontSize: 11, color: 'var(--terminal-gutter)' }}>
               platform.js — CodeNexus
             </span>
           </div>
@@ -194,7 +194,7 @@ const Home: React.FC = () => {
                   style={{
                     width: 32,
                     textAlign: 'right',
-                    color: 'var(--color-hex-112)',
+                    color: 'var(--terminal-comment)',
                     userSelect: 'none',
                     paddingRight: 16,
                     flexShrink: 0,
@@ -211,17 +211,17 @@ const Home: React.FC = () => {
           {/* Terminal prompt */}
           <div
             style={{
-              borderTop: '1px solid var(--color-hex-25)',
+              borderTop: '1px solid var(--text-strong)',
               padding: '10px 14px',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              background: 'var(--color-hex-107)',
+              background: 'var(--terminal-bg)',
             }}
           >
             <span style={{ color: 'var(--success-primary)', fontSize: 13 }}>➜</span>
             <span style={{ color: 'var(--accent-primary)', fontSize: 13 }}>codenexus</span>
-            <span style={{ color: 'var(--color-hex-111)', fontSize: 13 }}>git:(main)</span>
+            <span style={{ color: 'var(--terminal-gutter)', fontSize: 13 }}>git:(main)</span>
             <span
               style={{
                 display: 'inline-block',

@@ -148,20 +148,20 @@ const Login: React.FC = () => {
 
   // Terminal code snippet for the visual panel
   const codeLines = [
-    { num: 1, content: '// CodeNexus Authentication', color: 'var(--text-secondary)' },
+    { num: 1, content: '// CodeNexus Authentication', color: '#8b949e' },
     { num: 2, content: '', color: '' },
-    { num: 3, content: 'const auth = new CodeNexus({', color: 'var(--gray-200)' },
-    { num: 4, content: '  platform: "learning",', color: 'var(--gray-200)' },
-    { num: 5, content: '  features: [', color: 'var(--gray-200)' },
-    { num: 6, content: '    "personalized-paths",', color: 'var(--accent-primary)' },
-    { num: 7, content: '    "ai-powered",', color: 'var(--accent-primary)' },
-    { num: 8, content: '    "community"', color: 'var(--accent-primary)' },
-    { num: 9, content: '  ],', color: 'var(--gray-200)' },
-    { num: 10, content: '  status: "ready"', color: 'var(--success-primary)' },
-    { num: 11, content: '});', color: 'var(--gray-200)' },
+    { num: 3, content: 'const auth = new CodeNexus({', color: '#e6edf3' },
+    { num: 4, content: '  platform: "learning",', color: '#e6edf3' },
+    { num: 5, content: '  features: [', color: '#e6edf3' },
+    { num: 6, content: '    "personalized-paths",', color: '#79c0ff' },
+    { num: 7, content: '    "ai-powered",', color: '#79c0ff' },
+    { num: 8, content: '    "community"', color: '#79c0ff' },
+    { num: 9, content: '  ],', color: '#e6edf3' },
+    { num: 10, content: '  status: "ready"', color: '#3fb950' },
+    { num: 11, content: '});', color: '#e6edf3' },
     { num: 12, content: '', color: '' },
-    { num: 13, content: 'auth.connect();', color: 'var(--gray-200)' },
-    { num: 14, content: '// → Welcome back, developer', color: 'var(--text-secondary)' },
+    { num: 13, content: 'auth.connect();', color: '#e6edf3' },
+    { num: 14, content: '// → Welcome back, developer', color: '#8b949e' },
   ]
 
   return (
@@ -184,7 +184,7 @@ const Login: React.FC = () => {
             style={{
               border: '1px solid var(--border-base)',
               borderRadius: 2,
-              background: 'var(--text-primary)',
+              background: 'var(--code-block-bg)',
               overflow: 'hidden',
               minHeight: 420,
             }}
@@ -196,14 +196,14 @@ const Login: React.FC = () => {
                 alignItems: 'center',
                 gap: 6,
                 padding: '10px 14px',
-                borderBottom: '1px solid var(--color-hex-25)',
-                background: 'var(--color-hex-107)',
+                borderBottom: '1px solid var(--text-strong)',
+                background: 'var(--terminal-bg)',
               }}
             >
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-108)' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-109)' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-110)' }} />
-              <span style={{ marginLeft: 12, fontSize: 11, color: 'var(--color-hex-111)', fontFamily: 'inherit' }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-red)' }} />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-yellow)' }} />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-green)' }} />
+              <span style={{ marginLeft: 12, fontSize: 11, color: 'var(--terminal-gutter)', fontFamily: 'inherit' }}>
                 auth.js — CodeNexus
               </span>
             </div>
@@ -224,7 +224,7 @@ const Login: React.FC = () => {
                     style={{
                       width: 32,
                       textAlign: 'right',
-                      color: 'var(--color-hex-112)',
+                      color: 'var(--terminal-comment)',
                       userSelect: 'none',
                       paddingRight: 16,
                       flexShrink: 0,
@@ -241,17 +241,17 @@ const Login: React.FC = () => {
             {/* Terminal prompt */}
             <div
               style={{
-                borderTop: '1px solid var(--color-hex-25)',
+                borderTop: '1px solid var(--text-strong)',
                 padding: '12px 14px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                background: 'var(--color-hex-107)',
+                background: 'var(--terminal-bg)',
               }}
             >
               <span style={{ color: 'var(--success-primary)', fontSize: 13, fontFamily: 'inherit' }}>➜</span>
               <span style={{ color: 'var(--accent-primary)', fontSize: 13, fontFamily: 'inherit' }}>codenexus</span>
-              <span style={{ color: 'var(--color-hex-111)', fontSize: 13, fontFamily: 'inherit' }}>git:(main)</span>
+              <span style={{ color: 'var(--terminal-gutter)', fontSize: 13, fontFamily: 'inherit' }}>git:(main)</span>
               <span
                 style={{
                   display: 'inline-block',
@@ -277,7 +277,7 @@ const Login: React.FC = () => {
           {toast && (
             <div
               style={{
-                background: 'var(--color-hex-67)',
+                background: 'var(--bg-green-tint)',
                 color: 'var(--success-primary)',
                 padding: '8px 12px',
                 borderRadius: 2,
@@ -426,7 +426,7 @@ const Login: React.FC = () => {
             {error && (
               <div
                 style={{
-                  background: 'var(--color-hex-113)',
+                  background: 'var(--bg-red-light)',
                   border: '1px solid var(--danger-primary)',
                   borderRadius: 2,
                   padding: '8px 12px',
@@ -499,7 +499,7 @@ const Login: React.FC = () => {
                 transition: 'background-color 0.2s ease',
                 marginTop: 4,
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hex-25)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
             >
               {'>'} login

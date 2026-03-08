@@ -88,7 +88,7 @@ const GoalsPage: React.FC = () => {
                       onClick={() => setSelectedGoal(goal)}
                       style={{
                         border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-base)',
-                        borderRadius: 2, padding: 16, cursor: 'pointer', transition: 'border-color 0.2s', background: isSelected ? 'var(--color-hex-21)' : 'var(--bg-surface-short)',
+                        borderRadius: 2, padding: 16, cursor: 'pointer', transition: 'border-color 0.2s', background: isSelected ? 'var(--bg-blue-hover)' : 'var(--bg-surface-short)',
                       }}
                       onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
                       onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-base)' }}
@@ -148,7 +148,7 @@ const GoalsPage: React.FC = () => {
                   type="button"
                   onClick={() => navigate(`/goals/${selectedGoal.goalId || selectedGoal.id}`)}
                   style={{ width: '100%', marginTop: 8, padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hex-25)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
                 >
                   {'>'} view details

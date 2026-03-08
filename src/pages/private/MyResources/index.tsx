@@ -183,7 +183,7 @@ const MyResourcesPage: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {resources.map((resource, index) => (
               <div key={resource.resourceId || resource.id || `resource-${index}`}
-                style={{ border: `1px solid ${resource.uploading ? 'var(--accent-primary)' : 'var(--border-base)'}`, borderRadius: 2, padding: 16, transition: 'border-color 0.2s', background: resource.uploading ? 'var(--color-hex-21)' : 'var(--bg-surface-short)' }}
+                style={{ border: `1px solid ${resource.uploading ? 'var(--accent-primary)' : 'var(--border-base)'}`, borderRadius: 2, padding: 16, transition: 'border-color 0.2s', background: resource.uploading ? 'var(--bg-blue-hover)' : 'var(--bg-surface-short)' }}
                 onMouseEnter={(e) => { if (!resource.uploading) e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
                 onMouseLeave={(e) => { if (!resource.uploading) e.currentTarget.style.borderColor = 'var(--border-base)' }}
               >

@@ -63,29 +63,29 @@ interface Subject {
 
 const PRESET_COLORS = [
   'var(--blue-500)',
-  'var(--color-hex-42)',
-  'var(--color-hex-37)',
-  'var(--color-hex-28)',
-  'var(--color-hex-44)',
-  'var(--color-hex-33)',
-  'var(--color-hex-85)',
-  'var(--color-hex-31)',
-  'var(--color-hex-35)',
-  'var(--color-hex-86)',
-  'var(--color-hex-87)',
-  'var(--color-hex-57)',
-  'var(--color-hex-58)',
-  'var(--color-hex-88)',
+  'var(--icon-violet-to)',
+  'var(--icon-pink-to)',
+  'var(--color-amber-500)',
+  'var(--color-emerald-500)',
+  'var(--icon-cyan-to)',
+  'var(--color-red-500)',
+  'var(--icon-orange-to)',
+  'var(--icon-indigo-to)',
+  'var(--color-purple-400)',
+  'var(--color-pink-600)',
+  'var(--text-amber-dark)',
+  'var(--text-emerald)',
+  'var(--color-cyan-600)',
   'var(--red-600)',
-  'var(--color-hex-89)',
-  'var(--color-hex-9)',
-  'var(--color-hex-90)',
-  'var(--color-hex-91)',
+  'var(--color-orange-600)',
+  'var(--accent-indigo)',
+  'var(--color-purple-600)',
+  'var(--color-pink-700)',
   'var(--warning-primary)',
-  'var(--color-hex-92)',
-  'var(--color-hex-93)',
-  'var(--color-hex-94)',
-  'var(--color-hex-95)',
+  'var(--color-emerald-700)',
+  'var(--color-cyan-700)',
+  'var(--color-red-700)',
+  'var(--color-orange-700)',
 ]
 
 const SUBJECT_ICONS = [
@@ -272,68 +272,68 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 font-mono">
-      <div className="bg-white border-2 border-gray-900 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gray-100 border-b-2 border-gray-900 px-6 py-4 flex items-center justify-between z-10">
+      <div className="bg-th-card border-2 border-bd-dark w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-th-input border-b-2 border-bd-dark px-6 py-4 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              <span className="text-blue-600">{'>_ '}</span>
+            <h2 className="text-xl font-bold text-heading">
+              <span className="text-status-blue">{'>_ '}</span>
               {isEditMode ? 'edit_subject' : 'create_new_subject'}
             </h2>
-            <p className="text-xs text-gray-600 mt-1">
+            <p className="text-xs text-label mt-1">
               {'//'} {isEditMode ? 'update subject parameters' : 'initialize a new subject instance'}
             </p>
           </div>
           <button
             onClick={handleClose}
             disabled={loading}
-            className="p-2 border border-transparent hover:border-gray-900 transition-colors disabled:opacity-50"
+            className="p-2 border border-transparent hover:border-bd-dark transition-colors disabled:opacity-50"
           >
-            <X className="w-5 h-5 text-gray-900" />
+            <X className="w-5 h-5 text-heading" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">
-              subject_name <span className="text-red-500">*</span>
+            <label className="block text-sm font-bold text-heading mb-2">
+              subject_name <span className="text-status-red-muted">*</span>
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., JavaScript & TypeScript"
-              className={`w-full px-4 py-2 border-2 bg-white focus:outline-none transition-colors text-gray-900 ${
+              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors text-heading ${
                 errors.name
                   ? 'border-red-500'
-                  : 'border-gray-400 focus:border-blue-600'
+                  : 'border-bd-strong focus:border-blue-600'
               }`}
               disabled={loading}
             />
-            {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name}</p>}
+            {errors.name && <p className="text-sm text-status-red mt-1">{errors.name}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">description</label>
+            <label className="block text-sm font-bold text-heading mb-2">description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Brief description of what this subject covers..."
               rows={4}
-              className={`w-full px-4 py-2 border-2 bg-white focus:outline-none transition-colors resize-none text-gray-900 ${
+              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors resize-none text-heading ${
                 errors.description
                   ? 'border-red-500'
-                  : 'border-gray-400 focus:border-blue-600'
+                  : 'border-bd-strong focus:border-blue-600'
               }`}
               disabled={loading}
             />
             <div className="flex items-center justify-between mt-1">
-              {errors.description && <p className="text-sm text-red-600">{errors.description}</p>}
-              <p className="text-xs text-gray-500 ml-auto">{formData.description.length}/500</p>
+              {errors.description && <p className="text-sm text-status-red">{errors.description}</p>}
+              <p className="text-xs text-muted ml-auto">{formData.description.length}/500</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-3">color_theme</label>
+            <label className="block text-sm font-bold text-heading mb-3">color_theme</label>
 
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -341,28 +341,28 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                   type="color"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="w-16 h-16 border-2 border-gray-400 cursor-pointer"
+                  className="w-16 h-16 border-2 border-bd-strong cursor-pointer"
                   disabled={loading}
                 />
               </div>
               <div className="flex-1">
-                <p className="text-xs font-bold text-gray-700 mb-1">selected_color:</p>
+                <p className="text-xs font-bold text-body mb-1">selected_color:</p>
                 <input
                   type="text"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                   placeholder="var(--blue-500)"
-                  className="w-full px-3 py-2 border-2 border-gray-400 focus:outline-none focus:border-blue-600 uppercase text-gray-900"
+                  className="w-full px-3 py-2 border-2 border-bd-strong focus:outline-none focus:border-blue-600 uppercase text-heading"
                   disabled={loading}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted mt-1">
                   {'//'} click the color box or enter a hex code
                 </p>
               </div>
             </div>
 
             <div className="mt-4">
-              <p className="text-xs font-bold text-gray-600 mb-2">quick_presets:</p>
+              <p className="text-xs font-bold text-label mb-2">quick_presets:</p>
               <div className="flex flex-wrap gap-2">
                 {PRESET_COLORS.slice(0, 12).map((color) => (
                   <button
@@ -370,7 +370,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                     type="button"
                     onClick={() => setFormData({ ...formData, color })}
                     disabled={loading}
-                    className="w-8 h-8 border-2 border-gray-400 hover:border-gray-900 transition-colors"
+                    className="w-8 h-8 border-2 border-bd-strong hover:border-bd-dark transition-colors"
                     style={{ backgroundColor: color }}
                     title={color}
                   />
@@ -380,14 +380,14 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-3">icon_select</label>
+            <label className="block text-sm font-bold text-heading mb-3">icon_select</label>
 
             <div className="relative" ref={iconPickerRef}>
               <button
                 type="button"
                 onClick={() => setShowIconPicker(!showIconPicker)}
                 disabled={loading}
-                className="w-full flex items-center justify-between px-4 py-2 border-2 border-gray-400 hover:border-gray-900 transition-colors bg-white"
+                className="w-full flex items-center justify-between px-4 py-2 border-2 border-bd-strong hover:border-bd-dark transition-colors bg-th-card"
               >
                 <div className="flex items-center gap-3">
                   {(() => {
@@ -395,21 +395,21 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                     const IconComponent = selectedIcon.icon
                     return (
                       <>
-                        <div className="w-8 h-8 bg-gray-100 border border-gray-300 flex items-center justify-center">
-                          <IconComponent className="w-5 h-5 text-blue-600" strokeWidth={2} />
+                        <div className="w-8 h-8 bg-th-input border border-bd flex items-center justify-center">
+                          <IconComponent className="w-5 h-5 text-status-blue" strokeWidth={2} />
                         </div>
-                        <span className="text-sm font-bold text-gray-900">{selectedIcon.name}</span>
+                        <span className="text-sm font-bold text-heading">{selectedIcon.name}</span>
                       </>
                     )
                   })()}
                 </div>
-                <span className="text-gray-500 font-bold">{showIconPicker ? '[-]' : '[+]'}</span>
+                <span className="text-muted font-bold">{showIconPicker ? '[-]' : '[+]'}</span>
               </button>
 
               {showIconPicker && (
-                <div className="absolute z-10 mt-2 w-full bg-white border-2 border-gray-900 p-4 max-h-96 overflow-y-auto">
+                <div className="absolute z-10 mt-2 w-full bg-th-card border-2 border-bd-dark p-4 max-h-96 overflow-y-auto">
                   <div className="mb-4">
-                    <p className="text-xs font-bold text-gray-600 mb-2">quick_presets:</p>
+                    <p className="text-xs font-bold text-label mb-2">quick_presets:</p>
                     <div className="grid grid-cols-8 gap-2">
                       {QUICK_PRESET_ICONS.map((iconItem) => {
                         const IconComponent = iconItem.icon
@@ -422,8 +422,8 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                             onClick={() => handleIconSelect(iconItem.emoji)}
                             className={`aspect-square border flex items-center justify-center transition-all ${
                               isSelected
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-900'
+                                ? 'bg-status-blue-solid text-white border-blue-600'
+                                : 'bg-th-card text-body border-bd hover:border-bd-dark'
                             }`}
                             title={iconItem.name}
                           >
@@ -435,7 +435,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                   </div>
 
                   <div>
-                    <p className="text-xs font-bold text-gray-600 mb-2">all_icons:</p>
+                    <p className="text-xs font-bold text-label mb-2">all_icons:</p>
                     {[
                       'Languages',
                       'Frontend',
@@ -450,7 +450,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
                       return (
                         <div key={category} className="mb-3">
-                          <p className="text-xs font-bold text-blue-600 mb-1.5">{'// '} {category}</p>
+                          <p className="text-xs font-bold text-status-blue mb-1.5">{'// '} {category}</p>
                           <div className="grid grid-cols-6 gap-2">
                             {categoryIcons.map((iconItem) => {
                               const IconComponent = iconItem.icon
@@ -463,8 +463,8 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                                   onClick={() => handleIconSelect(iconItem.emoji)}
                                   className={`aspect-square border flex items-center justify-center transition-all ${
                                     isSelected
-                                      ? 'bg-blue-600 text-white border-blue-600'
-                                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-900'
+                                      ? 'bg-status-blue-solid text-white border-blue-600'
+                                      : 'bg-th-card text-body border-bd hover:border-bd-dark'
                                   }`}
                                   title={iconItem.name}
                                 >
@@ -483,21 +483,21 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-3">preview</label>
-            <div className="border border-gray-400 p-4 bg-gray-50">
+            <label className="block text-sm font-bold text-heading mb-3">preview</label>
+            <div className="border border-bd-strong p-4 bg-th-page">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="w-12 h-12 bg-white border border-gray-300 flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-th-card border border-bd flex items-center justify-center flex-shrink-0">
                   {(() => {
                     const selectedIcon = getSelectedIcon()
                     const IconComponent = selectedIcon.icon
-                    return <IconComponent className="w-6 h-6 text-blue-600" strokeWidth={2} />
+                    return <IconComponent className="w-6 h-6 text-status-blue" strokeWidth={2} />
                   })()}
                 </div>
                 <div className="flex-1 min-w-0 w-full">
-                  <h3 className="text-sm font-bold text-gray-900 mb-1 truncate uppercase">
+                  <h3 className="text-sm font-bold text-heading mb-1 truncate uppercase">
                     {formData.name || 'SUBJECT_NAME'}
                   </h3>
-                  <p className="text-xs text-gray-600 line-clamp-1">
+                  <p className="text-xs text-label line-clamp-1">
                     {'// '} {formData.description || 'no_description( )'}
                   </p>
                 </div>
@@ -506,24 +506,24 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           {errors.submit && (
-            <div className="border border-red-500 bg-red-50 p-4">
-              <p className="text-sm font-bold text-red-600">{'// '} {errors.submit}</p>
+            <div className="border border-red-500 bg-status-red-bg p-4">
+              <p className="text-sm font-bold text-status-red">{'// '} {errors.submit}</p>
             </div>
           )}
 
-          <div className="flex gap-3 pt-4 border-t border-gray-400">
+          <div className="flex gap-3 pt-4 border-t border-bd-strong">
             <button
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-6 py-2 border border-gray-400 text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 font-bold uppercase"
+              className="flex-1 px-6 py-2 border border-bd-strong text-body hover:bg-th-input transition-colors disabled:opacity-50 font-bold uppercase"
             >
               [ cancel ]
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-2 border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 font-bold flex items-center justify-center gap-2 uppercase"
+              className="flex-1 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white hover:bg-status-blue-solid-hover transition-colors disabled:opacity-50 font-bold flex items-center justify-center gap-2 uppercase"
             >
               {loading ? (
                 <>

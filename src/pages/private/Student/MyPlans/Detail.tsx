@@ -95,9 +95,9 @@ const MyPlansDetailPage: React.FC = () => {
     return (
       <Layout sidebar={sidebarConfig}>
       
-        <div className="px-6 py-8 bg-gradient-to-br from-[var(--color-hex-12)] to-[var(--gray-100)] min-h-screen flex items-center justify-center">
+        <div className="px-6 py-8 bg-gradient-to-br from-[var(--bg-subtle)] to-[var(--gray-100)] min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <Loader className="w-8 h-8 text-[var(--color-hex-48)] animate-spin mx-auto mb-3" />
+            <Loader className="w-8 h-8 text-[var(--brand-blue)] animate-spin mx-auto mb-3" />
             <p className="text-[var(--text-secondary)]">Loading learning path details...</p>
           </div>
         </div>
@@ -108,18 +108,18 @@ const MyPlansDetailPage: React.FC = () => {
   if (error || !plan) {
     return (
       <Layout sidebar={sidebarConfig}>
-        <div className="px-6 py-8 bg-gradient-to-br from-[var(--color-hex-12)] to-[var(--gray-100)] min-h-screen">
+        <div className="px-6 py-8 bg-gradient-to-br from-[var(--bg-subtle)] to-[var(--gray-100)] min-h-screen">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-[var(--color-hex-48)] hover:text-[var(--color-hex-101)] mb-6 transition-colors"
+            className="flex items-center gap-2 text-[var(--brand-blue)] hover:text-[var(--brand-blue-alt)] mb-6 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
           
-          <div className="bg-white rounded-lg border border-[var(--gray-200)] p-8">
+          <div className="bg-th-card rounded-lg border border-[var(--gray-200)] p-8">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-[var(--color-hex-85)] flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-[var(--color-red-500)] flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-[var(--gray-900)]">Error loading plan</h3>
                 <p className="text-sm text-[var(--text-secondary)] mt-1">{error || 'Learning path not found'}</p>
@@ -133,19 +133,19 @@ const MyPlansDetailPage: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-4 py-4 bg-gradient-to-br from-[var(--color-hex-12)] to-[var(--gray-100)] min-h-screen">
+      <div className="px-4 py-4 bg-gradient-to-br from-[var(--bg-subtle)] to-[var(--gray-100)] min-h-screen">
         {/* Back Button */}
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[var(--color-hex-48)] hover:text-[var(--color-hex-101)] mb-4 transition-colors font-medium"
+          className="flex items-center gap-2 text-[var(--brand-blue)] hover:text-[var(--brand-blue-alt)] mb-4 transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to My Plans
         </button>
 
         {/* Header */}
-        <div className="bg-white rounded-lg border border-[var(--gray-200)] p-5 mb-4">
+        <div className="bg-th-card rounded-lg border border-[var(--gray-200)] p-5 mb-4">
           <div className="flex items-start justify-between mb-3">
             <div>
               <h1 className="text-2xl font-bold text-[var(--gray-900)] mb-1">{plan.title || 'Untitled Plan'}</h1>
@@ -156,19 +156,19 @@ const MyPlansDetailPage: React.FC = () => {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-[var(--gray-200)]">
             <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--color-hex-48)]">{plan.chapterCount || plan.chapters?.length || 0}</div>
+              <div className="text-2xl font-bold text-[var(--brand-blue)]">{plan.chapterCount || plan.chapters?.length || 0}</div>
               <div className="text-xs text-[var(--text-secondary)] mt-0.5">Chapters</div>
             </div>
             <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--color-hex-50)]">{plan.lessons?.length || 0}</div>
+              <div className="text-2xl font-bold text-[var(--accent-purple)]">{plan.lessons?.length || 0}</div>
               <div className="text-xs text-[var(--text-secondary)] mt-0.5">Lessons</div>
             </div>
             <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--color-hex-58)]">0</div>
+              <div className="text-2xl font-bold text-[var(--text-emerald)]">0</div>
               <div className="text-xs text-[var(--text-secondary)] mt-0.5">Completed</div>
             </div>
             <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--color-hex-28)]">0%</div>
+              <div className="text-2xl font-bold text-[var(--color-amber-500)]">0%</div>
               <div className="text-xs text-[var(--text-secondary)] mt-0.5">Progress</div>
             </div>
           </div>
@@ -190,15 +190,15 @@ const MyPlansDetailPage: React.FC = () => {
         <div className="space-y-3">
           {plan.chapters && plan.chapters.length > 0 ? (
             plan.chapters.map((chapter, chapterIdx) => (
-              <div key={chapter.id || chapterIdx} className="bg-white rounded-lg border border-[var(--gray-200)] overflow-hidden">
+              <div key={chapter.id || chapterIdx} className="bg-th-card rounded-lg border border-[var(--gray-200)] overflow-hidden">
                 {/* Chapter Header */}
                 <button
                   type="button"
                   onClick={() => handleChapterToggle(chapter.id)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-hex-12)] transition-colors"
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--bg-subtle)] transition-colors"
                 >
                   <div className="flex items-center gap-3 flex-1 text-left">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[var(--color-hex-48)] text-white flex items-center justify-center font-semibold text-sm">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[var(--brand-blue)] text-white flex items-center justify-center font-semibold text-sm">
                       {chapterIdx + 1}
                     </div>
                     <div>
@@ -217,7 +217,7 @@ const MyPlansDetailPage: React.FC = () => {
 
                 {/* Chapter Content */}
                 {chapter.content && (
-                  <div className="px-4 py-2 bg-[var(--color-hex-12)] border-t border-[var(--gray-200)]">
+                  <div className="px-4 py-2 bg-[var(--bg-subtle)] border-t border-[var(--gray-200)]">
                     <p className="text-xs text-[var(--gray-700)]">{chapter.content}</p>
                   </div>
                 )}
@@ -227,9 +227,9 @@ const MyPlansDetailPage: React.FC = () => {
                   <div className="border-t border-[var(--gray-200)]">
                     <div className="divide-y divide-[var(--gray-200)]">
                       {chapter.lessons.map((lesson, lessonIdx) => (
-                        <div key={lesson.id || lessonIdx} className="px-4 py-3 hover:bg-[var(--color-hex-12)] transition-colors">
+                        <div key={lesson.id || lessonIdx} className="px-4 py-3 hover:bg-[var(--bg-subtle)] transition-colors">
                           <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-hex-50)] text-white flex items-center justify-center text-xs font-semibold">
+                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--accent-purple)] text-white flex items-center justify-center text-xs font-semibold">
                               {lessonIdx + 1}
                             </div>
                             <div className="flex-1">
@@ -240,7 +240,7 @@ const MyPlansDetailPage: React.FC = () => {
                                   navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
                                 }}
                                 title="View lesson content"
-                                className="font-medium text-[var(--gray-900)] text-sm text-left hover:text-[var(--color-hex-48)] underline decoration-transparent hover:decoration-[var(--color-hex-48)]"
+                                className="font-medium text-[var(--gray-900)] text-sm text-left hover:text-[var(--brand-blue)] underline decoration-transparent hover:decoration-[var(--brand-blue)]"
                               >
                                 {lesson.title}
                               </button>
@@ -271,10 +271,10 @@ const MyPlansDetailPage: React.FC = () => {
                                             } 
                                           })
                                         }}
-                                        className="flex items-center gap-2 text-xs text-[var(--gray-700)] hover:text-[var(--color-hex-48)] transition-colors cursor-pointer"
+                                        className="flex items-center gap-2 text-xs text-[var(--gray-700)] hover:text-[var(--brand-blue)] transition-colors cursor-pointer"
                                       >
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-hex-58)]" />
-                                        <span className="underline decoration-transparent hover:decoration-[var(--color-hex-48)]">{quiz.title}</span>
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-[var(--text-emerald)]" />
+                                        <span className="underline decoration-transparent hover:decoration-[var(--brand-blue)]">{quiz.title}</span>
                                       </button>
                                     ))}
                                   </div>
@@ -290,10 +290,10 @@ const MyPlansDetailPage: React.FC = () => {
 
                 {/* Tasks */}
                 {expandedChapters.has(chapter.id) && (
-                  <div className="border-t border-[var(--gray-200)] bg-[var(--color-hex-103)] px-4 py-3">
+                  <div className="border-t border-[var(--gray-200)] bg-[var(--bg-yellow-light)] px-4 py-3">
                     <div className="flex items-center gap-2 mb-2">
                       <ListTodo className="w-4 h-4 text-[var(--warning-primary)]" />
-                      <h4 className="text-sm font-semibold text-[var(--color-hex-104)]">Chapter Tasks</h4>
+                      <h4 className="text-sm font-semibold text-[var(--text-amber-dark-alt)]">Chapter Tasks</h4>
                     </div>
                     
                     {loadingTasks.has(chapter.id) ? (
@@ -305,27 +305,27 @@ const MyPlansDetailPage: React.FC = () => {
                       <div className="space-y-2">
                         {chapterTasks[chapter.id].map((task: any, taskIdx: number) => (
                           <div key={task.id || taskIdx} className="flex items-start gap-2 text-xs">
-                            <div className="flex-shrink-0 w-5 h-5 rounded bg-[var(--color-hex-54)] border border-[var(--color-hex-105)] flex items-center justify-center text-[var(--color-hex-104)] font-semibold">
+                            <div className="flex-shrink-0 w-5 h-5 rounded bg-[var(--badge-bg-warning)] border border-[var(--color-yellow-300)] flex items-center justify-center text-[var(--text-amber-dark-alt)] font-semibold">
                               {taskIdx + 1}
                             </div>
                             <div className="flex-1">
-                              <p className="text-[var(--color-hex-104)] font-medium">{task.title || task.description || 'Task'}</p>
+                              <p className="text-[var(--text-amber-dark-alt)] font-medium">{task.title || task.description || 'Task'}</p>
                               {task.description && task.title && (
-                                <p className="text-[var(--color-hex-106)] mt-0.5">{task.description}</p>
+                                <p className="text-[var(--text-amber-700)] mt-0.5">{task.description}</p>
                               )}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-[var(--color-hex-106)]">No tasks available for this chapter</p>
+                      <p className="text-xs text-[var(--text-amber-700)]">No tasks available for this chapter</p>
                     )}
                   </div>
                 )}
               </div>
             ))
           ) : (
-            <div className="bg-white rounded-lg border border-[var(--gray-200)] p-8 text-center">
+            <div className="bg-th-card rounded-lg border border-[var(--gray-200)] p-8 text-center">
               <BookOpen className="w-10 h-10 text-[var(--gray-300)] mx-auto mb-3" />
               <p className="text-sm text-[var(--text-secondary)]">No chapters available for this learning path</p>
             </div>
@@ -334,13 +334,13 @@ const MyPlansDetailPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">
-          <button type="button" className="flex-1 px-5 py-2.5 bg-[var(--color-hex-48)] text-white rounded-lg font-medium hover:bg-[var(--color-hex-101)] transition-all duration-200 text-sm">
+          <button type="button" className="flex-1 px-5 py-2.5 bg-[var(--brand-blue)] text-white rounded-lg font-medium hover:bg-[var(--brand-blue-alt)] transition-all duration-200 text-sm">
             Start Learning
           </button>
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="flex-1 px-5 py-2.5 border border-[var(--gray-200)] text-[var(--gray-700)] rounded-lg font-medium hover:bg-[var(--color-hex-12)] transition-all duration-200 text-sm"
+            className="flex-1 px-5 py-2.5 border border-[var(--gray-200)] text-[var(--gray-700)] rounded-lg font-medium hover:bg-[var(--bg-subtle)] transition-all duration-200 text-sm"
           >
             Back
           </button>
@@ -350,7 +350,7 @@ const MyPlansDetailPage: React.FC = () => {
       <style>{`
         .stat-box {
           padding: 0.75rem;
-          background: var(--color-hex-12);
+          background: var(--bg-subtle);
           border-radius: 0.5rem;
           border: 1px solid var(--gray-200);
         }

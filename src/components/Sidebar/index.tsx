@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           position: 'fixed', bottom: 20, right: 20, zIndex: 40, padding: '10px 14px',
           background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2,
           cursor: 'pointer', fontFamily: 'monospace', fontSize: 13,
-          boxShadow: '0 4px 6px var(--color-hex-23)'
+          boxShadow: '0 4px 6px var(--shadow-base)'
         }}
         className="md:hidden"
         aria-label="Toggle sidebar"
@@ -62,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {isMobileOpen && (
         <div
           className="md:hidden"
-          style={{ position: 'fixed', inset: 0, background: 'var(--color-hex-24)', zIndex: 30 }}
+          style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', zIndex: 30 }}
           onClick={closeMobileSidebar}
           aria-hidden="true"
         />
@@ -110,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
                   borderRadius: 2, textDecoration: 'none', transition: 'all 0.2s',
-                  background: active ? 'var(--color-hex-21)' : 'transparent',
+                  background: active ? 'var(--bg-blue-hover)' : 'transparent',
                   border: `1px solid ${active ? 'var(--accent-primary)' : 'transparent'}`,
                   color: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   fontWeight: active ? 600 : 400
@@ -150,7 +150,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     fontWeight: 600, textAlign: 'left'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = action.variant === 'danger' ? 'var(--color-hex-22)' : 'var(--bg-main)'
+                    e.currentTarget.style.background = action.variant === 'danger' ? 'var(--bg-red-tint)' : 'var(--bg-main)'
                     e.currentTarget.style.borderColor = action.variant === 'danger' ? 'var(--danger-primary)' : 'var(--border-base)'
                   }}
                   onMouseLeave={(e) => {

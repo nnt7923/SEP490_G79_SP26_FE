@@ -125,20 +125,20 @@ const SubjectsPage: React.FC = () => {
       <div className="min-h-screen bg-[var(--gray-100)] px-4 py-8 font-mono">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="mb-6 border-b border-gray-300 pb-4">
+          <div className="mb-6 border-b border-bd pb-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <BookOpen className="w-6 h-6 text-blue-600" />
+                <BookOpen className="w-6 h-6 text-status-blue" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 border-none bg-transparent flex items-center">
-                    <span className="text-blue-600 mr-2">{'>_'}</span>
+                  <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
+                    <span className="text-status-blue mr-2">{'>_'}</span>
                     subject_management
                   </h1>
                 </div>
               </div>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-6 py-2 border border-blue-600 bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors"
               >
                 <Plus className="w-5 h-5" />
                 <span className="hidden sm:inline">[ + create_subject ]</span>
@@ -147,17 +147,17 @@ const SubjectsPage: React.FC = () => {
           </div>
 
           {/* Search & Filter Bar */}
-          <div className="bg-white border border-gray-400 p-4 mb-6">
+          <div className="bg-th-card border border-bd-strong p-4 mb-6">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               {/* Search */}
               <div className="relative flex-1 w-full sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type="text"
                   placeholder="grep 'subject'..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-400 focus:outline-none focus:border-blue-600 transition-colors text-gray-900 placeholder:text-gray-400 font-mono"
+                  className="w-full pl-10 pr-4 py-2 border border-bd-strong focus:outline-none focus:border-blue-600 transition-colors text-heading placeholder:text-placeholder font-mono"
                   aria-label="Search subjects"
                 />
               </div>
@@ -168,8 +168,8 @@ const SubjectsPage: React.FC = () => {
                   onClick={() => setViewMode('grid')}
                   className={`p-2 border transition-colors ${
                     viewMode === 'grid'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-500 border-gray-400 hover:bg-gray-50'
+                      ? 'bg-status-blue-solid text-white border-blue-600'
+                      : 'bg-th-card text-muted border-bd-strong hover:bg-th-page'
                   }`}
                   aria-label="Grid view"
                   aria-pressed={viewMode === 'grid'}
@@ -180,8 +180,8 @@ const SubjectsPage: React.FC = () => {
                   onClick={() => setViewMode('list')}
                   className={`p-2 border transition-colors ${
                     viewMode === 'list'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-500 border-gray-400 hover:bg-gray-50'
+                      ? 'bg-status-blue-solid text-white border-blue-600'
+                      : 'bg-th-card text-muted border-bd-strong hover:bg-th-page'
                   }`}
                   aria-label="List view"
                   aria-pressed={viewMode === 'list'}
@@ -192,8 +192,8 @@ const SubjectsPage: React.FC = () => {
             </div>
 
             {/* Results Count */}
-            <div className="mt-4 pt-4 border-t border-gray-300">
-              <p className="text-sm font-bold text-gray-500">
+            <div className="mt-4 pt-4 border-t border-bd">
+              <p className="text-sm font-bold text-muted">
                 {'//'} showing: [{filteredSubjects.length}/{subjects.length}] subjects
               </p>
             </div>
@@ -203,18 +203,18 @@ const SubjectsPage: React.FC = () => {
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-12 h-12 text-[var(--blue-600)] animate-spin mb-4" />
-              <p className="text-[var(--color-hex-96)] text-sm">Loading subjects...</p>
+              <p className="text-[var(--text-slate)] text-sm">Loading subjects...</p>
             </div>
           )}
 
           {/* Error State */}
           {error && !loading && (
-            <div className="bg-red-50 border border-red-500 p-6 text-center">
-              <p className="text-red-700 font-bold mb-2">{'//'} ERROR</p>
-              <p className="text-red-600 text-sm font-mono">{error}</p>
+            <div className="bg-status-red-bg border border-red-500 p-6 text-center">
+              <p className="text-status-red-dark font-bold mb-2">{'//'} ERROR</p>
+              <p className="text-status-red text-sm font-mono">{error}</p>
               <button
                 onClick={fetchSubjects}
-                className="mt-4 px-6 py-2 border border-red-600 bg-white text-red-600 font-bold hover:bg-red-50 transition-colors"
+                className="mt-4 px-6 py-2 border border-red-600 bg-th-card text-status-red font-bold hover:bg-status-red-bg transition-colors"
               >
                 [ retry ]
               </button>
@@ -223,10 +223,10 @@ const SubjectsPage: React.FC = () => {
 
           {/* Empty State */}
           {!loading && !error && filteredSubjects.length === 0 && (
-            <div className="bg-white border border-gray-400 p-12 text-center">
-              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-900 mb-2">no_subjects_found()</h3>
-              <p className="text-sm text-gray-500 font-mono">
+            <div className="bg-th-card border border-bd-strong p-12 text-center">
+              <BookOpen className="w-12 h-12 text-disabled mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-heading mb-2">no_subjects_found()</h3>
+              <p className="text-sm text-muted font-mono">
                 {'//'} {searchQuery ? 'try adjusting your search query' : 'no subjects available yet'}
               </p>
             </div>

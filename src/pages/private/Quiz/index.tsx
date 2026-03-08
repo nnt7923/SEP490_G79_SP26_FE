@@ -196,12 +196,12 @@ const QuizPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="layout min-h-screen bg-blue-50">
+      <div className="layout min-h-screen bg-status-blue-bg">
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Loading quiz questions...</p>
+            <Loader2 className="w-12 h-12 text-status-blue-muted animate-spin mx-auto mb-4" />
+            <p className="text-label">Loading quiz questions...</p>
           </div>
         </main>
         <Footer />
@@ -211,15 +211,15 @@ const QuizPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="layout min-h-screen bg-blue-50">
+      <div className="layout min-h-screen bg-status-blue-bg">
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">{error}</p>
+            <XCircle className="w-12 h-12 text-status-red-muted mx-auto mb-4" />
+            <p className="text-label mb-4">{error}</p>
             <button
               onClick={() => navigate(-1)}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="px-6 py-2 bg-status-blue-solid-muted text-white rounded-lg hover:bg-status-blue-solid"
             >
               Go Back
             </button>
@@ -232,14 +232,14 @@ const QuizPage: React.FC = () => {
 
   if (questions.length === 0) {
     return (
-      <div className="layout min-h-screen bg-blue-50">
+      <div className="layout min-h-screen bg-status-blue-bg">
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-600 mb-4">No questions available for this quiz.</p>
+            <p className="text-label mb-4">No questions available for this quiz.</p>
             <button
               onClick={() => navigate(-1)}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="px-6 py-2 bg-status-blue-solid-muted text-white rounded-lg hover:bg-status-blue-solid"
             >
               Go Back
             </button>
@@ -254,27 +254,27 @@ const QuizPage: React.FC = () => {
   const percentage = showResults ? Math.round((correct / total) * 100) : 0
 
   return (
-    <div className="layout min-h-screen bg-blue-50">
+    <div className="layout min-h-screen bg-status-blue-bg">
       <Header />
       <main className="page-main py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back button */}
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-blue-500 hover:text-blue-600 mb-6 font-medium transition-colors"
+            className="flex items-center gap-2 text-status-blue-muted hover:text-status-blue mb-6 font-medium transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
 
           {/* Quiz Header */}
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6 mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{quizTitle}</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+          <div className="bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm p-6 mb-6">
+            <h1 className="text-3xl font-bold text-heading mb-2">{quizTitle}</h1>
+            <div className="flex items-center gap-4 text-sm text-label">
               <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
-              <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-th-hover rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-blue-500 transition-all duration-300"
+                  className="h-full bg-status-blue-solid-muted transition-all duration-300"
                   style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
                 />
               </div>
@@ -284,14 +284,14 @@ const QuizPage: React.FC = () => {
           {/* Results Summary */}
           {showResults && (
             <div className={`rounded-2xl border-2 shadow-sm p-6 mb-6 ${
-              percentage >= 70 ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+              percentage >= 70 ? 'bg-status-green-bg border-green-200' : 'bg-orange-50 border-orange-200'
             }`}>
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Quiz Complete!</h2>
-                <p className="text-4xl font-bold mb-2" style={{ color: percentage >= 70 ? 'var(--color-hex-58)' : 'var(--color-hex-89)' }}>
+                <h2 className="text-2xl font-bold text-heading mb-2">Quiz Complete!</h2>
+                <p className="text-4xl font-bold mb-2" style={{ color: percentage >= 70 ? 'var(--text-emerald)' : 'var(--color-orange-600)' }}>
                   {percentage}%
                 </p>
-                <p className="text-gray-700">
+                <p className="text-body">
                   You got {correct} out of {total} questions correct
                 </p>
               </div>
@@ -300,8 +300,8 @@ const QuizPage: React.FC = () => {
 
           {/* Question Card */}
           {currentQuestion && (
-            <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">
+            <div className="bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm p-6 mb-6">
+              <h2 className="text-xl font-semibold text-heading mb-6">
                 {currentQuestion.questionText || currentQuestion.question || 'Question text not available'}
               </h2>
 
@@ -315,7 +315,7 @@ const QuizPage: React.FC = () => {
                     onChange={(e) => handleTextAnswer(e.target.value)}
                     disabled={showResults}
                     placeholder="Type your answer here..."
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 text-gray-900 disabled:bg-gray-50"
+                    className="w-full p-4 border-2 border-bd-muted rounded-xl focus:outline-none focus:border-blue-400 text-heading disabled:bg-th-page"
                   />
                   
                   {/* Show correct answer after submission */}
@@ -325,8 +325,8 @@ const QuizPage: React.FC = () => {
                         const correctText = (currentQuestion.correctAnswerText || currentQuestion.correctAnswer || '').toString()
                         const userText = typeof selectedAnswer === 'string' ? selectedAnswer : ''
                         return userText.trim().toLowerCase() === correctText.trim().toLowerCase()
-                          ? 'bg-green-50 border-green-500'
-                          : 'bg-red-50 border-red-500'
+                          ? 'bg-status-green-bg border-green-500'
+                          : 'bg-status-red-bg border-red-500'
                       })()
                     }`}>
                       <p className="font-semibold text-sm mb-1">
@@ -367,29 +367,29 @@ const QuizPage: React.FC = () => {
                       disabled={showResults}
                       className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                         showCorrectAnswer
-                          ? 'bg-green-50 border-green-500'
+                          ? 'bg-status-green-bg border-green-500'
                           : showWrongAnswer
-                          ? 'bg-red-50 border-red-500'
+                          ? 'bg-status-red-bg border-red-500'
                           : isSelected
-                          ? 'bg-blue-50 border-blue-500'
-                          : 'bg-white border-gray-200 hover:border-blue-300'
+                          ? 'bg-status-blue-bg border-blue-500'
+                          : 'bg-th-card border-bd-muted hover:border-blue-300'
                       } ${showResults ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
                           showCorrectAnswer
-                            ? 'bg-green-500 border-green-500'
+                            ? 'bg-status-green-solid-muted border-green-500'
                             : showWrongAnswer
-                            ? 'bg-red-500 border-red-500'
+                            ? 'bg-status-red-solid-muted border-red-500'
                             : isSelected
-                            ? 'bg-blue-500 border-blue-500'
-                            : 'border-gray-300'
+                            ? 'bg-status-blue-solid-muted border-blue-500'
+                            : 'border-bd'
                         }`}>
                           {showCorrectAnswer && <CheckCircle2 className="w-4 h-4 text-white" />}
                           {showWrongAnswer && <XCircle className="w-4 h-4 text-white" />}
-                          {!showResults && isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                          {!showResults && isSelected && <div className="w-2 h-2 bg-th-card rounded-full" />}
                         </div>
-                        <span className="text-gray-900">{option}</span>
+                        <span className="text-heading">{option}</span>
                       </div>
                     </button>
                   )
@@ -399,13 +399,13 @@ const QuizPage: React.FC = () => {
 
               {/* Show correct answer when user is wrong - for Multiple Choice */}
               {showResults && !isAnswerCorrect() && (currentQuestion.type !== 4 && currentQuestion.questionType !== 4) && (
-                <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
-                  <p className="text-sm font-semibold text-red-900 mb-1">❌ Incorrect</p>
-                  <p className="text-sm text-red-800">
+                <div className="mt-4 p-4 bg-status-red-bg border-2 border-red-200 rounded-xl">
+                  <p className="text-sm font-semibold text-status-red-darkest mb-1">❌ Incorrect</p>
+                  <p className="text-sm text-status-red-darker">
                     <span className="font-semibold">Correct answer:</span> {currentQuestion.correctAnswer}
                   </p>
                   {typeof selectedAnswer === 'number' && currentQuestion.options && currentQuestion.options[selectedAnswer] && (
-                    <p className="text-sm text-red-800 mt-1">
+                    <p className="text-sm text-status-red-darker mt-1">
                       <span className="font-semibold">Your answer:</span> {currentQuestion.options[selectedAnswer]}
                     </p>
                   )}
@@ -414,9 +414,9 @@ const QuizPage: React.FC = () => {
 
               {/* Explanation */}
               {showResults && currentQuestion.explanation && (
-                <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                  <p className="text-sm font-semibold text-blue-900 mb-1">Explanation:</p>
-                  <p className="text-sm text-blue-800">{currentQuestion.explanation}</p>
+                <div className="mt-6 p-4 bg-status-blue-bg border-2 border-blue-200 rounded-xl">
+                  <p className="text-sm font-semibold text-status-blue-darker mb-1">Explanation:</p>
+                  <p className="text-sm text-status-blue-dark">{currentQuestion.explanation}</p>
                 </div>
               )}
             </div>
@@ -427,7 +427,7 @@ const QuizPage: React.FC = () => {
             <button
               onClick={handlePrevious}
               disabled={currentQuestionIndex === 0}
-              className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-th-card border-2 border-bd-muted text-body rounded-xl font-medium hover:bg-th-page hover:border-bd transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -440,10 +440,10 @@ const QuizPage: React.FC = () => {
                   onClick={() => setCurrentQuestionIndex(idx)}
                   className={`w-10 h-10 rounded-lg font-semibold transition-all flex items-center justify-center ${
                     idx === currentQuestionIndex
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-status-blue-solid-muted text-white'
                       : selectedAnswers[idx] !== undefined && selectedAnswers[idx] !== '' && selectedAnswers[idx] !== null
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-status-blue-bg-strong text-status-blue'
+                      : 'bg-th-input text-label hover:bg-th-hover'
                   }`}
                 >
                   {idx + 1}
@@ -456,7 +456,7 @@ const QuizPage: React.FC = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={!allAnswered}
-                  className="px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-status-green-solid text-white rounded-xl font-medium hover:bg-status-green-solid-dark transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Submit Quiz
                 </button>
@@ -464,7 +464,7 @@ const QuizPage: React.FC = () => {
                 <button
                   onClick={handleNext}
                   disabled={!isAnswered}
-                  className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-status-blue-solid-muted text-white rounded-xl font-medium hover:bg-status-blue-solid transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -472,7 +472,7 @@ const QuizPage: React.FC = () => {
             ) : (
               <button
                 onClick={() => navigate(-1)}
-                className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all shadow-md hover:shadow-lg"
+                className="px-6 py-3 bg-status-blue-solid-muted text-white rounded-xl font-medium hover:bg-status-blue-solid transition-all shadow-md hover:shadow-lg"
               >
                 Back to Lesson
               </button>

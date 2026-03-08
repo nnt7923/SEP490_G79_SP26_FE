@@ -112,29 +112,29 @@ const MentorDashboard: React.FC = () => {
       <div className="px-4 py-8 bg-[var(--gray-100)] min-h-screen font-mono">
         {/* ========== MENTOR PROFILE HEADER ========== */}
         <div className="max-w-6xl mx-auto space-y-6">
-          <div className="mb-6 border-b border-gray-300 pb-4">
+          <div className="mb-6 border-b border-bd pb-4">
             <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="w-24 h-24 bg-white border border-gray-400 flex items-center justify-center flex-shrink-0">
-                <span className="text-gray-900 font-bold text-3xl">[{getInitials(name)}]</span>
+              <div className="w-24 h-24 bg-th-card border border-bd-strong flex items-center justify-center flex-shrink-0">
+                <span className="text-heading font-bold text-3xl">[{getInitials(name)}]</span>
               </div>
 
               <div className="flex-1 text-center md:text-left">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2 border-none bg-transparent flex items-center justify-center md:justify-start">
-                  <span className="text-blue-600 mr-2">{'>_'}</span>
+                <h1 className="text-2xl font-bold text-heading mb-2 border-none bg-transparent flex items-center justify-center md:justify-start">
+                  <span className="text-status-blue mr-2">{'>_'}</span>
                   {slugify(name)}
                 </h1>
-                <p className="text-gray-500 mb-1">
-                  <span className="text-gray-400 mr-2">{'//'}</span>
+                <p className="text-muted mb-1">
+                  <span className="text-placeholder mr-2">{'//'}</span>
                   email: {user?.email ?? '—'}
                 </p>
-                <p className="text-gray-500 text-sm">
-                  <span className="text-gray-400 mr-2">{'//'}</span>
+                <p className="text-muted text-sm">
+                  <span className="text-placeholder mr-2">{'//'}</span>
                   role: {role.toLowerCase()}
                 </p>
               </div>
 
               <button
-                className="hidden md:inline-flex px-4 py-2 border border-gray-400 bg-white text-gray-700 font-bold hover:bg-gray-50 transition-colors cursor-pointer"
+                className="hidden md:inline-flex px-4 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors cursor-pointer"
                 title="Profile settings"
               >
                 [ settings ]
@@ -145,52 +145,52 @@ const MentorDashboard: React.FC = () => {
         {/* ========== OVERVIEW GRID ========== */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {/* MY STUDENTS */}
-          <div className="bg-white border border-gray-400 p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-gray-200 pb-2">
-              <span className="text-blue-600 font-bold">{'>>>'}</span>
-              <h3 className="text-sm font-bold text-gray-900 uppercase">Total Students</h3>
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+              <span className="text-status-blue font-bold">{'>>>'}</span>
+              <h3 className="text-sm font-bold text-heading uppercase">Total Students</h3>
             </div>
             <div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+              <div className="text-3xl font-bold text-heading mb-1">
                 {loadingStudents ? '...' : `[${students.length}]`}
               </div>
-              <div className="text-xs text-gray-500">{'//'} active learners</div>
+              <div className="text-xs text-muted">{'//'} active learners</div>
             </div>
           </div>
 
           {/* MY COURSES */}
-          <div className="bg-white border border-gray-400 p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-gray-200 pb-2">
-              <span className="text-blue-600 font-bold">{'>>>'}</span>
-              <h3 className="text-sm font-bold text-gray-900 uppercase">My Courses</h3>
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+              <span className="text-status-blue font-bold">{'>>>'}</span>
+              <h3 className="text-sm font-bold text-heading uppercase">My Courses</h3>
             </div>
             <div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">[0]</div>
-              <div className="text-xs text-gray-500">{'//'} courses taught</div>
+              <div className="text-3xl font-bold text-heading mb-1">[0]</div>
+              <div className="text-xs text-muted">{'//'} courses taught</div>
             </div>
           </div>
 
           {/* STUDENT PROGRESS */}
-          <div className="bg-white border border-gray-400 p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-gray-200 pb-2">
-              <span className="text-green-600 font-bold">{'>>>'}</span>
-              <h3 className="text-sm font-bold text-gray-900 uppercase">Progress</h3>
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+              <span className="text-status-green font-bold">{'>>>'}</span>
+              <h3 className="text-sm font-bold text-heading uppercase">Progress</h3>
             </div>
             <div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">[0%]</div>
-              <div className="text-xs text-gray-500">{'//'} avg completion</div>
+              <div className="text-3xl font-bold text-heading mb-1">[0%]</div>
+              <div className="text-xs text-muted">{'//'} avg completion</div>
             </div>
           </div>
 
           {/* FEEDBACK RATING */}
-          <div className="bg-white border border-gray-400 p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-gray-200 pb-2">
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
               <span className="text-amber-500 font-bold">{'>>>'}</span>
-              <h3 className="text-sm font-bold text-gray-900 uppercase">Rating</h3>
+              <h3 className="text-sm font-bold text-heading uppercase">Rating</h3>
             </div>
             <div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">[—]</div>
-              <div className="text-xs text-gray-500">{'//'} student feedback</div>
+              <div className="text-3xl font-bold text-heading mb-1">[—]</div>
+              <div className="text-xs text-muted">{'//'} student feedback</div>
             </div>
           </div>
         </div>
@@ -198,24 +198,24 @@ const MentorDashboard: React.FC = () => {
         {/* ========== MAIN CONTENT SECTIONS ========== */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* STUDENT LIST */}
-          <div className="bg-white border border-gray-400">
-            <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center gap-3">
-              <span className="text-blue-600 font-bold">[*]</span>
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
               <div>
-                <h2 className="text-sm font-bold text-gray-900 uppercase">My Students</h2>
-                <p className="text-xs text-gray-500">{'//'} active student list</p>
+                <h2 className="text-sm font-bold text-heading uppercase">My Students</h2>
+                <p className="text-xs text-muted">{'//'} active student list</p>
               </div>
             </div>
             
             <div className="p-4">
               {loadingStudents ? (
                 <div className="flex items-center justify-center py-8">
-                  <span className="text-sm font-bold text-gray-500">loading_students...</span>
+                  <span className="text-sm font-bold text-muted">loading_students...</span>
                 </div>
               ) : students.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-900 font-bold text-lg mb-1">no_students_found()</p>
-                  <p className="text-xs text-gray-500">{'//'} students will appear here when enrolled</p>
+                  <p className="text-heading font-bold text-lg mb-1">no_students_found()</p>
+                  <p className="text-xs text-muted">{'//'} students will appear here when enrolled</p>
                 </div>
               ) : (
                 <div className="space-y-0 divide-y divide-gray-200 max-h-[400px] overflow-y-auto">
@@ -232,16 +232,16 @@ const MentorDashboard: React.FC = () => {
                     return (
                       <div
                         key={student?.id || student?.userId || studentEmail}
-                        className="flex items-center gap-4 py-3 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-4 py-3 hover:bg-th-page transition-colors"
                       >
-                        <div className="w-10 h-10 bg-white border border-gray-400 flex items-center justify-center flex-shrink-0">
-                          <span className="text-gray-900 font-bold text-sm">[{initials}]</span>
+                        <div className="w-10 h-10 bg-th-card border border-bd-strong flex items-center justify-center flex-shrink-0">
+                          <span className="text-heading font-bold text-sm">[{initials}]</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-gray-900 text-sm truncate">{studentName}</p>
-                          <p className="text-xs text-gray-500 truncate">email: {studentEmail}</p>
+                          <p className="font-bold text-heading text-sm truncate">{studentName}</p>
+                          <p className="text-xs text-muted truncate">email: {studentEmail}</p>
                         </div>
-                        <button className="px-3 py-1 border border-gray-400 text-xs font-bold hover:bg-gray-100 transition-colors">
+                        <button className="px-3 py-1 border border-bd-strong text-xs font-bold hover:bg-th-input transition-colors">
                           [ view ]
                         </button>
                       </div>
@@ -253,36 +253,36 @@ const MentorDashboard: React.FC = () => {
           </div>
 
           {/* MY LESSONS */}
-          <div className="bg-white border border-gray-400">
-            <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center gap-3">
-              <span className="text-blue-600 font-bold">[*]</span>
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
               <div>
-                <h2 className="text-sm font-bold text-gray-900 uppercase">My Lessons</h2>
-                <p className="text-xs text-gray-500">{'//'} track & provide feedback</p>
+                <h2 className="text-sm font-bold text-heading uppercase">My Lessons</h2>
+                <p className="text-xs text-muted">{'//'} track & provide feedback</p>
               </div>
             </div>
             
             <div className="p-8 text-center">
-              <p className="text-gray-900 font-bold text-lg mb-1">no_lessons_scheduled()</p>
-              <p className="text-xs text-gray-500">{'//'} create courses to start teaching</p>
+              <p className="text-heading font-bold text-lg mb-1">no_lessons_scheduled()</p>
+              <p className="text-xs text-muted">{'//'} create courses to start teaching</p>
             </div>
           </div>
         </div>
 
         {/* ========== RESOURCES & MATERIALS ========== */}
         <div className="grid grid-cols-1 gap-6 mb-6">
-          <div className="bg-white border border-gray-400">
-            <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center gap-3">
-              <span className="text-blue-600 font-bold">[*]</span>
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
               <div>
-                <h2 className="text-sm font-bold text-gray-900 uppercase">Resources</h2>
-                <p className="text-xs text-gray-500">{'//'} manage materials & notes</p>
+                <h2 className="text-sm font-bold text-heading uppercase">Resources</h2>
+                <p className="text-xs text-muted">{'//'} manage materials & notes</p>
               </div>
             </div>
             
             <div className="p-8 text-center">
-              <p className="text-gray-900 font-bold text-lg mb-1">no_resources_yet()</p>
-              <p className="text-xs text-gray-500">{'//'} upload learning materials when you create courses</p>
+              <p className="text-heading font-bold text-lg mb-1">no_resources_yet()</p>
+              <p className="text-xs text-muted">{'//'} upload learning materials when you create courses</p>
             </div>
           </div>
         </div>
@@ -290,41 +290,41 @@ const MentorDashboard: React.FC = () => {
         {/* ========== STUDENT PERFORMANCE & ANALYTICS ========== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* STUDENT REVIEWS */}
-          <div className="bg-white border border-gray-400">
-            <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center gap-3">
-              <span className="text-blue-600 font-bold">[*]</span>
-              <h2 className="text-sm font-bold text-gray-900 uppercase">Student Reviews</h2>
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
+              <h2 className="text-sm font-bold text-heading uppercase">Student Reviews</h2>
             </div>
             
             <div className="p-8 text-center">
-              <p className="text-gray-900 font-bold text-lg mb-1">no_reviews_yet()</p>
-              <p className="text-xs text-gray-500">{'//'} students will rate your teaching</p>
+              <p className="text-heading font-bold text-lg mb-1">no_reviews_yet()</p>
+              <p className="text-xs text-muted">{'//'} students will rate your teaching</p>
             </div>
           </div>
 
           {/* ANALYTICS */}
-          <div className="lg:col-span-2 bg-white border border-gray-400">
-            <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center gap-3">
-              <span className="text-blue-600 font-bold">[*]</span>
+          <div className="lg:col-span-2 bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
               <div>
-                <h2 className="text-sm font-bold text-gray-900 uppercase">Analytics</h2>
-                <p className="text-xs text-gray-500">{'//'} teaching performance overview</p>
+                <h2 className="text-sm font-bold text-heading uppercase">Analytics</h2>
+                <p className="text-xs text-muted">{'//'} teaching performance overview</p>
               </div>
             </div>
             
-            <div className="p-4 border-t border-gray-200">
+            <div className="p-4 border-t border-bd-muted">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 divide-y md:divide-y-0 md:divide-x divide-gray-200">
                 <div className="px-4 py-2">
-                  <div className="text-xs font-bold text-gray-500 mb-1">total_teaching_hours:</div>
-                  <div className="text-2xl font-bold text-gray-900">0h</div>
+                  <div className="text-xs font-bold text-muted mb-1">total_teaching_hours:</div>
+                  <div className="text-2xl font-bold text-heading">0h</div>
                 </div>
                 <div className="px-4 py-2">
-                  <div className="text-xs font-bold text-gray-500 mb-1">lessons_conducted:</div>
-                  <div className="text-2xl font-bold text-gray-900">0</div>
+                  <div className="text-xs font-bold text-muted mb-1">lessons_conducted:</div>
+                  <div className="text-2xl font-bold text-heading">0</div>
                 </div>
                 <div className="px-4 py-2">
-                  <div className="text-xs font-bold text-gray-500 mb-1">student_satisfaction:</div>
-                  <div className="text-2xl font-bold text-gray-900">—</div>
+                  <div className="text-xs font-bold text-muted mb-1">student_satisfaction:</div>
+                  <div className="text-2xl font-bold text-heading">—</div>
                 </div>
               </div>
             </div>
@@ -332,21 +332,21 @@ const MentorDashboard: React.FC = () => {
         </div>
 
         {/* ========== QUICK ACTIONS ========== */}
-        <div className="bg-white border border-gray-400">
-          <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center gap-3">
-            <span className="text-blue-600 font-bold">[*]</span>
-            <h2 className="text-sm font-bold text-gray-900 uppercase">Quick Actions</h2>
+        <div className="bg-th-card border border-bd-strong">
+          <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+            <span className="text-status-blue font-bold">[*]</span>
+            <h2 className="text-sm font-bold text-heading uppercase">Quick Actions</h2>
           </div>
           
           <div className="p-4">
             <div className="flex flex-wrap gap-4">
-              <button className="px-6 py-2 border border-blue-600 bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors">
+              <button className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors">
                 [ + build_course ]
               </button>
-              <button className="px-6 py-2 border border-blue-600 text-blue-600 bg-white font-bold hover:bg-blue-50 transition-colors">
+              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors">
                 [ view_students ]
               </button>
-              <button className="px-6 py-2 border border-blue-600 text-blue-600 bg-white font-bold hover:bg-blue-50 transition-colors" onClick={openSubjectModal}>
+              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors" onClick={openSubjectModal}>
                 [ + add_subject ]
               </button>
             </div>
@@ -356,14 +356,14 @@ const MentorDashboard: React.FC = () => {
         {/* ========== SUBJECT CREATE MODAL ========== */}
         {showSubjectModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white border-2 border-gray-800 w-full max-w-md mx-4 p-6 shadow-2xl font-mono">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 border-b border-gray-300 pb-2">
-                <span className="text-blue-600 mr-2">{'>_'}</span>
+            <div className="bg-th-card border-2 border-bd-dark w-full max-w-md mx-4 p-6 shadow-2xl font-mono">
+              <h3 className="text-xl font-bold text-heading mb-4 border-b border-bd pb-2">
+                <span className="text-status-blue mr-2">{'>_'}</span>
                 create_new_subject
               </h3>
               <form onSubmit={handleCreateSubject} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">subject_name:</label>
+                  <label className="block text-xs font-bold text-muted mb-1">subject_name:</label>
                   <input
                     type="text"
                     value={newSubjectName}
@@ -374,35 +374,35 @@ const MentorDashboard: React.FC = () => {
                       }
                     }}
                     placeholder="e.g. JavaScript"
-                    className="w-full border border-gray-400 px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-bd-strong px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">slug_optional:</label>
+                  <label className="block text-xs font-bold text-muted mb-1">slug_optional:</label>
                   <input
                     type="text"
                     value={newSubjectSlug}
                     onChange={(e) => setNewSubjectSlug(slugify(e.target.value))}
                     placeholder="e.g. javascript"
-                    className="w-full border border-gray-400 px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-bd-strong px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
 
                 {subjectError && (
-                  <div className="text-sm font-bold text-red-600 border border-red-500 bg-red-50 px-3 py-2 text-center">
+                  <div className="text-sm font-bold text-status-red border border-red-500 bg-status-red-bg px-3 py-2 text-center">
                     {'//'} {subjectError}
                   </div>
                 )}
                 {subjectSuccess && (
-                  <div className="text-sm font-bold text-green-700 border border-green-500 bg-green-50 px-3 py-2 text-center">
+                  <div className="text-sm font-bold text-status-green-dark border border-green-500 bg-status-green-bg px-3 py-2 text-center">
                     {'//'} {subjectSuccess}
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-300">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-bd">
                   <button
                     type="button"
-                    className="px-6 py-2 border border-gray-400 bg-white text-gray-700 font-bold hover:bg-gray-100 transition-colors"
+                    className="px-6 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-input transition-colors"
                     onClick={() => setShowSubjectModal(false)}
                     disabled={creatingSubject}
                   >
@@ -410,7 +410,7 @@ const MentorDashboard: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 border border-blue-600 bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-60"
+                    className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors disabled:opacity-60"
                     disabled={creatingSubject}
                   >
                     {creatingSubject ? '[ creating... ]' : '[ create ]'}

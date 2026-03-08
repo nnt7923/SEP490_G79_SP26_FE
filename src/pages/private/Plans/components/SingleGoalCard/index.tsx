@@ -51,7 +51,7 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
       style={{
         position: 'relative', display: 'flex', flexDirection: 'column',
         padding: 16, border: '1px solid var(--border-base)', borderRadius: 2,
-        background: active ? 'var(--color-hex-21)' : 'var(--bg-surface)',
+        background: active ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
         borderColor: active ? 'var(--accent-primary)' : 'var(--border-base)',
         cursor: (!isEditing && !menuOpen) ? 'pointer' : 'default',
         transition: 'all 0.2s', boxSizing: 'border-box'
@@ -87,12 +87,12 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
               <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 30, right: 0, background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, minWidth: 120, zIndex: 50, padding: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <button type="button" onClick={() => { setMenuOpen(false); onStartEdit(id, title) }} disabled={saving || deleting}
                   style={{ textAlign: 'left', padding: '6px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)', transition: 'background 0.2s', borderRadius: 2 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hex-20)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-neutral)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
                   edit
                 </button>
                 <button type="button" onClick={() => { setMenuOpen(false); onDelete(id) }} disabled={saving || deleting}
                   style={{ textAlign: 'left', padding: '6px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--danger-primary)', transition: 'background 0.2s', borderRadius: 2 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hex-22)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-red-tint)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
                   {deleting ? 'deleting…' : 'delete'}
                 </button>
               </div>

@@ -21,7 +21,7 @@ const Card: React.FC<CardProps> = ({ title, subtitle, right, selected, onClick }
         padding: 12,
         border: selected ? '2px solid var(--blue-600)' : '1px solid var(--gray-200)',
         borderRadius: 12,
-        backgroundColor: selected ? 'var(--color-hex-19)' : 'var(--bg-surface-short)',
+        backgroundColor: selected ? 'var(--bg-blue-tint)' : 'var(--bg-surface-short)',
         cursor: onClick ? 'pointer' : 'default',
         display: 'flex',
         alignItems: 'center',

@@ -432,20 +432,20 @@ const PlansPage: React.FC = () => {
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="subject-list">
                  {subjectsLoading ? (
                    Array.from({ length: 8 }).map((_, i) => (
-                     <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white p-5">
+                     <div key={i} className="animate-pulse rounded-xl border border-bd-muted bg-th-card p-5">
                        <div className="flex flex-col gap-3">
                          <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-gray-200 rounded-lg" />
+                           <div className="w-12 h-12 bg-th-hover rounded-lg" />
                            <div className="flex-1">
-                             <div className="w-24 h-4 bg-gray-200 rounded" />
-                             <div className="w-20 h-3 bg-gray-100 rounded mt-2" />
+                             <div className="w-24 h-4 bg-th-hover rounded" />
+                             <div className="w-20 h-3 bg-th-input rounded mt-2" />
                            </div>
                          </div>
                        </div>
                      </div>
                    ))
                  ) : subjectsError ? (
-                   <div className="col-span-full text-center py-6 text-red-600 bg-red-50 rounded-xl border border-red-200">
+                   <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
                      Failed to load subjects: {subjectsError}
                    </div>
                  ) : subjects.length > 0 ? (
@@ -463,7 +463,7 @@ const PlansPage: React.FC = () => {
                      />
                    ))
                  ) : (
-                   <div className="col-span-full text-center py-8 text-gray-500">
+                   <div className="col-span-full text-center py-8 text-muted">
                      No subjects available.
                    </div>
                  )}
@@ -483,8 +483,8 @@ const PlansPage: React.FC = () => {
               {/* Thông báo hành động goal */}
               {(goalNotice || goalActionError) && (
                 <div style={{ marginBottom: 24 }}>
-                  {goalNotice && <div style={{ padding: 12, border: '1px solid var(--success-primary)', borderRadius: 2, color: 'var(--success-primary)', fontSize: 13, background: 'var(--color-hex-99)' }}>// {goalNotice}</div>}
-                  {goalActionError && <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--color-hex-22)', marginTop: 12 }}>// {goalActionError}</div>}
+                  {goalNotice && <div style={{ padding: 12, border: '1px solid var(--success-primary)', borderRadius: 2, color: 'var(--success-primary)', fontSize: 13, background: 'var(--bg-leaf-tint)' }}>// {goalNotice}</div>}
+                  {goalActionError && <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)', marginTop: 12 }}>// {goalActionError}</div>}
                 </div>
               )}
 
@@ -496,17 +496,17 @@ const PlansPage: React.FC = () => {
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
                    {goalsLoading ? (
                      Array.from({ length: 3 }).map((_, i) => (
-                       <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                       <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
                          <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                           <div className="w-12 h-12 bg-th-hover rounded-xl" />
                            <div className="flex-1">
-                             <div className="w-32 h-5 bg-gray-200 rounded" />
+                             <div className="w-32 h-5 bg-th-hover rounded" />
                            </div>
                          </div>
                        </div>
                      ))
                    ) : goalsError ? (
-                     <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
+                     <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
                        Failed to load system goals: {goalsError}
                      </div>
                    ) : systemGoals.length > 0 ? (
@@ -536,7 +536,7 @@ const PlansPage: React.FC = () => {
                        )
                      })
                    ) : (
-                     <div className="col-span-full text-center py-8 text-gray-500 bg-white rounded-2xl border-2 border-gray-200">
+                     <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
                        No system goals available.
                      </div>
                    )}
@@ -551,7 +551,7 @@ const PlansPage: React.FC = () => {
                     type="button"
                     onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
                     style={{ padding: '6px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hex-25)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
                   >
                     {'>'} add goal
                   </button>
@@ -559,17 +559,17 @@ const PlansPage: React.FC = () => {
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
                    {myGoalsLoading ? (
                      Array.from({ length: 3 }).map((_, i) => (
-                       <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                       <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
                          <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                           <div className="w-12 h-12 bg-th-hover rounded-xl" />
                            <div className="flex-1">
-                             <div className="w-32 h-5 bg-gray-200 rounded" />
+                             <div className="w-32 h-5 bg-th-hover rounded" />
                            </div>
                          </div>
                        </div>
                      ))
                    ) : myGoalsError ? (
-                     <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
+                     <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
                        Failed to load your goals: {myGoalsError}
                      </div>
                    ) : myGoals.length > 0 ? (
@@ -598,21 +598,21 @@ const PlansPage: React.FC = () => {
                        )
                      })
                    ) : (
-                     <div className="col-span-full text-center py-8 text-gray-500 bg-white rounded-2xl border-2 border-gray-200">
+                     <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
                        No personal goals yet. Click "Add Goal" to create one.
                      </div>
                    )}
                  </section>
                         {/* Add Goal Modal */}
              {showAddGoal && (
-               <div style={{ position: 'fixed', inset: 0, background: 'var(--color-hex-24)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+               <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
                  <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', display: 'flex', flexDirection: 'column' }}>
                    <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
                      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} Add New Goal</h3>
                    </div>
                    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
                      {createGoalError && (
-                       <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--color-hex-22)' }}>// {createGoalError}</div>
+                       <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {createGoalError}</div>
                      )}
                      <div>
                        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ title</label>
@@ -648,7 +648,7 @@ const PlansPage: React.FC = () => {
                          disabled={creatingGoal}
                          onClick={handleCreateGoalModal}
                          style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
-                         onMouseEnter={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--color-hex-25)' }} onMouseLeave={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
+                         onMouseEnter={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
                        >{creatingGoal ? 'saving…' : 'save goal'}</button>
                      </div>
                    </div>
@@ -674,7 +674,7 @@ const PlansPage: React.FC = () => {
                     type="button"
                     onClick={() => setLevel(lv)}
                     style={{
-                      padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: level === lv ? 'var(--color-hex-21)' : 'var(--bg-surface)',
+                      padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: level === lv ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
                       borderColor: level === lv ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
                     }}
                     onMouseEnter={(e) => { if (level !== lv) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
@@ -701,7 +701,7 @@ const PlansPage: React.FC = () => {
                   type="button"
                   onClick={() => setLanguageSelection(LanguageSelection.Vietnamese)}
                   style={{
-                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.Vietnamese ? 'var(--color-hex-21)' : 'var(--bg-surface)',
+                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.Vietnamese ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
                     borderColor: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
                   }}
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
@@ -709,7 +709,7 @@ const PlansPage: React.FC = () => {
                 >
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.Vietnamese ? '> ' : '$ '}Tiếng Việt</div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// Học với nội dung bằng tiếng việt, dễ hiểu và phù hợp với người việt</div>
-                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.Vietnamese ? 'var(--color-hex-100)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--color-hex-98)' }}>
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.Vietnamese ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
                     {languageSelection === LanguageSelection.Vietnamese ? '[selected]' : '[click to select]'}
                   </div>
                 </button>
@@ -719,7 +719,7 @@ const PlansPage: React.FC = () => {
                   type="button"
                   onClick={() => setLanguageSelection(LanguageSelection.English)}
                   style={{
-                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.English ? 'var(--color-hex-21)' : 'var(--bg-surface)',
+                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.English ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
                     borderColor: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
                   }}
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
@@ -727,7 +727,7 @@ const PlansPage: React.FC = () => {
                 >
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.English ? '> ' : '$ '}English</div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// Learn with english content, widely used in the tech industry.</div>
-                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.English ? 'var(--color-hex-100)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--color-hex-98)' }}>
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.English ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
                     {languageSelection === LanguageSelection.English ? '[selected]' : '[click to select]'}
                   </div>
                 </button>
@@ -758,7 +758,7 @@ const PlansPage: React.FC = () => {
                       {sum.val ? (
                          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{sum.val}</p>
                       ) : (
-                         <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--color-hex-98)', margin: 0 }}>// not selected</p>
+                         <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--text-disabled)', margin: 0 }}>// not selected</p>
                       )}
                     </div>
                   ))}
@@ -775,7 +775,7 @@ const PlansPage: React.FC = () => {
                     cursor: (!canGenerate || generating) ? 'not-allowed' : 'pointer', transition: 'background 0.2s',
                     display: 'flex', alignItems: 'center', gap: 12
                   }}
-                  onMouseEnter={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--color-hex-25)' }}
+                  onMouseEnter={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--text-strong)' }}
                   onMouseLeave={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--text-primary)' }}
                   disabled={!canGenerate || generating}
                   onClick={async () => {
@@ -822,25 +822,25 @@ const PlansPage: React.FC = () => {
               </div>
 
                {planError && (
-                 <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-red-50 border-2 border-red-200 rounded-2xl text-red-700 font-medium text-center shadow-sm">
+                 <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-status-red-bg border-2 border-red-200 rounded-2xl text-status-red-dark font-medium text-center shadow-sm">
                    {planError}
                  </div>
                )}
                {planGenerated && skeleton && (
-                 <section className="mt-8 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm" aria-label="generated-plan">
-                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Learning Path Result</h2>
+                 <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
+                   <h2 className="text-xl font-semibold text-heading mb-4">Learning Path Result</h2>
                    {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
                      <ul className="space-y-4">
                        {skeleton.lessons.map((ls: any) => (
-                         <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
-                           <span className="mt-1 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                         <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
+                           <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
                            <div className="flex-1">
-                             <div className="font-semibold text-gray-900">{ls.title ?? 'Lesson'}</div>
-                             {ls.description && <div className="text-sm text-gray-600 mt-1">{ls.description}</div>}
+                             <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
+                             {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
                              {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
                                <ul className="mt-2 ml-4 space-y-1">
                                  {ls.chapters.map((ch: any) => (
-                                   <li key={ch.id ?? ch.title} className="text-sm text-gray-700">
+                                   <li key={ch.id ?? ch.title} className="text-sm text-body">
                                      • {ch.title ?? 'Chapter'}
                                    </li>
                                  ))}
@@ -851,7 +851,7 @@ const PlansPage: React.FC = () => {
                        ))}
                      </ul>
                    ) : (
-                     <div className="text-gray-500 text-center py-4">No learning path data from server.</div>
+                     <div className="text-muted text-center py-4">No learning path data from server.</div>
                    )}
                  </section>
                )}
@@ -872,7 +872,7 @@ const PlansPage: React.FC = () => {
               <button
                 type="button"
                 style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
-                onMouseEnter={(e) => { if (canNext) e.currentTarget.style.background = 'var(--color-hex-25)' }} onMouseLeave={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-primary)' }}
+                onMouseEnter={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-primary)' }}
                 disabled={!canNext}
                 onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
               >

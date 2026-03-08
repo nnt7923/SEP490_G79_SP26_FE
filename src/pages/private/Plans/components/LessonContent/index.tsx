@@ -84,11 +84,11 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
   if (loading) {
     return (
-      <div className="flex items-center gap-3 text-gray-800 bg-[var(--gray-100)] px-4 py-3 border border-gray-300 font-mono text-sm">
-        <span className="font-bold text-blue-600">{'>_'}</span>
+      <div className="flex items-center gap-3 text-heading bg-[var(--gray-100)] px-4 py-3 border border-bd font-mono text-sm">
+        <span className="font-bold text-status-blue">{'>_'}</span>
         <span className="font-medium inline-block relative pr-3">
           loading_lesson_content()
-          <span className="absolute right-0 top-0 bottom-0 w-2 bg-blue-600 animate-[blink_1s_step-end_infinite]"></span>
+          <span className="absolute right-0 top-0 bottom-0 w-2 bg-status-blue-solid animate-[blink_1s_step-end_infinite]"></span>
         </span>
       </div>
     )
@@ -96,7 +96,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
   if (error) {
     return (
-      <div className="text-red-700 bg-[var(--gray-100)] px-4 py-3 border border-red-300 font-mono text-sm">
+      <div className="text-status-red-dark bg-[var(--gray-100)] px-4 py-3 border border-red-300 font-mono text-sm">
         <div className="flex items-start gap-2">
           <span className="font-bold">{'>_'}</span>
           <span className="font-medium">[ERROR]: {error}</span>
@@ -107,7 +107,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
   if (!content || content.trim().length === 0) {
     return (
-      <div className="text-gray-500 text-center py-8 bg-[var(--gray-100)] border border-dashed border-gray-400 font-mono text-sm">
+      <div className="text-muted text-center py-8 bg-[var(--gray-100)] border border-dashed border-bd-strong font-mono text-sm">
         <p className="font-medium">// no_content_found_for_selected_lesson</p>
       </div>
     )
@@ -121,51 +121,51 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
         components={{
           // Headings
           h1: ({ children }) => (
-            <h1 className="text-3xl font-bold font-mono text-gray-900 mb-6 mt-8 pb-4 border-b border-gray-300">
+            <h1 className="text-3xl font-bold font-mono text-heading mb-6 mt-8 pb-4 border-b border-bd">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-2xl font-bold font-mono text-gray-900 mb-4 mt-8 pb-3 border-b border-gray-200 flex items-center gap-2">
+            <h2 className="text-2xl font-bold font-mono text-heading mb-4 mt-8 pb-3 border-b border-bd-muted flex items-center gap-2">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-xl font-bold font-mono text-gray-900 mb-3 mt-6 pb-2 border-b border-gray-100 flex items-center gap-2">
+            <h3 className="text-xl font-bold font-mono text-heading mb-3 mt-6 pb-2 border-b border-bd-subtle flex items-center gap-2">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-lg font-semibold font-mono text-gray-800 mb-3 mt-5 flex items-center gap-2">
+            <h4 className="text-lg font-semibold font-mono text-heading mb-3 mt-5 flex items-center gap-2">
               {children}
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="text-base font-semibold font-mono text-gray-800 mb-2 mt-4">
+            <h5 className="text-base font-semibold font-mono text-heading mb-2 mt-4">
               {children}
             </h5>
           ),
           h6: ({ children }) => (
-            <h6 className="text-sm font-semibold font-mono text-gray-700 mb-2 mt-3 uppercase tracking-wide">
+            <h6 className="text-sm font-semibold font-mono text-body mb-2 mt-3 uppercase tracking-wide">
               {children}
             </h6>
           ),
 
           // Paragraphs
           p: ({ children }) => (
-            <p className="text-gray-900 leading-relaxed mb-5 text-base font-mono">
+            <p className="text-heading leading-relaxed mb-5 text-base font-mono">
               {children}
             </p>
           ),
 
           // Lists
           ul: ({ children }) => (
-            <ul className="space-y-2 mb-5 ml-2 text-gray-900 font-mono">
+            <ul className="space-y-2 mb-5 ml-2 text-heading font-mono">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="space-y-2 mb-5 ml-6 text-gray-900 font-mono list-decimal">
+            <ol className="space-y-2 mb-5 ml-6 text-heading font-mono list-decimal">
               {children}
             </ol>
           ),
@@ -182,7 +182,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             
             return (
               <li className="leading-relaxed relative pl-5 text-base" {...props}>
-                <span className="absolute left-0 top-0 text-blue-500">{'*'}</span>
+                <span className="absolute left-0 top-0 text-status-blue-muted">{'*'}</span>
                 <span>{children}</span>
               </li>
             )
@@ -194,7 +194,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 hover:underline"
+              className="text-status-blue hover:text-status-blue-dark hover:underline"
             >
               {children}
             </a>
@@ -202,10 +202,10 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
           // Blockquotes
           blockquote: ({ children }) => (
-            <blockquote className="border border-gray-300 bg-[var(--gray-100)] pl-4 pr-4 py-3 my-6 text-gray-700 font-mono relative">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gray-400"></div>
+            <blockquote className="border border-bd bg-[var(--gray-100)] pl-4 pr-4 py-3 my-6 text-body font-mono relative">
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-th-skeleton"></div>
               <div className="flex gap-3">
-                <span className="text-gray-400 select-none">|</span>
+                <span className="text-placeholder select-none">|</span>
                 <div className="flex-1">{children}</div>
               </div>
             </blockquote>
@@ -218,9 +218,9 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
             if (!inline && language) {
               return (
-                <div className="my-4 border border-gray-300 font-mono text-sm">
-                  <div className="flex items-center justify-between bg-[var(--gray-100)] px-3 py-1.5 border-b border-gray-300">
-                    <span className="text-xs font-bold text-gray-600 lowercase">
+                <div className="my-4 border border-bd font-mono text-sm">
+                  <div className="flex items-center justify-between bg-[var(--gray-100)] px-3 py-1.5 border-b border-bd">
+                    <span className="text-xs font-bold text-label lowercase">
                       {language}
                     </span>
                     <button
@@ -228,7 +228,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
                       onClick={() => {
                         navigator.clipboard.writeText(String(children).replace(/\n$/, ''))
                       }}
-                      className="text-xs text-gray-500 hover:text-black hover:bg-gray-200 transition-colors px-2 py-0.5"
+                      className="text-xs text-muted hover:text-black hover:bg-th-hover transition-colors px-2 py-0.5"
                       title="Copy code"
                     >
                       [copy]
@@ -245,12 +245,12 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
                       fontSize: '0.875rem',
                       lineHeight: '1.6',
                       padding: '1rem',
-                      background: 'var(--text-primary)', // keeping dark background for code specifically for syntax highlighting visibility
+                      background: 'var(--code-block-bg)',
                     }}
                     lineNumberStyle={{
                       minWidth: '2.5em',
                       paddingRight: '1em',
-                      color: 'var(--color-hex-97)',
+                      color: 'var(--text-muted-mid)',
                       opacity: 0.5,
                       userSelect: 'none',
                     }}
@@ -265,7 +265,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             // Inline code (neutral)
             return (
               <code
-                className="bg-[var(--gray-100)] text-gray-900 px-1.5 py-0.5 text-sm font-mono border border-gray-300 mx-1"
+                className="bg-[var(--gray-100)] text-heading px-1.5 py-0.5 text-sm font-mono border border-bd mx-1"
                 {...props}
               >
                 {children}
@@ -276,36 +276,36 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
           // Tables (neutral styles)
           table: ({ children }) => (
             <div className="overflow-x-auto my-6">
-              <table className="min-w-full text-sm font-mono border border-gray-400">
+              <table className="min-w-full text-sm font-mono border border-bd-strong">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-[var(--text-primary)] text-white">
+            <thead className="bg-[var(--code-block-bg)] text-white">
               {children}
             </thead>
           ),
           tbody: ({ children }) => (
-            <tbody className="bg-white">
+            <tbody className="bg-th-card">
               {children}
             </tbody>
           ),
           tr: ({ children }) => (
-            <tr className="border-b border-gray-300">{children}</tr>
+            <tr className="border-b border-bd">{children}</tr>
           ),
           th: ({ children }) => (
-            <th className="px-4 py-3 text-left font-semibold border-r border-gray-500 last:border-r-0">
+            <th className="px-4 py-3 text-left font-semibold border-r border-bd-input last:border-r-0">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-4 py-3 align-top border-r border-gray-300 last:border-r-0 text-gray-800">{children}</td>
+            <td className="px-4 py-3 align-top border-r border-bd last:border-r-0 text-heading">{children}</td>
           ),
 
           // Horizontal rule
           hr: () => (
-            <hr className="my-8 border-t-2 border-dashed border-gray-300" />
+            <hr className="my-8 border-t-2 border-dashed border-bd" />
           ),
 
           // Images
@@ -313,18 +313,18 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             <img
               src={src}
               alt={alt || ''}
-              className="max-w-full h-auto my-6 border-2 border-gray-300"
+              className="max-w-full h-auto my-6 border-2 border-bd"
             />
           ),
 
           // Strong/Bold
           strong: ({ children }) => (
-            <strong className="font-bold text-gray-900">{children}</strong>
+            <strong className="font-bold text-heading">{children}</strong>
           ),
 
           // Emphasis/Italic
           em: ({ children }) => (
-            <em className="italic text-gray-800">{children}</em>
+            <em className="italic text-heading">{children}</em>
           ),
 
           // Handle unknown HTML tags (like <subject>) - render as span

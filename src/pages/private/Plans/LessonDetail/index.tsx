@@ -108,10 +108,10 @@ const LessonDetailPage: React.FC = () => {
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-600 mb-4">// no learning path found. please generate a learning path first.</p>
+            <p className="text-label mb-4">// no learning path found. please generate a learning path first.</p>
             <button
               onClick={() => navigate(ROUTER.PLANS)}
-              className="px-6 py-2 bg-[var(--text-primary)] text-white font-medium hover:bg-black transition-colors"
+              className="px-6 py-2 bg-[var(--code-block-bg)] text-white font-medium hover:opacity-90 transition-all"
             >
               {'>_'} goToPlans()
             </button>
@@ -128,10 +128,10 @@ const LessonDetailPage: React.FC = () => {
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-600 mb-4">[ERROR]: lesson not found.</p>
+            <p className="text-label mb-4">[ERROR]: lesson not found.</p>
             <button
               onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-              className="px-6 py-2 bg-[var(--text-primary)] text-white font-medium hover:bg-black transition-colors"
+              className="px-6 py-2 bg-[var(--code-block-bg)] text-white font-medium hover:opacity-90 transition-all"
             >
               {'<'} backToPath()
             </button>
@@ -150,33 +150,33 @@ const LessonDetailPage: React.FC = () => {
           {/* Back button */}
           <button
             onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-            className="flex items-center gap-2 text-gray-600 hover:text-black mb-6 font-medium transition-colors"
+            className="flex items-center gap-2 text-label hover:text-black mb-6 font-medium transition-colors"
           >
             {'<'} back to learning path
           </button>
 
           {/* Lesson Header */}
-          <div className="bg-white border border-gray-300 p-6 mb-6">
+          <div className="bg-th-card border border-bd p-6 mb-6">
             <div className="flex items-start gap-4 mb-4">
               <div className="flex-1">
-                <div className="text-sm text-gray-500 mb-2 font-mono">
+                <div className="text-sm text-muted mb-2 font-mono">
                   // {currentLesson.chapterTitle} • Lesson {currentLesson.lessonIndex + 1}
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-blue-600">{'>_'}</span> {currentLesson.title}
+                <h1 className="text-2xl font-bold text-heading flex items-center gap-2">
+                  <span className="text-status-blue">{'>_'}</span> {currentLesson.title}
                 </h1>
                 {currentLesson.description && (
-                  <p className="text-gray-600 mt-2 text-sm">{currentLesson.description}</p>
+                  <p className="text-label mt-2 text-sm">{currentLesson.description}</p>
                 )}
               </div>
             </div>
 
             {/* Progress indicator */}
-            <div className="flex items-center gap-3 text-sm text-gray-600 font-mono mt-4 pt-4 border-t border-gray-100">
+            <div className="flex items-center gap-3 text-sm text-label font-mono mt-4 pt-4 border-t border-bd-subtle">
               <span className="w-24">progress:</span>
-              <div className="flex-1 h-[6px] bg-gray-100">
+              <div className="flex-1 h-[6px] bg-th-input">
                 <div 
-                  className="h-full bg-blue-600 transition-all duration-300"
+                  className="h-full bg-status-blue-solid transition-all duration-300"
                   style={{ width: `${((currentLessonIndex + 1) / allLessons.length) * 100}%` }}
                 />
               </div>
@@ -185,7 +185,7 @@ const LessonDetailPage: React.FC = () => {
           </div>
 
           {/* Lesson Content */}
-          <div className="bg-white border border-gray-300 p-6 mb-6">
+          <div className="bg-th-card border border-bd p-6 mb-6">
             <LessonContent content={md} loading={loading} error={error || undefined} />
           </div>
 
@@ -194,10 +194,10 @@ const LessonDetailPage: React.FC = () => {
             {prevLesson ? (
               <button
                 onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
-                className="flex flex-col items-start px-5 py-3 bg-white border border-gray-300 hover:border-black transition-colors w-1/2 max-w-[240px]"
+                className="flex flex-col items-start px-5 py-3 bg-th-card border border-bd hover:border-black transition-colors w-1/2 max-w-[240px]"
               >
-                <div className="text-xs text-gray-500 mb-1">{'<'} previous block</div>
-                <div className="text-sm font-medium text-gray-900 truncate w-full text-left">{String(prevLesson.title).toLowerCase()}</div>
+                <div className="text-xs text-muted mb-1">{'<'} previous block</div>
+                <div className="text-sm font-medium text-heading truncate w-full text-left">{String(prevLesson.title).toLowerCase()}</div>
               </button>
             ) : (
               <div className="w-1/2 max-w-[240px]" />
@@ -206,15 +206,15 @@ const LessonDetailPage: React.FC = () => {
             {nextLesson ? (
               <button
                 onClick={() => navigate(`/lesson/${nextLesson.id}`, { state: { skeleton } })}
-                className="flex flex-col items-end px-5 py-3 bg-[var(--text-primary)] text-white hover:bg-black transition-colors w-1/2 max-w-[240px] ml-auto"
+                className="flex flex-col items-end px-5 py-3 bg-[var(--code-block-bg)] text-white hover:opacity-90 transition-all w-1/2 max-w-[240px] ml-auto"
               >
-                <div className="text-xs text-gray-400 mb-1">next block {'>'}</div>
+                <div className="text-xs text-placeholder mb-1">next block {'>'}</div>
                 <div className="text-sm font-medium truncate w-full text-right">{String(nextLesson.title).toLowerCase()}</div>
               </button>
             ) : (
               <button
                 onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-                className="px-6 py-4 bg-green-700 text-white font-medium hover:bg-green-800 transition-colors ml-auto"
+                className="px-6 py-4 bg-status-green-solid-dark text-white font-medium hover:bg-status-green-solid-darker transition-colors ml-auto"
               >
                 [✓] complete_path
               </button>

@@ -136,7 +136,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--color-hex-24)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
       <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottom: '1px solid var(--border-base)', flexShrink: 0 }}>
@@ -211,7 +211,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
             </button>
             <button type="submit" disabled={loading}
               style={{ flex: 1, padding: '8px 16px', background: loading ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 0.2s' }}
-              onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = 'var(--color-hex-25)' }} onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = 'var(--text-primary)' }}>
+              onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = 'var(--text-primary)' }}>
               {loading && <Loader2 size={14} className="animate-spin" />}
               {'>'} {loading ? 'creating...' : 'create resource'}
             </button>

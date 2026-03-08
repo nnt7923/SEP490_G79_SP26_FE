@@ -24,7 +24,7 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
     style={{
       display: 'flex', flexDirection: 'column', height: '100%',
       padding: 16, border: '1px solid var(--border-base)', borderRadius: 2,
-      background: active ? 'var(--color-hex-21)' : 'var(--bg-surface)',
+      background: active ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
       borderColor: active ? 'var(--accent-primary)' : 'var(--border-base)',
       textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
       boxSizing: 'border-box'

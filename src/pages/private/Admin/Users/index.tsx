@@ -106,9 +106,9 @@ const AdminUsersPage: React.FC = () => {
 
   const getRoleColor = (role: string) => {
     const normalized = role?.toLowerCase() || ''
-    if (normalized === 'admin') return { bg: 'var(--bg-surface-short)', text: 'var(--color-hex-83)', border: 'var(--color-hex-83)' }
-    if (normalized === 'mentor') return { bg: 'var(--bg-surface-short)', text: 'var(--color-hex-84)', border: 'var(--color-hex-84)' }
-    return { bg: 'var(--bg-surface-short)', text: 'var(--color-hex-47)', border: 'var(--color-hex-47)' }
+    if (normalized === 'admin') return { bg: 'var(--bg-surface-short)', text: 'var(--text-amber-deep)', border: 'var(--text-amber-deep)' }
+    if (normalized === 'mentor') return { bg: 'var(--bg-surface-short)', text: 'var(--text-purple-deep)', border: 'var(--text-purple-deep)' }
+    return { bg: 'var(--bg-surface-short)', text: 'var(--brand-blue-deep)', border: 'var(--brand-blue-deep)' }
   }
 
   return (
@@ -116,22 +116,22 @@ const AdminUsersPage: React.FC = () => {
       <div className="px-4 py-8 bg-[var(--gray-100)] min-h-screen font-mono">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
-          <div className="mb-6 border-b border-gray-300 pb-4">
+          <div className="mb-6 border-b border-bd pb-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 border-none bg-transparent">
-                  <span className="text-blue-600 mr-2">{'>_'}</span>
+                <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
+                  <span className="text-status-blue mr-2">{'>_'}</span>
                   admin_users
                 </h1>
-                <p className="text-gray-500 mt-2">
-                  <span className="text-gray-400 mr-2">{'//'}</span>
+                <p className="text-muted mt-2">
+                  <span className="text-placeholder mr-2">{'//'}</span>
                   manage users and permissions
                 </p>
               </div>
               <button
                 onClick={fetchUsers}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-white text-blue-600 text-sm font-bold hover:bg-blue-50 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer"
                 title="Reload"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -142,18 +142,18 @@ const AdminUsersPage: React.FC = () => {
 
           {/* Search */}
           <div className="mb-6 relative">
-            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-placeholder" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="grep 'name|username|email|role'..."
-              className="pl-11 pr-4 py-3 w-full bg-white border border-gray-400 focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
+              className="pl-11 pr-4 py-3 w-full bg-th-card border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
             />
           </div>
 
          {/* Role Filter */}
          <div className="mb-6 flex items-center gap-3">
-           <span className="text-sm font-bold text-gray-500">filter_by:</span>
+           <span className="text-sm font-bold text-muted">filter_by:</span>
            <div className="flex gap-2">
              {['all', 'Student', 'Mentor', 'Admin'].map((role) => (
                <button
@@ -161,8 +161,8 @@ const AdminUsersPage: React.FC = () => {
                  onClick={() => setRoleFilter(role)}
                  className={`px-3 py-1 text-sm font-bold transition-colors border cursor-pointer ${
                    roleFilter === role
-                     ? 'bg-blue-600 text-white border-blue-600'
-                     : 'bg-white text-gray-600 border-gray-400 hover:border-gray-600'
+                     ? 'bg-status-blue-solid text-white border-blue-600'
+                     : 'bg-th-card text-label border-bd-strong hover:border-bd-input'
                  }`}
                >
                  {role === 'all' ? '[ * ]' : `[ ${role.toLowerCase()} ]`}
@@ -173,8 +173,8 @@ const AdminUsersPage: React.FC = () => {
 
          {/* Error Message */}
          {error ? (
-           <div className="mb-6 rounded-lg border border-red-300 bg-red-50 text-red-700 p-4 text-sm flex items-start gap-3">
-             <div className="w-1 h-1 rounded-full bg-red-700 mt-2 flex-shrink-0"></div>
+           <div className="mb-6 rounded-lg border border-red-300 bg-status-red-bg text-status-red-dark p-4 text-sm flex items-start gap-3">
+             <div className="w-1 h-1 rounded-full bg-status-red-solid-dark mt-2 flex-shrink-0"></div>
              <span>{error}</span>
            </div>
          ) : null}
@@ -184,14 +184,14 @@ const AdminUsersPage: React.FC = () => {
            {loading && (
              <div className="text-center py-12">
                <div className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
-                 <div className="w-4 h-4 rounded-full border-2 border-[var(--color-hex-48)] border-t-transparent animate-spin"></div>
+                 <div className="w-4 h-4 rounded-full border-2 border-[var(--brand-blue)] border-t-transparent animate-spin"></div>
                  <span>Loading users...</span>
                </div>
              </div>
            )}
 
            {!loading && filtered.length === 0 && (
-             <div className="text-center py-12 bg-white rounded-lg border border-[var(--gray-200)]">
+             <div className="text-center py-12 bg-th-card rounded-lg border border-[var(--gray-200)]">
                <p className="text-[var(--text-secondary)]">No users found</p>
              </div>
            )}
@@ -206,22 +206,22 @@ const AdminUsersPage: React.FC = () => {
               return (
                 <div
                   key={uid}
-                  className="bg-white border border-gray-400 transition-colors"
+                  className="bg-th-card border border-bd-strong transition-colors"
                 >
                   {/* Main Row */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : uid)}
-                    className="w-full px-4 py-3 flex flex-wrap items-center gap-4 hover:bg-gray-50 transition-colors text-left cursor-pointer"
+                    className="w-full px-4 py-3 flex flex-wrap items-center gap-4 hover:bg-th-page transition-colors text-left cursor-pointer"
                   >
                    {/* Avatar */}
                    <div className="flex-shrink-0">
-                     <span className="text-gray-900 font-bold text-sm">[{getInitials(name)}]</span>
+                     <span className="text-heading font-bold text-sm">[{getInitials(name)}]</span>
                    </div>
 
                    {/* Info */}
                    <div className="flex-1 min-w-0">
-                     <p className="font-bold text-gray-900 truncate">{name}</p>
-                     <p className="text-xs text-gray-500 truncate">{u?.email ?? '—'}</p>
+                     <p className="font-bold text-heading truncate">{name}</p>
+                     <p className="text-xs text-muted truncate">{u?.email ?? '—'}</p>
                    </div>
 
                    {/* Role Badge */}
@@ -237,54 +237,54 @@ const AdminUsersPage: React.FC = () => {
 
                    {/* Banned Badge */}
                    {u?.status?.toLowerCase() === 'banned' && (
-                     <div className="px-2 py-0.5 text-xs font-bold flex-shrink-0 bg-red-50 text-red-700 border border-red-300">
+                     <div className="px-2 py-0.5 text-xs font-bold flex-shrink-0 bg-status-red-bg text-status-red-dark border border-red-300">
                        [banned]
                      </div>
                    )}
 
                    {/* Expand Icon */}
-                   <div className="text-gray-500 font-bold text-sm w-12 text-right flex-shrink-0">
+                   <div className="text-muted font-bold text-sm w-12 text-right flex-shrink-0">
                      {isExpanded ? '[-]' : '[+]'}
                    </div>
                  </button>
 
                  {/* Expanded Details */}
                  {isExpanded && (
-                   <div className="border-t border-gray-300 bg-gray-50 px-4 py-4 space-y-4">
+                   <div className="border-t border-bd bg-th-page px-4 py-4 space-y-4">
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                        {/* Username */}
                        <div>
-                         <p className="text-xs font-bold text-gray-500 lowercase">username:</p>
-                         <p className="text-sm text-gray-900">{u?.username ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">username:</p>
+                         <p className="text-sm text-heading">{u?.username ?? '—'}</p>
                        </div>
 
                        {/* Email */}
                        <div>
-                         <p className="text-xs font-bold text-gray-500 lowercase">email_address:</p>
-                         <p className="text-sm text-gray-900">{u?.email ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">email_address:</p>
+                         <p className="text-sm text-heading">{u?.email ?? '—'}</p>
                        </div>
 
                        {/* Created Date */}
                        <div>
-                         <p className="text-xs font-bold text-gray-500 lowercase">created_at:</p>
-                         <p className="text-sm text-gray-900">
+                         <p className="text-xs font-bold text-muted lowercase">created_at:</p>
+                         <p className="text-sm text-heading">
                            {u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
                          </p>
                        </div>
 
                        {/* Last Login */}
                        <div>
-                         <p className="text-xs font-bold text-gray-500 lowercase">last_login:</p>
-                         <p className="text-sm text-gray-900">
+                         <p className="text-xs font-bold text-muted lowercase">last_login:</p>
+                         <p className="text-sm text-heading">
                            {u?.lastLogin ? formatDateTimeVN(u.lastLogin) : 'Never'}
                          </p>
                        </div>
 
                        {/* Status */}
                        <div>
-                         <p className="text-xs font-bold text-gray-500 lowercase">status:</p>
+                         <p className="text-xs font-bold text-muted lowercase">status:</p>
                          <div className="flex items-center gap-2">
-                           <span className="text-sm font-bold text-gray-900">
+                           <span className="text-sm font-bold text-heading">
                              [{u?.status?.toLowerCase() || 'active'}]
                            </span>
                          </div>
@@ -292,24 +292,24 @@ const AdminUsersPage: React.FC = () => {
 
                        {/* First Name */}
                        <div>
-                         <p className="text-xs font-bold text-gray-500 lowercase">first_name:</p>
-                         <p className="text-sm text-gray-900">{u?.firstName ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">first_name:</p>
+                         <p className="text-sm text-heading">{u?.firstName ?? '—'}</p>
                        </div>
 
                        {/* Last Name */}
                        <div>
-                         <p className="text-xs font-bold text-gray-500 lowercase">last_name:</p>
-                         <p className="text-sm text-gray-900">{u?.lastName ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">last_name:</p>
+                         <p className="text-sm text-heading">{u?.lastName ?? '—'}</p>
                        </div>
                      </div>
 
                      {/* Action Buttons */}
-                     <div className="pt-4 border-t border-gray-300 flex gap-3">
+                     <div className="pt-4 border-t border-bd flex gap-3">
                        {u?.status?.toLowerCase() === 'banned' ? (
                          <button
                            onClick={() => handleBanUser(uid, true)}
                            disabled={actionLoading === uid}
-                           className="flex items-center gap-2 px-3 py-1.5 border border-green-600 text-green-700 bg-white hover:bg-green-50 text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
+                           className="flex items-center gap-2 px-3 py-1.5 border border-green-600 text-status-green-dark bg-th-card hover:bg-status-green-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
                          >
                            {actionLoading === uid ? '[ unbanning... ]' : '[ unban ]'}
                          </button>
@@ -317,7 +317,7 @@ const AdminUsersPage: React.FC = () => {
                          <button
                            onClick={() => handleBanUser(uid, false)}
                            disabled={actionLoading === uid}
-                           className="flex items-center gap-2 px-3 py-1.5 border border-red-600 text-red-700 bg-white hover:bg-red-50 text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
+                           className="flex items-center gap-2 px-3 py-1.5 border border-red-600 text-status-red-dark bg-th-card hover:bg-status-red-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
                          >
                            {actionLoading === uid ? '[ banning... ]' : '[ ban ]'}
                          </button>
@@ -332,7 +332,7 @@ const AdminUsersPage: React.FC = () => {
 
           {/* Summary */}
           {!loading && filtered.length > 0 && (
-            <div className="mt-6 text-sm text-gray-500 font-bold">
+            <div className="mt-6 text-sm text-muted font-bold">
               [showing: {filtered.length}/{users.length}]
             </div>
           )}
@@ -342,18 +342,18 @@ const AdminUsersPage: React.FC = () => {
             <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
               <div className={`flex items-center gap-3 px-4 py-3 border shadow-none font-mono min-w-[300px] max-w-md ${
                 toast.type === 'success' 
-                  ? 'bg-green-50 border-green-600 text-green-800' 
-                  : 'bg-red-50 border-red-600 text-red-800'
+                  ? 'bg-status-green-bg border-green-600 text-status-green-darker' 
+                  : 'bg-status-red-bg border-red-600 text-status-red-darker'
               }`}>
                 {toast.type === 'success' ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <CheckCircle className="w-5 h-5 text-status-green" />
                 ) : (
-                  <Ban className="w-5 h-5 text-red-600" />
+                  <Ban className="w-5 h-5 text-status-red" />
                 )}
                 <p className="flex-1 text-sm font-bold">{toast.message}</p>
                 <button
                   onClick={() => setToast(null)}
-                  className="text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
+                  className="text-muted hover:text-heading transition-colors cursor-pointer"
                 >
                   <span className="font-bold">[x]</span>
                 </button>

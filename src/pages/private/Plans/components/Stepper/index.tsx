@@ -19,7 +19,7 @@ const Stepper: React.FC<StepperProps> = ({ currentStep, totalSteps }) => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: 32, height: 32, border: `1px solid ${isActive || isPast ? 'var(--text-primary)' : 'var(--border-base)'}`,
                 background: isActive ? 'var(--text-primary)' : 'transparent',
-                color: isActive ? 'var(--bg-surface-short)' : (isPast ? 'var(--text-primary)' : 'var(--color-hex-98)'),
+                color: isActive ? 'var(--bg-surface-short)' : (isPast ? 'var(--text-primary)' : 'var(--text-disabled)'),
                 fontWeight: isActive ? 700 : 400,
                 fontSize: 14, borderRadius: 2
               }}

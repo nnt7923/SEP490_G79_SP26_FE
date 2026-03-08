@@ -54,21 +54,21 @@ const Register: React.FC = () => {
 
   // Terminal code snippet for the visual panel
   const codeLines = [
-    { num: 1, content: '// CodeNexus — Create Account', color: 'var(--text-secondary)' },
+    { num: 1, content: '// CodeNexus — Create Account', color: '#8b949e' },
     { num: 2, content: '', color: '' },
-    { num: 3, content: 'const student = {', color: 'var(--gray-200)' },
-    { num: 4, content: '  role: "learner",', color: 'var(--gray-200)' },
-    { num: 5, content: '  goals: [', color: 'var(--gray-200)' },
-    { num: 6, content: '    "master-coding",', color: 'var(--accent-primary)' },
-    { num: 7, content: '    "build-projects",', color: 'var(--accent-primary)' },
-    { num: 8, content: '    "join-community"', color: 'var(--accent-primary)' },
-    { num: 9, content: '  ],', color: 'var(--gray-200)' },
-    { num: 10, content: '  plan: "personalized",', color: 'var(--success-primary)' },
-    { num: 11, content: '  ai: true', color: 'var(--success-primary)' },
-    { num: 12, content: '};', color: 'var(--gray-200)' },
+    { num: 3, content: 'const student = {', color: '#e6edf3' },
+    { num: 4, content: '  role: "learner",', color: '#e6edf3' },
+    { num: 5, content: '  goals: [', color: '#e6edf3' },
+    { num: 6, content: '    "master-coding",', color: '#79c0ff' },
+    { num: 7, content: '    "build-projects",', color: '#79c0ff' },
+    { num: 8, content: '    "join-community"', color: '#79c0ff' },
+    { num: 9, content: '  ],', color: '#e6edf3' },
+    { num: 10, content: '  plan: "personalized",', color: '#3fb950' },
+    { num: 11, content: '  ai: true', color: '#3fb950' },
+    { num: 12, content: '};', color: '#e6edf3' },
     { num: 13, content: '', color: '' },
-    { num: 14, content: 'student.start();', color: 'var(--gray-200)' },
-    { num: 15, content: '// → Journey begins here', color: 'var(--text-secondary)' },
+    { num: 14, content: 'student.start();', color: '#e6edf3' },
+    { num: 15, content: '// → Journey begins here', color: '#8b949e' },
   ]
 
   const inputStyle: React.CSSProperties = {
@@ -123,7 +123,7 @@ const Register: React.FC = () => {
             style={{
               border: '1px solid var(--border-base)',
               borderRadius: 2,
-              background: 'var(--text-primary)',
+              background: 'var(--code-block-bg)',
               overflow: 'hidden',
               minHeight: 420,
             }}
@@ -135,14 +135,14 @@ const Register: React.FC = () => {
                 alignItems: 'center',
                 gap: 6,
                 padding: '10px 14px',
-                borderBottom: '1px solid var(--color-hex-25)',
-                background: 'var(--color-hex-107)',
+                borderBottom: '1px solid var(--text-strong)',
+                background: 'var(--terminal-bg)',
               }}
             >
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-108)' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-109)' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-hex-110)' }} />
-              <span style={{ marginLeft: 12, fontSize: 11, color: 'var(--color-hex-111)', fontFamily: 'inherit' }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-red)' }} />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-yellow)' }} />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-green)' }} />
+              <span style={{ marginLeft: 12, fontSize: 11, color: 'var(--terminal-gutter)', fontFamily: 'inherit' }}>
                 register.js — CodeNexus
               </span>
             </div>
@@ -163,7 +163,7 @@ const Register: React.FC = () => {
                     style={{
                       width: 32,
                       textAlign: 'right',
-                      color: 'var(--color-hex-112)',
+                      color: 'var(--terminal-comment)',
                       userSelect: 'none',
                       paddingRight: 16,
                       flexShrink: 0,
@@ -180,17 +180,17 @@ const Register: React.FC = () => {
             {/* Terminal prompt */}
             <div
               style={{
-                borderTop: '1px solid var(--color-hex-25)',
+                borderTop: '1px solid var(--text-strong)',
                 padding: '12px 14px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                background: 'var(--color-hex-107)',
+                background: 'var(--terminal-bg)',
               }}
             >
               <span style={{ color: 'var(--success-primary)', fontSize: 13, fontFamily: 'inherit' }}>➜</span>
               <span style={{ color: 'var(--accent-primary)', fontSize: 13, fontFamily: 'inherit' }}>codenexus</span>
-              <span style={{ color: 'var(--color-hex-111)', fontSize: 13, fontFamily: 'inherit' }}>git:(main)</span>
+              <span style={{ color: 'var(--terminal-gutter)', fontSize: 13, fontFamily: 'inherit' }}>git:(main)</span>
               <span
                 style={{
                   display: 'inline-block',
@@ -346,7 +346,7 @@ const Register: React.FC = () => {
             {error && (
               <div
                 style={{
-                  background: 'var(--color-hex-113)',
+                  background: 'var(--bg-red-light)',
                   border: '1px solid var(--danger-primary)',
                   borderRadius: 2,
                   padding: '8px 12px',
@@ -363,7 +363,7 @@ const Register: React.FC = () => {
             {message && (
               <div
                 style={{
-                  background: 'var(--color-hex-67)',
+                  background: 'var(--bg-green-tint)',
                   border: '1px solid var(--success-primary)',
                   borderRadius: 2,
                   padding: '8px 12px',
@@ -393,7 +393,7 @@ const Register: React.FC = () => {
                 fontFamily: 'inherit',
                 transition: 'background-color 0.2s ease',
               }}
-              onMouseEnter={(e) => { if (!authStore.loading) e.currentTarget.style.background = 'var(--color-hex-25)' }}
+              onMouseEnter={(e) => { if (!authStore.loading) e.currentTarget.style.background = 'var(--text-strong)' }}
               onMouseLeave={(e) => { if (!authStore.loading) e.currentTarget.style.background = 'var(--text-primary)' }}
             >
               {'>'} {authStore.loading ? 'registering...' : 'register'}

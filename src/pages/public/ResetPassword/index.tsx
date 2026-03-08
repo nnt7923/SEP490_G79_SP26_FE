@@ -90,7 +90,7 @@ const ResetPassword: React.FC = () => {
         <div className="auth__card">
           {toast && (
             <div style={{
-              background: 'var(--color-hex-44)', color: 'var(--bg-surface-short)', padding: '8px 12px', borderRadius: 6,
+              background: 'var(--color-emerald-500)', color: 'var(--bg-surface-short)', padding: '8px 12px', borderRadius: 6,
               marginBottom: 12, fontSize: 14
             }} role="status">{toast}</div>
           )}

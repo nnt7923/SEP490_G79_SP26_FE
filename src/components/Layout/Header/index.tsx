@@ -4,10 +4,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import ReactMarkdown from 'react-markdown'
+import { useTheme } from '../../../contexts/ThemeContext'
 
 const Header: React.FC = () => {
   const navigate = useNavigate()
   const { token, user, logout } = useAuthStore()
+  const { theme, toggleTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -81,7 +83,7 @@ const Header: React.FC = () => {
           width: 28,
           height: 28,
           borderRadius: 2,
-          background: 'var(--color-hex-20)',
+          background: 'var(--bg-neutral)',
           border: '1px solid var(--border-base)',
           display: 'flex',
           alignItems: 'center',
@@ -199,8 +201,32 @@ const Header: React.FC = () => {
             </Link>
           </nav>
 
-          {/* Right: User menu */}
+          {/* Right: Theme toggle + User menu */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              style={{
+                padding: '4px 10px',
+                border: '1px solid var(--border-base)',
+                borderRadius: 2,
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+              aria-label="Toggle dark mode"
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              {theme === 'light' ? '☾' : '☀'}
+            </button>
+
             {/* Mobile menu button */}
             <button
               type="button"
@@ -223,30 +249,55 @@ const Header: React.FC = () => {
             </button>
 
             {!token ? (
-              <Link
-                to="/login"
-                style={{
-                  padding: '5px 14px',
-                  border: '1px solid var(--text-primary)',
-                  borderRadius: 2,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  textDecoration: 'none',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--text-primary)'
-                  e.currentTarget.style.color = 'var(--bg-surface)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }}
-              >
-                {'>'} login
-              </Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Link
+                  to="/login"
+                  style={{
+                    padding: '5px 14px',
+                    border: '1px solid var(--text-primary)',
+                    borderRadius: 2,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    textDecoration: 'none',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--text-primary)'
+                    e.currentTarget.style.color = 'var(--bg-surface)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = 'var(--text-primary)'
+                  }}
+                >
+                  {'>'} login
+                </Link>
+                <Link
+                  to="/register"
+                  style={{
+                    padding: '5px 14px',
+                    border: '1px solid var(--accent-primary)',
+                    borderRadius: 2,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: 'var(--accent-primary)',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '0.85'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '1'
+                  }}
+                >
+                  {'>'} register
+                </Link>
+              </div>
             ) : (
               <div style={{ position: 'relative' }} ref={menuRef}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -321,7 +372,7 @@ const Header: React.FC = () => {
                                 fontFamily: 'inherit',
                                 transition: 'background-color 0.15s ease',
                               }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-hex-20)' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-neutral)' }}
                               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                               onClick={() => {
                                 setOpen(false)

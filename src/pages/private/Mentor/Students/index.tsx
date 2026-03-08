@@ -58,8 +58,8 @@ const MentorStudents: React.FC = () => {
   }
 
   const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'text-green-600 bg-green-50'
-    if (progress >= 50) return 'text-blue-600 bg-blue-50'
+    if (progress >= 80) return 'text-status-green bg-status-green-bg'
+    if (progress >= 50) return 'text-status-blue bg-status-blue-bg'
     return 'text-yellow-600 bg-yellow-50'
   }
 
@@ -74,15 +74,15 @@ const MentorStudents: React.FC = () => {
       <div className="min-h-screen bg-[var(--gray-100)] px-4 py-8 font-mono">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="mb-6 border-b border-gray-300 pb-4">
+          <div className="mb-6 border-b border-bd pb-4">
             <div className="flex items-center gap-3">
               <Users className="w-6 h-6 text-pink-600" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 border-none bg-transparent flex items-center">
+                <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
                   <span className="text-pink-600 mr-2">{'>_'}</span>
                   my_students
                 </h1>
-                <p className="text-xs text-gray-600 mt-1 font-mono">
+                <p className="text-xs text-label mt-1 font-mono">
                   {'//'} track and manage student progress
                 </p>
               </div>
@@ -91,34 +91,34 @@ const MentorStudents: React.FC = () => {
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white border border-gray-400 p-4">
+            <div className="bg-th-card border border-bd-strong p-4">
               <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-blue-600" />
+                <Users className="w-5 h-5 text-status-blue" />
                 <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase">total_students</p>
-                  <p className="text-xl font-bold text-gray-900">[{students.length}]</p>
+                  <p className="text-xs font-bold text-muted uppercase">total_students</p>
+                  <p className="text-xl font-bold text-heading">[{students.length}]</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white border border-gray-400 p-4">
+            <div className="bg-th-card border border-bd-strong p-4">
               <div className="flex items-center gap-3">
-                <TrendingUp className="w-5 h-5 text-green-600" />
+                <TrendingUp className="w-5 h-5 text-status-green" />
                 <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase">avg_progress</p>
-                  <p className="text-xl font-bold text-gray-900">
+                  <p className="text-xs font-bold text-muted uppercase">avg_progress</p>
+                  <p className="text-xl font-bold text-heading">
                     [{Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)}%]
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white border border-gray-400 p-4">
+            <div className="bg-th-card border border-bd-strong p-4">
               <div className="flex items-center gap-3">
                 <Award className="w-5 h-5 text-purple-600" />
                 <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase">active_students</p>
-                  <p className="text-xl font-bold text-gray-900">
+                  <p className="text-xs font-bold text-muted uppercase">active_students</p>
+                  <p className="text-xl font-bold text-heading">
                     [{students.filter(s => s.status === 'active').length}]
                   </p>
                 </div>
@@ -127,73 +127,73 @@ const MentorStudents: React.FC = () => {
           </div>
 
           {/* Search Bar */}
-          <div className="bg-white border border-gray-400 p-4 mb-6">
+          <div className="bg-th-card border border-bd-strong p-4 mb-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
               <input
                 type="text"
                 placeholder="grep 'students'..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-400 focus:outline-none focus:border-pink-600 transition-colors text-gray-900 placeholder:text-gray-400 font-mono"
+                className="w-full pl-10 pr-4 py-2 border border-bd-strong focus:outline-none focus:border-pink-600 transition-colors text-heading placeholder:text-placeholder font-mono"
               />
             </div>
           </div>
 
           {/* Students List */}
           {filteredStudents.length === 0 ? (
-            <div className="bg-white border border-gray-400 p-12 text-center">
-              <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-900 mb-2">no_students_found()</h3>
-              <p className="text-sm text-gray-500 font-mono">
+            <div className="bg-th-card border border-bd-strong p-12 text-center">
+              <Users className="w-12 h-12 text-disabled mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-heading mb-2">no_students_found()</h3>
+              <p className="text-sm text-muted font-mono">
                 {'//'} {searchQuery ? 'try adjusting your search' : 'no students enrolled yet'}
               </p>
             </div>
           ) : (
-            <div className="bg-white border border-gray-400 overflow-hidden">
+            <div className="bg-th-card border border-bd-strong overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-100 border-b border-gray-300">
+                  <thead className="bg-th-input border-b border-bd">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
                         student
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
                         email
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
                         classes
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
                         progress
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
                         actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-300">
                     {filteredStudents.map((student) => (
-                      <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={student.id} className="hover:bg-th-page transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 border border-gray-400 bg-white flex items-center justify-center text-gray-900 font-bold text-sm uppercase">
+                            <div className="w-10 h-10 border border-bd-strong bg-th-card flex items-center justify-center text-heading font-bold text-sm uppercase">
                               {getInitials(student.name)}
                             </div>
                             <div>
-                              <p className="font-bold text-gray-900 uppercase">{student.name}</p>
-                              <p className="text-xs text-gray-500">[{student.status}]</p>
+                              <p className="font-bold text-heading uppercase">{student.name}</p>
+                              <p className="text-xs text-muted">[{student.status}]</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Mail className="w-4 h-4 text-gray-400" />
+                          <div className="flex items-center gap-2 text-sm text-label">
+                            <Mail className="w-4 h-4 text-placeholder" />
                             <span>{student.email}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm font-bold text-gray-900">
+                          <span className="text-sm font-bold text-heading">
                             [{student.enrolledClasses}] classes
                           </span>
                         </td>
