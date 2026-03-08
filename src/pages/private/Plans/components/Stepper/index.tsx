@@ -7,28 +7,34 @@ interface StepperProps {
 
 const Stepper: React.FC<StepperProps> = ({ currentStep, totalSteps }) => {
   return (
-    <nav className="flex items-center justify-center gap-3 mb-10" aria-label="progress">
-      {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
-        <div key={step} className="flex items-center">
-          <div
-            className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm transition-all duration-300 ${
-              currentStep >= step
-                ? 'bg-blue-500 text-white shadow-lg scale-110'
-                : 'bg-gray-200 text-gray-500'
-            }`}
-            aria-current={currentStep === step ? 'step' : undefined}
-          >
-            {step}
-          </div>
-          {step !== totalSteps && (
+    <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 40, fontFamily: 'monospace' }} aria-label="progress">
+      {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => {
+        const isActive = currentStep === step
+        const isPast = currentStep > step
+        
+        return (
+          <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div
-              className={`w-12 md:w-16 h-1 mx-2 rounded-full transition-all duration-300 ${
-                currentStep > step ? 'bg-blue-500' : 'bg-gray-200'
-              }`}
-            />
-          )}
-        </div>
-      ))}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32, border: `1px solid ${isActive || isPast ? 'var(--text-primary)' : 'var(--border-base)'}`,
+                background: isActive ? 'var(--text-primary)' : 'transparent',
+                color: isActive ? 'var(--bg-surface-short)' : (isPast ? 'var(--text-primary)' : 'var(--color-hex-98)'),
+                fontWeight: isActive ? 700 : 400,
+                fontSize: 14, borderRadius: 2
+              }}
+              aria-current={isActive ? 'step' : undefined}
+            >
+              {isPast ? '✓' : step}
+            </div>
+            {step !== totalSteps && (
+              <div style={{ color: isPast ? 'var(--text-primary)' : 'var(--border-base)', letterSpacing: 2, fontSize: 12 }}>
+                -----
+              </div>
+            )}
+          </div>
+        )
+      })}
     </nav>
   )
 }

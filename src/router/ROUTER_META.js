@@ -19,6 +19,7 @@ const ROUTER_META = {
   [ROUTER.MENTOR_DASHBOARD]: { breadcrumb: 'Mentor', title: 'Mentor Dashboard' },
   [ROUTER.ADMIN_API_KEY]: { breadcrumb: 'API Key', title: 'Admin API Key' },
   [ROUTER.ADMIN_USERS]: { breadcrumb: 'Users', title: 'Admin Users' },
+  [ROUTER.ADMIN_REPORTS]: { breadcrumb: 'Reports', title: 'Admin Reports' },
 }
 
 export default ROUTER_META

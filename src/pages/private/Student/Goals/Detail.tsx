@@ -52,10 +52,10 @@ const GoalsDetailPage: React.FC = () => {
   if (loading) {
     return (
       <Layout sidebar={sidebarConfig}>
-        <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen flex items-center justify-center">
+        <div className="px-6 py-8 bg-gradient-to-br from-[var(--color-hex-12)] to-[var(--gray-100)] min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <Loader className="w-8 h-8 text-[#2f80ed] animate-spin mx-auto mb-3" />
-            <p className="text-[#6b7280]">Loading goal details...</p>
+            <Loader className="w-8 h-8 text-[var(--color-hex-48)] animate-spin mx-auto mb-3" />
+            <p className="text-[var(--text-secondary)]">Loading goal details...</p>
           </div>
         </div>
       </Layout>
@@ -65,21 +65,21 @@ const GoalsDetailPage: React.FC = () => {
   if (error || !goal) {
     return (
       <Layout sidebar={sidebarConfig}>
-        <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+        <div className="px-6 py-8 bg-gradient-to-br from-[var(--color-hex-12)] to-[var(--gray-100)] min-h-screen">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-[#2f80ed] hover:text-[#1e5fb8] mb-6 transition-colors"
+            className="flex items-center gap-2 text-[var(--color-hex-48)] hover:text-[var(--color-hex-101)] mb-6 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
           
-          <div className="bg-white rounded-lg border border-[#e5e7eb] p-8">
+          <div className="bg-white rounded-lg border border-[var(--gray-200)] p-8">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-[var(--color-hex-85)] flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-[#111827]">Error loading goal</h3>
-                <p className="text-sm text-[#6b7280] mt-1">{error || 'Goal not found'}</p>
+                <h3 className="font-semibold text-[var(--gray-900)]">Error loading goal</h3>
+                <p className="text-sm text-[var(--text-secondary)] mt-1">{error || 'Goal not found'}</p>
               </div>
             </div>
           </div>
@@ -90,27 +90,27 @@ const GoalsDetailPage: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+      <div className="px-6 py-8 bg-gradient-to-br from-[var(--color-hex-12)] to-[var(--gray-100)] min-h-screen">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[#2f80ed] hover:text-[#1e5fb8] mb-6 transition-colors font-medium"
+          className="flex items-center gap-2 text-[var(--color-hex-48)] hover:text-[var(--color-hex-101)] mb-6 transition-colors font-medium"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Goals
         </button>
 
         {/* Header */}
-        <div className="bg-white rounded-lg border border-[#e5e7eb] p-8 mb-6">
+        <div className="bg-white rounded-lg border border-[var(--gray-200)] p-8 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-4xl font-bold text-[#111827] mb-2">{goal.title || 'Untitled Goal'}</h1>
-              <p className="text-[#6b7280] text-lg">{goal.description || 'No description available'}</p>
+              <h1 className="text-4xl font-bold text-[var(--gray-900)] mb-2">{goal.title || 'Untitled Goal'}</h1>
+              <p className="text-[var(--text-secondary)] text-lg">{goal.description || 'No description available'}</p>
             </div>
             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${
               goal.isCompleted 
-                ? 'bg-[#d1fae5] text-[#065f46]' 
-                : 'bg-[#fef3c7] text-[#92400e]'
+                ? 'bg-[var(--color-hex-59)] text-[var(--color-hex-102)]' 
+                : 'bg-[var(--color-hex-54)] text-[var(--color-hex-83)]'
             }`}>
               {goal.isCompleted ? (
                 <>
@@ -127,27 +127,27 @@ const GoalsDetailPage: React.FC = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-[#e5e7eb]">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-[var(--gray-200)]">
             <div className="stat-box">
-              <div className="text-3xl font-bold text-[#2f80ed]">{goal.durationDays || 0}</div>
-              <div className="text-sm text-[#6b7280] mt-1">Days Duration</div>
+              <div className="text-3xl font-bold text-[var(--color-hex-48)]">{goal.durationDays || 0}</div>
+              <div className="text-sm text-[var(--text-secondary)] mt-1">Days Duration</div>
             </div>
             <div className="stat-box">
-              <div className="text-3xl font-bold text-[#7c3aed]">{goal.isCompleted ? '100' : '0'}%</div>
-              <div className="text-sm text-[#6b7280] mt-1">Progress</div>
+              <div className="text-3xl font-bold text-[var(--color-hex-50)]">{goal.isCompleted ? '100' : '0'}%</div>
+              <div className="text-sm text-[var(--text-secondary)] mt-1">Progress</div>
             </div>
             <div className="stat-box">
-              <div className="text-3xl font-bold text-[#059669]">{goal.isCompleted ? '✓' : '-'}</div>
-              <div className="text-sm text-[#6b7280] mt-1">Status</div>
+              <div className="text-3xl font-bold text-[var(--color-hex-58)]">{goal.isCompleted ? '✓' : '-'}</div>
+              <div className="text-sm text-[var(--text-secondary)] mt-1">Status</div>
             </div>
             <div className="stat-box">
-              <div className="text-3xl font-bold text-[#f59e0b]">0</div>
-              <div className="text-sm text-[#6b7280] mt-1">Learning Paths</div>
+              <div className="text-3xl font-bold text-[var(--color-hex-28)]">0</div>
+              <div className="text-sm text-[var(--text-secondary)] mt-1">Learning Paths</div>
             </div>
           </div>
 
           {/* Meta Info */}
-          <div className="flex flex-col gap-3 mt-6 text-sm text-[#6b7280]">
+          <div className="flex flex-col gap-3 mt-6 text-sm text-[var(--text-secondary)]">
             {goal.createdAt && (
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -174,22 +174,22 @@ const GoalsDetailPage: React.FC = () => {
         {/* Content Sections */}
         <div className="space-y-6">
           {/* Description Section */}
-          <div className="bg-white rounded-lg border border-[#e5e7eb] p-6">
-            <h2 className="text-xl font-bold text-[#111827] mb-4">About This Goal</h2>
-            <p className="text-[#374151] leading-relaxed">
+          <div className="bg-white rounded-lg border border-[var(--gray-200)] p-6">
+            <h2 className="text-xl font-bold text-[var(--gray-900)] mb-4">About This Goal</h2>
+            <p className="text-[var(--gray-700)] leading-relaxed">
               {goal.description || 'No detailed description available for this goal.'}
             </p>
           </div>
 
           {/* Learning Paths Section */}
-          <div className="bg-white rounded-lg border border-[#e5e7eb] p-6">
-            <h2 className="text-xl font-bold text-[#111827] mb-4">Associated Learning Paths</h2>
+          <div className="bg-white rounded-lg border border-[var(--gray-200)] p-6">
+            <h2 className="text-xl font-bold text-[var(--gray-900)] mb-4">Associated Learning Paths</h2>
             <div className="text-center py-8">
-              <BookOpen className="w-12 h-12 text-[#d1d5db] mx-auto mb-3" />
-              <p className="text-[#6b7280]">No learning paths associated with this goal yet</p>
+              <BookOpen className="w-12 h-12 text-[var(--gray-300)] mx-auto mb-3" />
+              <p className="text-[var(--text-secondary)]">No learning paths associated with this goal yet</p>
               <button
                 onClick={() => navigate('/my-plans')}
-                className="mt-4 px-4 py-2 bg-[#2f80ed] text-white rounded-lg font-medium hover:bg-[#1e5fb8] transition-all duration-200"
+                className="mt-4 px-4 py-2 bg-[var(--color-hex-48)] text-white rounded-lg font-medium hover:bg-[var(--color-hex-101)] transition-all duration-200"
               >
                 Create Learning Path
               </button>
@@ -197,17 +197,17 @@ const GoalsDetailPage: React.FC = () => {
           </div>
 
           {/* Timeline Section */}
-          <div className="bg-white rounded-lg border border-[#e5e7eb] p-6">
-            <h2 className="text-xl font-bold text-[#111827] mb-4">Timeline</h2>
+          <div className="bg-white rounded-lg border border-[var(--gray-200)] p-6">
+            <h2 className="text-xl font-bold text-[var(--gray-900)] mb-4">Timeline</h2>
             <div className="space-y-4">
               <div className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <div className="w-3 h-3 rounded-full bg-[#2f80ed] mt-1.5"></div>
-                  <div className="w-0.5 h-12 bg-[#e5e7eb]"></div>
+                  <div className="w-3 h-3 rounded-full bg-[var(--color-hex-48)] mt-1.5"></div>
+                  <div className="w-0.5 h-12 bg-[var(--gray-200)]"></div>
                 </div>
                 <div>
-                  <p className="font-semibold text-[#111827]">Goal Created</p>
-                  <p className="text-sm text-[#6b7280]">
+                  <p className="font-semibold text-[var(--gray-900)]">Goal Created</p>
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {goal.createdAt ? new Date(goal.createdAt).toLocaleDateString('en-US', { 
                       year: 'numeric', 
                       month: 'long', 
@@ -222,11 +222,11 @@ const GoalsDetailPage: React.FC = () => {
               {goal.isCompleted && goal.completedAt && (
                 <div className="flex gap-4">
                   <div className="flex flex-col items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#059669]"></div>
+                    <div className="w-3 h-3 rounded-full bg-[var(--color-hex-58)]"></div>
                   </div>
                   <div>
-                    <p className="font-semibold text-[#111827]">Goal Completed</p>
-                    <p className="text-sm text-[#6b7280]">
+                    <p className="font-semibold text-[var(--gray-900)]">Goal Completed</p>
+                    <p className="text-sm text-[var(--text-secondary)]">
                       {new Date(goal.completedAt).toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'long', 
@@ -244,12 +244,12 @@ const GoalsDetailPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="mt-8 flex gap-4">
-          <button className="flex-1 px-6 py-3 bg-[#2f80ed] text-white rounded-lg font-medium hover:bg-[#1e5fb8] transition-all duration-200">
+          <button className="flex-1 px-6 py-3 bg-[var(--color-hex-48)] text-white rounded-lg font-medium hover:bg-[var(--color-hex-101)] transition-all duration-200">
             Start Learning
           </button>
           <button
             onClick={() => navigate(-1)}
-            className="flex-1 px-6 py-3 border border-[#e5e7eb] text-[#374151] rounded-lg font-medium hover:bg-[#f9fafb] transition-all duration-200"
+            className="flex-1 px-6 py-3 border border-[var(--gray-200)] text-[var(--gray-700)] rounded-lg font-medium hover:bg-[var(--color-hex-12)] transition-all duration-200"
           >
             Back
           </button>
@@ -259,9 +259,9 @@ const GoalsDetailPage: React.FC = () => {
       <style>{`
         .stat-box {
           padding: 1rem;
-          background: #f9fafb;
+          background: var(--color-hex-12);
           border-radius: 0.5rem;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--gray-200);
         }
       `}</style>
     </Layout>

@@ -288,7 +288,7 @@ const QuizPage: React.FC = () => {
             }`}>
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Quiz Complete!</h2>
-                <p className="text-4xl font-bold mb-2" style={{ color: percentage >= 70 ? '#059669' : '#ea580c' }}>
+                <p className="text-4xl font-bold mb-2" style={{ color: percentage >= 70 ? 'var(--color-hex-58)' : 'var(--color-hex-89)' }}>
                   {percentage}%
                 </p>
                 <p className="text-gray-700">

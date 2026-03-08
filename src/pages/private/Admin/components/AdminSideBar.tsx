@@ -1,30 +1,27 @@
 import React from 'react'
-import { LayoutDashboard, Users, Clipboard, BarChart2, Settings, KeyRound } from 'lucide-react'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 import ROUTER from '../../../../router/ROUTER'
 
-export const getAdminSidebarConfig = (): SidebarNavItem[] => {
+// We omit 'icon' since the terminal sidebar doesn't use it anymore
+type AdminNavItem = Omit<SidebarNavItem, 'icon'> & { icon?: React.ReactNode }
+
+export const getAdminSidebarConfig = (): AdminNavItem[] => {
   return [
     {
-      label: 'Overview',
+      label: '[ovw] Overview',
       path: ROUTER.ADMIN_DASHBOARD,
-      icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
-      label: 'Users',
+      label: '[usr] Users',
       path: ROUTER.ADMIN_USERS,
-      icon: <Users className="w-5 h-5" />,
-      // badge: 0,
     },
     {
-      label: 'Reports',
+      label: '[rpt] Reports',
       path: '/admin/reports',
-      icon: <BarChart2 className="w-5 h-5" />,
     },
     {
-      label: 'API Key',
+      label: '[api] API Key',
       path: ROUTER.ADMIN_API_KEY,
-      icon: <KeyRound className="w-5 h-5" />,
     },
   ]
 }

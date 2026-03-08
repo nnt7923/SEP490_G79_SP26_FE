@@ -19,9 +19,9 @@ const Card: React.FC<CardProps> = ({ title, subtitle, right, selected, onClick }
       aria-pressed={onClick ? (!!selected) : undefined}
       style={{
         padding: 12,
-        border: selected ? '2px solid #2563eb' : '1px solid #e5e7eb',
+        border: selected ? '2px solid var(--blue-600)' : '1px solid var(--gray-200)',
         borderRadius: 12,
-        backgroundColor: selected ? '#eff6ff' : '#fff',
+        backgroundColor: selected ? 'var(--color-hex-19)' : 'var(--bg-surface-short)',
         cursor: onClick ? 'pointer' : 'default',
         display: 'flex',
         alignItems: 'center',
@@ -31,7 +31,7 @@ const Card: React.FC<CardProps> = ({ title, subtitle, right, selected, onClick }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{ fontWeight: 600 }}>{title}</div>
-        {subtitle ? <div style={{ color: '#6b7280', fontSize: 13 }}>{subtitle}</div> : null}
+        {subtitle ? <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{subtitle}</div> : null}
       </div>
       {right ? <div>{right}</div> : null}
     </div>

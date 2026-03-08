@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { X, Loader2 } from 'lucide-react'
 
@@ -55,7 +54,6 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
 
     if (!resource) return
 
-    // Validation
     if (!title.trim()) {
       setError('Title is required')
       return
@@ -79,15 +77,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
       onSuccess()
       onClose()
     } catch (err: any) {
-      
-      const errorMsg = 
-        err?.response?.data?.message || 
-        err?.response?.data?.msg ||
-        err?.response?.data?.title ||
-        err?.response?.data?.detail ||
-        err?.message ||
-        'Failed to update resource'
-      
+      const errorMsg = err?.response?.data?.message || err?.response?.data?.msg || err?.response?.data?.title || err?.response?.data?.detail || err?.message || 'Failed to update resource'
       onShowToast(errorMsg, 'error')
       setError(errorMsg)
     } finally {
@@ -108,118 +98,72 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
   if (!isOpen || !resource) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-700 max-h-[90vh] flex flex-col">
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--color-hex-24)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+      <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Edit Resource
-          </h2>
-          <button
-            onClick={handleClose}
-            disabled={loading}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <X className="w-5 h-5" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottom: '1px solid var(--border-base)', flexShrink: 0 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} Edit Resource</h2>
+          <button onClick={handleClose} disabled={loading} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--text-secondary)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={16} />
           </button>
         </div>
 
-        {/* Form - Scrollable */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div style={{ padding: 20, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 12, color: 'var(--danger-primary)', fontSize: 13 }}>
+                // error: {error}
               </div>
             )}
 
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder="Enter resource title"
-            />
-          </div>
-
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Replace File (Optional)
-            </label>
-            <div className="relative">
-              <input
-                type="file"
-                onChange={handleFileChange}
-                disabled={loading}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300 dark:hover:file:bg-blue-900/50 file:cursor-pointer cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+            {/* Title */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                $ title <span style={{ color: 'var(--danger-primary)' }}>*</span>
+              </label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} disabled={loading} placeholder="resource title"
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s', opacity: loading ? 0.5 : 1 }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
             </div>
-            {file ? (
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                New file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-              </p>
-            ) : resource.originalFileName ? (
-              <p className="mt-2 text-sm text-slate-500 dark:text-slate-500">
-                Current file: {resource.originalFileName}
-              </p>
-            ) : resource.filePath ? (
-              <p className="mt-2 text-xs text-slate-400 dark:text-slate-600 truncate">
-                File path: {resource.filePath}
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-slate-400 dark:text-slate-600">
-                No file information available
-              </p>
-            )}
-          </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={loading}
-              rows={3}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed resize-none"
-              placeholder="Enter resource description (optional)"
-            />
+            {/* File */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                $ replace file (optional)
+              </label>
+              <input type="file" onChange={handleFileChange} disabled={loading} accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                style={{ width: '100%', padding: '4px 0', fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer', opacity: loading ? 0.5 : 1 }} />
+              {file ? (
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>// new file: {file.name}</p>
+              ) : resource.originalFileName ? (
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>// current file: {resource.originalFileName}</p>
+              ) : null}
+            </div>
+
+            {/* Description */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                $ description
+              </label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} disabled={loading} placeholder="resource description (optional)" rows={3}
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s', resize: 'none', opacity: loading ? 0.5 : 1 }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
+            </div>
           </div>
-        </div>
 
           {/* Actions */}
-          <div className="flex gap-3 p-6 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={loading}
-              className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
+          <div style={{ display: 'flex', gap: 12, padding: 20, borderTop: '1px solid var(--border-base)', flexShrink: 0, background: 'var(--bg-main)' }}>
+            <button type="button" onClick={handleClose} disabled={loading}
+              style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+              onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = 'var(--bg-surface-short)' }}>
+              cancel
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Update Resource'
-              )}
+            <button type="submit" disabled={loading}
+              style={{ flex: 1, padding: '8px 16px', background: loading ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 0.2s' }}
+              onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = 'var(--color-hex-25)' }} onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = 'var(--text-primary)' }}>
+              {loading && <Loader2 size={14} className="animate-spin" />}
+              {'>'} {loading ? 'updating...' : 'update resource'}
             </button>
           </div>
         </form>

@@ -23,6 +23,7 @@ const ROUTER = {
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_USERS: "/admin/users",
+  ADMIN_REPORTS: "/admin/reports",
   // Mentor nested
   MENTOR_PROFILE: "/mentor/profile",
   // Student resources

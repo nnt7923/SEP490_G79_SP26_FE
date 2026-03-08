@@ -1,5 +1,5 @@
 
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ROUTER from './ROUTER'
 import ROUTER_META from './ROUTER_META'
 import React, { Suspense } from 'react'
@@ -29,6 +29,7 @@ const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
+const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
@@ -69,7 +70,8 @@ const router = createBrowserRouter([
         element: <Suspense fallback={<div />}> <RequireRole role="Student" /> </Suspense>,
         children: [
           { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
-          { path: ROUTER.STUDENT_OVERVIEW, element: <StudentOverview /> },
+          { path: ROUTER.STUDENT_OVERVIEW, element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
+          { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
           { path: ROUTER.GOALS, element: <Goals /> },
@@ -98,6 +100,7 @@ const router = createBrowserRouter([
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
+      { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },

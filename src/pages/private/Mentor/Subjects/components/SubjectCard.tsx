@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen, Calendar, User, Edit2, Trash2 } from 'lucide-react'
+import { BookOpen, Calendar, User } from 'lucide-react'
 import type { Subject } from '../types'
 
 interface SubjectCardProps {
@@ -9,71 +9,58 @@ interface SubjectCardProps {
 }
 
 const SubjectCard: React.FC<SubjectCardProps> = ({ subject, onEdit, onDelete }) => {
-  // Use backend color or fallback to generated color
-  const getSubjectColor = () => {
-    if (subject.color) return subject.color
-    
-    const colors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4']
-    const index = subject.name.charCodeAt(0) % colors.length
-    return colors[index]
-  }
-
-  const color = getSubjectColor()
-
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group">
-      {/* Color Header */}
-      <div 
-        className="h-32 relative overflow-hidden"
-        style={{ background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)` }}
-      >
-        <div className="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-colors" />
-        <div className="absolute bottom-4 left-4">
-          <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-2xl">
-            {subject.icon || <BookOpen className="w-6 h-6 text-white" />}
+    <div className="bg-white border border-gray-400 p-4 hover:bg-gray-50 transition-colors flex flex-col h-full font-mono">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-100 border border-gray-300 flex items-center justify-center">
+            {subject.icon || <BookOpen className="w-5 h-5 text-blue-600" />}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 line-clamp-1 break-all uppercase">
+              {subject.name}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-xs ${subject.createdBy === 'Me' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}>
+                {subject.createdBy === 'Me' ? '[me]' : `[${subject.createdBy || 'unknown'}]`}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-5">
-        <h3 className="text-lg font-bold text-[#1E293B] mb-2 line-clamp-1">{subject.name}</h3>
-        <p className="text-sm text-[#64748B] mb-4 line-clamp-2 min-h-[40px]">
-          {subject.description || 'No description available'}
+      <div className="flex-grow">
+        <p className="text-xs text-gray-600 mb-4 line-clamp-3 min-h-[48px]">
+          {'//'} {subject.description || 'no_description( )'}
         </p>
+      </div>
 
-        {/* Meta Info */}
-        <div className="flex items-center gap-4 text-xs text-[#64748B] mb-4">
-          <div className="flex items-center gap-1">
-            <User className="w-3.5 h-3.5" />
-            <span className={subject.createdBy === 'Me' ? 'font-semibold text-[#2563EB]' : ''}>
-              {subject.createdBy || 'Unknown'}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
+      <div className="mt-auto pt-4 border-t border-gray-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-xs text-gray-500">
             <Calendar className="w-3.5 h-3.5" />
-            <span>{subject.createdAt ? new Date(subject.createdAt).toLocaleDateString() : 'N/A'}</span>
+            <span>{subject.createdAt ? new Date(subject.createdAt).toLocaleDateString() : 'n/a'}</span>
           </div>
+          
+          {subject.createdBy === 'Me' && (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => onEdit?.(subject)}
+                className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase px-2"
+                title="Edit subject"
+              >
+                [ edit ]
+              </button>
+              <button 
+                onClick={() => onDelete?.(subject)}
+                className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase px-2"
+                title="Delete subject"
+              >
+                [ del ]
+              </button>
+            </div>
+          )}
         </div>
-
-        {/* Actions */}
-        {subject.createdBy === 'Me' && (
-          <div className="flex gap-2">
-            <button 
-              onClick={() => onEdit?.(subject)}
-              className="flex-1 px-4 py-2 bg-[#2563EB] text-white text-sm font-medium rounded-lg hover:bg-[#1D4ED8] transition-colors flex items-center justify-center gap-2"
-            >
-              <Edit2 className="w-4 h-4" />
-              Edit
-            </button>
-            <button 
-              onClick={() => onDelete?.(subject)}
-              className="px-4 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )

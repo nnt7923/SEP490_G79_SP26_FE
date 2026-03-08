@@ -1,5 +1,4 @@
 import React from 'react'
-import './App.css'
 import { RouterProvider } from 'react-router-dom'
 import Providers from './components/Providers'
 import GlobalNotifications from './components/GlobalNotifications'

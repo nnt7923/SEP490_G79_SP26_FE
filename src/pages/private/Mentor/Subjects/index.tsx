@@ -122,41 +122,42 @@ const SubjectsPage: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-[var(--gray-100)] px-4 py-8 font-mono">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
+          <div className="mb-6 border-b border-gray-300 pb-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#3B82F6] flex items-center justify-center shadow-lg">
-                  <BookOpen className="w-6 h-6 text-white" />
-                </div>
+                <BookOpen className="w-6 h-6 text-blue-600" />
                 <div>
-                  <h1 className="text-3xl font-bold text-[#1E293B]">Subject Management</h1>
+                  <h1 className="text-2xl font-bold text-gray-900 border-none bg-transparent flex items-center">
+                    <span className="text-blue-600 mr-2">{'>_'}</span>
+                    subject_management
+                  </h1>
                 </div>
               </div>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8] transition-colors shadow-md font-medium"
+                className="flex items-center gap-2 px-6 py-2 border border-blue-600 bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">Create Subject</span>
+                <span className="hidden sm:inline">[ + create_subject ]</span>
               </button>
             </div>
           </div>
 
           {/* Search & Filter Bar */}
-          <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 mb-6">
+          <div className="bg-white border border-gray-400 p-4 mb-6">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               {/* Search */}
               <div className="relative flex-1 w-full sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
                   type="text"
-                  placeholder="Search subjects..."
+                  placeholder="grep 'subject'..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all text-[#1E293B] placeholder:text-[#94A3B8]"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-400 focus:outline-none focus:border-blue-600 transition-colors text-gray-900 placeholder:text-gray-400 font-mono"
                   aria-label="Search subjects"
                 />
               </div>
@@ -165,10 +166,10 @@ const SubjectsPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2.5 rounded-lg transition-all ${
+                  className={`p-2 border transition-colors ${
                     viewMode === 'grid'
-                      ? 'bg-[#2563EB] text-white shadow-md'
-                      : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-500 border-gray-400 hover:bg-gray-50'
                   }`}
                   aria-label="Grid view"
                   aria-pressed={viewMode === 'grid'}
@@ -177,10 +178,10 @@ const SubjectsPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2.5 rounded-lg transition-all ${
+                  className={`p-2 border transition-colors ${
                     viewMode === 'list'
-                      ? 'bg-[#2563EB] text-white shadow-md'
-                      : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-500 border-gray-400 hover:bg-gray-50'
                   }`}
                   aria-label="List view"
                   aria-pressed={viewMode === 'list'}
@@ -191,10 +192,9 @@ const SubjectsPage: React.FC = () => {
             </div>
 
             {/* Results Count */}
-            <div className="mt-4 pt-4 border-t border-[#E2E8F0]">
-              <p className="text-sm text-[#64748B]">
-                Showing <span className="font-semibold text-[#1E293B]">{filteredSubjects.length}</span> of{' '}
-                <span className="font-semibold text-[#1E293B]">{subjects.length}</span> subjects
+            <div className="mt-4 pt-4 border-t border-gray-300">
+              <p className="text-sm font-bold text-gray-500">
+                {'//'} showing: [{filteredSubjects.length}/{subjects.length}] subjects
               </p>
             </div>
           </div>
@@ -202,32 +202,32 @@ const SubjectsPage: React.FC = () => {
           {/* Loading State */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-12 h-12 text-[#2563EB] animate-spin mb-4" />
-              <p className="text-[#64748B] text-sm">Loading subjects...</p>
+              <Loader2 className="w-12 h-12 text-[var(--blue-600)] animate-spin mb-4" />
+              <p className="text-[var(--color-hex-96)] text-sm">Loading subjects...</p>
             </div>
           )}
 
           {/* Error State */}
           {error && !loading && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-              <p className="text-red-600 font-medium mb-2">Error</p>
-              <p className="text-red-500 text-sm">{error}</p>
+            <div className="bg-red-50 border border-red-500 p-6 text-center">
+              <p className="text-red-700 font-bold mb-2">{'//'} ERROR</p>
+              <p className="text-red-600 text-sm font-mono">{error}</p>
               <button
                 onClick={fetchSubjects}
-                className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="mt-4 px-6 py-2 border border-red-600 bg-white text-red-600 font-bold hover:bg-red-50 transition-colors"
               >
-                Try Again
+                [ retry ]
               </button>
             </div>
           )}
 
           {/* Empty State */}
           {!loading && !error && filteredSubjects.length === 0 && (
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center">
-              <BookOpen className="w-16 h-16 text-[#CBD5E1] mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-[#1E293B] mb-2">No subjects found</h3>
-              <p className="text-sm text-[#64748B]">
-                {searchQuery ? 'Try adjusting your search query' : 'No subjects available yet'}
+            <div className="bg-white border border-gray-400 p-12 text-center">
+              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">no_subjects_found()</h3>
+              <p className="text-sm text-gray-500 font-mono">
+                {'//'} {searchQuery ? 'try adjusting your search query' : 'no subjects available yet'}
               </p>
             </div>
           )}
