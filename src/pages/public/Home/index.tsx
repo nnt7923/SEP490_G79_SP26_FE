@@ -1,21 +1,17 @@
 import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 
-const Stat: React.FC<{ value: string; label: string }> = ({ value, label }) => (
-  <div className="stat">
-    <div className="stat__value">{value}</div>
-    <div className="stat__label">{label}</div>
-  </div>
-)
+/* ─── Shared sub-components ─── */
 
-const FeatureCard: React.FC<{ icon: string; title: string; description: string }> = ({
-  icon,
-  title,
-  description,
-}) => (
+const FeatureCard: React.FC<{
+  prefix: string
+  title: string
+  description: string
+  accent?: string
+}> = ({ prefix, title, description, accent }) => (
   <div
     style={{
       padding: 20,
@@ -25,17 +21,49 @@ const FeatureCard: React.FC<{ icon: string; title: string; description: string }
       transition: 'border-color 0.2s ease',
       display: 'flex',
       flexDirection: 'column',
-      gap: 10,
+      gap: 8,
       cursor: 'default',
     }}
-    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
-    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.borderColor = accent || 'var(--accent-primary)'
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.borderColor = 'var(--border-base)'
+    }}
   >
-    <span style={{ fontSize: 14, color: 'var(--accent-primary)', fontWeight: 600 }}>{icon}</span>
-    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h3>
-    <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0, lineHeight: 1.6 }}>{description}</p>
+    <span
+      style={{
+        fontSize: 12,
+        color: accent || 'var(--accent-primary)',
+        fontWeight: 600,
+      }}
+    >
+      {prefix}
+    </span>
+    <h3
+      style={{
+        fontSize: 14,
+        fontWeight: 700,
+        color: 'var(--text-primary)',
+        margin: 0,
+      }}
+    >
+      {title}
+    </h3>
+    <p
+      style={{
+        color: 'var(--text-secondary)',
+        fontSize: 13,
+        margin: 0,
+        lineHeight: 1.6,
+      }}
+    >
+      {description}
+    </p>
   </div>
 )
+
+/* ─── Main component ─── */
 
 const Home: React.FC = () => {
   const navigate = useNavigate()
@@ -54,24 +82,21 @@ const Home: React.FC = () => {
     }
   }, [token, user, navigate])
 
-  // Terminal code lines for hero visual
+  // Terminal code for hero — shows what the platform does
   const heroCode = [
-    { num: 1, content: '// CodeNexus Platform', color: '#8b949e' },
+    { num: 1, content: '// CodeNexus — Learning Support', color: '#8b949e' },
     { num: 2, content: '', color: '' },
-    { num: 3, content: 'const platform = {', color: '#e6edf3' },
-    { num: 4, content: '  courses: 1000,', color: '#e6edf3' },
-    { num: 5, content: '  students: 5000,', color: '#e6edf3' },
-    { num: 6, content: '  experts: 200,', color: '#e6edf3' },
-    { num: 7, content: '  features: [', color: '#e6edf3' },
-    { num: 8, content: '    "ai-powered-paths",', color: '#79c0ff' },
-    { num: 9, content: '    "hands-on-projects",', color: '#79c0ff' },
-    { num: 10, content: '    "expert-mentoring",', color: '#79c0ff' },
-    { num: 11, content: '    "certifications"', color: '#79c0ff' },
-    { num: 12, content: '  ]', color: '#e6edf3' },
-    { num: 13, content: '};', color: '#e6edf3' },
-    { num: 14, content: '', color: '' },
-    { num: 15, content: 'platform.launch();', color: '#3fb950' },
-    { num: 16, content: '// → Ready to code!', color: '#8b949e' },
+    { num: 3, content: 'const myPlan = CodeNexus.createPlan({', color: '#e6edf3' },
+    { num: 4, content: '  language: "JavaScript",', color: '#79c0ff' },
+    { num: 5, content: '  goal: "Full-stack Developer",', color: '#79c0ff' },
+    { num: 6, content: '  level: "Intermediate",', color: '#79c0ff' },
+    { num: 7, content: '});', color: '#e6edf3' },
+    { num: 8, content: '', color: '' },
+    { num: 9, content: 'myPlan.generateLessons();', color: '#e6edf3' },
+    { num: 10, content: 'myPlan.trackProgress();', color: '#e6edf3' },
+    { num: 11, content: '', color: '' },
+    { num: 12, content: '// → 12 chapters generated', color: '#3fb950' },
+    { num: 13, content: '// → Progress: 3/12 completed', color: '#3fb950' },
   ]
 
   return (
@@ -84,7 +109,7 @@ const Home: React.FC = () => {
           padding: '48px 20px 60px',
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
-          gap: 32,
+          gap: 40,
           alignItems: 'center',
         }}
       >
@@ -104,54 +129,58 @@ const Home: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            {'>'} Launch Your Tech Career
+            {'>'} AI-Powered Learning Platform
           </div>
           <h1
             style={{
-              fontSize: 32,
-              lineHeight: 1.3,
+              fontSize: 28,
+              lineHeight: 1.35,
               color: 'var(--text-primary)',
               margin: '0 0 12px',
               fontWeight: 700,
             }}
           >
-            Master <span style={{ color: 'var(--accent-primary)' }}>Modern Programming</span>
-            <br />and Land Your Dream Job
+            Tạo lộ trình học{' '}
+            <span style={{ color: 'var(--accent-primary)' }}>lập trình</span>
+            <br />
+            được cá nhân hóa bởi AI
           </h1>
           <p
             style={{
               color: 'var(--text-secondary)',
               marginBottom: 24,
-              maxWidth: 520,
+              maxWidth: 480,
               fontSize: 13,
               lineHeight: 1.7,
             }}
           >
-            // Learn from industry experts with 1000+ hands-on courses.
+            // Chọn ngôn ngữ, đặt mục tiêu, AI tự động tạo learning path.
             <br />
-            // Build real projects and join 5000+ successful graduates.
+            // Theo dõi tiến độ, ôn tập bài học, hoàn thiện kỹ năng.
           </p>
           <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-            <a
-              href="#"
+            <button
+              type="button"
               className="btn btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onClick={() => navigate(ROUTER.PLANS)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
             >
-              {'>'} Start Free Trial <ArrowRight size={14} />
-            </a>
-            <a href="#" className="btn btn-outline">
-              Explore Courses
-            </a>
-          </div>
-
-          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
-            <Stat value="1000+" label="Courses" />
-            <Stat value="5000+" label="Students" />
-            <Stat value="200+" label="Experts" />
+              {'>'} Tạo Learning Plan <ArrowRight size={14} />
+            </button>
+            <Link
+              to="/register"
+              className="btn btn-outline"
+            >
+              Đăng ký miễn phí
+            </Link>
           </div>
         </div>
 
-        {/* Terminal panel replacing the image */}
+        {/* Terminal panel */}
         <div
           style={{
             border: '1px solid var(--border-base)',
@@ -167,15 +196,42 @@ const Home: React.FC = () => {
               alignItems: 'center',
               gap: 6,
               padding: '10px 14px',
-              borderBottom: '1px solid var(--text-strong)',
+              borderBottom: '1px solid rgba(255,255,255,0.1)',
               background: 'var(--terminal-bg)',
             }}
           >
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-red)' }} />
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-yellow)' }} />
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-green)' }} />
-            <span style={{ marginLeft: 12, fontSize: 11, color: 'var(--terminal-gutter)' }}>
-              platform.js — CodeNexus
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: 'var(--terminal-btn-red)',
+              }}
+            />
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: 'var(--terminal-btn-yellow)',
+              }}
+            />
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: 'var(--terminal-btn-green)',
+              }}
+            />
+            <span
+              style={{
+                marginLeft: 12,
+                fontSize: 11,
+                color: '#8b949e',
+              }}
+            >
+              learning-plan.js — CodeNexus
             </span>
           </div>
           {/* Code content */}
@@ -194,7 +250,7 @@ const Home: React.FC = () => {
                   style={{
                     width: 32,
                     textAlign: 'right',
-                    color: 'var(--terminal-comment)',
+                    color: '#484f58',
                     userSelect: 'none',
                     paddingRight: 16,
                     flexShrink: 0,
@@ -211,7 +267,7 @@ const Home: React.FC = () => {
           {/* Terminal prompt */}
           <div
             style={{
-              borderTop: '1px solid var(--text-strong)',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
               padding: '10px 14px',
               display: 'flex',
               alignItems: 'center',
@@ -219,15 +275,17 @@ const Home: React.FC = () => {
               background: 'var(--terminal-bg)',
             }}
           >
-            <span style={{ color: 'var(--success-primary)', fontSize: 13 }}>➜</span>
-            <span style={{ color: 'var(--accent-primary)', fontSize: 13 }}>codenexus</span>
-            <span style={{ color: 'var(--terminal-gutter)', fontSize: 13 }}>git:(main)</span>
+            <span style={{ color: '#3fb950', fontSize: 13 }}>➜</span>
+            <span style={{ color: '#79c0ff', fontSize: 13 }}>codenexus</span>
+            <span style={{ color: '#484f58', fontSize: 13 }}>
+              git:(main)
+            </span>
             <span
               style={{
                 display: 'inline-block',
                 width: 7,
                 height: 14,
-                background: 'var(--gray-200)',
+                background: '#e6edf3',
                 animation: 'blink 1s step-end infinite',
               }}
             />
@@ -235,7 +293,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* ========== FEATURES SECTION ========== */}
+      {/* ========== PLATFORM FEATURES ========== */}
       <section
         style={{
           maxWidth: 1200,
@@ -245,11 +303,18 @@ const Home: React.FC = () => {
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>
-            // Why Choose Our Platform?
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0 0 8px',
+            }}
+          >
+            // Nền tảng hỗ trợ bạn học gì?
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            Everything you need to become a professional developer
+            Mọi thứ bạn cần để xây dựng lộ trình học lập trình hiệu quả
           </p>
         </div>
 
@@ -261,39 +326,43 @@ const Home: React.FC = () => {
           }}
         >
           <FeatureCard
-            icon="[usr]"
-            title="Learn from Experts"
-            description="Get mentored by developers from Google, Meta, Microsoft, and more"
+            prefix="[plan]"
+            title="Tạo Learning Plan"
+            description="Chọn ngôn ngữ lập trình, đặt mục tiêu và AI sẽ tạo lộ trình học phù hợp với trình độ của bạn."
           />
           <FeatureCard
-            icon="[</>]"
-            title="Real-World Projects"
-            description="Build portfolio projects you can showcase to employers"
+            prefix="[goal]"
+            title="Đặt mục tiêu học tập"
+            description="Thiết lập goal cụ thể: Frontend, Backend, Full-stack, Mobile,... và theo dõi quá trình đạt được."
+            accent="var(--success-primary)"
           />
           <FeatureCard
-            icon="[^up]"
-            title="Career Growth"
-            description="Job-ready curriculum designed by industry professionals"
+            prefix="[track]"
+            title="Theo dõi tiến độ"
+            description="Xem progress qua từng chapter, bài học. Dashboard cá nhân hiển thị tổng quan quá trình học."
+            accent="var(--warning-primary)"
           />
           <FeatureCard
-            icon="[***]"
-            title="Certifications"
-            description="Get recognized certificates upon course completion"
+            prefix="[lesson]"
+            title="Bài học có nội dung chi tiết"
+            description="Mỗi bài học gồm lý thuyết, code examples, common mistakes, và bài tập thực hành."
           />
           <FeatureCard
-            icon="[>>>]"
-            title="Fast Learning"
-            description="Structured paths designed to learn 3x faster than traditional courses"
+            prefix="[mentor]"
+            title="Hệ thống mentor"
+            description="Mentor quản lý subject, class, theo dõi tiến trình học viên và hỗ trợ khi cần."
+            accent="var(--accent-primary)"
           />
           <FeatureCard
-            icon="[>_]"
-            title="Live Coding Sessions"
-            description="Weekly live sessions and 1-on-1 mentoring with instructors"
+            prefix="[ai]"
+            title="AI tạo nội dung"
+            description="Nội dung bài học được AI generate dựa trên mục tiêu và trình độ, đảm bảo phù hợp nhất."
+            accent="var(--success-primary)"
           />
         </div>
       </section>
 
-      {/* ========== HOW IT WORKS SECTION ========== */}
+      {/* ========== HOW IT WORKS ========== */}
       <section
         style={{
           maxWidth: 1200,
@@ -303,11 +372,18 @@ const Home: React.FC = () => {
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>
-            // How It Works
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0 0 8px',
+            }}
+          >
+            // Cách sử dụng
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            Create your personalized learning path in 4 simple steps
+            4 bước để bắt đầu lộ trình học lập trình của bạn
           </p>
         </div>
 
@@ -319,10 +395,30 @@ const Home: React.FC = () => {
           }}
         >
           {[
-            { step: 1, icon: '01', title: 'Choose Language', desc: 'Select the programming language you want to learn' },
-            { step: 2, icon: '02', title: 'Choose Your Goal', desc: 'Pick a learning goal that matches your career aspirations' },
-            { step: 3, icon: '03', title: 'Choose Level', desc: 'Select your skill level: Beginner, Intermediate, or Advanced' },
-            { step: 4, icon: '04', title: 'Generate Path', desc: 'Get your personalized AI-powered learning path' },
+            {
+              step: 1,
+              icon: '01',
+              title: 'Chọn ngôn ngữ',
+              desc: 'JavaScript, Python, Java, C#, Go,... chọn ngôn ngữ bạn muốn học hoặc nâng cao.',
+            },
+            {
+              step: 2,
+              icon: '02',
+              title: 'Đặt mục tiêu',
+              desc: 'Frontend, Backend, Full-stack, Data Science,... xác định hướng đi rõ ràng.',
+            },
+            {
+              step: 3,
+              icon: '03',
+              title: 'Chọn trình độ',
+              desc: 'Beginner, Intermediate, Advanced — AI điều chỉnh nội dung theo level của bạn.',
+            },
+            {
+              step: 4,
+              icon: '04',
+              title: 'Học theo lộ trình',
+              desc: 'AI tạo chapters → lessons → code examples. Theo dõi progress trên dashboard.',
+            },
           ].map((item) => (
             <div
               key={item.step}
@@ -332,10 +428,13 @@ const Home: React.FC = () => {
                 border: '1px solid var(--border-base)',
                 borderRadius: 2,
                 transition: 'border-color 0.2s ease',
-                textAlign: 'center',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-primary)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-base)'
+              }}
             >
               <div
                 style={{
@@ -348,10 +447,24 @@ const Home: React.FC = () => {
               >
                 {item.icon}
               </div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>
+              <h3
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: '0 0 8px',
+                }}
+              >
                 {item.title}
               </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+              <p
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: 12,
+                  margin: 0,
+                  lineHeight: 1.6,
+                }}
+              >
                 {item.desc}
               </p>
             </div>
@@ -363,10 +476,133 @@ const Home: React.FC = () => {
             type="button"
             className="btn btn-primary"
             onClick={() => navigate(ROUTER.PLANS)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
           >
-            {'>'} Start Your Journey <ArrowRight size={14} />
+            {'>'} Bắt đầu học ngay <ArrowRight size={14} />
           </button>
+        </div>
+      </section>
+
+      {/* ========== ROLES SECTION ========== */}
+      <section
+        style={{
+          maxWidth: 1200,
+          margin: '0 auto',
+          padding: '48px 20px 64px',
+          borderTop: '1px solid var(--border-base)',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0 0 8px',
+            }}
+          >
+            // Dành cho ai?
+          </h2>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              padding: 24,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-base)',
+              borderRadius: 2,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: 'var(--accent-primary)',
+                marginBottom: 8,
+              }}
+            >
+              {'>'} Student
+            </div>
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: '0 0 12px',
+              }}
+            >
+              Người học lập trình
+            </h3>
+            <ul
+              style={{
+                margin: 0,
+                padding: '0 0 0 16px',
+                color: 'var(--text-secondary)',
+                fontSize: 13,
+                lineHeight: 2,
+              }}
+            >
+              <li>Tạo learning plan cá nhân</li>
+              <li>Học theo bài lesson được AI generate</li>
+              <li>Theo dõi progress trên dashboard</li>
+              <li>Xem code examples & common mistakes</li>
+            </ul>
+          </div>
+
+          <div
+            style={{
+              padding: 24,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-base)',
+              borderRadius: 2,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: 'var(--success-primary)',
+                marginBottom: 8,
+              }}
+            >
+              {'>'} Mentor
+            </div>
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: '0 0 12px',
+              }}
+            >
+              Người hướng dẫn
+            </h3>
+            <ul
+              style={{
+                margin: 0,
+                padding: '0 0 0 16px',
+                color: 'var(--text-secondary)',
+                fontSize: 13,
+                lineHeight: 2,
+              }}
+            >
+              <li>Quản lý subjects và classes</li>
+              <li>Theo dõi tiến trình học viên</li>
+              <li>Hỗ trợ và giải đáp thắc mắc</li>
+              <li>Dashboard quản lý tổng quan</li>
+            </ul>
+          </div>
         </div>
       </section>
     </div>
