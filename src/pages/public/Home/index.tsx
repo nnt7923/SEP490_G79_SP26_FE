@@ -348,12 +348,6 @@ const Home: React.FC = () => {
             description="Mỗi bài học gồm lý thuyết, code examples, common mistakes, và bài tập thực hành."
           />
           <FeatureCard
-            prefix="[mentor]"
-            title="Hệ thống mentor"
-            description="Mentor quản lý subject, class, theo dõi tiến trình học viên và hỗ trợ khi cần."
-            accent="var(--accent-primary)"
-          />
-          <FeatureCard
             prefix="[ai]"
             title="AI tạo nội dung"
             description="Nội dung bài học được AI generate dựa trên mục tiêu và trình độ, đảm bảo phù hợp nhất."
@@ -511,9 +505,8 @@ const Home: React.FC = () => {
 
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: 16,
+            maxWidth: 500,
+            margin: '0 auto',
           }}
         >
           <div
@@ -532,7 +525,7 @@ const Home: React.FC = () => {
                 marginBottom: 8,
               }}
             >
-              {'>'} Student
+              {'>'} Cá nhân hóa trải nghiệm
             </div>
             <h3
               style={{
@@ -542,7 +535,7 @@ const Home: React.FC = () => {
                 margin: '0 0 12px',
               }}
             >
-              Người học lập trình
+              Phát triển kỹ năng lập trình cùng CodeNexus
             </h3>
             <ul
               style={{
@@ -553,54 +546,10 @@ const Home: React.FC = () => {
                 lineHeight: 2,
               }}
             >
-              <li>Tạo learning plan cá nhân</li>
-              <li>Học theo bài lesson được AI generate</li>
-              <li>Theo dõi progress trên dashboard</li>
-              <li>Xem code examples & common mistakes</li>
-            </ul>
-          </div>
-
-          <div
-            style={{
-              padding: 24,
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-base)',
-              borderRadius: 2,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: 'var(--success-primary)',
-                marginBottom: 8,
-              }}
-            >
-              {'>'} Mentor
-            </div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: '0 0 12px',
-              }}
-            >
-              Người hướng dẫn
-            </h3>
-            <ul
-              style={{
-                margin: 0,
-                padding: '0 0 0 16px',
-                color: 'var(--text-secondary)',
-                fontSize: 13,
-                lineHeight: 2,
-              }}
-            >
-              <li>Quản lý subjects và classes</li>
-              <li>Theo dõi tiến trình học viên</li>
-              <li>Hỗ trợ và giải đáp thắc mắc</li>
-              <li>Dashboard quản lý tổng quan</li>
+              <li>Tạo và quản lý lộ trình học tập cá nhân</li>
+              <li>Tổng hợp tài nguyên học lập trình thực tế</li>
+              <li>Công cụ theo dõi tiến độ và dashboard trực quan</li>
+              <li>Hệ thống tài nguyên và bài thực hành phong phú</li>
             </ul>
           </div>
         </div>
