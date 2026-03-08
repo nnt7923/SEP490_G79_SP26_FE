@@ -102,6 +102,9 @@ const Header: React.FC = () => {
   return (
     <header
       style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
         background: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-base)',
         fontFamily: 'inherit',
