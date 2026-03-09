@@ -8,11 +8,12 @@ import { formatDateTimeVN } from '../../../../utils/dateUtils'
 import { useTranslation } from 'react-i18next'
 
 const AdminUsersPage: React.FC = () => {
-  const sidebarConfig = useMemo(() => ({
-    navItems: useAdminSidebarConfig() as any,
+  const adminNavItems = useAdminSidebarConfig()
+  const sidebarConfig = {
+    navItems: adminNavItems as any,
     actions: [],
     brand: { name: 'Users', subtitle: 'Admin' },
-  }), [])
+  }
   const { t } = useTranslation('admin')
 
   const [users, setUsers] = useState<any[]>([])

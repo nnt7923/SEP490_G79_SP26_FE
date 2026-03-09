@@ -1,15 +1,16 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { Download, Filter, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 const AdminReportsPage: React.FC = () => {
-  const sidebarConfig = useMemo(() => ({
-    navItems: useAdminSidebarConfig() as any,
+  const adminNavItems = useAdminSidebarConfig()
+  const sidebarConfig = {
+    navItems: adminNavItems as any,
     actions: [],
     brand: { name: 'Reports', subtitle: 'Admin' },
-  }), [])
+  }
   const { t } = useTranslation('admin')
 
   // Mock data for reports
