@@ -33,10 +33,10 @@ const StudentOverview: React.FC = () => {
           getMyGoals(),
           getUserLearningPaths(user?.id || 'me', { pageNumber: 1, pageSize: 10 })
         ])
-        
+
         const goalsArray = Array.isArray(goals) ? goals : []
         const plansArray = pathsResponse?.items || []
-        
+
         setPlansCount(pathsResponse?.totalCount || 0)
         setRecentPlans(plansArray.slice(0, 3))
         setRecentGoals(goalsArray.slice(0, 3))
@@ -69,8 +69,8 @@ const StudentOverview: React.FC = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
-  const progressPercentage = stats.totalLessons > 0 
-    ? Math.round((stats.completedLessons / stats.totalLessons) * 100) 
+  const progressPercentage = stats.totalLessons > 0
+    ? Math.round((stats.completedLessons / stats.totalLessons) * 100)
     : 0
 
   return (

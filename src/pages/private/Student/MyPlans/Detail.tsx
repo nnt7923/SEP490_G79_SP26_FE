@@ -166,7 +166,7 @@ const MyPlansDetailPage: React.FC = () => {
           className="flex items-center gap-2 text-[var(--brand-blue)] hover:text-[var(--brand-blue-alt)] mb-4 transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to My Plans
+          Back
         </button>
 
         {/* Header */}
