@@ -4,10 +4,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../../store/useAuthStore'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
 import { useResponsive } from '../../../hook/useResponsive'
+import { useTranslation } from 'react-i18next'
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
   const authStore = useAuthStore()
+  const { t } = useTranslation('auth')
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -32,20 +34,20 @@ const Register: React.FC = () => {
     }
 
     if (!payload.firstName || !payload.lastName || !payload.email || !payload.username || !payload.password) {
-      setError('Please fill in all required fields')
+      setError(t('register.fillAllFields'))
       return
     }
 
     try {
       const res = await authStore.register(payload)
       if (res.isOk) {
-        setMessage('Registration successful! Please check your email for the OTP.')
+        setMessage(t('register.successMessage'))
         navigate(`/verify-otp?email=${encodeURIComponent(payload.email)}`)
       } else {
-        setError(res.msg || 'Registration failed.')
+        setError(res.msg || t('register.failedMessage'))
       }
     } catch (err: any) {
-      const msg = extractErrorMessage(err, 'Registration failed.')
+      const msg = extractErrorMessage(err, t('register.failedMessage'))
       setError(msg)
     }
   }
@@ -223,7 +225,7 @@ const Register: React.FC = () => {
                 fontFamily: 'inherit',
               }}
             >
-              {'>'} Create Account
+              {t('register.title')}
             </h2>
             <p
               style={{
@@ -233,7 +235,7 @@ const Register: React.FC = () => {
                 fontFamily: 'inherit',
               }}
             >
-              // Register to get started
+              {t('register.subtitle')}
             </p>
           </div>
 
@@ -241,7 +243,7 @@ const Register: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
                 <label htmlFor="firstName" style={labelStyle}>
-                  $ firstName
+                  {t('register.firstName')}
                 </label>
                 <input
                   id="firstName"
@@ -256,7 +258,7 @@ const Register: React.FC = () => {
               </div>
               <div>
                 <label htmlFor="lastName" style={labelStyle}>
-                  $ lastName
+                  {t('register.lastName')}
                 </label>
                 <input
                   id="lastName"
@@ -273,7 +275,7 @@ const Register: React.FC = () => {
 
             <div style={{ marginBottom: 12 }}>
               <label htmlFor="email" style={labelStyle}>
-                $ email
+                {t('register.email')}
               </label>
               <input
                 id="email"
@@ -289,7 +291,7 @@ const Register: React.FC = () => {
 
             <div style={{ marginBottom: 12 }}>
               <label htmlFor="username" style={labelStyle}>
-                $ username
+                {t('register.username')}
               </label>
               <input
                 id="username"
@@ -305,7 +307,7 @@ const Register: React.FC = () => {
 
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="password" style={labelStyle}>
-                $ password
+                {t('register.password')}
               </label>
               <div style={{ position: 'relative' }}>
                 <input
@@ -336,9 +338,9 @@ const Register: React.FC = () => {
                     lineHeight: 1,
                   }}
                   tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('register.hidePassword') : t('register.showPassword')}
                 >
-                  {showPassword ? 'hide' : 'show'}
+                  {showPassword ? t('register.hidePassword') : t('register.showPassword')}
                 </button>
               </div>
             </div>
@@ -396,7 +398,7 @@ const Register: React.FC = () => {
               onMouseEnter={(e) => { if (!authStore.loading) e.currentTarget.style.background = 'var(--text-strong)' }}
               onMouseLeave={(e) => { if (!authStore.loading) e.currentTarget.style.background = 'var(--text-primary)' }}
             >
-              {'>'} {authStore.loading ? 'registering...' : 'register'}
+              {authStore.loading ? t('register.submitting') : t('register.submit')}
             </button>
 
             <div
@@ -410,7 +412,7 @@ const Register: React.FC = () => {
                 fontFamily: 'inherit',
               }}
             >
-              <span>// Already have an account?</span>
+              <span>{t('register.hasAccount')}</span>
               <Link
                 to="/login"
                 style={{
@@ -423,7 +425,7 @@ const Register: React.FC = () => {
                 onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                 onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
               >
-                login
+                {t('register.signIn')}
               </Link>
             </div>
           </form>

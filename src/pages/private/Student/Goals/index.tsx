@@ -2,11 +2,12 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
-import { getStudentSidebarConfig } from '../components/StudentSideBar'
+import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService } from '../../../../services'
 import useAuthStore from '../../../../store/useAuthStore'
 import ROUTER from '../../../../router/ROUTER'
 import { LogOut } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const GoalsPage: React.FC = () => {
   const { logout } = useAuthStore()
@@ -16,6 +17,8 @@ const GoalsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGoal, setSelectedGoal] = useState<any | null>(null)
+  const { t } = useTranslation('student')
+  const { t: tc } = useTranslation('common')
 
   const handleLogout = async () => {
     await logout()
@@ -23,8 +26,8 @@ const GoalsPage: React.FC = () => {
   }
 
   const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
-    actions: [{ label: 'Logout', icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+    navItems: useStudentSidebarConfig(),
+    actions: [{ label: tc('sidebar.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
     brand: { name: 'Goals', subtitle: 'Learning' },
   }
 
@@ -37,7 +40,7 @@ const GoalsPage: React.FC = () => {
       const data = await GoalService.getUserGoals()
       setGoals(Array.isArray(data) ? data : [])
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load goals')
+      setError(err?.response?.data?.message || err?.message || t('goals.loading'))
     } finally {
       setLoading(false)
     }
@@ -56,7 +59,7 @@ const GoalsPage: React.FC = () => {
           <div style={{ position: 'relative' }}>
             <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-secondary)' }}>$</span>
             <input
-              type="text" placeholder="search goals..." value={searchTerm}
+              placeholder={t('goals.searchPlaceholder')} value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '100%', padding: '8px 12px 8px 32px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' as const }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
@@ -70,13 +73,13 @@ const GoalsPage: React.FC = () => {
           {/* Goals List */}
           <div>
             {loading ? (
-              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>// loading goals...</div>
+              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{t('goals.loading')}</div>
             ) : error ? (
               <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
             ) : filteredGoals.length === 0 ? (
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>// No goals found</p>
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{searchTerm ? 'No goals match your search.' : 'Start creating your first goal!'}</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('goals.noGoalsFound')}</p>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{searchTerm ? t('goals.noGoalsMatch') : t('goals.startCreating')}</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -95,11 +98,11 @@ const GoalsPage: React.FC = () => {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{goal.title || 'Untitled Goal'}</h3>
-                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.description || 'No description'}</p>
+                          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{goal.title || t('goals.untitled')}</h3>
+                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.description || t('goals.noDescription')}</p>
                           <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)' }}>
-                            <span>{goal.durationDays || 0} days</span>
-                            <span>{goal.isCompleted ? '[done]' : '[active]'}</span>
+                            <span>{t('goals.days', { count: goal.durationDays || 0 })}</span>
+                            <span>{goal.isCompleted ? `[${tc('status.done')}]` : `[${tc('status.active')}]`}</span>
                             {goal.createdAt && <span>{new Date(goal.createdAt).toLocaleDateString()}</span>}
                           </div>
                         </div>
@@ -116,30 +119,30 @@ const GoalsPage: React.FC = () => {
           <div>
             {selectedGoal ? (
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 20, position: 'sticky', top: 24 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>{'>'} {selectedGoal.title || 'Goal Details'}</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>{'>'} {selectedGoal.title || t('goals.goalDetails')}</h2>
 
                 <div style={{ marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ description</h3>
-                  <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{selectedGoal.description || 'No description available'}</p>
+                  <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('goals.description')}</h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{selectedGoal.description || t('goals.noDescAvailable')}</p>
                 </div>
 
                 <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-base)', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ status</h3>
+                  <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('goals.statusLabel')}</h3>
                   <span style={{ fontSize: 12, padding: '4px 10px', border: '1px solid var(--border-base)', borderRadius: 2, color: selectedGoal.isCompleted ? 'var(--success-primary)' : 'var(--text-secondary)' }}>
-                    {selectedGoal.isCompleted ? 'completed' : 'in progress'}
+                    {selectedGoal.isCompleted ? tc('status.completed') : tc('status.inProgress')}
                   </span>
                 </div>
 
                 {selectedGoal.createdAt && (
                   <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-base)', marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ created</h3>
+                    <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('goals.createdLabel')}</h3>
                     <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{new Date(selectedGoal.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                   </div>
                 )}
 
                 {selectedGoal.completedAt && (
                   <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-base)', marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ completed</h3>
+                    <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('goals.completedLabel')}</h3>
                     <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{new Date(selectedGoal.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                   </div>
                 )}
@@ -151,12 +154,12 @@ const GoalsPage: React.FC = () => {
                   onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
                 >
-                  {'>'} view details
+                  {tc('actions.viewDetails')}
                 </button>
               </div>
             ) : (
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 24, textAlign: 'center', position: 'sticky', top: 24 }}>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>// select a goal to view details</p>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>{t('goals.selectGoal')}</p>
               </div>
             )}
           </div>

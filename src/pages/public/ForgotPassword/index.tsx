@@ -5,6 +5,7 @@ import * as AuthService from '../../../services/AuthService'
 import ROUTER from '../../../router/ROUTER'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
 import { useResponsive } from '../../../hook/useResponsive'
+import { useTranslation } from 'react-i18next'
 
 const ForgotPassword: React.FC = () => {
   const navigate = useNavigate()
@@ -12,6 +13,7 @@ const ForgotPassword: React.FC = () => {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const { t } = useTranslation('auth')
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,7 +22,7 @@ const ForgotPassword: React.FC = () => {
 
     const mail = email.trim()
     if (!mail) {
-      setError('Please enter your registered email')
+      setError(t('forgotPassword.enterEmail'))
       return
     }
 
@@ -29,11 +31,11 @@ const ForgotPassword: React.FC = () => {
       const res: any = await AuthService.forgotPassword({ Email: mail })
       const data = res ?? {}
       const resetToken: string | undefined = data?.resetToken ?? data?.token ?? data?.data?.resetToken ?? data?.data?.token
-      const toastMsg: string = data?.message ?? data?.msg ?? 'We have sent a reset link to your email.'
+      const toastMsg: string = data?.message ?? data?.msg ?? t('forgotPassword.resetLinkSent')
 
       if (resetToken) {
         navigate(`${ROUTER.RESET_PASSWORD}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(mail)}`, {
-          state: { toast: 'Please set a new password.' },
+          state: { toast: t('forgotPassword.setNewPassword') },
         })
       } else {
         navigate(`${ROUTER.RESET_PASSWORD}?email=${encodeURIComponent(mail)}`, {
@@ -41,7 +43,7 @@ const ForgotPassword: React.FC = () => {
         })
       }
     } catch (err: any) {
-      setError(extractErrorMessage(err, 'Failed to process password reset request.'))
+      setError(extractErrorMessage(err, t('forgotPassword.failed')))
     } finally {
       setSubmitting(false)
     }
@@ -54,10 +56,10 @@ const ForgotPassword: React.FC = () => {
     <div className="page">
       <section className={containerClass}>
         <div className="auth__card">
-          <h2 className="auth__title">Forgot Password</h2>
-          <p className="auth__subtitle">Enter your email to receive instructions</p>
+          <h2 className="auth__title">{t('forgotPassword.title')}</h2>
+          <p className="auth__subtitle">{t('forgotPassword.subtitle')}</p>
           <form className="form" onSubmit={onSubmit}>
-            <label className="form__label" htmlFor="email">Email</label>
+            <label className="form__label" htmlFor="email">{t('forgotPassword.email')}</label>
             <input
               id="email"
               type="email"
@@ -71,12 +73,12 @@ const ForgotPassword: React.FC = () => {
             {message && <div style={{ color: 'var(--color-emerald-500)', fontSize: 14 }}>{message}</div>}
 
             <button type="submit" className="btn btn-primary auth__submit" disabled={submitting}>
-              {submitting ? 'Sending...' : 'Send Instructions'}
+              {submitting ? t('forgotPassword.submitting') : t('forgotPassword.submit')}
             </button>
 
             <div className="auth__links" style={{ justifyContent: 'space-between' }}>
-              <span>Remembered your password?</span>
-              <Link to={ROUTER.LOGIN}>Back to Login</Link>
+              <span>{t('forgotPassword.remembered')}</span>
+              <Link to={ROUTER.LOGIN}>{t('forgotPassword.backToLogin')}</Link>
             </div>
           </form>
         </div>

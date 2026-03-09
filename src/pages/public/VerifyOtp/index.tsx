@@ -5,11 +5,13 @@ import * as AuthService from '../../../services/AuthService'
 import useAuthStore from '../../../store/useAuthStore'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
 import { useResponsive } from '../../../hook/useResponsive'
+import { useTranslation } from 'react-i18next'
 
 const VerifyOtp: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const store = useAuthStore()
+  const { t } = useTranslation('auth')
 
   const emailFromQuery = useMemo(() => {
     try {
@@ -35,18 +37,18 @@ const VerifyOtp: React.FC = () => {
     const mail = email.trim()
     const otp = code.trim()
     if (!mail || !otp) {
-      setError('Please enter the registered email and OTP code')
+      setError(t('verifyOtp.enterBothFields'))
       return
     }
 
     try {
       setVerifying(true)
       const result = await AuthService.verifyOtp({ Email: mail, Otp: otp })
-      const toastMsg = result?.msg || 'OTP verification successful! Please log in.'
+      const toastMsg = result?.msg || t('verifyOtp.verifySuccess')
       // On success, redirect to login page with a toast message
       navigate('/login', { state: { toast: toastMsg } })
     } catch (err: any) {
-      const msg = extractErrorMessage(err, 'OTP verification failed.')
+      const msg = extractErrorMessage(err, t('verifyOtp.verifyFailed'))
       setError(msg)
     } finally {
       setVerifying(false)
@@ -59,15 +61,15 @@ const VerifyOtp: React.FC = () => {
     setMessage('')
     const mail = email.trim()
     if (!mail) {
-      setError('Please enter the registered email to resend OTP')
+      setError(t('verifyOtp.enterEmailToResend'))
       return
     }
     try {
       setResending(true)
       await AuthService.resendOtp({ Email: mail })
-      setMessage('A new OTP has been sent to your email.')
+      setMessage(t('verifyOtp.resendSuccess'))
     } catch (err: any) {
-      const msg = extractErrorMessage(err, 'Failed to resend OTP.')
+      const msg = extractErrorMessage(err, t('verifyOtp.resendFailed'))
       setError(msg)
     } finally {
       setResending(false)
@@ -81,28 +83,28 @@ const VerifyOtp: React.FC = () => {
     <div className="page">
       <section className={containerClass}>
         <div className="auth__card">
-          <h2 className="auth__title">Verify Your Account</h2>
-          <p className="auth__subtitle">Enter the OTP sent to your email</p>
+          <h2 className="auth__title">{t('verifyOtp.title')}</h2>
+          <p className="auth__subtitle">{t('verifyOtp.subtitle')}</p>
           <form className="form" onSubmit={onSubmit}>
-            <label className="form__label" htmlFor="email">Email</label>
+            <label className="form__label" htmlFor="email">{t('verifyOtp.email')}</label>
             <input id="email" type="email" className="form__input" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
 
-            <label className="form__label" htmlFor="otp">OTP</label>
-            <input id="otp" type="text" className="form__input" placeholder="Enter OTP" value={code} onChange={(e) => setCode(e.target.value)} />
+            <label className="form__label" htmlFor="otp">{t('verifyOtp.otp')}</label>
+            <input id="otp" type="text" className="form__input" placeholder={t('verifyOtp.otpPlaceholder')} value={code} onChange={(e) => setCode(e.target.value)} />
 
             {error && <div className="form__error" role="alert">{error}</div>}
             {message && <div style={{ color: 'var(--color-emerald-500)', fontSize: 14 }}>{message}</div>}
 
-            <button type="submit" className="btn btn-primary auth__submit" disabled={verifying}>Verify OTP</button>
+            <button type="submit" className="btn btn-primary auth__submit" disabled={verifying}>{t('verifyOtp.submit')}</button>
 
             <div className="auth__links" style={{ justifyContent: 'space-between' }}>
-              <span>Didn't receive the email?</span>
-              <a href="#" onClick={onResend}>{resending ? 'Resending...' : 'Resend'}</a>
+              <span>{t('verifyOtp.didntReceive')}</span>
+              <a href="#" onClick={onResend}>{resending ? t('verifyOtp.resending') : t('verifyOtp.resend')}</a>
             </div>
 
             <div className="auth__links">
-              <span>Back</span>
-              <Link to="/register">Register</Link>
+              <span>{t('verifyOtp.back')}</span>
+              <Link to="/register">{t('verifyOtp.register')}</Link>
             </div>
           </form>
         </div>

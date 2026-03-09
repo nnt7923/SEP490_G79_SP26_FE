@@ -1,17 +1,19 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Layout from '../../../../components/Layout'
-import { getAdminSidebarConfig } from '../components/AdminSideBar'
+import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { UserService } from '../../../../services'
 import { Search, RefreshCw, Ban, CheckCircle } from 'lucide-react'
 import { formatDateTimeVN } from '../../../../utils/dateUtils'
+import { useTranslation } from 'react-i18next'
 
 const AdminUsersPage: React.FC = () => {
   const sidebarConfig = useMemo(() => ({
-    navItems: getAdminSidebarConfig() as any,
+    navItems: useAdminSidebarConfig() as any,
     actions: [],
     brand: { name: 'Users', subtitle: 'Admin' },
   }), [])
+  const { t } = useTranslation('admin')
 
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(false)
@@ -39,7 +41,7 @@ const AdminUsersPage: React.FC = () => {
       const list = unwrapUsers(data)
       setUsers(list)
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to load users'
+      const msg = e?.response?.data?.message || e?.message || t('users.failedToLoad')
       setError(msg)
     } finally {
       setLoading(false)
@@ -53,15 +55,15 @@ const AdminUsersPage: React.FC = () => {
     try {
       if (currentlyBanned) {
         await UserService.unbanUser(userId)
-        setToast({ message: 'User unbanned successfully', type: 'success' })
+        setToast({ message: t('users.unbanSuccess'), type: 'success' })
       } else {
         await UserService.banUser(userId)
-        setToast({ message: 'User banned successfully', type: 'success' })
+        setToast({ message: t('users.banSuccess'), type: 'success' })
       }
       // Refresh users list
       await fetchUsers()
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to update user status'
+      const msg = e?.response?.data?.message || e?.message || t('users.banFailed')
       setToast({ message: msg, type: 'error' })
     } finally {
       setActionLoading(null)
@@ -121,11 +123,11 @@ const AdminUsersPage: React.FC = () => {
               <div>
                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
                   <span className="text-status-blue mr-2">{'>_'}</span>
-                  admin_users
+                   {t('users.title')}
                 </h1>
                 <p className="text-muted mt-2">
                   <span className="text-placeholder mr-2">{'//'}</span>
-                  manage users and permissions
+                   {t('users.subtitle')}
                 </p>
               </div>
               <button
@@ -135,7 +137,7 @@ const AdminUsersPage: React.FC = () => {
                 title="Reload"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                [ reload ]
+                [ {t('users.reload')} ]
               </button>
             </div>
           </div>
@@ -146,14 +148,14 @@ const AdminUsersPage: React.FC = () => {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="grep 'name|username|email|role'..."
+              placeholder={t('users.searchPlaceholder')}
               className="pl-11 pr-4 py-3 w-full bg-th-card border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
             />
           </div>
 
          {/* Role Filter */}
          <div className="mb-6 flex items-center gap-3">
-           <span className="text-sm font-bold text-muted">filter_by:</span>
+           <span className="text-sm font-bold text-muted">{t('users.filterBy')}</span>
            <div className="flex gap-2">
              {['all', 'Student', 'Mentor', 'Admin'].map((role) => (
                <button
@@ -185,14 +187,14 @@ const AdminUsersPage: React.FC = () => {
              <div className="text-center py-12">
                <div className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
                  <div className="w-4 h-4 rounded-full border-2 border-[var(--brand-blue)] border-t-transparent animate-spin"></div>
-                 <span>Loading users...</span>
+                 <span>{t('users.loading')}</span>
                </div>
              </div>
            )}
 
            {!loading && filtered.length === 0 && (
              <div className="text-center py-12 bg-th-card rounded-lg border border-[var(--gray-200)]">
-               <p className="text-[var(--text-secondary)]">No users found</p>
+                <p className="text-[var(--text-secondary)]">{t('users.noUsersFound')}</p>
              </div>
            )}
 
@@ -276,7 +278,7 @@ const AdminUsersPage: React.FC = () => {
                        <div>
                          <p className="text-xs font-bold text-muted lowercase">last_login:</p>
                          <p className="text-sm text-heading">
-                           {u?.lastLogin ? formatDateTimeVN(u.lastLogin) : 'Never'}
+                            {u?.lastLogin ? formatDateTimeVN(u.lastLogin) : t('users.never')}
                          </p>
                        </div>
 
@@ -311,7 +313,7 @@ const AdminUsersPage: React.FC = () => {
                            disabled={actionLoading === uid}
                            className="flex items-center gap-2 px-3 py-1.5 border border-green-600 text-status-green-dark bg-th-card hover:bg-status-green-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
                          >
-                           {actionLoading === uid ? '[ unbanning... ]' : '[ unban ]'}
+                            {actionLoading === uid ? `[ ${t('users.unbanning')} ]` : `[ ${t('users.unban')} ]`}
                          </button>
                        ) : (
                          <button
@@ -319,7 +321,7 @@ const AdminUsersPage: React.FC = () => {
                            disabled={actionLoading === uid}
                            className="flex items-center gap-2 px-3 py-1.5 border border-red-600 text-status-red-dark bg-th-card hover:bg-status-red-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
                          >
-                           {actionLoading === uid ? '[ banning... ]' : '[ ban ]'}
+                            {actionLoading === uid ? `[ ${t('users.banning')} ]` : `[ ${t('users.ban')} ]`}
                          </button>
                        )}
                      </div>

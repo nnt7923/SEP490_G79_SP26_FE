@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
-import { getStudentSidebarConfig } from '../components/StudentSideBar'
+import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import { requestChapterTasks } from '../../../../services/SignalR'
 import useAuthStore from '../../../../store/useAuthStore'
@@ -20,7 +20,7 @@ const MyPlansDetailPage: React.FC = () => {
   const [loadingTasks, setLoadingTasks] = useState<Set<string>>(new Set())
 
   const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
+    navItems: useStudentSidebarConfig(),
     actions: [],
     brand: { name: 'Plan Details', subtitle: 'Learning' },
   }

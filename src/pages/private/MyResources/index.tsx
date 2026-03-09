@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import ResourceService from '../../../services/ResourceService'
-import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
+import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import { LogOut } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
 // @ts-ignore - JS module without types
@@ -15,6 +15,7 @@ import EditResourceModal from './EditResourceModal'
 import Toast from '../../../components/Toast'
 import ConfirmDialog from '../../../components/ConfirmDialog'
 import ResourcePageViewer from '../../../components/ResourcePageViewer'
+import { useTranslation } from 'react-i18next'
 
 interface Resource {
   id: number
@@ -50,6 +51,7 @@ const MyResourcesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('UploadedAt')
   const [sortDescending, setSortDescending] = useState(true)
+  const { t } = useTranslation('admin')
 
   useEffect(() => { fetchResources() }, [searchTerm, sortBy, sortDescending])
 
@@ -67,7 +69,7 @@ const MyResourcesPage: React.FC = () => {
       else if (Array.isArray(data?.value)) resourcesList = data.value
       setResources(resourcesList)
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load resources')
+      setError(err?.response?.data?.message || t('resources.loadFailed'))
       setResources([])
     } finally { setLoading(false) }
   }
@@ -82,21 +84,21 @@ const MyResourcesPage: React.FC = () => {
   const handleEdit = (resource: Resource) => { setSelectedResource(resource); setIsEditModalOpen(true) }
   const handleDownload = (resource: Resource) => {
     if (resource.filePath || resource.url) { setResourceToView(resource); setIsPageViewerOpen(true) }
-    else showToast('No download URL available', 'warning')
+    else showToast(t('resources.noDownloadUrl'), 'warning')
   }
   const handleDelete = (resource: Resource) => { setResourceToDelete(resource); setIsDeleteDialogOpen(true) }
   const confirmDelete = async () => {
     if (!resourceToDelete) return
-    try { await ResourceService.deleteResource(resourceToDelete.resourceId); showToast('Resource deleted successfully!', 'success'); fetchResources() }
-    catch (err: any) { showToast(err?.response?.data?.message || err?.message || 'Failed to delete resource', 'error') }
+    try { await ResourceService.deleteResource(resourceToDelete.resourceId); showToast(t('resources.deleteSuccess'), 'success'); fetchResources() }
+    catch (err: any) { showToast(err?.response?.data?.message || err?.message || t('resources.deleteFailed'), 'error') }
     finally { setIsDeleteDialogOpen(false); setResourceToDelete(null) }
   }
   const cancelDelete = () => { setIsDeleteDialogOpen(false); setResourceToDelete(null) }
   const handleLogout = async () => { await logout(); navigate(ROUTER.LOGIN) }
 
   const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
-    actions: [{ label: 'Logout', icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+    navItems: useStudentSidebarConfig(),
+    actions: [{ label: t('resources.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
     brand: { name: 'Dashboard', subtitle: 'Learning' },
   }
 
@@ -112,15 +114,15 @@ const MyResourcesPage: React.FC = () => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {ROUTER_META[ROUTER.MY_RESOURCES]?.title || 'My Resources'}</h1>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>View and manage your learning resources</p>
+            <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {ROUTER_META[ROUTER.MY_RESOURCES]?.title || t('resources.title')}</h1>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{t('resources.subtitle')}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setIsModalOpen(true)} style={{ padding: '6px 14px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              {'>'} create
+              {'>'} {t('resources.create')}
             </button>
             <button onClick={() => navigate(ROUTER.STUDENT_DASHBOARD)} style={{ padding: '6px 14px', background: 'var(--bg-surface-short)', color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, cursor: 'pointer' }}>
-              back
+              {t('resources.back')}
             </button>
           </div>
         </div>
@@ -139,8 +141,8 @@ const MyResourcesPage: React.FC = () => {
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ sort by</label>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', cursor: 'pointer' }}>
-                <option value="UploadedAt">uploaded date</option>
-                <option value="Title">title</option>
+                <option value="UploadedAt">{t('resources.uploadedDate')}</option>
+                <option value="Title">{t('resources.titleSort')}</option>
               </select>
             </div>
             <div style={{ minWidth: 100 }}>
@@ -148,11 +150,11 @@ const MyResourcesPage: React.FC = () => {
               <div style={{ display: 'flex', border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
                 <button onClick={() => setSortDescending(false)}
                   style={{ flex: 1, padding: '8px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: !sortDescending ? 'var(--text-primary)' : 'var(--bg-main)', color: !sortDescending ? 'var(--bg-surface-short)' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
-                  asc
+                  {t('resources.asc')}
                 </button>
                 <button onClick={() => setSortDescending(true)}
                   style={{ flex: 1, padding: '8px 12px', fontSize: 12, border: 'none', borderLeft: '1px solid var(--border-base)', cursor: 'pointer', background: sortDescending ? 'var(--text-primary)' : 'var(--bg-main)', color: sortDescending ? 'var(--bg-surface-short)' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
-                  desc
+                  {t('resources.desc')}
                 </button>
               </div>
             </div>
@@ -160,7 +162,7 @@ const MyResourcesPage: React.FC = () => {
           {!loading && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--gray-200)' }}>
               <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>
-                {resources.length === 0 ? '// no resources found' : `// showing ${resources.length} ${resources.length === 1 ? 'resource' : 'resources'}`}
+                {resources.length === 0 ? `// ${t('resources.noResourcesFound')}` : `// ${t(resources.length === 1 ? 'resources.showingOne' : 'resources.showing', { count: resources.length })}`}
               </p>
             </div>
           )}
@@ -168,15 +170,15 @@ const MyResourcesPage: React.FC = () => {
 
         {/* Content */}
         {loading && (
-          <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)', fontSize: 13 }}>// loading resources...</div>
+          <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)', fontSize: 13 }}>// {t('resources.loading')}</div>
         )}
         {error && (
           <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, marginBottom: 20, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
         )}
         {!loading && !error && resources.length === 0 && (
           <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>// No resources yet</p>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Your learning resources will appear here once they're added</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>// {t('resources.noResources')}</p>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t('resources.resourcesWillAppear')}</p>
           </div>
         )}
         {!loading && !error && resources.length > 0 && (
@@ -205,18 +207,18 @@ const MyResourcesPage: React.FC = () => {
                         <button onClick={() => handleDownload(resource)} title="View" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
                           onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
-                          view
+                          {t('resources.view')}
                         </button>
                       )}
                       <button onClick={() => handleEdit(resource)} title="Edit" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
                         onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
-                        edit
+                        {t('resources.edit')}
                       </button>
                       <button onClick={() => handleDelete(resource)} title="Delete" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--danger-primary)'; e.currentTarget.style.color = 'var(--danger-primary)' }}
                         onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
-                        del
+                        {t('resources.del')}
                       </button>
                     </div>
                   )}
@@ -228,7 +230,7 @@ const MyResourcesPage: React.FC = () => {
 
         <CreateResourceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={handleCreateSuccess} onUploadStart={handleUploadStart} onUploadProgress={handleUploadProgress} />
         <EditResourceModal isOpen={isEditModalOpen} resource={selectedResource} onClose={() => { setIsEditModalOpen(false); setSelectedResource(null) }} onSuccess={handleEditSuccess} onShowToast={showToast} />
-        <ConfirmDialog isOpen={isDeleteDialogOpen} title="Delete Resource" message={`Are you sure you want to delete "${resourceToDelete?.title}"? This action cannot be undone.`} confirmText="Delete" cancelText="Cancel" variant="danger" onConfirm={confirmDelete} onCancel={cancelDelete} />
+        <ConfirmDialog isOpen={isDeleteDialogOpen} title={t('resources.deleteResource')} message={t('resources.deleteConfirm', { name: resourceToDelete?.title })} confirmText={t('resources.deleteBtn')} cancelText={t('resources.cancelBtn')} variant="danger" onConfirm={confirmDelete} onCancel={cancelDelete} />
         {resourceToView && (
           <ResourcePageViewer isOpen={isPageViewerOpen} resourceId={resourceToView.resourceId} fileName={resourceToView.originalFileName || resourceToView.title} onClose={() => { setIsPageViewerOpen(false); setResourceToView(null) }} />
         )}

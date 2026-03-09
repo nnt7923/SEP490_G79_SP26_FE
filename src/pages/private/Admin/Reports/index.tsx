@@ -1,14 +1,16 @@
 import React, { useMemo } from 'react'
 import Layout from '../../../../components/Layout'
-import { getAdminSidebarConfig } from '../components/AdminSideBar'
+import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { Download, Filter, FileText } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const AdminReportsPage: React.FC = () => {
   const sidebarConfig = useMemo(() => ({
-    navItems: getAdminSidebarConfig() as any,
+    navItems: useAdminSidebarConfig() as any,
     actions: [],
     brand: { name: 'Reports', subtitle: 'Admin' },
   }), [])
+  const { t } = useTranslation('admin')
 
   // Mock data for reports
   const mockReports = [
@@ -27,11 +29,11 @@ const AdminReportsPage: React.FC = () => {
                <div>
                  <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
                    <span className="text-status-blue mr-2">{'>_'}</span>
-                   admin_reports
+                   {t('reports.title')}
                  </h1>
                  <p className="text-muted mt-2">
                    <span className="text-placeholder mr-2">{'//'}</span>
-                   view and download system analytics
+                   {t('reports.subtitle')}
                  </p>
                </div>
                <button
@@ -39,7 +41,7 @@ const AdminReportsPage: React.FC = () => {
                  title="Generat New Report"
                >
                  <FileText className="w-4 h-4" />
-                 [ generate_new ]
+                  [ {t('reports.generateNew')} ]
                </button>
              </div>
            </div>
@@ -49,23 +51,23 @@ const AdminReportsPage: React.FC = () => {
              <div className="flex-1">
                <input
                  type="text"
-                 placeholder="grep 'report_name'..."
+                  placeholder={t('reports.searchPlaceholder')}
                  className="w-full px-4 py-3 bg-th-card border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors text-sm"
                />
              </div>
              <button className="px-6 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors inline-flex items-center gap-2 cursor-pointer">
                <Filter className="w-4 h-4" />
-               [ filter: all ]
+                [ {t('reports.filterAll')} ]
              </button>
            </div>
 
            {/* Report List */}
            <div className="bg-th-card border border-bd-strong">
              <div className="grid grid-cols-12 gap-4 p-4 border-b border-bd bg-th-input font-bold text-xs text-label uppercase">
-               <div className="col-span-6">filename</div>
-               <div className="col-span-2">size</div>
-               <div className="col-span-3">created_at</div>
-               <div className="col-span-1 text-right">action</div>
+                <div className="col-span-6">{t('reports.filename')}</div>
+                <div className="col-span-2">{t('reports.size')}</div>
+                <div className="col-span-3">{t('reports.createdAt')}</div>
+                <div className="col-span-1 text-right">{t('reports.action')}</div>
              </div>
              
              <div className="divide-y divide-gray-200">
@@ -89,7 +91,7 @@ const AdminReportsPage: React.FC = () => {
                ))}
                {mockReports.length === 0 && (
                  <div className="p-8 text-center text-muted font-bold">
-                   {'//'} no_reports_found()
+                    {'//'} {t('reports.noReportsFound')}
                  </div>
                )}
              </div>

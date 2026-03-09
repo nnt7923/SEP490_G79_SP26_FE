@@ -1,9 +1,11 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
+import { useTranslation } from 'react-i18next'
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear()
+  const { t } = useTranslation('common')
 
   return (
     <footer
@@ -48,9 +50,9 @@ const Footer: React.FC = () => {
                 }}
               >
                 {/* Personalized learning paths */}
-                // Personalized learning paths
+                {t('footer.tagline1')}
                 <br />
-                // powered by AI
+                {t('footer.tagline2')}
               </p>
             </div>
 
@@ -66,7 +68,7 @@ const Footer: React.FC = () => {
                   letterSpacing: '0.5px',
                 }}
               >
-                /* product */
+                {t('footer.product')}
               </h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 <li style={{ marginBottom: 6 }}>
@@ -81,7 +83,7 @@ const Footer: React.FC = () => {
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    ./plans
+                    {t('footer.plans')}
                   </Link>
                 </li>
                 <li style={{ marginBottom: 6 }}>
@@ -96,7 +98,7 @@ const Footer: React.FC = () => {
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    ./overview
+                    {t('footer.overview')}
                   </Link>
                 </li>
                 <li style={{ marginBottom: 6 }}>
@@ -111,7 +113,7 @@ const Footer: React.FC = () => {
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    ./resources
+                    {t('footer.resources')}
                   </Link>
                 </li>
               </ul>
@@ -129,7 +131,7 @@ const Footer: React.FC = () => {
                   letterSpacing: '0.5px',
                 }}
               >
-                /* company */
+                {t('footer.company')}
               </h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 <li style={{ marginBottom: 6 }}>
@@ -144,7 +146,7 @@ const Footer: React.FC = () => {
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    ./about
+                    {t('footer.about')}
                   </Link>
                 </li>
                 <li style={{ marginBottom: 6 }}>
@@ -159,7 +161,7 @@ const Footer: React.FC = () => {
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    ./home
+                    {t('footer.home')}
                   </Link>
                 </li>
               </ul>
@@ -180,7 +182,7 @@ const Footer: React.FC = () => {
           }}
         >
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
-            © {currentYear} CodeNexus // All rights reserved.
+            {t('footer.copyright', { year: currentYear })}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <a
@@ -194,7 +196,7 @@ const Footer: React.FC = () => {
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
             >
-              terms
+              {t('footer.terms')}
             </a>
             <a
               href="#privacy"
@@ -207,7 +209,7 @@ const Footer: React.FC = () => {
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
             >
-              privacy
+              {t('footer.privacy')}
             </a>
           </div>
         </div>
