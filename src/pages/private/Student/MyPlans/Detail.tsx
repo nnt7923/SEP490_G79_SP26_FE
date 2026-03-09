@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
@@ -9,7 +9,8 @@ import useAuthStore from '../../../../store/useAuthStore'
 import { ArrowLeft, Loader, AlertCircle, BookOpen, CheckCircle2, Clock, ListTodo } from 'lucide-react'
 
 const MyPlansDetailPage: React.FC = () => {
-  const { pathId } = useParams<{ pathId: string }>()
+  const location = useLocation() as any
+  const pathId = location.state?.pathId
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [plan, setPlan] = useState<SkeletonResponse | null>(null)
@@ -70,19 +71,43 @@ const MyPlansDetailPage: React.FC = () => {
       // Load tasks if not already loaded
       if (!chapterTasks[chapterId] && !loadingTasks.has(chapterId)) {
         setLoadingTasks(prev => new Set(prev).add(chapterId))
-        try {
-          const tasks = await requestChapterTasks(chapterId)
-          setChapterTasks(prev => ({ ...prev, [chapterId]: Array.isArray(tasks) ? tasks : [] }))
-        } catch (err) {
-          console.error('Failed to load tasks:', err)
-          setChapterTasks(prev => ({ ...prev, [chapterId]: [] }))
-        } finally {
-          setLoadingTasks(prev => {
-            const next = new Set(prev)
-            next.delete(chapterId)
-            return next
-          })
+        const loadWithRetry = async (retryCount = 0) => {
+          try {
+            const result = await requestChapterTasks(chapterId)
+            
+            // Handle different response formats robustly
+            let taskArray: any[] = []
+            if (Array.isArray(result)) {
+              taskArray = result
+            } else if (result && typeof result === 'object') {
+              if (Array.isArray(result.tasks)) {
+                taskArray = result.tasks
+              } else if (Array.isArray(result.data)) {
+                taskArray = result.data
+              } else if (Array.isArray(result.items)) {
+                taskArray = result.items
+              } else {
+                taskArray = [result]
+              }
+            }
+            
+            setChapterTasks(prev => ({ ...prev, [chapterId]: taskArray }))
+          } catch (err) {
+            // Auto-retry once on failure
+            if (retryCount < 1) {
+              await new Promise(r => setTimeout(r, 1000))
+              return loadWithRetry(retryCount + 1)
+            }
+            setChapterTasks(prev => ({ ...prev, [chapterId]: [] }))
+          } finally {
+            setLoadingTasks(prev => {
+              const next = new Set(prev)
+              next.delete(chapterId)
+              return next
+            })
+          }
         }
+        loadWithRetry()
       }
     } else {
       newExpanded.delete(chapterId)
@@ -222,6 +247,40 @@ const MyPlansDetailPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* Tasks Button */}
+                {expandedChapters.has(chapter.id) && (
+                  <div className="border-t border-[var(--gray-200)] px-4 py-3 hover:bg-[var(--bg-subtle)] transition-colors">
+                    <div className="mt-2 space-y-1.5">
+                      <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Tasks:</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!chapter.id) {
+                            alert('Chapter ID is missing! Cannot navigate to task.')
+                            return
+                          }
+                          navigate(`/task/${chapter.id}`, { 
+                            state: { skeleton: plan } 
+                          })
+                        }}
+                        className="flex items-center justify-between w-full p-3 rounded-lg border border-[var(--gray-200)] hover:border-[var(--brand-blue)] hover:bg-[var(--bg-main)] transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--bg-yellow-light)] flex items-center justify-center">
+                            <ListTodo className="w-4 h-4 text-[var(--warning-primary)]" />
+                          </div>
+                          <span className="font-semibold text-sm text-[var(--gray-900)] text-left">
+                            Chapter Tasks
+                          </span>
+                        </div>
+                        <span className="text-xs font-medium text-[var(--brand-blue)] group-hover:underline">
+                          View Tasks &rarr;
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Lessons */}
                 {expandedChapters.has(chapter.id) && chapter.lessons && chapter.lessons.length > 0 && (
                   <div className="border-t border-[var(--gray-200)]">
@@ -285,41 +344,6 @@ const MyPlansDetailPage: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {/* Tasks */}
-                {expandedChapters.has(chapter.id) && (
-                  <div className="border-t border-[var(--gray-200)] bg-[var(--bg-yellow-light)] px-4 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ListTodo className="w-4 h-4 text-[var(--warning-primary)]" />
-                      <h4 className="text-sm font-semibold text-[var(--text-amber-dark-alt)]">Chapter Tasks</h4>
-                    </div>
-                    
-                    {loadingTasks.has(chapter.id) ? (
-                      <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                        <Loader className="w-3.5 h-3.5 animate-spin" />
-                        <span>Loading tasks...</span>
-                      </div>
-                    ) : chapterTasks[chapter.id] && chapterTasks[chapter.id].length > 0 ? (
-                      <div className="space-y-2">
-                        {chapterTasks[chapter.id].map((task: any, taskIdx: number) => (
-                          <div key={task.id || taskIdx} className="flex items-start gap-2 text-xs">
-                            <div className="flex-shrink-0 w-5 h-5 rounded bg-[var(--badge-bg-warning)] border border-[var(--color-yellow-300)] flex items-center justify-center text-[var(--text-amber-dark-alt)] font-semibold">
-                              {taskIdx + 1}
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-[var(--text-amber-dark-alt)] font-medium">{task.title || task.description || 'Task'}</p>
-                              {task.description && task.title && (
-                                <p className="text-[var(--text-amber-700)] mt-0.5">{task.description}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-[var(--text-amber-700)]">No tasks available for this chapter</p>
-                    )}
                   </div>
                 )}
               </div>

@@ -164,5 +164,18 @@
     "chapters": "{{count}} chương",
     "logout": "Đăng xuất",
     "viewAll": "xem tất cả \u2192"
+  },
+  "task": {
+    "title": "Bài tập Chương",
+    "description": "Hoàn thành tất cả các bài tập để nắm vững chương này.",
+    "notFound": "Không tìm thấy bài tập chương",
+    "noTasks": "Không có bài tập nào cho chương này.",
+    "progress": "Tiến độ",
+    "completedText": "Đã hoàn thành {{completed}} / {{total}}",
+    "backToPlans": "Trở lại Kế hoạch",
+    "allCompleted": "Đã hoàn thành tất cả bài tập! 🎉",
+    "easy": "Dễ",
+    "medium": "Trung bình",
+    "hard": "Khó"
   }
 }

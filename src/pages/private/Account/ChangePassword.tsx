@@ -1,27 +1,19 @@
 import React from 'react'
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import { useMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
-import ROUTER from '../../../router/ROUTER'
-import { useNavigate } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
 import ProgressToast from '../../../components/Toast/ProgressToast'
 import { useTranslation } from 'react-i18next'
 const ChangePassword = () => {
-  const navigate = useNavigate()
-  const { logout, changePassword, user } = useAuthStore()
+  const { changePassword, user } = useAuthStore()
   const { t } = useTranslation('auth')
   const [toast, setToast] = useState<{
     message: string
     progress: number
     status: 'loading' | 'success' | 'error'
   } | null>(null)
-  const handleLogout = async () => {
-    await logout()
-    navigate(ROUTER.LOGIN)
-  }
 
   const roleName = (user?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0] || '').toString().trim().toLowerCase()
   const studentNav = useStudentSidebarConfig()
@@ -30,14 +22,7 @@ const ChangePassword = () => {
 
   const sidebarConfig = {
     navItems,
-    actions: [
-      {
-        label: t('changePassword.title'),
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: 'danger' as const,
-      },
-    ],
+    actions: [],
     brand: {
       name: 'Dashboard',
       subtitle: roleName === 'mentor' ? 'Teaching' : 'Learning',
