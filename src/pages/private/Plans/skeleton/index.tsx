@@ -190,12 +190,12 @@ const ResultPage: React.FC = () => {
   }
 
   return (
-    <div className="layout min-h-screen bg-blue-50">
+    <div className="layout min-h-screen bg-status-blue-bg">
       <Header />
       <main className="page-main py-12" role="main" aria-label="learning-path">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero frame */}
-          <section className="rounded-2xl bg-blue-500 p-8 shadow-xl text-white mb-8">
+          <section className="rounded-2xl bg-status-blue-solid-muted p-8 shadow-xl text-white mb-8">
             <div className="flex items-start justify-between">
               <div className="space-y-3 w-full max-w-3xl">
                 <h1 className="text-2xl sm:text-3xl font-bold font-heading">{pathTitle}</h1>
@@ -221,7 +221,7 @@ const ResultPage: React.FC = () => {
                 const isCompleted = chapterCompletionStatus[chapter.id] === true
                 
                 return (
-                  <div key={chapter.id || chapterIdx} className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden shadow-sm">
+                  <div key={chapter.id || chapterIdx} className="bg-th-card rounded-lg border-2 border-bd-muted overflow-hidden shadow-sm">
                     {/* Chapter Header */}
                     <button
                       onClick={() => {
@@ -233,13 +233,13 @@ const ResultPage: React.FC = () => {
                         }
                         setExpandedChapters(newExpanded)
                       }}
-                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-blue-50 transition-colors"
+                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-status-blue-bg transition-colors"
                     >
                       <div className="flex items-center gap-4 flex-1 text-left">
                         <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-semibold ${
                           isCompleted 
-                            ? 'bg-green-600 text-white' 
-                            : 'bg-blue-500 text-white'
+                            ? 'bg-status-green-solid text-white' 
+                            : 'bg-status-blue-solid-muted text-white'
                         }`}>
                           {isCompleted ? (
                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -250,35 +250,45 @@ const ResultPage: React.FC = () => {
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 text-lg">{chapter.title}</h3>
+                          <h3 className="font-semibold text-heading text-lg">{chapter.title}</h3>
                           {chapter.lessons && chapter.lessons.length > 0 && (
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-sm text-label mt-1">
                               {chapter.lessons.length} lessons
-                              {isCompleted && <span className="ml-2 text-green-600 font-medium">✓ Completed</span>}
+                              {isCompleted && <span className="ml-2 text-status-green font-medium">✓ Completed</span>}
                             </p>
                           )}
                         </div>
                       </div>
                       <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-placeholder" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
                     </button>
 
                     {/* Chapter Content */}
-                    {chapter.content && (
-                      <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-                        <p className="text-sm text-gray-700">{chapter.content}</p>
+                    {isExpanded && chapter.content && (
+                      <div className="px-6 py-3 bg-th-page border-t border-bd-muted">
+                        <p className="text-sm text-body">{chapter.content}</p>
+                      </div>
+                    )}
+
+                    {/* Chapter Tasks - shown right below chapter header when expanded */}
+                    {isExpanded && (
+                      <div className="border-t border-bd-muted">
+                        <ChapterTasks 
+                          chapterId={chapter.id} 
+                          onAllTasksCompleted={handleChapterTasksCompleted}
+                        />
                       </div>
                     )}
 
                     {/* Lessons - Only show when expanded */}
                     {isExpanded && chapter.lessons && chapter.lessons.length > 0 && (
-                      <div className="border-t border-gray-200">
+                      <div className="border-t border-bd-muted">
                         <div className="divide-y divide-gray-200">
                           {chapter.lessons.map((lesson: any, lessonIdx: number) => (
-                            <div key={lesson.id || lessonIdx} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                            <div key={lesson.id || lessonIdx} className="px-6 py-4 hover:bg-th-page transition-colors">
                               <div className="flex items-start gap-4">
                                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-semibold">
                                   {lessonIdx + 1}
@@ -289,16 +299,16 @@ const ResultPage: React.FC = () => {
                                     onClick={() => {
                                       navigate(`/lesson/${lesson.id}`, { state: { skeleton } })
                                     }}
-                                    className="font-medium text-gray-900 text-left hover:text-blue-500 underline decoration-transparent hover:decoration-blue-500 transition-colors"
+                                    className="font-medium text-heading text-left hover:text-status-blue-muted underline decoration-transparent hover:decoration-blue-500 transition-colors"
                                   >
                                     {lesson.title}
                                   </button>
                                   {lesson.description && (
-                                    <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
+                                    <p className="text-sm text-label mt-1">{lesson.description}</p>
                                   )}
                                   {lesson.quizzes && lesson.quizzes.length > 0 && (
                                     <div className="mt-3 space-y-2">
-                                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Quizzes:</p>
+                                      <p className="text-xs font-semibold text-label uppercase tracking-wide">Quizzes:</p>
                                       <div className="space-y-1">
                                         {lesson.quizzes.map((quiz: any, quizIdx: number) => (
                                           <button
@@ -310,9 +320,9 @@ const ResultPage: React.FC = () => {
                                                 skeleton 
                                               } 
                                             })}
-                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-500 transition-colors cursor-pointer"
+                                            className="flex items-center gap-2 text-sm text-body hover:text-status-blue-muted transition-colors cursor-pointer"
                                           >
-                                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-4 h-4 text-status-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                             <span className="underline decoration-transparent hover:decoration-teal-600">{quiz.title}</span>
@@ -325,12 +335,6 @@ const ResultPage: React.FC = () => {
                               </div>
                             </div>
                           ))}
-
-                          {/* Chapter Tasks Section */}
-                          <ChapterTasks 
-                            chapterId={chapter.id} 
-                            onAllTasksCompleted={handleChapterTasksCompleted}
-                          />
                         </div>
                       </div>
                     )}
@@ -339,7 +343,7 @@ const ResultPage: React.FC = () => {
               })}
             </div>
           ) : (
-            <div className="text-gray-500 text-center py-8 bg-white rounded-2xl border-2 border-gray-200 mb-8">
+            <div className="text-muted text-center py-8 bg-th-card rounded-2xl border-2 border-bd-muted mb-8">
               No chapters found in the learning path.
             </div>
           )}
@@ -347,12 +351,12 @@ const ResultPage: React.FC = () => {
           {/* Lesson Content Viewer (shown when user clicks a lesson) */}
           {showLessonContent && (
             <section className="grid grid-cols-1 gap-6">
-              <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6">
+              <div className="bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 font-heading">Lesson Content</h2>
+                  <h2 className="text-xl font-semibold text-heading font-heading">Lesson Content</h2>
                   <div className="flex items-center gap-2">
                     <select
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none text-sm font-medium transition-colors"
+                      className="px-3 py-2 border-2 border-bd-muted rounded-lg focus:border-blue-400 focus:outline-none text-sm font-medium transition-colors"
                       value={selectedLessonId || ''}
                       onChange={(e) => setSelectedLessonId(e.target.value || undefined)}
                       aria-label="Select lesson"
@@ -363,7 +367,7 @@ const ResultPage: React.FC = () => {
                     </select>
                     <button
                       type="button"
-                      className="px-3 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+                      className="px-3 py-2 rounded-lg bg-th-hover text-body hover:bg-th-skeleton transition"
                       title="Close lesson content"
                       onClick={() => setShowLessonContent(false)}
                     >

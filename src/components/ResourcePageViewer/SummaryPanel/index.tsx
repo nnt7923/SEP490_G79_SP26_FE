@@ -312,7 +312,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
     if (connectionState === 'connected') {
       return (
         <div 
-          className="flex items-center space-x-2 text-green-600 dark:text-green-400"
+          className="flex items-center space-x-2 text-status-green"
           role="status"
           aria-live="polite"
           aria-label="Connection status: Connected"
@@ -326,7 +326,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
     if (connectionState === 'reconnecting') {
       return (
         <div 
-          className="flex items-center space-x-2 text-yellow-600 dark:text-yellow-400"
+          className="flex items-center space-x-2 text-yellow-600"
           role="status"
           aria-live="polite"
           aria-label="Connection status: Reconnecting"
@@ -339,7 +339,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
 
     return (
       <div 
-        className="flex items-center space-x-2 text-red-600 dark:text-red-400"
+        className="flex items-center space-x-2 text-status-red"
         role="status"
         aria-live="polite"
         aria-label="Connection status: Disconnected"
@@ -355,19 +355,19 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
    * Validates: Requirements 1.1, 6.4
    */
   const renderHeader = () => (
-    <div className="pb-3 border-b border-slate-200 dark:border-slate-700">
+    <div className="pb-3 border-b border-sl-200">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="text-sm font-semibold text-sl-900">
           AI Summary
         </h2>
         {isMobile && onToggle && (
           <button
             onClick={onToggle}
-            className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            className="p-1 rounded-md hover:bg-sl-100 transition-colors"
             title="Close summary panel"
             aria-label="Close summary panel"
           >
-            <X className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+            <X className="w-4 h-4 text-sl-600" />
           </button>
         )}
       </div>
@@ -384,10 +384,10 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
       <div>
         <button
           onClick={() => setIsFormVisible(!isFormVisible)}
-          className="w-full flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors mb-2"
+          className="w-full flex items-center justify-between text-xs font-medium text-sl-600 hover:text-sl-900 transition-colors mb-2"
         >
           <span>New Summary</span>
-          <span className="text-slate-400">{isFormVisible ? '−' : '+'}</span>
+          <span className="text-sl-400">{isFormVisible ? '−' : '+'}</span>
         </button>
         {isFormVisible && (
           <NewSummaryForm
@@ -401,7 +401,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
 
       {/* Summary Sessions List */}
       <div>
-        <h3 className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+        <h3 className="text-xs font-medium text-sl-600 mb-2">
           History
         </h3>
         <SummarySessionList
@@ -426,7 +426,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
     return (
       <div
         ref={panelRef}
-        className="flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700"
+        className="flex flex-col h-full bg-th-card border-l border-sl-200"
         style={{ width: '384px' }}
         role="complementary"
         aria-label="AI Summary Panel"
@@ -446,7 +446,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
   return (
     <div 
       ref={panelRef}
-      className="fixed inset-0 z-50 bg-white dark:bg-slate-900"
+      className="fixed inset-0 z-50 bg-th-card"
       role="dialog"
       aria-modal="true"
       aria-label="AI Summary Panel"

@@ -1,0 +1,66 @@
+{
+  "hero": {
+    "badge": "> AI-Powered Learning Platform",
+    "titleLine1": "Create personalized",
+    "titleHighlight": "programming",
+    "titleLine2": "learning paths with AI",
+    "descLine1": "// Choose a language, set your goal, AI generates the learning path.",
+    "descLine2": "// Track progress, review lessons, improve your skills.",
+    "ctaPlan": "> Create Learning Plan",
+    "ctaRegister": "Register for free"
+  },
+  "features": {
+    "title": "// What does the platform help you learn?",
+    "subtitle": "Everything you need to build an effective programming learning roadmap",
+    "plan": {
+      "title": "Create Learning Plan",
+      "description": "Choose a programming language, set goals, and AI will create a learning path suited to your level."
+    },
+    "goal": {
+      "title": "Set Learning Goals",
+      "description": "Set specific goals: Frontend, Backend, Full-stack, Mobile,... and track your achievement."
+    },
+    "track": {
+      "title": "Track Progress",
+      "description": "View progress through each chapter and lesson. Personal dashboard shows your learning overview."
+    },
+    "lesson": {
+      "title": "Detailed Lesson Content",
+      "description": "Each lesson includes theory, code examples, common mistakes, and practice exercises."
+    },
+    "ai": {
+      "title": "AI-Generated Content",
+      "description": "Lesson content is AI-generated based on your goals and level, ensuring the best fit."
+    }
+  },
+  "howItWorks": {
+    "title": "// How to use",
+    "subtitle": "4 steps to start your programming learning journey",
+    "step1": {
+      "title": "Choose a language",
+      "desc": "JavaScript, Python, Java, C#, Go,... choose the language you want to learn or improve."
+    },
+    "step2": {
+      "title": "Set your goal",
+      "desc": "Frontend, Backend, Full-stack, Data Science,... define a clear direction."
+    },
+    "step3": {
+      "title": "Choose your level",
+      "desc": "Beginner, Intermediate, Advanced — AI adjusts content to your level."
+    },
+    "step4": {
+      "title": "Learn the roadmap",
+      "desc": "AI creates chapters → lessons → code examples. Track progress on dashboard."
+    },
+    "ctaStart": "> Start learning now"
+  },
+  "roles": {
+    "title": "// Who is it for?",
+    "personalizeLabel": "> Personalize your experience",
+    "personalizeTitle": "Develop programming skills with CodeNexus",
+    "feature1": "Create and manage personal learning roadmaps",
+    "feature2": "Curate real-world programming learning resources",
+    "feature3": "Progress tracking tools and visual dashboard",
+    "feature4": "Rich resource library and practice exercises"
+  }
+}

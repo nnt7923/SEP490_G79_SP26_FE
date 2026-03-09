@@ -1,18 +1,4 @@
-
 import React, { useState, useEffect, useRef } from 'react'
-import { 
-  SiJavascript, 
-  SiTypescript, 
-  SiPython, 
-  SiReact, 
-  SiNodedotjs, 
-  SiDocker, 
-  SiKubernetes,
-  SiMongodb,
-  SiPostgresql,
-  SiGit,
-  SiAmazon
-} from 'react-icons/si'
 
 interface SingleGoalCardProps {
   id: string
@@ -30,15 +16,13 @@ interface SingleGoalCardProps {
   onCancelEdit: () => void
   saving: boolean
   deleting: boolean
-  isSystemGoal?: boolean // New prop to identify system goals
+  isSystemGoal?: boolean 
 }
 
 const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
   id,
   active,
   title,
-  colorClass,
-  icon,
   onToggle,
   onStartEdit,
   onDelete,
@@ -49,119 +33,67 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
   onCancelEdit,
   saving,
   deleting,
-  isSystemGoal = false, // Default to false (user goal)
+  isSystemGoal = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Select icon based on goal ID for variety - using tech/programming icons
-  const getIconComponent = () => {
-    const icons = [
-      SiJavascript,    // JavaScript
-      SiTypescript,    // TypeScript
-      SiPython,        // Python
-      SiReact,         // React
-      SiNodedotjs,     // Node.js
-      SiDocker,        // Docker
-      SiKubernetes,    // Kubernetes
-      SiMongodb,       // MongoDB
-      SiPostgresql,    // PostgreSQL
-      SiGit,           // Git
-      SiAmazon         // AWS
-    ]
-    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const IconComponent = icons[hash % icons.length]
-    return IconComponent
-  }
-
-  const IconComponent = getIconComponent()
-
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false)
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false)
     }
-
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    if (menuOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [menuOpen])
 
   return (
     <div
-      className={`group relative overflow-visible rounded-xl border transition-all duration-200 p-5 bg-white ${
-        active
-          ? 'border-teal-600 bg-teal-50 shadow-sm'
-          : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
-      } ${!isEditing && !menuOpen ? 'cursor-pointer' : 'cursor-default'}`}
+      style={{
+        position: 'relative', display: 'flex', flexDirection: 'column',
+        padding: 16, border: '1px solid var(--border-base)', borderRadius: 2,
+        background: active ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+        borderColor: active ? 'var(--accent-primary)' : 'var(--border-base)',
+        cursor: (!isEditing && !menuOpen) ? 'pointer' : 'default',
+        transition: 'all 0.2s', boxSizing: 'border-box'
+      }}
       role={!isEditing ? 'button' : undefined}
       aria-pressed={!isEditing && active ? 'true' : 'false'}
-      onClick={() => {
-        if (!isEditing && !menuOpen) onToggle(id)
+      onClick={() => { if (!isEditing && !menuOpen) onToggle(id) }}
+      onMouseEnter={(e) => {
+        if (!active && !isEditing) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }
+      }}
+      onMouseLeave={(e) => {
+        if (!active && !isEditing) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }
       }}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 flex-1">
-          <div
-            className={`flex items-center justify-center w-11 h-11 rounded-lg ${colorClass} transition-colors duration-200`}
-          >
-            {icon ? (
-              <span className="text-lg text-white">{icon}</span>
-            ) : (
-              <IconComponent className="w-5 h-5 text-white" />
-            )}
-          </div>
-          <div className="flex-1">
-            <div className="font-semibold text-gray-900 text-base">{title}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {active ? `> ${title}` : `$ ${title}`}
           </div>
         </div>
-        {/* Only show menu for user goals, not system goals */}
+
         {!isEditing && !isSystemGoal && (
-          <div className="relative" ref={menuRef}>
-            <button
-              type="button"
-              aria-label="More options"
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900"
-              onClick={(e) => {
-                e.stopPropagation()
-                setMenuOpen((v) => !v)
-              }}
-              disabled={saving || deleting}
+          <div style={{ position: 'relative' }} ref={menuRef}>
+            <button type="button" aria-label="More options" disabled={saving || deleting}
+              style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '1px solid transparent', borderRadius: 2, cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 14 }}
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-main)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent' }}
             >
               ⋮
             </button>
             {menuOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute top-10 right-0 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[140px] z-50 overflow-hidden"
-              >
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onStartEdit(id, title)
-                  }}
-                  disabled={saving || deleting}
-                >
-                  Edit
+              <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 30, right: 0, background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, minWidth: 120, zIndex: 50, padding: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <button type="button" onClick={() => { setMenuOpen(false); onStartEdit(id, title) }} disabled={saving || deleting}
+                  style={{ textAlign: 'left', padding: '6px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)', transition: 'background 0.2s', borderRadius: 2 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-neutral)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
+                  edit
                 </button>
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2.5 hover:bg-red-50 transition-colors text-sm font-medium text-red-600"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onDelete(id)
-                  }}
-                  disabled={saving || deleting}
-                >
-                  {deleting ? 'Deleting…' : 'Delete'}
+                <button type="button" onClick={() => { setMenuOpen(false); onDelete(id) }} disabled={saving || deleting}
+                  style={{ textAlign: 'left', padding: '6px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--danger-primary)', transition: 'background 0.2s', borderRadius: 2 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-red-tint)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
+                  {deleting ? 'deleting…' : 'delete'}
                 </button>
               </div>
             )}
@@ -170,34 +102,17 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
       </div>
 
       {isEditing && (
-        <div
-          className="flex gap-2 mt-4"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <input
-            type="text"
-            value={editingTitle}
-            onChange={(e) => setEditingTitle(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
-            placeholder="Goal title"
-          />
-          <button
-            type="button"
-            className={`px-4 py-2 bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600 transition-colors ${
-              saving ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            onClick={onSaveEdit}
-            disabled={saving}
-          >
-            {saving ? 'Saving…' : 'Save'}
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }} onClick={(e) => e.stopPropagation()}>
+          <input type="text" value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} placeholder="goal title"
+            style={{ flex: 1, padding: '4px 8px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
+          <button type="button" onClick={onSaveEdit} disabled={saving}
+            style={{ padding: '4px 12px', background: saving ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? '...' : 'save'}
           </button>
-          <button
-            type="button"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-            onClick={onCancelEdit}
-            disabled={saving}
-          >
-            Cancel
+          <button type="button" onClick={onCancelEdit} disabled={saving}
+            style={{ padding: '4px 12px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, color: 'var(--text-primary)', cursor: 'pointer' }}>
+            cancel
           </button>
         </div>
       )}

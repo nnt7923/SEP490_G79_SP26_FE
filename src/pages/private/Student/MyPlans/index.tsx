@@ -2,14 +2,13 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
-import { getStudentSidebarConfig } from '../components/StudentSideBar'
+import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
-import ROUTER from '../../../../router/ROUTER'
-import { Search, ChevronRight, Loader, AlertCircle, BookOpen, LogOut } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const MyPlansPage: React.FC = () => {
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
   const [plans, setPlans] = useState<SkeletonResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -18,45 +17,29 @@ const MyPlansPage: React.FC = () => {
   const [pageNumber, setPageNumber] = useState(1)
   const [pageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
+  const { t } = useTranslation('student')
+  const { t: tc } = useTranslation('common')
 
-  const handleLogout = async () => {
-    await logout()
-    navigate(ROUTER.LOGIN)
-  }
+
 
   const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
-    actions: [
-      {
-        label: 'Logout',
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: 'danger' as const,
-      },
-    ],
+    navItems: useStudentSidebarConfig(),
+    actions: [],
     brand: { name: 'My Plans', subtitle: 'Learning' },
   }
 
-  useEffect(() => {
-    fetchPlans()
-  }, [pageNumber, searchTerm])
+  useEffect(() => { fetchPlans() }, [pageNumber, searchTerm])
 
   const fetchPlans = async () => {
     if (!user?.id) return
-    
     setLoading(true)
     setError(null)
     try {
-      const response = await LearningPathService.getUserLearningPaths(user.id, {
-        pageNumber,
-        pageSize,
-        searchTerm: searchTerm || undefined,
-      })
+      const response = await LearningPathService.getUserLearningPaths(user.id, { pageNumber, pageSize, searchTerm: searchTerm || undefined })
       setPlans(response.items)
       setTotalCount(response.totalCount)
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to load learning paths'
-      setError(msg)
+      setError(err?.response?.data?.message || err?.message || t('myPlans.loading'))
     } finally {
       setLoading(false)
     }
@@ -64,118 +47,84 @@ const MyPlansPage: React.FC = () => {
 
   const filteredPlans = plans.filter(plan => {
     const q = searchTerm.toLowerCase()
-    return (plan?.title || '').toLowerCase().includes(q) || 
-           (plan?.description || '').toLowerCase().includes(q)
+    return (plan?.title || '').toLowerCase().includes(q) || (plan?.description || '').toLowerCase().includes(q)
   })
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 12px 8px 32px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2,
+    background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box',
+  }
+
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
-        {/* Header */}
-        {/* <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#111827] mb-2">My Learning Plans</h1>
-          <p className="text-[#6b7280]">View and manage your personalized learning paths</p>
-        </div> */}
-
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#9ca3af] w-5 h-5" />
+      <div style={{ padding: '24px', background: 'var(--bg-surface)', minHeight: '100vh' }}>
+        {/* Search */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-secondary)' }}>$</span>
             <input
-              type="text"
-              placeholder="Search learning paths..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value)
-                setPageNumber(1)
-              }}
-              className="w-full pl-10 pr-4 py-3 border border-[#e5e7eb] rounded-lg bg-white text-[#111827] placeholder-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all"
+              type="text" placeholder={t('myPlans.searchPlaceholder')} value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPageNumber(1) }}
+              style={inputStyle}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
             />
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 gap-6">
-          {/* Plans List */}
-          <div>
-            {loading ? (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-8 flex items-center justify-center">
-                <div className="text-center">
-                  <Loader className="w-8 h-8 text-[#2f80ed] animate-spin mx-auto mb-3" />
-                  <p className="text-[#6b7280]">Loading your learning paths...</p>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-8">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-[#111827]">Error loading plans</h3>
-                    <p className="text-sm text-[#6b7280] mt-1">{error}</p>
-                  </div>
-                </div>
-              </div>
-            ) : filteredPlans.length === 0 ? (
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-12 text-center">
-                <BookOpen className="w-12 h-12 text-[#d1d5db] mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-[#111827] mb-2">No learning paths yet</h3>
-                <p className="text-[#6b7280]">
-                  {searchTerm ? 'No plans match your search.' : 'Start creating your first learning path!'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredPlans.map((plan) => (
-                  <div
-                    key={plan.pathId || plan.id}
-                    onClick={() => navigate(`/my-plans/${plan.pathId || plan.id}`)}
-                    className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all duration-200 border-[#e5e7eb] hover:border-[#d1d5db] hover:shadow-sm`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-[#111827] text-lg mb-1">{plan.title || 'Untitled Plan'}</h3>
-                        <p className="text-sm text-[#6b7280] line-clamp-2">{plan.description || 'No description'}</p>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-[#9ca3af]">
-                          <span>📚 {plan.chapterCount || plan.chapters?.length || 0} chapters</span>
-                          <span>📝 {plan.lessons?.length || 0} lessons</span>
-                          {plan.createdAt && <span>📅 {new Date(plan.createdAt).toLocaleDateString()}</span>}
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-[#d1d5db] flex-shrink-0 ml-2" />
+        {/* Content */}
+        {loading ? (
+          <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{t('myPlans.loading')}</div>
+        ) : error ? (
+          <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
+        ) : filteredPlans.length === 0 ? (
+          <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('myPlans.noPlansFound')}</p>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{searchTerm ? t('myPlans.noPlansMatch') : t('myPlans.startCreating')}</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filteredPlans.map((plan) => (
+              <div
+                key={plan.pathId || plan.id}
+                onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })}
+                style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, cursor: 'pointer', transition: 'border-color 0.2s', background: 'var(--bg-surface-short)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{plan.title || t('myPlans.untitled')}</h3>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.description || t('myPlans.noDescription')}</p>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)' }}>
+                      <span>{t('myPlans.chapters', { count: plan.chapterCount || plan.chapters?.length || 0 })}</span>
+                      <span>{t('myPlans.lessons', { count: plan.lessons?.length || 0 })}</span>
+                      {plan.createdAt && <span>{new Date(plan.createdAt).toLocaleDateString()}</span>}
                     </div>
                   </div>
-                ))}
+                  <span style={{ fontSize: 14, color: 'var(--text-secondary)', flexShrink: 0, marginLeft: 12 }}>→</span>
+                </div>
               </div>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                  disabled={pageNumber === 1}
-                  className="px-4 py-2 border border-[#e5e7eb] rounded-lg text-sm font-medium text-[#374151] hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-[#6b7280]">
-                  Page {pageNumber} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
-                  disabled={pageNumber === totalPages}
-                  className="px-4 py-2 border border-[#e5e7eb] rounded-lg text-sm font-medium text-[#374151] hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            ))}
           </div>
-        </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+            <button type="button" onClick={() => setPageNumber(Math.max(1, pageNumber - 1))} disabled={pageNumber === 1}
+              style={{ padding: '6px 16px', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-surface-short)', cursor: pageNumber === 1 ? 'not-allowed' : 'pointer', opacity: pageNumber === 1 ? 0.5 : 1 }}>
+              {tc('pagination.prev')}
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{tc('pagination.page')} {pageNumber} {tc('pagination.of')} {totalPages}</span>
+            <button type="button" onClick={() => setPageNumber(Math.min(totalPages, pageNumber + 1))} disabled={pageNumber === totalPages}
+              style={{ padding: '6px 16px', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-surface-short)', cursor: pageNumber === totalPages ? 'not-allowed' : 'pointer', opacity: pageNumber === totalPages ? 0.5 : 1 }}>
+              {tc('pagination.next')}
+            </button>
+          </div>
+        )}
       </div>
     </Layout>
   )

@@ -4,7 +4,6 @@ interface LanguageCardProps {
   active?: boolean
   name: string
   tag?: string
-  colorClass: string
   icon?: string
   desc?: string
   onClick?: () => void
@@ -14,7 +13,6 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
   active,
   name,
   tag,
-  colorClass,
   icon,
   desc,
   onClick,
@@ -23,31 +21,35 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
     type="button"
     onClick={onClick}
     aria-pressed={active ? 'true' : 'false'}
-    className={`group relative overflow-hidden rounded-xl border transition-all duration-200 text-left p-5 cursor-pointer h-full ${
-      active
-        ? 'border-teal-600 bg-teal-50 shadow-sm'
-        : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
-    }`}
+    style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      padding: 16, border: '1px solid var(--border-base)', borderRadius: 2,
+      background: active ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+      borderColor: active ? 'var(--accent-primary)' : 'var(--border-base)',
+      textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+      boxSizing: 'border-box'
+    }}
+    onMouseEnter={(e) => {
+      if (!active) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }
+    }}
+    onMouseLeave={(e) => {
+      if (!active) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }
+    }}
   >
-    <div className="flex flex-col h-full">
-      <div className="flex items-start gap-3 flex-1">
-        <div
-          className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-lg ${colorClass} text-white text-xl transition-colors duration-200`}
-        >
-          {icon ?? '🔖'}
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, width: '100%' }}>
+      <div style={{ fontSize: 24, flexShrink: 0 }}>{icon ?? '🔖'}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+          {active ? `> ${name}` : `$ ${name}`}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900 text-base mb-1">{name}</div>
-          {desc && <div className="text-sm text-gray-600 line-clamp-2">{desc}</div>}
-        </div>
+        {desc && <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {desc}</div>}
       </div>
-      {tag && (
-        <span className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-md bg-gray-100 text-xs font-medium text-gray-700 mt-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-          {tag}
-        </span>
-      )}
     </div>
+    {tag && (
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 16, padding: '2px 6px', background: 'var(--bg-main)', border: '1px solid var(--gray-200)', borderRadius: 2 }}>
+        [{tag}]
+      </span>
+    )}
   </button>
 )
 

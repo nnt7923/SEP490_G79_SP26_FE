@@ -1,0 +1,66 @@
+{
+  "hero": {
+    "badge": "> Nền tảng học tập hỗ trợ bởi AI",
+    "titleLine1": "Tạo lộ trình học",
+    "titleHighlight": "lập trình",
+    "titleLine2": "được cá nhân hóa bởi AI",
+    "descLine1": "// Chọn ngôn ngữ, đặt mục tiêu, AI tự động tạo learning path.",
+    "descLine2": "// Theo dõi tiến độ, ôn tập bài học, hoàn thiện kỹ năng.",
+    "ctaPlan": "> Tạo Learning Plan",
+    "ctaRegister": "Đăng ký miễn phí"
+  },
+  "features": {
+    "title": "// Nền tảng hỗ trợ bạn học gì?",
+    "subtitle": "Mọi thứ bạn cần để xây dựng lộ trình học lập trình hiệu quả",
+    "plan": {
+      "title": "Tạo Learning Plan",
+      "description": "Chọn ngôn ngữ lập trình, đặt mục tiêu và AI sẽ tạo lộ trình học phù hợp với trình độ của bạn."
+    },
+    "goal": {
+      "title": "Đặt mục tiêu học tập",
+      "description": "Thiết lập goal cụ thể: Frontend, Backend, Full-stack, Mobile,... và theo dõi quá trình đạt được."
+    },
+    "track": {
+      "title": "Theo dõi tiến độ",
+      "description": "Xem progress qua từng chapter, bài học. Dashboard cá nhân hiển thị tổng quan quá trình học."
+    },
+    "lesson": {
+      "title": "Bài học có nội dung chi tiết",
+      "description": "Mỗi bài học gồm lý thuyết, code examples, common mistakes, và bài tập thực hành."
+    },
+    "ai": {
+      "title": "AI tạo nội dung",
+      "description": "Nội dung bài học được AI generate dựa trên mục tiêu và trình độ, đảm bảo phù hợp nhất."
+    }
+  },
+  "howItWorks": {
+    "title": "// Cách sử dụng",
+    "subtitle": "4 bước để bắt đầu lộ trình học lập trình của bạn",
+    "step1": {
+      "title": "Chọn ngôn ngữ",
+      "desc": "JavaScript, Python, Java, C#, Go,... chọn ngôn ngữ bạn muốn học hoặc nâng cao."
+    },
+    "step2": {
+      "title": "Đặt mục tiêu",
+      "desc": "Frontend, Backend, Full-stack, Data Science,... xác định hướng đi rõ ràng."
+    },
+    "step3": {
+      "title": "Chọn trình độ",
+      "desc": "Beginner, Intermediate, Advanced — AI điều chỉnh nội dung theo level của bạn."
+    },
+    "step4": {
+      "title": "Học theo lộ trình",
+      "desc": "AI tạo chapters → lessons → code examples. Theo dõi progress trên dashboard."
+    },
+    "ctaStart": "> Bắt đầu học ngay"
+  },
+  "roles": {
+    "title": "// Dành cho ai?",
+    "personalizeLabel": "> Cá nhân hóa trải nghiệm",
+    "personalizeTitle": "Phát triển kỹ năng lập trình cùng CodeNexus",
+    "feature1": "Tạo và quản lý lộ trình học tập cá nhân",
+    "feature2": "Tổng hợp tài nguyên học lập trình thực tế",
+    "feature3": "Công cụ theo dõi tiến độ và dashboard trực quan",
+    "feature4": "Hệ thống tài nguyên và bài thực hành phong phú"
+  }
+}

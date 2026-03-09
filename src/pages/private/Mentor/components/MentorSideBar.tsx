@@ -1,39 +1,33 @@
 import React from 'react'
-import { LayoutDashboard, BookOpen, ClipboardList, MessageSquare, User } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import ROUTER from '../../../../router/ROUTER'
-import type { SidebarNavItem } from '../../../../components/Sidebar'
 
-export const getMentorSidebarConfig = (): SidebarNavItem[] => {
+export type MentorNavItem = {
+  label: string
+  path: string
+  icon?: React.ReactNode
+}
+
+export const getMentorSidebarConfig = (): MentorNavItem[] => {
   return [
-    {
-      label: 'Overview',
-      path: ROUTER.MENTOR_DASHBOARD,
-      icon: <LayoutDashboard className="w-5 h-5" />,
-    },
-    {
-      label: 'Subjects',
-      path: '/mentor/subjects',
-      icon: <BookOpen className="w-5 h-5" />,
-    },
-    {
-      label: 'Classes',
-      path: '/mentor/classes',
-      icon: <ClipboardList className="w-5 h-5" />,
-    },
-    {
-      label: 'Students',
-      path: '/mentor/students',
-      icon: <User className="w-5 h-5" />,
-    },
-    {
-      label: 'Messages',
-      path: '/mentor/messages',
-      icon: <MessageSquare className="w-5 h-5" />,
-    },
-    {
-      label: 'Profile',
-      path: ROUTER.MENTOR_PROFILE,
-      icon: <User className="w-5 h-5" />,
-    },
+    { label: '[ovw] Overview', path: ROUTER.MENTOR_DASHBOARD },
+    { label: '[sub] Subjects', path: '/mentor/subjects' },
+    { label: '[cls] Classes', path: '/mentor/classes' },
+    { label: '[std] Students', path: '/mentor/students' },
+    { label: '[msg] Messages', path: '/mentor/messages' },
+    { label: '[prf] Profile', path: ROUTER.MENTOR_PROFILE },
+  ]
+}
+
+// Hook version for use in React components
+export const useMentorSidebarConfig = (): MentorNavItem[] => {
+  const { t } = useTranslation('common')
+  return [
+    { label: `[ovw] ${t('sidebar.overview')}`, path: ROUTER.MENTOR_DASHBOARD },
+    { label: `[sub] ${t('sidebar.subjects')}`, path: '/mentor/subjects' },
+    { label: `[cls] ${t('sidebar.classes')}`, path: '/mentor/classes' },
+    { label: `[std] ${t('sidebar.students')}`, path: '/mentor/students' },
+    { label: `[msg] ${t('sidebar.messages')}`, path: '/mentor/messages' },
+    { label: `[prf] ${t('sidebar.profile')}`, path: ROUTER.MENTOR_PROFILE },
   ]
 }

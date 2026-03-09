@@ -26,16 +26,16 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   const variantStyles = {
     danger: {
-      icon: 'text-red-500',
-      button: 'bg-red-600 hover:bg-red-700',
+      icon: 'text-status-red-muted',
+      button: 'bg-status-red-solid hover:bg-status-red-solid-dark',
     },
     warning: {
       icon: 'text-orange-500',
       button: 'bg-orange-600 hover:bg-orange-700',
     },
     info: {
-      icon: 'text-blue-500',
-      button: 'bg-blue-600 hover:bg-blue-700',
+      icon: 'text-status-blue-muted',
+      button: 'bg-status-blue-solid hover:bg-status-blue-solid-hover',
     },
   }
 
@@ -43,20 +43,20 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-700 animate-scale-in">
+      <div className="bg-th-card rounded-lg shadow-xl w-full max-w-md border border-sl-200 animate-scale-in">
         {/* Header */}
-        <div className="flex items-start gap-4 p-6 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-start gap-4 p-6 border-b border-sl-200">
           <div className={`flex-shrink-0 ${styles.icon}`}>
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+            <h3 className="text-lg font-semibold text-sl-900">
               {title}
             </h3>
           </div>
           <button
             onClick={onCancel}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+            className="text-sl-400 hover:text-sl-600 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -64,16 +64,16 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
         {/* Body */}
         <div className="p-6">
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-sl-600">
             {message}
           </p>
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-6 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex gap-3 p-6 border-t border-sl-200">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            className="flex-1 px-4 py-2 border border-sl-300 rounded-lg text-sl-700 hover:bg-sl-50 transition-colors cursor-pointer"
           >
             {cancelText}
           </button>
