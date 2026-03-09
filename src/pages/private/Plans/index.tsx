@@ -14,6 +14,7 @@ import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
 import PlanIcon from '../../../assets/plan.png'
 import { Plus, Globe, Code2, Target, BarChart3, Languages, Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -38,6 +39,7 @@ type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 
 const PlansPage: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
+  const { t } = useTranslation('student')
   const [language, setLanguage] = useState<string | null>(() => {
     try {
       const v = sessionStorage.getItem('plans.language') || null
@@ -127,7 +129,7 @@ const PlansPage: React.FC = () => {
     const title = editingTitle.trim()
     if (!id) return
     if (!title) {
-      setGoalActionError('Title cannot be empty')
+      setGoalActionError(t('plans.titleEmpty'))
       return
     }
     setSavingGoal(true)
@@ -135,11 +137,11 @@ const PlansPage: React.FC = () => {
     try {
       const updated = await GoalService.updateGoal(id, { title })
       setMyGoals((prev) => prev.map((g: any) => (String(g?.id ?? g?.goalId ?? g?.key) === String(id) ? { ...g, ...updated } : g)))
-      setToast({ message: 'Goal updated successfully', type: 'success' })
+      setToast({ message: t('plans.goalUpdated'), type: 'success' })
       setEditingGoalId(null)
       setEditingTitle('')
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to update goal'
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || t('plans.goalUpdateFailed')
       setGoalActionError(msg)
     } finally {
       setSavingGoal(false)
@@ -166,9 +168,9 @@ const PlansPage: React.FC = () => {
       await GoalService.deleteGoal(id)
       setMyGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
       setSelectedGoals((prev) => prev.filter((k) => String(k) !== String(id)))
-      setToast({ message: 'Goal deleted successfully', type: 'success' })
+      setToast({ message: t('plans.goalDeleted'), type: 'success' })
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to delete goal'
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || t('plans.goalDeleteFailed')
       setToast({ message: msg, type: 'error' })
     } finally {
       setDeletingGoalId(null)
@@ -278,7 +280,7 @@ const PlansPage: React.FC = () => {
         }
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load subjects.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSubjects')
         if (active) setSubjectsError(msg)
       } finally {
         if (active) setSubjectsLoading(false)
@@ -300,7 +302,7 @@ const PlansPage: React.FC = () => {
         }
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load system goals.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSystemGoals')
         if (active) setGoalsError(msg)
       } finally {
         if (active) setGoalsLoading(false)
@@ -318,7 +320,7 @@ const PlansPage: React.FC = () => {
         if (active) setMyGoals(Array.isArray(data) ? data : [])
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load your goals.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadYourGoals')
         if (active) setMyGoalsError(msg)
       } finally {
         if (active) setMyGoalsLoading(false)
@@ -379,7 +381,7 @@ const PlansPage: React.FC = () => {
     const title = newGoalTitle.trim()
     const description = newGoalDesc.trim()
     if (!title) {
-      setCreateGoalError('Please enter a goal title')
+      setCreateGoalError(t('plans.enterGoalTitle'))
       return
     }
     setCreatingGoal(true)
@@ -389,13 +391,13 @@ const PlansPage: React.FC = () => {
       const newKey = String(created?.goalId ?? created?.id ?? created?.key ?? '')
       setMyGoals((prev) => [created, ...prev])
       if (newKey) setSelectedGoals([newKey])
-      setToast({ message: 'Goal created successfully', type: 'success' })
+      setToast({ message: t('plans.goalCreated'), type: 'success' })
       setShowAddGoal(false)
       setNewGoalTitle('')
       setNewGoalDesc('')
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message
-      setCreateGoalError(msg || 'Failed to create goal')
+      setCreateGoalError(msg || t('plans.goalCreateFailed'))
     } finally {
       setCreatingGoal(false)
     }
@@ -424,8 +426,8 @@ const PlansPage: React.FC = () => {
           {step === 1 && (
             <>
               <StepHeader
-                title="choose programming language"
-                subtitle="select the language you want to learn"
+                title={t('plans.step1Title')}
+                subtitle={t('plans.step1Subtitle')}
                 icon="$"
                 selectedValue={language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined}
               />
@@ -446,7 +448,7 @@ const PlansPage: React.FC = () => {
                    ))
                  ) : subjectsError ? (
                    <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
-                     Failed to load subjects: {subjectsError}
+                     {t('plans.failedLoadSubjects')}: {subjectsError}
                    </div>
                  ) : subjects.length > 0 ? (
                    subjects.map((s, idx) => (
@@ -455,7 +457,7 @@ const PlansPage: React.FC = () => {
                        name={s.name}
                        tag={s.slug ?? undefined}
                        icon={s.icon}
-                       desc={`Explore the learning path for ${s.name}`}
+                       desc={t('plans.explorePathFor', { name: s.name })}
                        active={language === String((s as any).id ?? (s as any).subjectId)}
                        onClick={() => {
                          setLanguage(String((s as any).id ?? (s as any).subjectId))
@@ -464,7 +466,7 @@ const PlansPage: React.FC = () => {
                    ))
                  ) : (
                    <div className="col-span-full text-center py-8 text-muted">
-                     No subjects available.
+                     {t('plans.noSubjectsAvailable')}
                    </div>
                  )}
                </section>
@@ -474,8 +476,8 @@ const PlansPage: React.FC = () => {
            {step === 2 && (
             <>
               <StepHeader
-                title="choose your goal"
-                subtitle="select a goal from system goals or your personal goals"
+                title={t('plans.step2Title')}
+                subtitle={t('plans.step2Subtitle')}
                 icon="$"
                 selectedValue={selectedGoals.length > 0 ? goalItems.find((x) => String(x.key) === String(selectedGoals[0]))?.label : undefined}
               />
@@ -491,7 +493,7 @@ const PlansPage: React.FC = () => {
               {/* System Goals Section */}
               <div style={{ marginBottom: 40 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// suggest goals</h3>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('plans.suggestGoals')}</h3>
                 </div>
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
                    {goalsLoading ? (
@@ -507,7 +509,7 @@ const PlansPage: React.FC = () => {
                      ))
                    ) : goalsError ? (
                      <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                       Failed to load system goals: {goalsError}
+                       {t('plans.failedLoadSystemGoals')}: {goalsError}
                      </div>
                    ) : systemGoals.length > 0 ? (
                      systemGoals.map((g: any, idx: number) => {
@@ -537,7 +539,7 @@ const PlansPage: React.FC = () => {
                      })
                    ) : (
                      <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                       No system goals available.
+                       {t('plans.noSystemGoals')}
                      </div>
                    )}
                  </section>
@@ -546,14 +548,14 @@ const PlansPage: React.FC = () => {
               {/* My Goals Section */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// my goals</h3>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('plans.myGoals')}</h3>
                   <button
                     type="button"
                     onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
                     style={{ padding: '6px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
                   >
-                    {'>'} add goal
+                    {'>'} {t('plans.addGoal')}
                   </button>
                 </div>
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
@@ -570,7 +572,7 @@ const PlansPage: React.FC = () => {
                      ))
                    ) : myGoalsError ? (
                      <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                       Failed to load your goals: {myGoalsError}
+                       {t('plans.failedLoadYourGoals')}: {myGoalsError}
                      </div>
                    ) : myGoals.length > 0 ? (
                      myGoals.map((g: any, idx: number) => {
@@ -599,7 +601,7 @@ const PlansPage: React.FC = () => {
                      })
                    ) : (
                      <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                       No personal goals yet. Click "Add Goal" to create one.
+                       {t('plans.noPersonalGoals')}
                      </div>
                    )}
                  </section>
@@ -608,30 +610,30 @@ const PlansPage: React.FC = () => {
                <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
                  <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', display: 'flex', flexDirection: 'column' }}>
                    <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
-                     <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} Add New Goal</h3>
+                     <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {t('plans.addNewGoal')}</h3>
                    </div>
                    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
                      {createGoalError && (
                        <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {createGoalError}</div>
                      )}
                      <div>
-                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ title</label>
+                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.titleLabel')}</label>
                        <input
                          type="text"
                          value={newGoalTitle}
                          onChange={(e) => setNewGoalTitle(e.target.value)}
-                         placeholder="e.g., learn docker fundamentals"
+                         placeholder={t('plans.titlePlaceholder')}
                          style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
                          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                        />
                      </div>
                      <div>
-                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ description</label>
+                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.descriptionLabel')}</label>
                        <textarea
                          value={newGoalDesc}
                          onChange={(e) => setNewGoalDesc(e.target.value)}
                          rows={3}
-                         placeholder="short description"
+                         placeholder={t('plans.descriptionPlaceholder')}
                          style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
                          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                        />
@@ -642,14 +644,14 @@ const PlansPage: React.FC = () => {
                          onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); setNewGoalDesc(''); setCreateGoalError(null) }}
                          style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
-                       >cancel</button>
+                       >{t('plans.cancel')}</button>
                        <button
                          type="button"
                          disabled={creatingGoal}
                          onClick={handleCreateGoalModal}
                          style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
                          onMouseEnter={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
-                       >{creatingGoal ? 'saving…' : 'save goal'}</button>
+                       >{creatingGoal ? t('plans.savingGoal') : t('plans.saveGoal')}</button>
                      </div>
                    </div>
                  </div>
@@ -662,8 +664,8 @@ const PlansPage: React.FC = () => {
            {step === 3 && (
             <>
               <StepHeader
-                title="choose level"
-                subtitle="pick your current level to tailor the plan"
+                title={t('plans.step3Title')}
+                subtitle={t('plans.step3Subtitle')}
                 icon="$"
                 selectedValue={level || undefined}
               />
@@ -681,7 +683,7 @@ const PlansPage: React.FC = () => {
                     onMouseLeave={(e) => { if (level !== lv) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
                   >
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{level === lv ? '> ' : '$ '}{lv}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>// {lv === 'Beginner' ? 'start from basics' : lv === 'Intermediate' ? 'build on fundamentals' : 'master advanced topics'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>// {lv === 'Beginner' ? t('plans.beginnerDesc') : lv === 'Intermediate' ? t('plans.intermediateDesc') : t('plans.advancedDesc')}</div>
                   </button>
                 ))}
               </section>
@@ -690,8 +692,8 @@ const PlansPage: React.FC = () => {
            {step === 4 && (
             <>
               <StepHeader
-                title="choose generated content language"
-                subtitle="select your preferred language for the ai generated learning materials"
+                title={t('plans.step4Title')}
+                subtitle={t('plans.step4Subtitle')}
                 icon="$"
                 selectedValue={languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined}
               />
@@ -708,9 +710,9 @@ const PlansPage: React.FC = () => {
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
                 >
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.Vietnamese ? '> ' : '$ '}Tiếng Việt</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// Học với nội dung bằng tiếng việt, dễ hiểu và phù hợp với người việt</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.vietnameseDesc')}</div>
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.Vietnamese ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
-                    {languageSelection === LanguageSelection.Vietnamese ? '[selected]' : '[click to select]'}
+                    {languageSelection === LanguageSelection.Vietnamese ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
                   </div>
                 </button>
 
@@ -726,9 +728,9 @@ const PlansPage: React.FC = () => {
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
                 >
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.English ? '> ' : '$ '}English</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// Learn with english content, widely used in the tech industry.</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.englishDesc')}</div>
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.English ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
-                    {languageSelection === LanguageSelection.English ? '[selected]' : '[click to select]'}
+                    {languageSelection === LanguageSelection.English ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
                   </div>
                 </button>
               </section>
@@ -738,27 +740,27 @@ const PlansPage: React.FC = () => {
            {step === 5 && (
             <>
               <StepHeader
-                title="review & generate"
-                subtitle="review your selections and generate your personalized learning path"
+                title={t('plans.step5Title')}
+                subtitle={t('plans.step5Subtitle')}
                 icon="$"
-                selectedValue="ready to generate..."
+                selectedValue={t('plans.readyToGenerate')}
               />
               
               {/* Summary Cards */}
               <section aria-label="summary" style={{ maxWidth: 800, margin: '0 auto 40px auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
                   {[
-                    { label: '$ programming language', val: language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined },
-                    { label: '$ learning goal', val: selectedGoals.length > 0 ? goalItems.find((x) => x.key === selectedGoals[0])?.label : undefined },
-                    { label: '$ difficulty level', val: level },
-                    { label: '$ content language', val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined }
+                    { label: `$ ${t('plans.programmingLanguage')}`, val: language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined },
+                    { label: `$ ${t('plans.learningGoal')}`, val: selectedGoals.length > 0 ? goalItems.find((x) => x.key === selectedGoals[0])?.label : undefined },
+                    { label: `$ ${t('plans.difficultyLevel')}`, val: level },
+                    { label: `$ ${t('plans.contentLanguage')}`, val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined }
                   ].map((sum, i) => (
                     <div key={i} style={{ padding: 16, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)' }}>
                       <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px 0' }}>{sum.label}</h3>
                       {sum.val ? (
                          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{sum.val}</p>
                       ) : (
-                         <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--text-disabled)', margin: 0 }}>// not selected</p>
+                         <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--text-disabled)', margin: 0 }}>// {t('plans.notSelected')}</p>
                       )}
                     </div>
                   ))}
@@ -779,10 +781,10 @@ const PlansPage: React.FC = () => {
                   onMouseLeave={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--text-primary)' }}
                   disabled={!canGenerate || generating}
                   onClick={async () => {
-                    if (!language) { setPlanError('Please select a language'); return }
-                    if (selectedGoals.length !== 1) { setPlanError('Please select exactly one goal'); return }
-                    if (!level) { setPlanError('Please select a level'); return }
-                    if (!languageSelection) { setPlanError('Please select a language'); return }
+                    if (!language) { setPlanError(t('plans.selectLanguage')); return }
+                    if (selectedGoals.length !== 1) { setPlanError(t('plans.selectOneGoal')); return }
+                    if (!level) { setPlanError(t('plans.selectLevel')); return }
+                    if (!languageSelection) { setPlanError(t('plans.selectLanguage')); return }
                     setPlanError(null)
                     setGenerating(true)
                     try {
@@ -796,10 +798,10 @@ const PlansPage: React.FC = () => {
                       const d = e?.response?.data
                       const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
                       const code = d?.errorCode || d?.code
-                      let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path')
+                      let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || t('plans.unableToGenerate'))
                       const lower = String(serverMsg || e?.message || '').toLowerCase()
                       if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
-                        msg = 'AI service is not configured properly (Invalid API Key). Please set GROQ_API_KEY on the backend and try again.'
+                        msg = t('plans.aiKeyError')
                       }
                       setPlanError(msg)
                     } finally {
@@ -810,12 +812,12 @@ const PlansPage: React.FC = () => {
                   {generating ? (
                     <>
                       <div className="animate-spin" style={{ width: 16, height: 16, border: '2px solid var(--bg-surface-short)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-                      <span>// generating path...</span>
+                      <span>// {t('plans.generatingPath')}</span>
                     </>
                   ) : (
                     <>
                       <span>{'>_'}</span>
-                      <span>generate learning path</span>
+                      <span>{t('plans.generateLearningPath')}</span>
                     </>
                   )}
                 </button>
@@ -828,7 +830,7 @@ const PlansPage: React.FC = () => {
                )}
                {planGenerated && skeleton && (
                  <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
-                   <h2 className="text-xl font-semibold text-heading mb-4">Learning Path Result</h2>
+                   <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
                    {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
                      <ul className="space-y-4">
                        {skeleton.lessons.map((ls: any) => (
@@ -851,7 +853,7 @@ const PlansPage: React.FC = () => {
                        ))}
                      </ul>
                    ) : (
-                     <div className="text-muted text-center py-4">No learning path data from server.</div>
+                     <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
                    )}
                  </section>
                )}
@@ -867,7 +869,7 @@ const PlansPage: React.FC = () => {
                 onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
               >
                 {/*  eslint-disable-next-line react/jsx-no-comment-textnodes */}
-                {'<'} back
+                {'<'} {t('plans.back')}
               </button>
               <button
                 type="button"
@@ -876,7 +878,7 @@ const PlansPage: React.FC = () => {
                 disabled={!canNext}
                 onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
               >
-                continue {'>'}
+                {t('plans.continue')} {'>'}
               </button>
             </div>
           </div>
@@ -886,10 +888,10 @@ const PlansPage: React.FC = () => {
        {/* Confirm Delete Dialog */}
        <ConfirmDialog
          isOpen={showDeleteConfirm}
-         title="Delete Goal"
-         message={`Are you sure you want to delete "${goalToDelete?.title}"? This action cannot be undone.`}
-         confirmText="Delete"
-         cancelText="Cancel"
+         title={t('plans.deleteGoal')}
+         message={t('plans.deleteGoalConfirm', { title: goalToDelete?.title })}
+         confirmText={t('plans.delete')}
+         cancelText={t('plans.cancel')}
          variant="danger"
          onConfirm={confirmDeleteGoal}
          onCancel={() => {

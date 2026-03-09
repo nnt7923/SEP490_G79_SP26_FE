@@ -5,11 +5,13 @@ import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import { useResponsive } from '../../../hook/useResponsive'
 import { AuthService } from '../../../services'
+import { useTranslation } from 'react-i18next'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const authStore = useAuthStore()
+  const { t } = useTranslation('auth')
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -123,7 +125,7 @@ const Login: React.FC = () => {
       
       if (!result.isOk) {
         // Login failed, show error message from backend
-        const errorMsg = result.msg || 'Invalid email or password.'
+        const errorMsg = result.msg || t('login.invalidCredentials')
         setError(errorMsg)
         navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true })
         return false
@@ -137,7 +139,7 @@ const Login: React.FC = () => {
       navigateByRole(roleName)
     } catch (err: any) {
       // Unexpected error (network error, etc.)
-      const errorMsg = 'Network error. Please check your connection and try again.'
+      const errorMsg = t('login.networkError')
       setError(errorMsg)
       navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true })
       return false
@@ -302,7 +304,7 @@ const Login: React.FC = () => {
                 fontFamily: 'inherit',
               }}
             >
-              {'>'} Welcome Back
+              {t('login.title')}
             </h2>
             <p
               style={{
@@ -312,7 +314,7 @@ const Login: React.FC = () => {
                 fontFamily: 'inherit',
               }}
             >
-              // Login to your account
+              {t('login.subtitle')}
             </p>
           </div>
 
@@ -331,7 +333,7 @@ const Login: React.FC = () => {
                   fontFamily: 'inherit',
                 }}
               >
-                $ email
+                {t('login.email')}
               </label>
               <input
                 id="email"
@@ -372,7 +374,7 @@ const Login: React.FC = () => {
                   fontFamily: 'inherit',
                 }}
               >
-                $ password
+                {t('login.password')}
               </label>
               <div style={{ position: 'relative' }}>
                 <input
@@ -416,9 +418,9 @@ const Login: React.FC = () => {
                     lineHeight: 1,
                   }}
                   tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                 >
-                  {showPassword ? 'hide' : 'show'}
+                  {showPassword ? t('login.hidePassword') : t('login.showPassword')}
                 </button>
               </div>
             </div>
@@ -466,7 +468,7 @@ const Login: React.FC = () => {
                   onChange={(e) => setRemember(e.target.checked)}
                   style={{ accentColor: 'var(--accent-primary)' }}
                 />
-                remember
+                {t('login.rememberMe')}
               </label>
               <Link
                 to={ROUTER.FORGOT_PASSWORD}
@@ -479,7 +481,7 @@ const Login: React.FC = () => {
                 onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                 onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
               >
-                forgot password?
+                {t('login.forgotPassword')}
               </Link>
             </div>
 
@@ -502,7 +504,7 @@ const Login: React.FC = () => {
               onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
             >
-              {'>'} login
+              {t('login.submit')}
             </button>
 
             <div
@@ -514,7 +516,7 @@ const Login: React.FC = () => {
               }}
             >
               <div style={{ height: 1, background: 'var(--border-base)', flex: 1 }} />
-              <span style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'inherit' }}>--- or ---</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'inherit' }}>{t('login.or')}</span>
               <div style={{ height: 1, background: 'var(--border-base)', flex: 1 }} />
             </div>
 
@@ -531,7 +533,7 @@ const Login: React.FC = () => {
                 fontFamily: 'inherit',
               }}
             >
-              <span>// Don't have an account?</span>
+              <span>{t('login.noAccount')}</span>
               <Link
                 to="/register"
                 style={{
@@ -544,7 +546,7 @@ const Login: React.FC = () => {
                 onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                 onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
               >
-                register
+                {t('login.signUp')}
               </Link>
             </div>
           </form>

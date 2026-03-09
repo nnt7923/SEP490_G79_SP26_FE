@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
-import { getStudentSidebarConfig } from '../components/StudentSideBar'
+import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService } from '../../../../services'
 import useAuthStore from '../../../../store/useAuthStore'
 import { ArrowLeft, Loader, AlertCircle, BookOpen, Calendar, Clock, CheckCircle2 } from 'lucide-react'
@@ -17,7 +17,7 @@ const GoalsDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
 
   const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
+    navItems: useStudentSidebarConfig(),
     actions: [],
     brand: { name: 'Goal Details', subtitle: 'Learning' },
   }

@@ -1,15 +1,17 @@
 
 import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
-import { getAdminSidebarConfig } from '../components/AdminSideBar'
+import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { AIConfigService, AIUsageType } from '../../../../services'
 import { LayoutTemplate, FileText, CheckCircle, MessageSquare } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const AdminApiKeyPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>('')
   const [notice, setNotice] = useState<string>('')
+  const { t } = useTranslation('admin')
 
   // List of configs from backend
   const [items, setItems] = useState<any[]>([])
@@ -62,15 +64,15 @@ const AdminApiKeyPage: React.FC = () => {
   const getUsageTypeInfo = (usageType: AIUsageType) => {
     switch (usageType) {
       case AIUsageType.StructureGeneration:
-        return { label: 'Structure Generation', color: 'var(--icon-violet-to)', borderColor: 'var(--icon-violet-to)', icon: LayoutTemplate }
+        return { label: t('apiKey.structureGeneration'), color: 'var(--icon-violet-to)', borderColor: 'var(--icon-violet-to)', icon: LayoutTemplate }
       case AIUsageType.ContentGeneration:
-        return { label: 'Content Generation', color: 'var(--blue-500)', borderColor: 'var(--blue-500)', icon: FileText }
+        return { label: t('apiKey.contentGeneration'), color: 'var(--blue-500)', borderColor: 'var(--blue-500)', icon: FileText }
       case AIUsageType.Verification:
-        return { label: 'Verification', color: 'var(--color-emerald-500)', borderColor: 'var(--color-emerald-500)', icon: CheckCircle }
+        return { label: t('apiKey.verification'), color: 'var(--color-emerald-500)', borderColor: 'var(--color-emerald-500)', icon: CheckCircle }
       case AIUsageType.Assistant:
-        return { label: 'Assistant', color: 'var(--color-amber-500)', borderColor: 'var(--color-amber-500)', icon: MessageSquare }
+        return { label: t('apiKey.assistant'), color: 'var(--color-amber-500)', borderColor: 'var(--color-amber-500)', icon: MessageSquare }
       default:
-        return { label: 'Unknown', color: 'var(--text-secondary)', borderColor: 'var(--text-secondary)', icon: LayoutTemplate }
+        return { label: t('apiKey.unknown'), color: 'var(--text-secondary)', borderColor: 'var(--text-secondary)', icon: LayoutTemplate }
     }
   }
   
@@ -105,7 +107,7 @@ const AdminApiKeyPage: React.FC = () => {
       const list = Array.isArray(cfg) ? cfg : cfg ? [cfg] : []
       setItems(list)
     } catch (e: any) {
-      setError(e?.message || 'Failed to load API keys')
+      setError(e?.message || t('apiKey.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -146,9 +148,9 @@ const AdminApiKeyPage: React.FC = () => {
       setShowForm(false)
       resetForm()
       await fetchList()
-      setNotice('Configuration added successfully')
+      setNotice(t('apiKey.addSuccess'))
     } catch (e: any) {
-      setError(e?.message || 'Create failed')
+      setError(e?.message || t('apiKey.createFailed'))
     } finally {
       setSaving(false)
     }
@@ -206,9 +208,9 @@ const AdminApiKeyPage: React.FC = () => {
       setShowForm(false)
       resetForm()
       await fetchList()
-      setNotice('Configuration updated successfully')
+      setNotice(t('apiKey.updateSuccess'))
     } catch (e: any) {
-      setError(e?.message || 'Update failed')
+      setError(e?.message || t('apiKey.updateFailed'))
     } finally {
       setSaving(false)
     }
@@ -216,20 +218,20 @@ const AdminApiKeyPage: React.FC = () => {
 
   const onDelete = async (name: string) => {
     setError('')
-    setNotice('Deleting configuration...')
+    setNotice(t('apiKey.deletingConfig'))
     try {
       await AIConfigService.deleteAIConfig(name)
       if (expandedIndex !== null) setExpandedIndex(null)
       await fetchList()
-      setNotice('Configuration deleted successfully')
+      setNotice(t('apiKey.deleteSuccess'))
     } catch (e: any) {
-      setError(e?.message || 'Delete failed')
+      setError(e?.message || t('apiKey.deleteFailed'))
       setNotice('')
     }
   }
 
   const sidebarConfig = {
-    navItems: getAdminSidebarConfig() as any,
+    navItems: useAdminSidebarConfig() as any,
     brand: { name: 'API Key', subtitle: 'Admin' },
   }
 
@@ -243,18 +245,18 @@ const AdminApiKeyPage: React.FC = () => {
                <div>
                  <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
                    <span className="text-status-blue mr-2">{'>_'}</span>
-                   api_keys
+                    {t('apiKey.title')}
                  </h1>
                  <p className="text-muted mt-2">
                    <span className="text-placeholder mr-2">{'//'}</span>
-                   manage AI provider configurations
+                    {t('apiKey.subtitle')}
                  </p>
                </div>
                <button
                  type="button"
                  onClick={() => { setShowForm((s) => !s); setIsEditMode(false); resetForm() }}
                  className="px-6 py-2 border border-blue-600 bg-th-card text-status-blue font-bold hover:bg-status-blue-bg transition-colors cursor-pointer"
-               >{showForm && !isEditMode ? '[ close ]' : '[ + add_key ]'}</button>
+                >{showForm && !isEditMode ? `[ ${t('apiKey.close')} ]` : `[ ${t('apiKey.addKey')} ]`}</button>
              </div>
            </div>
 
@@ -285,13 +287,13 @@ const AdminApiKeyPage: React.FC = () => {
           <div className="mb-8 bg-th-card border border-bd-strong">
             <div className="bg-th-input px-6 py-4 border-b border-bd-strong">
               <h2 className="text-lg font-bold text-heading">
-                {isEditMode ? '[ edit_configuration ]' : '[ add_new_configuration ]'}
+                {isEditMode ? `[ ${t('apiKey.editConfiguration')} ]` : `[ ${t('apiKey.addNewConfiguration')} ]`}
               </h2>
             </div>
             <form onSubmit={isEditMode ? onUpdate : onSave} className="p-6 space-y-6 lg:w-4/5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-bold text-body mb-2">provider_name:</label>
+                  <label className="block text-sm font-bold text-body mb-2">{t('apiKey.providerName')}</label>
                   <input
                     type="text"
                     className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono"
@@ -304,7 +306,7 @@ const AdminApiKeyPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-body mb-2">api_key:</label>
+                  <label className="block text-sm font-bold text-body mb-2">{t('apiKey.apiKeyLabel')}</label>
                   <input
                     type="password"
                     className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono"
@@ -316,7 +318,7 @@ const AdminApiKeyPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-body mb-2">ai_usage_type:</label>
+                <label className="block text-sm font-bold text-body mb-2">{t('apiKey.aiUsageType')}</label>
                 <select
                   className="w-full px-4 py-2 border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors bg-th-card font-mono"
                   value={aiUsageType}
@@ -327,24 +329,24 @@ const AdminApiKeyPage: React.FC = () => {
                   <option value={AIUsageType.Verification}>Verification</option>
                   <option value={AIUsageType.Assistant}>Assistant</option>
                 </select>
-                <p className="text-xs text-muted mt-2">{'//'} Select primary usage type</p>
+                <p className="text-xs text-muted mt-2">{'//'} {t('apiKey.selectUsageType')}</p>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <label className="block text-sm font-bold text-body">additional_props:</label>
+                  <label className="block text-sm font-bold text-body">{t('apiKey.additionalProps')}</label>
                   <button
                     type="button"
                     onClick={addAdditionalProp}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors"
                   >
-                    [+] prop
+                    [+] {t('apiKey.addProp')}
                   </button>
                 </div>
 
                 <div className="space-y-3 bg-th-page border border-bd-strong p-4">
                   {additionalProps.length === 0 ? (
-                    <p className="text-sm text-muted font-bold">{'//'} no_properties. click_to_add()</p>
+                    <p className="text-sm text-muted font-bold">{'//'} {t('apiKey.noProperties')}</p>
                   ) : (
                     additionalProps.map((prop, idx) => (
                       <div key={idx} className="flex gap-3 items-end bg-th-card p-3 border border-bd">
@@ -390,7 +392,7 @@ const AdminApiKeyPage: React.FC = () => {
                   checked={isActive}
                   onChange={(e) => setIsActive(e.target.checked)}
                 />
-                <label htmlFor="isActive" className="text-sm font-bold text-heading">enable_config</label>
+                <label htmlFor="isActive" className="text-sm font-bold text-heading">{t('apiKey.enableConfig')}</label>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -398,12 +400,12 @@ const AdminApiKeyPage: React.FC = () => {
                   type="submit"
                   disabled={saving}
                   className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold disabled:opacity-60 hover:bg-status-blue-solid-hover transition-colors cursor-pointer"
-                >{saving ? '[ saving... ]' : (isEditMode ? '[ update ]' : '[ save ]')}</button>
+                >{saving ? `[ ${t('apiKey.saving')} ]` : (isEditMode ? `[ ${t('apiKey.update')} ]` : `[ ${t('apiKey.save')} ]`)}</button>
                 <button
                   type="button"
                   onClick={() => { setShowForm(false); resetForm() }}
                   className="px-6 py-2 border border-bd-strong text-body font-bold hover:bg-th-input transition-colors cursor-pointer"
-                >[ cancel ]</button>
+                >[ {t('apiKey.cancel')} ]</button>
               </div>
             </form>
           </div>
@@ -411,17 +413,17 @@ const AdminApiKeyPage: React.FC = () => {
 
         {/* ========== LIST SECTION ========== */}
         <div className="mb-6">
-          <p className="text-sm text-[var(--text-secondary)]">API keys organized by usage type. Expand each category to view and manage configurations.</p>
+          <p className="text-sm text-[var(--text-secondary)]">{t('apiKey.apiKeysOrganized')}</p>
         </div>
 
         {loading ? (
           <div className="text-center py-16">
-            <span className="text-sm font-bold text-muted">loading_configs...</span>
+            <span className="text-sm font-bold text-muted">{t('apiKey.loading')}</span>
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-16 bg-th-card border border-bd-strong">
-            <p className="text-heading font-bold text-lg mb-1">no_api_keys_configured()</p>
-            <p className="text-sm text-muted">{'//'} Get started by adding your first AI provider configuration</p>
+            <p className="text-heading font-bold text-lg mb-1">{t('apiKey.noApiKeys')}</p>
+            <p className="text-sm text-muted">{'//'} {t('apiKey.getStarted')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -475,7 +477,7 @@ const AdminApiKeyPage: React.FC = () => {
                                       <typeInfo.icon className="w-4 h-4 text-placeholder" />
                                       <h4 className="text-sm font-bold text-heading truncate">{name}</h4>
                                       <span className={`px-2 py-0.5 text-xs font-bold border ${enabled ? 'border-green-600 text-status-green-dark bg-status-green-bg' : 'border-bd-strong text-muted bg-th-input'}`}>
-                                        {enabled ? '[active]' : '[inactive]'}
+                                        {enabled ? `[${t('apiKey.active')}]` : `[${t('apiKey.inactive')}]`}
                                       </span>
                                     </div>
                                   </div>
@@ -491,7 +493,7 @@ const AdminApiKeyPage: React.FC = () => {
                                           : 'border-blue-600 text-status-blue hover:bg-status-blue-bg cursor-pointer'
                                       }`}
                                     >
-                                      {enabled ? '[ selected ]' : '[ select ]'}
+                                      {enabled ? `[ ${t('apiKey.selected')} ]` : `[ ${t('apiKey.select')} ]`}
                                     </button>
                                     <button
                                       type="button"
@@ -505,14 +507,14 @@ const AdminApiKeyPage: React.FC = () => {
                                       onClick={() => startEdit(it)}
                                       className="px-2 py-1 border border-bd-strong text-body text-xs font-bold hover:bg-th-input cursor-pointer transition-colors"
                                     >
-                                      [ edit ]
+                                      [ {t('apiKey.edit')} ]
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => name !== '—' && onDelete(name)}
                                       className="px-2 py-1 border border-red-500 text-status-red text-xs font-bold hover:bg-status-red-bg cursor-pointer transition-colors"
                                     >
-                                      [ delete ]
+                                      [ {t('apiKey.delete')} ]
                                     </button>
                                   </div>
                                 </div>

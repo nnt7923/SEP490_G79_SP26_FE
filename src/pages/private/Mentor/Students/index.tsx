@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import Layout from '../../../../components/Layout'
-import { getMentorSidebarConfig } from '../components/MentorSideBar'
+import { useMentorSidebarConfig } from '../components/MentorSideBar'
 import { Users, Search, Mail, TrendingUp, Award } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 type Student = {
   id: string
@@ -42,6 +43,7 @@ const MentorStudents: React.FC = () => {
   ])
 
   const [searchQuery, setSearchQuery] = useState('')
+  const { t } = useTranslation('mentor')
 
   const filteredStudents = students.filter(student =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -64,7 +66,7 @@ const MentorStudents: React.FC = () => {
   }
 
   const sidebarConfig = {
-    navItems: getMentorSidebarConfig(),
+    navItems: useMentorSidebarConfig(),
     actions: [],
     brand: { name: 'Students', subtitle: 'Mentor' },
   }
@@ -80,10 +82,10 @@ const MentorStudents: React.FC = () => {
               <div>
                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
                   <span className="text-pink-600 mr-2">{'>_'}</span>
-                  my_students
+                  {t('students.title')}
                 </h1>
                 <p className="text-xs text-label mt-1 font-mono">
-                  {'//'} track and manage student progress
+                  {'//'} {t('students.subtitle')}
                 </p>
               </div>
             </div>
@@ -95,7 +97,7 @@ const MentorStudents: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Users className="w-5 h-5 text-status-blue" />
                 <div>
-                  <p className="text-xs font-bold text-muted uppercase">total_students</p>
+                  <p className="text-xs font-bold text-muted uppercase">{t('students.totalStudents')}</p>
                   <p className="text-xl font-bold text-heading">[{students.length}]</p>
                 </div>
               </div>
@@ -105,7 +107,7 @@ const MentorStudents: React.FC = () => {
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-5 h-5 text-status-green" />
                 <div>
-                  <p className="text-xs font-bold text-muted uppercase">avg_progress</p>
+                  <p className="text-xs font-bold text-muted uppercase">{t('students.avgProgress')}</p>
                   <p className="text-xl font-bold text-heading">
                     [{Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)}%]
                   </p>
@@ -117,7 +119,7 @@ const MentorStudents: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Award className="w-5 h-5 text-purple-600" />
                 <div>
-                  <p className="text-xs font-bold text-muted uppercase">active_students</p>
+                  <p className="text-xs font-bold text-muted uppercase">{t('students.activeStudents')}</p>
                   <p className="text-xl font-bold text-heading">
                     [{students.filter(s => s.status === 'active').length}]
                   </p>
@@ -132,7 +134,7 @@ const MentorStudents: React.FC = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
               <input
                 type="text"
-                placeholder="grep 'students'..."
+                placeholder={t('students.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-bd-strong focus:outline-none focus:border-pink-600 transition-colors text-heading placeholder:text-placeholder font-mono"
@@ -144,9 +146,9 @@ const MentorStudents: React.FC = () => {
           {filteredStudents.length === 0 ? (
             <div className="bg-th-card border border-bd-strong p-12 text-center">
               <Users className="w-12 h-12 text-disabled mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-heading mb-2">no_students_found()</h3>
+              <h3 className="text-lg font-bold text-heading mb-2">{t('students.noStudentsFound')}</h3>
               <p className="text-sm text-muted font-mono">
-                {'//'} {searchQuery ? 'try adjusting your search' : 'no students enrolled yet'}
+                {'//'} {searchQuery ? t('students.adjustSearch') : t('students.noStudentsEnrolled')}
               </p>
             </div>
           ) : (
@@ -156,19 +158,19 @@ const MentorStudents: React.FC = () => {
                   <thead className="bg-th-input border-b border-bd">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
-                        student
+                        {t('students.student')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
-                        email
+                        {t('students.email')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
-                        classes
+                        {t('students.classes')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
-                        progress
+                        {t('students.progressCol')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wider">
-                        actions
+                        {t('students.actions')}
                       </th>
                     </tr>
                   </thead>
@@ -194,17 +196,17 @@ const MentorStudents: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm font-bold text-heading">
-                            [{student.enrolledClasses}] classes
+                            [{student.enrolledClasses}] {t('students.classes')}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 border text-xs font-bold uppercase ${getProgressColor(student.progress)}`}>
-                            {student.progress}% cmpltd
+                            {student.progress}% {t('students.completed')}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <button className="text-sm font-bold text-pink-600 hover:text-pink-800 transition-colors uppercase">
-                            [ view ]
+                            [ {t('students.view')} ]
                           </button>
                         </td>
                       </tr>

@@ -5,6 +5,7 @@ import * as AuthService from '../../../services/AuthService'
 import ROUTER from '../../../router/ROUTER'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
 import { useResponsive } from '../../../hook/useResponsive'
+import { useTranslation } from 'react-i18next'
 
 const ResetPassword: React.FC = () => {
   const navigate = useNavigate()
@@ -34,6 +35,7 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const { t } = useTranslation('auth')
 
   useEffect(() => {
     const state: any = location.state
@@ -51,31 +53,31 @@ const ResetPassword: React.FC = () => {
 
     const token = tokenFromQuery
     if (!token) {
-      setError('Reset token is missing or invalid')
+      setError(t('resetPassword.tokenMissing'))
       return
     }
 
     const pwd = password.trim()
     const cf = confirm.trim()
     if (!pwd || !cf) {
-      setError('Please enter new password and confirmation')
+      setError(t('resetPassword.enterBothFields'))
       return
     }
     if (pwd.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError(t('resetPassword.passwordMin'))
       return
     }
     if (pwd !== cf) {
-      setError('Password and confirmation do not match')
+      setError(t('resetPassword.passwordMismatch'))
       return
     }
 
     try {
       setSubmitting(true)
       await AuthService.resetPassword({ Token: token, Password: pwd, Email: email || undefined })
-      navigate(ROUTER.LOGIN, { state: { toast: 'Password has been reset. Please log in.' } })
+      navigate(ROUTER.LOGIN, { state: { toast: t('resetPassword.success') } })
     } catch (err: any) {
-      setError(extractErrorMessage(err, 'Failed to reset password.'))
+      setError(extractErrorMessage(err, t('resetPassword.failed')))
     } finally {
       setSubmitting(false)
     }
@@ -94,15 +96,15 @@ const ResetPassword: React.FC = () => {
               marginBottom: 12, fontSize: 14
             }} role="status">{toast}</div>
           )}
-          <h2 className="auth__title">Reset Password</h2>
-          <p className="auth__subtitle">Enter your new password</p>
+          <h2 className="auth__title">{t('resetPassword.title')}</h2>
+          <p className="auth__subtitle">{t('resetPassword.subtitle')}</p>
           {!tokenFromQuery && (
             <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}>
-              We have sent a reset link to your email. Please open the link from your email to continue.
+              {t('resetPassword.emailSent')}
             </div>
           )}
           <form className="form" onSubmit={onSubmit}>
-            <label className="form__label" htmlFor="email">Email (optional)</label>
+            <label className="form__label" htmlFor="email">{t('resetPassword.emailOptional')}</label>
             <input
               id="email"
               type="email"
@@ -112,22 +114,22 @@ const ResetPassword: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
             />
 
-            <label className="form__label" htmlFor="password">New Password</label>
+            <label className="form__label" htmlFor="password">{t('resetPassword.newPassword')}</label>
             <input
               id="password"
               type="password"
               className="form__input"
-              placeholder="Enter new password"
+              placeholder={t('resetPassword.newPassword')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
 
-            <label className="form__label" htmlFor="confirm">Confirm Password</label>
+            <label className="form__label" htmlFor="confirm">{t('resetPassword.confirmPassword')}</label>
             <input
               id="confirm"
               type="password"
               className="form__input"
-              placeholder="Confirm new password"
+              placeholder={t('resetPassword.confirmPassword')}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
             />
@@ -135,12 +137,12 @@ const ResetPassword: React.FC = () => {
             {error && <div className="form__error" role="alert">{error}</div>}
 
             <button type="submit" className="btn btn-primary auth__submit" disabled={submitting}>
-              {submitting ? 'Resetting...' : 'Reset Password'}
+              {submitting ? t('resetPassword.submitting') : t('resetPassword.submit')}
             </button>
 
             <div className="auth__links" style={{ justifyContent: 'space-between' }}>
-              <span>Back</span>
-              <Link to={ROUTER.LOGIN}>Login</Link>
+              <span>{t('resetPassword.back')}</span>
+              <Link to={ROUTER.LOGIN}>{t('resetPassword.backToLogin')}</Link>
             </div>
           </form>
         </div>

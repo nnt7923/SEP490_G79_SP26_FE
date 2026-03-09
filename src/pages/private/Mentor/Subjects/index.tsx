@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
-import { getMentorSidebarConfig } from '../components/MentorSideBar'
+import { useMentorSidebarConfig } from '../components/MentorSideBar'
 import { BookOpen, Search, Grid3x3, List, Loader2, Plus } from 'lucide-react'
 import SubjectCard from './components/SubjectCard'
 import SubjectListItem from './components/SubjectListItem'
@@ -10,11 +10,13 @@ import ConfirmDialog from '../../../../components/ConfirmDialog'
 import { SubjectService } from '../../../../services'
 import useAuthStore from '../../../../store/useAuthStore'
 import type { Subject } from './types'
+import { useTranslation } from 'react-i18next'
 
 export type { Subject }
 
 const SubjectsPage: React.FC = () => {
   const { user } = useAuthStore()
+  const { t } = useTranslation('mentor')
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,10 +45,10 @@ const SubjectsPage: React.FC = () => {
 
     try {
       await SubjectService.deleteSubject(subjectToDelete.subjectId)
-      showToast('Subject deleted successfully!', 'success')
+      showToast(t('subjects.deleteSuccess'), 'success')
       fetchSubjects()
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to delete subject'
+      const errorMsg = err?.response?.data?.message || err?.message || t('subjects.deleteFailed')
       showToast(errorMsg, 'error')
     } finally {
       setSubjectToDelete(null)
@@ -59,7 +61,7 @@ const SubjectsPage: React.FC = () => {
   }
 
   const handleSuccess = (isEdit: boolean) => {
-    showToast(isEdit ? 'Subject updated successfully!' : 'Subject created successfully!', 'success')
+    showToast(isEdit ? t('subjects.updateSuccess') : t('subjects.createSuccess'), 'success')
     fetchSubjects()
     setEditingSubject(null)
   }
@@ -103,7 +105,7 @@ const SubjectsPage: React.FC = () => {
 
       setSubjects(mappedSubjects)
     } catch (err: any) {
-      setError(err?.message || 'Unable to load subjects')
+      setError(err?.message || t('subjects.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -115,7 +117,7 @@ const SubjectsPage: React.FC = () => {
   )
 
   const sidebarConfig = {
-    navItems: getMentorSidebarConfig(),
+    navItems: useMentorSidebarConfig(),
     actions: [],
     brand: { name: 'Subjects', subtitle: 'Mentor' },
   }
@@ -132,7 +134,7 @@ const SubjectsPage: React.FC = () => {
                 <div>
                   <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
                     <span className="text-status-blue mr-2">{'>_'}</span>
-                    subject_management
+                    {t('subjects.title')}
                   </h1>
                 </div>
               </div>
@@ -141,7 +143,7 @@ const SubjectsPage: React.FC = () => {
                 className="flex items-center gap-2 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">[ + create_subject ]</span>
+                <span className="hidden sm:inline">[ {t('subjects.createSubject')} ]</span>
               </button>
             </div>
           </div>
@@ -154,7 +156,7 @@ const SubjectsPage: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type="text"
-                  placeholder="grep 'subject'..."
+                  placeholder={t('subjects.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-bd-strong focus:outline-none focus:border-blue-600 transition-colors text-heading placeholder:text-placeholder font-mono"
@@ -194,7 +196,7 @@ const SubjectsPage: React.FC = () => {
             {/* Results Count */}
             <div className="mt-4 pt-4 border-t border-bd">
               <p className="text-sm font-bold text-muted">
-                {'//'} showing: [{filteredSubjects.length}/{subjects.length}] subjects
+               {'//'} {t('subjects.showing', { filtered: filteredSubjects.length, total: subjects.length })}
               </p>
             </div>
           </div>
@@ -203,20 +205,20 @@ const SubjectsPage: React.FC = () => {
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-12 h-12 text-[var(--blue-600)] animate-spin mb-4" />
-              <p className="text-[var(--text-slate)] text-sm">Loading subjects...</p>
+              <p className="text-[var(--text-slate)] text-sm">{t('subjects.loading')}</p>
             </div>
           )}
 
           {/* Error State */}
           {error && !loading && (
             <div className="bg-status-red-bg border border-red-500 p-6 text-center">
-              <p className="text-status-red-dark font-bold mb-2">{'//'} ERROR</p>
+              <p className="text-status-red-dark font-bold mb-2">{'//'} {t('subjects.error')}</p>
               <p className="text-status-red text-sm font-mono">{error}</p>
               <button
                 onClick={fetchSubjects}
                 className="mt-4 px-6 py-2 border border-red-600 bg-th-card text-status-red font-bold hover:bg-status-red-bg transition-colors"
               >
-                [ retry ]
+                [ {t('subjects.retry')} ]
               </button>
             </div>
           )}
@@ -225,9 +227,9 @@ const SubjectsPage: React.FC = () => {
           {!loading && !error && filteredSubjects.length === 0 && (
             <div className="bg-th-card border border-bd-strong p-12 text-center">
               <BookOpen className="w-12 h-12 text-disabled mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-heading mb-2">no_subjects_found()</h3>
+              <h3 className="text-lg font-bold text-heading mb-2">{t('subjects.noSubjectsFound')}</h3>
               <p className="text-sm text-muted font-mono">
-                {'//'} {searchQuery ? 'try adjusting your search query' : 'no subjects available yet'}
+                {'//'} {searchQuery ? t('subjects.adjustSearch') : t('subjects.noSubjectsAvailable')}
               </p>
             </div>
           )}
@@ -273,10 +275,10 @@ const SubjectsPage: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={!!subjectToDelete}
-        title="Delete Subject"
-        message={`Are you sure you want to delete "${subjectToDelete?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('subjects.deleteSubject')}
+        message={t('subjects.deleteConfirm', { name: subjectToDelete?.name })}
+        confirmText={t('subjects.delete')}
+        cancelText={t('dashboard.cancel')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setSubjectToDelete(null)}

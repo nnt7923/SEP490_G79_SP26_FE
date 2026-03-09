@@ -5,6 +5,8 @@ import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import ReactMarkdown from 'react-markdown'
 import { useTheme } from '../../../contexts/ThemeContext'
+import LanguageSwitcher from '../../LanguageSwitcher'
+import { useTranslation } from 'react-i18next'
 
 const Header: React.FC = () => {
   const navigate = useNavigate()
@@ -12,6 +14,7 @@ const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { t } = useTranslation('common')
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -52,11 +55,11 @@ const Header: React.FC = () => {
   const showPlansLink = !isAdmin
 
   // Build markdown menu dynamically - only show My Plans for students
-  const mdLines = [`- [Dashboard](${dashboardPath})`]
-  if (profilePath) mdLines.push(`- [Profile](${profilePath})`)
-  if (isStudent) mdLines.push(`- [My Plans](${ROUTER.MY_PLANS})`)
-  mdLines.push(`- [Change Password](${ROUTER.CHANGE_PASSWORD})`)
-  mdLines.push('- [Logout](#logout)')
+  const mdLines = [`- [${t('userMenu.dashboard')}](${dashboardPath})`]
+  if (profilePath) mdLines.push(`- [${t('userMenu.profile')}](${profilePath})`)
+  if (isStudent) mdLines.push(`- [${t('userMenu.myPlans')}](${ROUTER.MY_PLANS})`)
+  mdLines.push(`- [${t('userMenu.changePassword')}](${ROUTER.CHANGE_PASSWORD})`)
+  mdLines.push(`- [${t('userMenu.logout')}](#logout)`)
   const md = mdLines.join('\n')
 
   const onLogout = async () => {
@@ -170,7 +173,7 @@ const Header: React.FC = () => {
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
             >
-              ~/home
+              {t('nav.home')}
             </Link>
             {showPlansLink && (
               <Link
@@ -185,7 +188,7 @@ const Header: React.FC = () => {
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
               >
-                ~/plans
+                {t('nav.plans')}
               </Link>
             )}
             <Link
@@ -200,7 +203,7 @@ const Header: React.FC = () => {
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
             >
-              ~/about
+              {t('nav.about')}
             </Link>
           </nav>
 
@@ -225,10 +228,13 @@ const Header: React.FC = () => {
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--text-primary)' }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
               aria-label="Toggle dark mode"
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              title={theme === 'light' ? t('theme.switchToDark') : t('theme.switchToLight')}
             >
               {theme === 'light' ? '☾' : '☀'}
             </button>
+
+            {/* Language Switcher */}
+            <LanguageSwitcher />
 
             {/* Mobile menu button */}
             <button
@@ -275,7 +281,7 @@ const Header: React.FC = () => {
                     e.currentTarget.style.color = 'var(--text-primary)'
                   }}
                 >
-                  {'>'} login
+                  {t('auth.login')}
                 </Link>
                 <Link
                   to="/register"
@@ -298,7 +304,7 @@ const Header: React.FC = () => {
                     e.currentTarget.style.opacity = '1'
                   }}
                 >
-                  {'>'} register
+                  {t('auth.register')}
                 </Link>
               </div>
             ) : (
@@ -417,7 +423,7 @@ const Header: React.FC = () => {
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                ~/home
+                {t('nav.home')}
               </Link>
               {showPlansLink && (
                 <Link
@@ -434,7 +440,7 @@ const Header: React.FC = () => {
                   onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  ~/plans
+                  {t('nav.plans')}
                 </Link>
               )}
               <Link
@@ -451,7 +457,7 @@ const Header: React.FC = () => {
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                ~/about
+                {t('nav.about')}
               </Link>
             </nav>
           </div>

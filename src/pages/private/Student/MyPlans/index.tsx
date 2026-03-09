@@ -2,11 +2,12 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
-import { getStudentSidebarConfig } from '../components/StudentSideBar'
+import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
 import ROUTER from '../../../../router/ROUTER'
 import { LogOut } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const MyPlansPage: React.FC = () => {
   const { user, logout } = useAuthStore()
@@ -18,6 +19,8 @@ const MyPlansPage: React.FC = () => {
   const [pageNumber, setPageNumber] = useState(1)
   const [pageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
+  const { t } = useTranslation('student')
+  const { t: tc } = useTranslation('common')
 
   const handleLogout = async () => {
     await logout()
@@ -25,8 +28,8 @@ const MyPlansPage: React.FC = () => {
   }
 
   const sidebarConfig = {
-    navItems: getStudentSidebarConfig(),
-    actions: [{ label: 'Logout', icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+    navItems: useStudentSidebarConfig(),
+    actions: [{ label: tc('sidebar.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
     brand: { name: 'My Plans', subtitle: 'Learning' },
   }
 
@@ -41,7 +44,7 @@ const MyPlansPage: React.FC = () => {
       setPlans(response.items)
       setTotalCount(response.totalCount)
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load learning paths')
+      setError(err?.response?.data?.message || err?.message || t('myPlans.loading'))
     } finally {
       setLoading(false)
     }
@@ -67,7 +70,7 @@ const MyPlansPage: React.FC = () => {
           <div style={{ position: 'relative' }}>
             <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-secondary)' }}>$</span>
             <input
-              type="text" placeholder="search plans..." value={searchTerm}
+              type="text" placeholder={t('myPlans.searchPlaceholder')} value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPageNumber(1) }}
               style={inputStyle}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
@@ -78,13 +81,13 @@ const MyPlansPage: React.FC = () => {
 
         {/* Content */}
         {loading ? (
-          <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>// loading plans...</div>
+          <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{t('myPlans.loading')}</div>
         ) : error ? (
           <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
         ) : filteredPlans.length === 0 ? (
           <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>// No plans found</p>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{searchTerm ? 'No plans match your search.' : 'Start creating your first learning path!'}</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('myPlans.noPlansFound')}</p>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{searchTerm ? t('myPlans.noPlansMatch') : t('myPlans.startCreating')}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -98,11 +101,11 @@ const MyPlansPage: React.FC = () => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{plan.title || 'Untitled Plan'}</h3>
-                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.description || 'No description'}</p>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{plan.title || t('myPlans.untitled')}</h3>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.description || t('myPlans.noDescription')}</p>
                     <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)' }}>
-                      <span>{plan.chapterCount || plan.chapters?.length || 0} chapters</span>
-                      <span>{plan.lessons?.length || 0} lessons</span>
+                      <span>{t('myPlans.chapters', { count: plan.chapterCount || plan.chapters?.length || 0 })}</span>
+                      <span>{t('myPlans.lessons', { count: plan.lessons?.length || 0 })}</span>
                       {plan.createdAt && <span>{new Date(plan.createdAt).toLocaleDateString()}</span>}
                     </div>
                   </div>
@@ -118,12 +121,12 @@ const MyPlansPage: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
             <button type="button" onClick={() => setPageNumber(Math.max(1, pageNumber - 1))} disabled={pageNumber === 1}
               style={{ padding: '6px 16px', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-surface-short)', cursor: pageNumber === 1 ? 'not-allowed' : 'pointer', opacity: pageNumber === 1 ? 0.5 : 1 }}>
-              {'<'} prev
+              {tc('pagination.prev')}
             </button>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>page {pageNumber} / {totalPages}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{tc('pagination.page')} {pageNumber} {tc('pagination.of')} {totalPages}</span>
             <button type="button" onClick={() => setPageNumber(Math.min(totalPages, pageNumber + 1))} disabled={pageNumber === totalPages}
               style={{ padding: '6px 16px', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-surface-short)', cursor: pageNumber === totalPages ? 'not-allowed' : 'pointer', opacity: pageNumber === totalPages ? 0.5 : 1 }}>
-              next {'>'}
+              {tc('pagination.next')}
             </button>
           </div>
         )}

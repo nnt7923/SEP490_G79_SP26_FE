@@ -4,12 +4,13 @@ import dayjs from 'dayjs'
 import useAuthStore from '../../../store/useAuthStore'
 import type { User } from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
-import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
-import { getMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
+import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
+import { useMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Loader } from 'lucide-react'
 import ProgressToast from '../../../components/Toast/ProgressToast'
+import { useTranslation } from 'react-i18next'
 
 interface ProfileForm extends Partial<User> {
     dateOfBirth?: string
@@ -24,6 +25,8 @@ const Profile: React.FC = () => {
     const [toast, setToast] = useState<{ message: string; progress: number; status: 'loading' | 'success' | 'error' } | null>(null)
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
     const navigate = useNavigate()
+    const { t } = useTranslation('student')
+    const { t: tc } = useTranslation('common')
 
     const handleLogout = async () => { await logout(); navigate(ROUTER.LOGIN) }
     const roleName = (user?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0] || '').toString().trim().toLowerCase()
@@ -32,10 +35,12 @@ const Profile: React.FC = () => {
         if (roleName === 'admin') navigate(ROUTER.ADMIN_DASHBOARD, { replace: true })
     }, [roleName, navigate])
 
-    const navItems = roleName === 'mentor' ? getMentorSidebarConfig() : getStudentSidebarConfig()
+    const studentNav = useStudentSidebarConfig()
+    const mentorNav = useMentorSidebarConfig()
+    const navItems = roleName === 'mentor' ? mentorNav : studentNav
     const sidebarConfig = {
         navItems,
-        actions: [{ label: 'Logout', icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+        actions: [{ label: tc('sidebar.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
         brand: { name: 'Profile', subtitle: roleName === 'mentor' ? 'Teaching' : 'Learning' },
     }
 
@@ -59,20 +64,20 @@ const Profile: React.FC = () => {
         setForm(prev => prev ? { ...prev, [field]: value } : prev)
     }
 
-    if (!user || !form) return <div style={{ padding: 24, color: 'var(--text-secondary)', fontSize: 13 }}>// loading...</div>
+    if (!user || !form) return <div style={{ padding: 24, color: 'var(--text-secondary)', fontSize: 13 }}>{tc('status.loading')}</div>
 
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {}
         const phoneRegex = /^0\d{9}$/
         if (form.phone && form.phone.trim() !== '' && !phoneRegex.test(form.phone)) {
-            newErrors.phone = 'Phone number must contain 10 digits and start with 0'
+            newErrors.phone = t('profile.phoneError')
         }
         if (!form.dateOfBirth || form.dateOfBirth.trim() === '') {
-            newErrors.dateOfBirth = 'Please enter date of birth'
+            newErrors.dateOfBirth = t('profile.dobRequired')
         } else {
             const dob = dayjs(form.dateOfBirth)
-            if (!dob.isValid()) newErrors.dateOfBirth = 'Invalid date of birth'
-            else if (dob.isAfter(dayjs())) newErrors.dateOfBirth = 'Date of birth cannot be in the future'
+            if (!dob.isValid()) newErrors.dateOfBirth = t('profile.dobInvalid')
+            else if (dob.isAfter(dayjs())) newErrors.dateOfBirth = t('profile.dobFuture')
         }
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
@@ -82,10 +87,10 @@ const Profile: React.FC = () => {
         if (!validate()) return
         const res = await updateProfile(form)
         if (res?.isOk) {
-            setToast({ message: res.msg || 'Profile updated successfully', progress: 100, status: 'success' })
+            setToast({ message: res.msg || t('profile.updateSuccess'), progress: 100, status: 'success' })
             setOpen(false)
         } else {
-            setToast({ message: res?.msg || 'Update failed', progress: 100, status: 'error' })
+            setToast({ message: res?.msg || t('profile.updateFailed'), progress: 100, status: 'error' })
         }
     }
 
@@ -93,21 +98,21 @@ const Profile: React.FC = () => {
         const file = e.target.files?.[0]
         if (!file) return
         const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
-        if (!allowedTypes.includes(file.type)) { setToast({ message: 'Only image files are allowed', progress: 100, status: 'error' }); return }
-        if (file.size > 10 * 1024 * 1024) { setToast({ message: 'Maximum file size is 10MB', progress: 100, status: 'error' }); return }
+        if (!allowedTypes.includes(file.type)) { setToast({ message: t('profile.avatarOnlyImages'), progress: 100, status: 'error' }); return }
+        if (file.size > 10 * 1024 * 1024) { setToast({ message: t('profile.avatarMaxSize'), progress: 100, status: 'error' }); return }
         setUploadingAvatar(true)
-        setToast({ message: 'Uploading avatar...', progress: 0, status: 'loading' })
+        setToast({ message: t('profile.avatarUploading'), progress: 0, status: 'loading' })
         const res = await uploadAvatar(file, (progress) => {
-            setToast(prev => prev ? { ...prev, progress } : { message: 'Uploading avatar...', progress, status: 'loading' })
+            setToast(prev => prev ? { ...prev, progress } : { message: t('profile.avatarUploading'), progress, status: 'loading' })
         })
         setUploadingAvatar(false)
-        if (res?.isOk) setToast({ message: res.msg || 'Avatar uploaded successfully', progress: 100, status: 'success' })
-        else setToast({ message: res?.msg || 'Upload failed', progress: 100, status: 'error' })
+        if (res?.isOk) setToast({ message: res.msg || t('profile.avatarSuccess'), progress: 100, status: 'success' })
+        else setToast({ message: res?.msg || t('profile.avatarFailed'), progress: 100, status: 'error' })
         e.target.value = ''
     }
 
     const formatDate = (dateStr?: string): string => {
-        if (!dateStr) return 'Not updated'
+        if (!dateStr) return tc('status.notUpdated')
         return dayjs(dateStr).format('MM/DD/YYYY')
     }
 
@@ -156,7 +161,7 @@ const Profile: React.FC = () => {
                                 </div>
                                 <label style={{ position: 'absolute', inset: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--shadow-lg)', opacity: 0, transition: 'opacity 0.2s', borderRadius: 2, fontSize: 11, color: 'var(--bg-surface-short)', fontWeight: 600 }}
                                     onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0' }}>
-                                    upload
+                                    {t('profile.upload')}
                                     <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
                                 </label>
                             </div>
@@ -168,7 +173,7 @@ const Profile: React.FC = () => {
 
                             <button onClick={() => setOpen(true)} style={{ padding: '8px 20px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
                                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}>
-                                {'>'} edit profile
+                                {t('profile.editProfile')}
                             </button>
                         </div>
                     </div>
@@ -177,17 +182,17 @@ const Profile: React.FC = () => {
                 {/* Personal Information */}
                 <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border-base)' }}>
-                        <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// Personal Information</h2>
+                        <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{t('profile.personalInfo')}</h2>
                     </div>
                     <div style={{ padding: 24 }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                             {[
-                                { label: '$ firstName', value: user.firstName || 'Not updated' },
-                                { label: '$ lastName', value: user.lastName || 'Not updated' },
+                                { label: '$ firstName', value: user.firstName || tc('status.notUpdated') },
+                                { label: '$ lastName', value: user.lastName || tc('status.notUpdated') },
                                 { label: '$ email', value: user.email },
-                                { label: '$ phone', value: user.phone || 'Not updated' },
+                                { label: '$ phone', value: user.phone || tc('status.notUpdated') },
                                 { label: '$ dateOfBirth', value: formatDate(user.dateOfBirth) },
-                                { label: '$ address', value: user.address || 'Not updated' },
+                                { label: '$ address', value: user.address || tc('status.notUpdated') },
                             ].map((info) => (
                                 <div key={info.label} style={infoCardStyle}>
                                     <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{info.label}</p>
@@ -197,7 +202,7 @@ const Profile: React.FC = () => {
                         </div>
                         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--gray-200)' }}>
                             <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ bio</h3>
-                            <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.6 }}>{user.bio || 'No bio added yet.'}</p>
+                            <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.6 }}>{user.bio || t('profile.noBio')}</p>
                         </div>
                     </div>
                 </div>
@@ -209,7 +214,7 @@ const Profile: React.FC = () => {
                     <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 640, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
                         {/* Modal Header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottom: '1px solid var(--border-base)', position: 'sticky', top: 0, background: 'var(--bg-surface-short)', zIndex: 1 }}>
-                            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} Update Profile</h2>
+                            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{t('profile.updateProfile')}</h2>
                             <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--text-secondary)', cursor: 'pointer', padding: 4 }}>✕</button>
                         </div>
 
@@ -237,7 +242,7 @@ const Profile: React.FC = () => {
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ bio</label>
-                                    <textarea value={form.bio || ''} onChange={(e) => handleChange('bio', e.target.value)} placeholder="Tell us about yourself..."
+                                    <textarea value={form.bio || ''} onChange={(e) => handleChange('bio', e.target.value)} placeholder={t('profile.bioPlaceholder')}
                                         style={{ ...inputStyle, resize: 'none', minHeight: 100 }}
                                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
                                 </div>
@@ -246,11 +251,11 @@ const Profile: React.FC = () => {
 
                         {/* Modal Footer */}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: 20, borderTop: '1px solid var(--border-base)', position: 'sticky', bottom: 0, background: 'var(--bg-main)' }}>
-                            <button onClick={() => setOpen(false)} style={{ padding: '8px 20px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>cancel</button>
+                            <button onClick={() => setOpen(false)} style={{ padding: '8px 20px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{tc('actions.cancel')}</button>
                             <button onClick={handleSubmit} disabled={updatingProfile}
                                 style={{ padding: '8px 20px', background: updatingProfile ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: updatingProfile ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {updatingProfile && <Loader size={14} className="animate-spin" />}
-                                {'>'} {updatingProfile ? 'updating...' : 'update'}
+                                {'>'} {updatingProfile ? t('profile.updating') : t('profile.update')}
                             </button>
                         </div>
                     </div>

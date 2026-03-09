@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
+import { useTranslation } from 'react-i18next'
 
 /* ─── Shared sub-components ─── */
 
@@ -68,6 +69,7 @@ const FeatureCard: React.FC<{
 const Home: React.FC = () => {
   const navigate = useNavigate()
   const { token, user } = useAuthStore()
+  const { t } = useTranslation('home')
 
   useEffect(() => {
     if (token && user) {
@@ -129,7 +131,7 @@ const Home: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            {'>'} AI-Powered Learning Platform
+            {t('hero.badge')}
           </div>
           <h1
             style={{
@@ -140,10 +142,10 @@ const Home: React.FC = () => {
               fontWeight: 700,
             }}
           >
-            Tạo lộ trình học{' '}
-            <span style={{ color: 'var(--accent-primary)' }}>lập trình</span>
+            {t('hero.titleLine1')}{' '}
+            <span style={{ color: 'var(--accent-primary)' }}>{t('hero.titleHighlight')}</span>
             <br />
-            được cá nhân hóa bởi AI
+            {t('hero.titleLine2')}
           </h1>
           <p
             style={{
@@ -154,9 +156,9 @@ const Home: React.FC = () => {
               lineHeight: 1.7,
             }}
           >
-            // Chọn ngôn ngữ, đặt mục tiêu, AI tự động tạo learning path.
+            {t('hero.descLine1')}
             <br />
-            // Theo dõi tiến độ, ôn tập bài học, hoàn thiện kỹ năng.
+            {t('hero.descLine2')}
           </p>
           <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
             <button
@@ -169,13 +171,13 @@ const Home: React.FC = () => {
                 gap: 6,
               }}
             >
-              {'>'} Tạo Learning Plan <ArrowRight size={14} />
+              {t('hero.ctaPlan')} <ArrowRight size={14} />
             </button>
             <Link
               to="/register"
               className="btn btn-outline"
             >
-              Đăng ký miễn phí
+              {t('hero.ctaRegister')}
             </Link>
           </div>
         </div>
@@ -200,37 +202,10 @@ const Home: React.FC = () => {
               background: 'var(--terminal-bg)',
             }}
           >
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: 'var(--terminal-btn-red)',
-              }}
-            />
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: 'var(--terminal-btn-yellow)',
-              }}
-            />
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: 'var(--terminal-btn-green)',
-              }}
-            />
-            <span
-              style={{
-                marginLeft: 12,
-                fontSize: 11,
-                color: '#8b949e',
-              }}
-            >
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-red)' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-yellow)' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--terminal-btn-green)' }} />
+            <span style={{ marginLeft: 12, fontSize: 11, color: '#8b949e' }}>
               learning-plan.js — CodeNexus
             </span>
           </div>
@@ -311,10 +286,10 @@ const Home: React.FC = () => {
               margin: '0 0 8px',
             }}
           >
-            // Nền tảng hỗ trợ bạn học gì?
+            {t('features.title')}
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            Mọi thứ bạn cần để xây dựng lộ trình học lập trình hiệu quả
+            {t('features.subtitle')}
           </p>
         </div>
 
@@ -327,30 +302,30 @@ const Home: React.FC = () => {
         >
           <FeatureCard
             prefix="[plan]"
-            title="Tạo Learning Plan"
-            description="Chọn ngôn ngữ lập trình, đặt mục tiêu và AI sẽ tạo lộ trình học phù hợp với trình độ của bạn."
+            title={t('features.plan.title')}
+            description={t('features.plan.description')}
           />
           <FeatureCard
             prefix="[goal]"
-            title="Đặt mục tiêu học tập"
-            description="Thiết lập goal cụ thể: Frontend, Backend, Full-stack, Mobile,... và theo dõi quá trình đạt được."
+            title={t('features.goal.title')}
+            description={t('features.goal.description')}
             accent="var(--success-primary)"
           />
           <FeatureCard
             prefix="[track]"
-            title="Theo dõi tiến độ"
-            description="Xem progress qua từng chapter, bài học. Dashboard cá nhân hiển thị tổng quan quá trình học."
+            title={t('features.track.title')}
+            description={t('features.track.description')}
             accent="var(--warning-primary)"
           />
           <FeatureCard
             prefix="[lesson]"
-            title="Bài học có nội dung chi tiết"
-            description="Mỗi bài học gồm lý thuyết, code examples, common mistakes, và bài tập thực hành."
+            title={t('features.lesson.title')}
+            description={t('features.lesson.description')}
           />
           <FeatureCard
             prefix="[ai]"
-            title="AI tạo nội dung"
-            description="Nội dung bài học được AI generate dựa trên mục tiêu và trình độ, đảm bảo phù hợp nhất."
+            title={t('features.ai.title')}
+            description={t('features.ai.description')}
             accent="var(--success-primary)"
           />
         </div>
@@ -374,10 +349,10 @@ const Home: React.FC = () => {
               margin: '0 0 8px',
             }}
           >
-            // Cách sử dụng
+            {t('howItWorks.title')}
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            4 bước để bắt đầu lộ trình học lập trình của bạn
+            {t('howItWorks.subtitle')}
           </p>
         </div>
 
@@ -389,30 +364,10 @@ const Home: React.FC = () => {
           }}
         >
           {[
-            {
-              step: 1,
-              icon: '01',
-              title: 'Chọn ngôn ngữ',
-              desc: 'JavaScript, Python, Java, C#, Go,... chọn ngôn ngữ bạn muốn học hoặc nâng cao.',
-            },
-            {
-              step: 2,
-              icon: '02',
-              title: 'Đặt mục tiêu',
-              desc: 'Frontend, Backend, Full-stack, Data Science,... xác định hướng đi rõ ràng.',
-            },
-            {
-              step: 3,
-              icon: '03',
-              title: 'Chọn trình độ',
-              desc: 'Beginner, Intermediate, Advanced — AI điều chỉnh nội dung theo level của bạn.',
-            },
-            {
-              step: 4,
-              icon: '04',
-              title: 'Học theo lộ trình',
-              desc: 'AI tạo chapters → lessons → code examples. Theo dõi progress trên dashboard.',
-            },
+            { step: 1, icon: '01', title: t('howItWorks.step1.title'), desc: t('howItWorks.step1.desc') },
+            { step: 2, icon: '02', title: t('howItWorks.step2.title'), desc: t('howItWorks.step2.desc') },
+            { step: 3, icon: '03', title: t('howItWorks.step3.title'), desc: t('howItWorks.step3.desc') },
+            { step: 4, icon: '04', title: t('howItWorks.step4.title'), desc: t('howItWorks.step4.desc') },
           ].map((item) => (
             <div
               key={item.step}
@@ -476,7 +431,7 @@ const Home: React.FC = () => {
               gap: 6,
             }}
           >
-            {'>'} Bắt đầu học ngay <ArrowRight size={14} />
+            {t('howItWorks.ctaStart')} <ArrowRight size={14} />
           </button>
         </div>
       </section>
@@ -499,7 +454,7 @@ const Home: React.FC = () => {
               margin: '0 0 8px',
             }}
           >
-            // Dành cho ai?
+            {t('roles.title')}
           </h2>
         </div>
 
@@ -525,7 +480,7 @@ const Home: React.FC = () => {
                 marginBottom: 8,
               }}
             >
-              {'>'} Cá nhân hóa trải nghiệm
+              {t('roles.personalizeLabel')}
             </div>
             <h3
               style={{
@@ -535,7 +490,7 @@ const Home: React.FC = () => {
                 margin: '0 0 12px',
               }}
             >
-              Phát triển kỹ năng lập trình cùng CodeNexus
+              {t('roles.personalizeTitle')}
             </h3>
             <ul
               style={{
@@ -546,10 +501,10 @@ const Home: React.FC = () => {
                 lineHeight: 2,
               }}
             >
-              <li>Tạo và quản lý lộ trình học tập cá nhân</li>
-              <li>Tổng hợp tài nguyên học lập trình thực tế</li>
-              <li>Công cụ theo dõi tiến độ và dashboard trực quan</li>
-              <li>Hệ thống tài nguyên và bài thực hành phong phú</li>
+              <li>{t('roles.feature1')}</li>
+              <li>{t('roles.feature2')}</li>
+              <li>{t('roles.feature3')}</li>
+              <li>{t('roles.feature4')}</li>
             </ul>
           </div>
         </div>
