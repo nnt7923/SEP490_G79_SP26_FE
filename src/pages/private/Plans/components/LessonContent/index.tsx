@@ -5,13 +5,16 @@ import rehypeRaw from 'rehype-raw'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
+import { AlertTriangle, Info, Lightbulb, AlertCircle } from 'lucide-react'
+
 interface LessonContentProps {
   content: string
   loading?: boolean
   error?: string | null
+  isFocusMode?: boolean
 }
 
-const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }) => {
+const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, isFocusMode = false }) => {
   const [processedContent, setProcessedContent] = React.useState<string>(content)
 
   React.useEffect(() => {
@@ -73,7 +76,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 </tr>`)
         }
 
-        const tableHtml = `## Common Mistakes\n\n<table>\n  <thead>\n    <tr>\n      <th>❌ Wrong Approach</th>\n      <th>✅ Correct Approach</th>\n      <th>📝 Notes</th>\n    </tr>\n  </thead>\n  <tbody>\n    ${rowsHtml.join('\n')}\n  </tbody>\n</table>`
+        const tableHtml = `## Common Mistakes\n\n<div class="table-breakout">\n<table>\n  <thead>\n    <tr>\n      <th>❌ Wrong Approach</th>\n      <th>✅ Correct Approach</th>\n      <th>📝 Notes</th>\n    </tr>\n  </thead>\n  <tbody>\n    ${rowsHtml.join('\n')}\n  </tbody>\n</table>\n</div>`
 
         processed = content.replace(commonMistakesRegex, tableHtml)
       }
@@ -125,16 +128,22 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
               {children}
             </h1>
           ),
-          h2: ({ children }) => (
-            <h2 className="text-2xl font-bold font-mono text-heading mb-4 mt-8 pb-3 border-b border-bd-muted flex items-center gap-2">
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="text-xl font-bold font-mono text-heading mb-3 mt-6 pb-2 border-b border-bd-subtle flex items-center gap-2">
-              {children}
-            </h3>
-          ),
+          h2: ({ children }) => {
+            const id = children?.toString().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')
+            return (
+              <h2 id={id} className="lesson-h2 text-2xl font-bold font-mono text-heading mb-4 mt-8 pb-3 border-b border-bd-muted flex items-center gap-2">
+                {children}
+              </h2>
+            )
+          },
+          h3: ({ children }) => {
+            const id = children?.toString().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')
+            return (
+              <h3 id={id} className="lesson-h3 text-xl font-bold font-mono text-heading mb-3 mt-6 pb-2 border-b border-bd-subtle flex items-center gap-2">
+                {children}
+              </h3>
+            )
+          },
           h4: ({ children }) => (
             <h4 className="text-lg font-semibold font-mono text-heading mb-3 mt-5 flex items-center gap-2">
               {children}
@@ -201,15 +210,77 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
           ),
 
           // Blockquotes
-          blockquote: ({ children }) => (
-            <blockquote className="border border-bd bg-[var(--gray-100)] pl-4 pr-4 py-3 my-6 text-body font-mono relative">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-th-skeleton"></div>
-              <div className="flex gap-3">
-                <span className="text-placeholder select-none">|</span>
-                <div className="flex-1">{children}</div>
-              </div>
-            </blockquote>
-          ),
+          blockquote: ({ children }) => {
+            const textContent = React.Children.toArray(children).map((child: any) => 
+               child?.props?.children || ''
+            ).join(' ')
+            
+            // Github Alert Syntax matching
+            let type = 'info'
+            let title = 'NOTE'
+            let icon = <Info className="w-4 h-4" />
+            
+            if (textContent.includes('[!WARNING]')) { type = 'warning'; title = 'WARNING'; icon = <AlertTriangle className="w-4 h-4" /> }
+            else if (textContent.includes('[!IMPORTANT]')) { type = 'important'; title = 'IMPORTANT'; icon = <Lightbulb className="w-4 h-4" /> }
+            else if (textContent.includes('[!CAUTION]')) { type = 'error'; title = 'CAUTION'; icon = <AlertCircle className="w-4 h-4" /> }
+
+            const colorVar = 
+              type === 'warning' ? 'var(--warning-primary)' :
+              type === 'important' ? 'var(--accent-purple)' :
+              type === 'error' ? 'var(--error-primary)' :
+              'var(--accent-primary)'
+
+            const bgVar = 
+              type === 'warning' ? 'var(--warning-primary-muted)' :
+              type === 'important' ? 'var(--accent-purple-muted)' :
+              type === 'error' ? 'var(--error-primary-muted)' :
+              'var(--bg-active)'
+
+            // Only style as an alert if it MATCHES a known format
+            const hasAlert = ['[!NOTE]', '[!WARNING]', '[!IMPORTANT]', '[!CAUTION]', '[!TIP]'].some(a => textContent.includes(a))
+
+            if (hasAlert) {
+              return (
+                <div style={{
+                  background: bgVar, border: `1px solid ${colorVar}`, borderLeft: `4px solid ${colorVar}`,
+                  padding: '16px', margin: '24px 0', borderRadius: '4px', fontFamily: 'monospace'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colorVar, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>
+                    {icon} [{title}]
+                  </div>
+                  <div style={{ color: 'var(--text-primary)', fontSize: 14, lineHeight: 1.6 }}>
+                    {React.Children.map(children, (child: any) => {
+                       // filter out the literal [!NOTE] strings from rendering
+                       if (typeof child?.props?.children === 'string') {
+                          return React.cloneElement(child, { 
+                            children: child.props.children.replace(/\[!(NOTE|WARNING|IMPORTANT|CAUTION|TIP)\]/g, '') 
+                          })
+                       }
+                       if (Array.isArray(child?.props?.children)) {
+                         return React.cloneElement(child, {
+                            children: child.props.children.map((c: any) => 
+                              typeof c === 'string' ? c.replace(/\[!(NOTE|WARNING|IMPORTANT|CAUTION|TIP)\]/g, '') : c
+                            )
+                         })
+                       }
+                       return child
+                    })}
+                  </div>
+                </div>
+              )
+            }
+
+            // Default blockquote
+            return (
+              <blockquote className="border border-bd bg-[var(--gray-100)] pl-4 pr-4 py-3 my-6 text-body font-mono relative">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-th-skeleton"></div>
+                <div className="flex gap-3">
+                  <span className="text-placeholder select-none">|</span>
+                  <div className="flex-1 text-heading">{children}</div>
+                </div>
+              </blockquote>
+            )
+          },
 
           // Code blocks
           code: ({ inline, className, children, ...props }: any) => {
@@ -275,7 +346,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
           // Tables (neutral styles)
           table: ({ children }) => (
-            <div className="overflow-x-auto my-6">
+            <div className="table-breakout overflow-x-auto my-6">
               <table className="min-w-full text-sm font-mono border border-bd-strong">
                 {children}
               </table>
@@ -336,6 +407,44 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
       >
         {processedContent}
       </ReactMarkdown>
+      
+      <style>{`
+        .lesson-content {
+          counter-reset: h2-counter;
+        }
+
+        ${isFocusMode ? `
+        .lesson-content > *:not(.table-breakout) {
+          max-width: 800px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .lesson-content .table-breakout {
+          width: 100%;
+          max-width: 100%;
+        }
+        ` : `
+        .lesson-content .table-breakout {
+          width: 100%;
+        }
+        `}
+
+        .lesson-h2 {
+          counter-increment: h2-counter;
+          counter-reset: h3-counter;
+        }
+        .lesson-h2::before {
+          content: counter(h2-counter) ". ";
+          color: var(--accent-primary);
+        }
+        .lesson-h3 {
+          counter-increment: h3-counter;
+        }
+        .lesson-h3::before {
+          content: counter(h2-counter) "." counter(h3-counter) " ";
+          color: var(--accent-primary);
+        }
+      `}</style>
     </div>
   )
 }

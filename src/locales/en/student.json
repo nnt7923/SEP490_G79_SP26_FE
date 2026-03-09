@@ -176,6 +176,40 @@
     "allCompleted": "All tasks completed! 🎉",
     "easy": "Easy",
     "medium": "Medium",
-    "hard": "Hard"
+    "hard": "Hard",
+    "execute": "EXECUTE",
+    "reload": "RELOAD",
+    "processing": "Processing tasks...",
+    "error": "ERROR",
+    "success": "SUCCESS"
+  },
+  "plansResult": {
+    "title": "Learning Path",
+    "noDescription": "No learning path description.",
+    "chaptersFormat": "{{count}} chapters",
+    "lessonsFormat": "{{count}} lessons",
+    "completed": "Completed",
+    "lessonsCount": "{{count}} lessons",
+    "quizzes": "Quizzes:",
+    "noChapters": "No chapters found in the learning path.",
+    "lessonContent": "Lesson Content",
+    "close": "Close",
+    "expand": "EXPAND",
+    "collapse": "COLLAPSE",
+    "contentTree": "Chapters",
+    "back": "Back",
+    "brandName": "Learning Path",
+    "brandSubtitle": "Result"
+  },
+  "lessonDetail": {
+    "backToPlan": "BACK TO PLAN",
+    "enableFocus": "ENABLE FOCUS",
+    "exitFocus": "EXIT FOCUS",
+    "prevLesson": "PREVIOUS LESSON",
+    "nextLesson": "NEXT LESSON",
+    "completePlan": "SYSTEM: COMPLETED",
+    "returnToPlan": "Return to Plan",
+    "tableOfContents": "TABLE OF CONTENTS",
+    "noHeadings": "NO HEADINGS FOUND"
   }
 }

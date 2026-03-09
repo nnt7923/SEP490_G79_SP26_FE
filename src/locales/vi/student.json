@@ -176,6 +176,40 @@
     "allCompleted": "Đã hoàn thành tất cả bài tập! 🎉",
     "easy": "Dễ",
     "medium": "Trung bình",
-    "hard": "Khó"
+    "hard": "Khó",
+    "execute": "THỰC THI",
+    "reload": "TẢI LẠI",
+    "processing": "Đang xử lý bài tập...",
+    "error": "LỖI",
+    "success": "THÀNH CÔNG"
+  },
+  "plansResult": {
+    "title": "Lộ Trình Học Tập",
+    "noDescription": "Không có mô tả lộ trình học tập.",
+    "chaptersFormat": "{{count}} chương",
+    "lessonsFormat": "{{count}} bài học",
+    "completed": "Hoàn thành",
+    "lessonsCount": "{{count}} bài học",
+    "quizzes": "Bài kiểm tra:",
+    "noChapters": "Không tìm thấy chương nào trong lộ trình học tập.",
+    "lessonContent": "Nội dung Bài học",
+    "close": "Đóng",
+    "expand": "MỞ RỘNG",
+    "collapse": "THU GỌN",
+    "contentTree": "Danh sách Chương",
+    "back": "Quay lại",
+    "brandName": "Lộ Trình Học Tập",
+    "brandSubtitle": "Kết Quả"
+  },
+  "lessonDetail": {
+    "backToPlan": "QUAY LẠI LỘ TRÌNH",
+    "enableFocus": "CHẾ ĐỘ TẬP TRUNG",
+    "exitFocus": "THOÁT TẬP TRUNG",
+    "prevLesson": "BÀI HỌC TRƯỚC",
+    "nextLesson": "BÀI HỌC TIẾP",
+    "completePlan": "HỆ THỐNG: HOÀN THÀNH",
+    "returnToPlan": "Trở lại lộ trình",
+    "tableOfContents": "MỤC LỤC",
+    "noHeadings": "KHÔNG CÓ MỤC LỤC"
   }
 }
