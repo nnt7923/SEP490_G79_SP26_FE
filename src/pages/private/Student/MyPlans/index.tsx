@@ -5,12 +5,10 @@ import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
-import ROUTER from '../../../../router/ROUTER'
-import { LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 const MyPlansPage: React.FC = () => {
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
   const [plans, setPlans] = useState<SkeletonResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,14 +20,11 @@ const MyPlansPage: React.FC = () => {
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
 
-  const handleLogout = async () => {
-    await logout()
-    navigate(ROUTER.LOGIN)
-  }
+
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
-    actions: [{ label: tc('sidebar.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+    actions: [],
     brand: { name: 'My Plans', subtitle: 'Learning' },
   }
 
@@ -94,7 +89,7 @@ const MyPlansPage: React.FC = () => {
             {filteredPlans.map((plan) => (
               <div
                 key={plan.pathId || plan.id}
-                onClick={() => navigate(`/my-plans/${plan.pathId || plan.id}`)}
+                onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })}
                 style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, cursor: 'pointer', transition: 'border-color 0.2s', background: 'var(--bg-surface-short)' }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}

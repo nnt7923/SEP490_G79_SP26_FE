@@ -132,60 +132,64 @@ export async function requestLessonContent(lessonId: string, onLoading?: () => v
     return inflightLesson.get(lessonId)!
   }
 
-  const hub = await getLessonHub()
+  // Wrap in async IIFE so inflightLesson is set BEFORE awaiting hub connection.
+  // This prevents duplicate invocations (e.g. React StrictMode double-mount).
+  const p = (async () => {
+    const hub = await getLessonHub()
 
-  const p = new Promise<any>((resolve, reject) => {
-    let done = false
-    const cleanup = () => {
-      hub.off('LessonContentLoading', handleLoading)
-      hub.off('ReceiveLessonContent', handleContent)
-      hub.off('LessonContentError', handleError)
-      inflightLesson.delete(lessonId)
-    }
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('LessonContentLoading', handleLoading)
+        hub.off('ReceiveLessonContent', handleContent)
+        hub.off('LessonContentError', handleError)
+        inflightLesson.delete(lessonId)
+      }
 
-    const handleLoading = () => {
-      onLoading?.()
-    }
+      const handleLoading = () => {
+        onLoading?.()
+      }
 
-    const handleContent = (content: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      resolve(content)
-    }
+      const handleContent = (content: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        resolve(content)
+      }
 
-    const handleError = (err: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error(err?.message || 'Failed to load lesson content'))
-    }
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error(err?.message || 'Failed to load lesson content'))
+      }
 
-    // timeout safety
-    const to = setTimeout(() => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error('Lesson content request timeout'))
-    }, REQUEST_TIMEOUT)
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Lesson content request timeout'))
+      }, REQUEST_TIMEOUT)
 
-    // ensure timeout cleared in all paths
-    const clearTo = () => { try { clearTimeout(to) } catch { } }
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
 
-    // rewrap to clear timeout then delegate
-    const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
-    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+      // rewrap to clear timeout then delegate
+      const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
 
-    hub.on('LessonContentLoading', handleLoading)
-    hub.on('ReceiveLessonContent', handleContentWrap)
-    hub.on('LessonContentError', handleErrorWrap)
+      hub.on('LessonContentLoading', handleLoading)
+      hub.on('ReceiveLessonContent', handleContentWrap)
+      hub.on('LessonContentError', handleErrorWrap)
 
-    try {
-      hub.invoke('RequestLessonContent', lessonId).catch(handleErrorWrap)
-    } catch (e) {
-      handleErrorWrap(e)
-    }
-  })
+      try {
+        hub.invoke('RequestLessonContent', lessonId).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
 
   inflightLesson.set(lessonId, p)
   return p
@@ -200,55 +204,57 @@ export async function requestChapterContent(chapterId: string, onLoading?: () =>
     return inflightChapter.get(chapterId)!
   }
 
-  const hub = await getChapterHub()
+  const p = (async () => {
+    const hub = await getChapterHub()
 
-  const p = new Promise<any>((resolve, reject) => {
-    let done = false
-    const cleanup = () => {
-      hub.off('ChapterContentLoading', handleLoading)
-      hub.off('ReceiveChapterContent', handleContent)
-      hub.off('ChapterContentError', handleError)
-      inflightChapter.delete(chapterId)
-    }
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('ChapterContentLoading', handleLoading)
+        hub.off('ReceiveChapterContent', handleContent)
+        hub.off('ChapterContentError', handleError)
+        inflightChapter.delete(chapterId)
+      }
 
-    const handleLoading = () => {
-      onLoading?.()
-    }
+      const handleLoading = () => {
+        onLoading?.()
+      }
 
-    const handleContent = (content: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      resolve(content)
-    }
+      const handleContent = (content: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        resolve(content)
+      }
 
-    const handleError = (err: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error(err?.message || 'Failed to load chapter content'))
-    }
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error(err?.message || 'Failed to load chapter content'))
+      }
 
-    const to = setTimeout(() => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error('Chapter content request timeout'))
-    }, REQUEST_TIMEOUT)
-    const clearTo = () => { try { clearTimeout(to) } catch { } }
-    const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
-    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Chapter content request timeout'))
+      }, REQUEST_TIMEOUT)
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
 
-    hub.on('ChapterContentLoading', handleLoading)
-    hub.on('ReceiveChapterContent', handleContentWrap)
-    hub.on('ChapterContentError', handleErrorWrap)
+      hub.on('ChapterContentLoading', handleLoading)
+      hub.on('ReceiveChapterContent', handleContentWrap)
+      hub.on('ChapterContentError', handleErrorWrap)
 
-    try {
-      hub.invoke('RequestChapterContent', chapterId).catch(handleErrorWrap)
-    } catch (e) {
-      handleErrorWrap(e)
-    }
-  })
+      try {
+        hub.invoke('RequestChapterContent', chapterId).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
 
   inflightChapter.set(chapterId, p)
   return p
@@ -263,55 +269,57 @@ export async function requestChapterTasks(chapterId: string, onLoading?: () => v
     return inflightTask.get(chapterId)!
   }
 
-  const hub = await getTaskHub()
+  const p = (async () => {
+    const hub = await getTaskHub()
 
-  const p = new Promise<any>((resolve, reject) => {
-    let done = false
-    const cleanup = () => {
-      hub.off('ChapterTasksLoading', handleLoading)
-      hub.off('ReceiveChapterTasks', handleContent)
-      hub.off('ChapterTasksError', handleError)
-      inflightTask.delete(chapterId)
-    }
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('ChapterTasksLoading', handleLoading)
+        hub.off('ReceiveChapterTasks', handleContent)
+        hub.off('ChapterTasksError', handleError)
+        inflightTask.delete(chapterId)
+      }
 
-    const handleLoading = () => {
-      onLoading?.()
-    }
+      const handleLoading = () => {
+        onLoading?.()
+      }
 
-    const handleContent = (tasks: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      resolve(tasks)
-    }
+      const handleContent = (tasks: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        resolve(tasks)
+      }
 
-    const handleError = (err: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error(err?.message || 'Failed to load chapter tasks'))
-    }
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error(err?.message || 'Failed to load chapter tasks'))
+      }
 
-    const to = setTimeout(() => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error('Chapter tasks request timeout'))
-    }, REQUEST_TIMEOUT)
-    const clearTo = () => { try { clearTimeout(to) } catch { } }
-    const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
-    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Chapter tasks request timeout'))
+      }, REQUEST_TIMEOUT)
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
 
-    hub.on('ChapterTasksLoading', handleLoading)
-    hub.on('ReceiveChapterTasks', handleContentWrap)
-    hub.on('ChapterTasksError', handleErrorWrap)
+      hub.on('ChapterTasksLoading', handleLoading)
+      hub.on('ReceiveChapterTasks', handleContentWrap)
+      hub.on('ChapterTasksError', handleErrorWrap)
 
-    try {
-      hub.invoke('RequestChapterTasks', chapterId).catch(handleErrorWrap)
-    } catch (e) {
-      handleErrorWrap(e)
-    }
-  })
+      try {
+        hub.invoke('RequestChapterTasks', chapterId).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
 
   inflightTask.set(chapterId, p)
   return p
@@ -332,65 +340,64 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
     return inflightQuiz.get(quizId)!
   }
 
-  let hub: signalR.HubConnection
-  try {
-    hub = await getQuizHub()
-  } catch (error) {
-    return Promise.reject(new Error('Failed to establish SignalR connection'))
-  }
+  // Wrap in async IIFE so inflightQuiz is set BEFORE awaiting hub connection.
+  // This prevents duplicate invocations (e.g. React StrictMode double-mount).
+  const p = (async () => {
+    const hub = await getQuizHub()
 
-  const p = new Promise<any>((resolve, reject) => {
-    let done = false
-    const cleanup = () => {
-      hub.off('QuizQuestionsLoading', handleLoading)
-      hub.off('ReceiveQuizQuestions', handleQuestions)
-      hub.off('QuizQuestionsError', handleError)
-      inflightQuiz.delete(quizId)
-    }
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('QuizQuestionsLoading', handleLoading)
+        hub.off('ReceiveQuizQuestions', handleQuestions)
+        hub.off('QuizQuestionsError', handleError)
+        inflightQuiz.delete(quizId)
+      }
 
-    const handleLoading = () => {
-      onLoading?.()
-    }
+      const handleLoading = () => {
+        onLoading?.()
+      }
 
-    const handleQuestions = (questions: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      resolve(questions)
-    }
+      const handleQuestions = (questions: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        resolve(questions)
+      }
 
-    const handleError = (err: any) => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error(err?.message || 'Failed to load quiz questions'))
-    }
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error(err?.message || 'Failed to load quiz questions'))
+      }
 
-    // timeout safety
-    const to = setTimeout(() => {
-      if (done) return
-      done = true
-      cleanup()
-      reject(new Error('Quiz questions request timeout'))
-    }, REQUEST_TIMEOUT)
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Quiz questions request timeout'))
+      }, REQUEST_TIMEOUT)
 
-    // ensure timeout cleared in all paths
-    const clearTo = () => { try { clearTimeout(to) } catch { } }
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
 
-    // rewrap to clear timeout then delegate
-    const handleQuestionsWrap = (q: any) => { clearTo(); handleQuestions(q) }
-    const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+      // rewrap to clear timeout then delegate
+      const handleQuestionsWrap = (q: any) => { clearTo(); handleQuestions(q) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
 
-    hub.on('QuizQuestionsLoading', handleLoading)
-    hub.on('ReceiveQuizQuestions', handleQuestionsWrap)
-    hub.on('QuizQuestionsError', handleErrorWrap)
+      hub.on('QuizQuestionsLoading', handleLoading)
+      hub.on('ReceiveQuizQuestions', handleQuestionsWrap)
+      hub.on('QuizQuestionsError', handleErrorWrap)
 
-    try {
-      hub.invoke('RequestQuizQuestions', quizId).catch(handleErrorWrap)
-    } catch (e) {
-      handleErrorWrap(e)
-    }
-  })
+      try {
+        hub.invoke('RequestQuizQuestions', quizId).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
 
   inflightQuiz.set(quizId, p)
   return p

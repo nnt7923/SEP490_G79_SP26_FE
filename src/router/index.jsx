@@ -37,6 +37,7 @@ const MentorClasses = React.lazy(() => import('../pages/private/Mentor/Classes')
 const MentorStudents = React.lazy(() => import('../pages/private/Mentor/Students'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
+const TaskPage = React.lazy(() => import('../pages/private/Task'))
 const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
 
 const Fallback = () => <div />
@@ -73,7 +74,7 @@ const router = createBrowserRouter([
           { path: ROUTER.STUDENT_OVERVIEW, element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
-          { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
+          { path: '/my-plans/detail', element: <MyPlansDetail /> },
           { path: ROUTER.GOALS, element: <Goals /> },
           { path: '/goals/:goalId', element: <GoalsDetail /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
@@ -81,6 +82,7 @@ const router = createBrowserRouter([
           { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },
           { path: '/lesson/:lessonId', element: <LessonDetail /> },
           { path: '/quiz/:quizId', element: <Quiz /> },
+          { path: '/task/:taskId', element: <TaskPage /> },
         ],
       },
       // Shared routes (Student & Mentor)

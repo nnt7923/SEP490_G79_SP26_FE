@@ -30,6 +30,8 @@ const ROUTER = {
   MY_RESOURCES: "/my-resources",
   // Quiz
   QUIZ: "/quiz/:quizId",
+  // Task (Chapter Tasks)
+  TASK: "/task/:chapterId",
 };
 
 export default ROUTER;

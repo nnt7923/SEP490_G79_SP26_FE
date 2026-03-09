@@ -8,7 +8,7 @@ import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import { useMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Loader } from 'lucide-react'
+import { Loader } from 'lucide-react'
 import ProgressToast from '../../../components/Toast/ProgressToast'
 import { useTranslation } from 'react-i18next'
 
@@ -17,7 +17,7 @@ interface ProfileForm extends Partial<User> {
 }
 
 const Profile: React.FC = () => {
-    const { user, updateProfile, uploadAvatar, updatingProfile, logout } = useAuthStore()
+    const { user, updateProfile, updatingProfile, uploadAvatar } = useAuthStore()
     const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const [open, setOpen] = useState<boolean>(false)
     const [form, setForm] = useState<ProfileForm | null>(null)
@@ -28,7 +28,6 @@ const Profile: React.FC = () => {
     const { t } = useTranslation('student')
     const { t: tc } = useTranslation('common')
 
-    const handleLogout = async () => { await logout(); navigate(ROUTER.LOGIN) }
     const roleName = (user?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0] || '').toString().trim().toLowerCase()
 
     useEffect(() => {
@@ -40,7 +39,7 @@ const Profile: React.FC = () => {
     const navItems = roleName === 'mentor' ? mentorNav : studentNav
     const sidebarConfig = {
         navItems,
-        actions: [{ label: tc('sidebar.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+        actions: [],
         brand: { name: 'Profile', subtitle: roleName === 'mentor' ? 'Teaching' : 'Learning' },
     }
 

@@ -4,7 +4,7 @@ import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from './components/StudentSideBar'
-import { LogOut } from 'lucide-react'
+
 import { getMyGoals } from '../../../services/GoalService'
 import type { Goal } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
@@ -12,7 +12,7 @@ import type { SkeletonResponse } from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
 
 const StudentIndex: React.FC = () => {
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const displayName = user?.name || user?.username || 'Student'
   const navigate = useNavigate()
   const { t } = useTranslation('student')
@@ -39,25 +39,13 @@ const StudentIndex: React.FC = () => {
     fetchData()
   }, [user?.id])
 
-  const handleLogout = async () => {
-    await logout()
-    navigate(ROUTER.LOGIN)
-  }
-
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
-    actions: [
-      {
-        label: t('dashboard.logout'),
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: 'danger' as const,
-      },
-    ],
+    actions: [],
     brand: { name: 'Dashboard', subtitle: 'Learning' },
   }
 

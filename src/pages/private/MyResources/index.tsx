@@ -4,8 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import ResourceService from '../../../services/ResourceService'
 import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
-import { LogOut } from 'lucide-react'
-import useAuthStore from '../../../store/useAuthStore'
 // @ts-ignore - JS module without types
 import ROUTER from '../../../router/ROUTER'
 // @ts-ignore - JS module without types
@@ -34,7 +32,6 @@ interface Resource {
 }
 
 const MyResourcesPage: React.FC = () => {
-  const { logout } = useAuthStore()
   const navigate = useNavigate()
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +44,6 @@ const MyResourcesPage: React.FC = () => {
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null)
   const [resourceToView, setResourceToView] = useState<Resource | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('UploadedAt')
   const [sortDescending, setSortDescending] = useState(true)
@@ -94,11 +90,10 @@ const MyResourcesPage: React.FC = () => {
     finally { setIsDeleteDialogOpen(false); setResourceToDelete(null) }
   }
   const cancelDelete = () => { setIsDeleteDialogOpen(false); setResourceToDelete(null) }
-  const handleLogout = async () => { await logout(); navigate(ROUTER.LOGIN) }
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
-    actions: [{ label: t('resources.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+    actions: [],
     brand: { name: 'Dashboard', subtitle: 'Learning' },
   }
 
