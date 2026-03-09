@@ -267,9 +267,19 @@ const ResultPage: React.FC = () => {
                     </button>
 
                     {/* Chapter Content */}
-                    {chapter.content && (
+                    {isExpanded && chapter.content && (
                       <div className="px-6 py-3 bg-th-page border-t border-bd-muted">
                         <p className="text-sm text-body">{chapter.content}</p>
+                      </div>
+                    )}
+
+                    {/* Chapter Tasks - shown right below chapter header when expanded */}
+                    {isExpanded && (
+                      <div className="border-t border-bd-muted">
+                        <ChapterTasks 
+                          chapterId={chapter.id} 
+                          onAllTasksCompleted={handleChapterTasksCompleted}
+                        />
                       </div>
                     )}
 
@@ -325,12 +335,6 @@ const ResultPage: React.FC = () => {
                               </div>
                             </div>
                           ))}
-
-                          {/* Chapter Tasks Section */}
-                          <ChapterTasks 
-                            chapterId={chapter.id} 
-                            onAllTasksCompleted={handleChapterTasksCompleted}
-                          />
                         </div>
                       </div>
                     )}

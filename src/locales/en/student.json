@@ -164,5 +164,18 @@
     "chapters": "{{count}} chapters",
     "logout": "Logout",
     "viewAll": "view all \u2192"
+  },
+  "task": {
+    "title": "Chapter Tasks",
+    "description": "Complete all tasks to master this chapter.",
+    "notFound": "Chapter tasks not found",
+    "noTasks": "No tasks available for this chapter.",
+    "progress": "Progress",
+    "completedText": "{{completed}} / {{total}} completed",
+    "backToPlans": "Back to Plans",
+    "allCompleted": "All tasks completed! 🎉",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard"
   }
 }

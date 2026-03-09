@@ -4,13 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService } from '../../../../services'
-import useAuthStore from '../../../../store/useAuthStore'
-import ROUTER from '../../../../router/ROUTER'
-import { LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 const GoalsPage: React.FC = () => {
-  const { logout } = useAuthStore()
   const navigate = useNavigate()
   const [goals, setGoals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,14 +16,11 @@ const GoalsPage: React.FC = () => {
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
 
-  const handleLogout = async () => {
-    await logout()
-    navigate(ROUTER.LOGIN)
-  }
+
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
-    actions: [{ label: tc('sidebar.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+    actions: [],
     brand: { name: 'Goals', subtitle: 'Learning' },
   }
 

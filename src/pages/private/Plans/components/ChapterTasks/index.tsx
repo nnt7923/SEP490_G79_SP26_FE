@@ -49,7 +49,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
     })
   }
 
-  const loadTasks = async () => {
+  const loadTasks = async (retryCount = 0) => {
     if (loaded || loadingRef.current) {
       return
     }
@@ -90,13 +90,23 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
       setTasks(taskArray)
       setLoaded(true)
     } catch (e: any) {
+      // Auto-retry once on failure (handles transient SignalR connection issues)
+      loadingRef.current = false // Reset before retry
+      if (retryCount < 1) {
+        await new Promise(r => setTimeout(r, 1000))
+        return loadTasks(retryCount + 1)
+      }
       const msg = e?.message || 'Unable to load tasks.'
       setError(msg)
-      loadingRef.current = false // Reset on error
     } finally {
       setLoading(false)
     }
   }
+
+  // Auto-load tasks when component mounts
+  React.useEffect(() => {
+    loadTasks()
+  }, [chapterId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="px-6 py-4 bg-orange-50 relative">
@@ -123,7 +133,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
         {!loaded && !loading && (
           <button
             type="button"
-            onClick={loadTasks}
+            onClick={() => loadTasks()}
             className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-th-card border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
           >
             Load Tasks

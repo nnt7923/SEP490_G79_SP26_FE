@@ -32,7 +32,7 @@ const QuizPage: React.FC = () => {
     if (!quizId) return
 
     let disposed = false
-    const fetchQuestions = async () => {
+    const fetchQuestions = async (retryCount = 0) => {
       setLoading(true)
       setError(null)
 
@@ -62,6 +62,12 @@ const QuizPage: React.FC = () => {
         setQuestions(questionList)
       } catch (e: any) {
         if (disposed) return
+        // Auto-retry once on failure (handles transient SignalR connection issues)
+        if (retryCount < 1) {
+          await new Promise(r => setTimeout(r, 1000))
+          if (!disposed) return fetchQuestions(retryCount + 1)
+          return
+        }
         setError(e?.message || 'Unable to load quiz questions.')
       } finally {
         if (!disposed) setLoading(false)
