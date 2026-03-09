@@ -1,12 +1,13 @@
 import React from 'react'
 import useAuthStore from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
-import { getMentorSidebarConfig } from './components/MentorSideBar'
-import { BookOpen, Users, TrendingUp, Star, FileText, Clock, BarChart3, Settings, Plus } from 'lucide-react'
-import { SubjectService } from '../../../services'
+import { useMentorSidebarConfig } from './components/MentorSideBar'
+import { SubjectService, UserService } from '../../../services'
+import { useTranslation } from 'react-i18next'
 
 const MentorDashboard: React.FC = () => {
   const { user } = useAuthStore()
+  const { t } = useTranslation('mentor')
   const name = user?.name || user?.username || 'Mentor'
   const role = user?.role?.name || 'Mentor'
 
@@ -18,18 +19,20 @@ const MentorDashboard: React.FC = () => {
   const [subjectError, setSubjectError] = React.useState<string | null>(null)
   const [subjectSuccess, setSubjectSuccess] = React.useState<string | null>(null)
 
+  // Students data
+  const [students, setStudents] = React.useState<any[]>([])
+  const [loadingStudents, setLoadingStudents] = React.useState(false)
+
   const sidebarConfig = {
-    navItems: getMentorSidebarConfig(),
-    actions: [
-      { label: 'Profile', icon: <></>, onClick: () => {} },
-    ],
+    navItems: useMentorSidebarConfig() as any,
+    actions: [],
     brand: { name: 'Overview', subtitle: 'Mentor' },
   }
 
   const getInitials = (fullName: string) => {
     return fullName
       .split(' ')
-      .map(n => n[0])
+      .map((n: string) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2)
@@ -41,6 +44,37 @@ const MentorDashboard: React.FC = () => {
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
+
+  const unwrapUsers = (raw: any): any[] => {
+    const value = raw?.data ?? raw
+    if (Array.isArray(value)) return value
+    if (Array.isArray(value?.items)) return value.items
+    if (Array.isArray(value?.results)) return value.results
+    if (Array.isArray(value?.records)) return value.records
+    return []
+  }
+
+  const fetchStudents = async () => {
+    setLoadingStudents(true)
+    try {
+      const data = await UserService.listUsers()
+      const allUsers = unwrapUsers(data)
+      const activeStudents = allUsers.filter((u) => {
+        const userRole = (u?.role?.name || u?.roleName || '').toLowerCase()
+        const userStatus = (u?.status || '').toLowerCase()
+        return userRole === 'student' && userStatus !== 'banned'
+      })
+      setStudents(activeStudents)
+    } catch (e) {
+      setStudents([])
+    } finally {
+      setLoadingStudents(false)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchStudents()
+  }, [])
 
   const openSubjectModal = () => {
     setShowSubjectModal(true)
@@ -56,19 +90,19 @@ const MentorDashboard: React.FC = () => {
     setSubjectSuccess(null)
     const name = newSubjectName.trim()
     if (!name) {
-      setSubjectError('Vui lòng nhập tên subject')
+      setSubjectError(t('dashboard.enterSubjectName'))
       return
     }
     const slug = newSubjectSlug.trim() || slugify(name)
 
     try {
       setCreatingSubject(true)
-      const created = await SubjectService.createSubject({ name, slug })
-      setSubjectSuccess(`Tạo subject "${created?.name || name}" thành công`)
+      const created = await SubjectService.createSubject({ name, slug } as any)
+      setSubjectSuccess(t('dashboard.createSuccess', { name: created?.name || name }))
       // Đóng modal sau một chút để người dùng thấy thông báo
       setTimeout(() => setShowSubjectModal(false), 800)
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Không thể tạo subject'
+      const msg = err?.response?.data?.message || err?.message || t('dashboard.createFailed')
       setSubjectError(msg)
     } finally {
       setCreatingSubject(false)
@@ -77,162 +111,180 @@ const MentorDashboard: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+      <div className="px-4 py-8 bg-[var(--gray-100)] min-h-screen font-mono">
         {/* ========== MENTOR PROFILE HEADER ========== */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-[#2f80ed] via-[#7c3aed] to-[#2f80ed] rounded-2xl overflow-hidden shadow-lg">
-            <div className="px-8 py-8">
-              <div className="flex items-center gap-6">
-                <div className="w-28 h-28 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <span className="text-white font-bold text-4xl">{getInitials(name)}</span>
-                </div>
-
-                <div className="flex-1">
-                  <h1 className="text-4xl font-bold text-white mb-2">{name}</h1>
-                  <p className="text-white/80 text-base mb-1">{user?.email ?? '—'}</p>
-                  <p className="text-white/70 text-sm">{role}</p>
-                </div>
-
-                <button
-                  className="hidden md:inline-flex h-10 px-4 rounded-lg border border-white/30 bg-white/10 text-white/90 hover:bg-white/20 transition-all duration-200 cursor-pointer items-center gap-2"
-                  title="Profile settings"
-                >
-                  <Settings size={18} />
-                  <span className="text-sm font-semibold">Settings</span>
-                </button>
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="mb-6 border-b border-bd pb-4">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="w-24 h-24 bg-th-card border border-bd-strong flex items-center justify-center flex-shrink-0">
+                <span className="text-heading font-bold text-3xl">[{getInitials(name)}]</span>
               </div>
+
+              <div className="flex-1 text-center md:text-left">
+                <h1 className="text-2xl font-bold text-heading mb-2 border-none bg-transparent flex items-center justify-center md:justify-start">
+                  <span className="text-status-blue mr-2">{'>_'}</span>
+                  {slugify(name)}
+                </h1>
+                <p className="text-muted mb-1">
+                  <span className="text-placeholder mr-2">{'//'}</span>
+                  email: {user?.email ?? '—'}
+                </p>
+                <p className="text-muted text-sm">
+                  <span className="text-placeholder mr-2">{'//'}</span>
+                  role: {role.toLowerCase()}
+                </p>
+              </div>
+
+              <button
+                className="hidden md:inline-flex px-4 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors cursor-pointer"
+                title={t('dashboard.settings')}
+              >
+                [ {t('dashboard.settings').toLowerCase()} ]
+              </button>
             </div>
           </div>
-        </div>
 
         {/* ========== OVERVIEW GRID ========== */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {/* MY STUDENTS */}
-          <div className="dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--primary">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-600 text-[#6b7280]">My Students</h3>
-                </div>
-              </div>
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+              <span className="text-status-blue font-bold">{'>>>'}</span>
+              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.totalStudents')}</h3>
             </div>
-            <div className="dashboard-card__body">
-              <div className="metric-large">
-                <span className="metric-large__value">0</span>
-                <span className="metric-large__label">Active learners</span>
+            <div>
+              <div className="text-3xl font-bold text-heading mb-1">
+                {loadingStudents ? '...' : `[${students.length}]`}
               </div>
+              <div className="text-xs text-muted">{'//'} {t('dashboard.activeLearners')}</div>
             </div>
           </div>
 
           {/* MY COURSES */}
-          <div className="dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--info">
-                  <BookOpen size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-600 text-[#6b7280]">My Courses</h3>
-                </div>
-              </div>
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+              <span className="text-status-blue font-bold">{'>>>'}</span>
+              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.myCourses')}</h3>
             </div>
-            <div className="dashboard-card__body">
-              <div className="metric-large">
-                <span className="metric-large__value">0</span>
-                <span className="metric-large__label">Courses taught</span>
-              </div>
+            <div>
+              <div className="text-3xl font-bold text-heading mb-1">[0]</div>
+              <div className="text-xs text-muted">{'//'} {t('dashboard.coursesTaught')}</div>
             </div>
           </div>
 
           {/* STUDENT PROGRESS */}
-          <div className="dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--success">
-                  <TrendingUp size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-600 text-[#6b7280]">Progress</h3>
-                </div>
-              </div>
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+              <span className="text-status-green font-bold">{'>>>'}</span>
+              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.progress')}</h3>
             </div>
-            <div className="dashboard-card__body">
-              <div className="metric-large">
-                <span className="metric-large__value">0%</span>
-                <span className="metric-large__label">Avg completion</span>
-              </div>
+            <div>
+              <div className="text-3xl font-bold text-heading mb-1">[0%]</div>
+              <div className="text-xs text-muted">{'//'} {t('dashboard.avgCompletion')}</div>
             </div>
           </div>
 
           {/* FEEDBACK RATING */}
-          <div className="dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--warning">
-                  <Star size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-600 text-[#6b7280]">Rating</h3>
-                </div>
-              </div>
+          <div className="bg-th-card border border-bd-strong p-4">
+            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+              <span className="text-amber-500 font-bold">{'>>>'}</span>
+              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.rating')}</h3>
             </div>
-            <div className="dashboard-card__body">
-              <div className="metric-large">
-                <span className="metric-large__value">—</span>
-                <span className="metric-large__label">Student feedback</span>
-              </div>
+            <div>
+              <div className="text-3xl font-bold text-heading mb-1">[—]</div>
+              <div className="text-xs text-muted">{'//'} {t('dashboard.studentFeedback')}</div>
             </div>
           </div>
         </div>
 
         {/* ========== MAIN CONTENT SECTIONS ========== */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* MY LESSONS */}
-          <div className="dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--primary">
-                  <Clock size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#111827]">My Lessons</h2>
-                  <p className="text-xs text-[#6b7280]">Track & provide feedback</p>
-                </div>
+          {/* STUDENT LIST */}
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
+              <div>
+                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.myStudents')}</h2>
+                <p className="text-xs text-muted">{'//'} {t('dashboard.activeStudentList')}</p>
               </div>
             </div>
             
-            <div className="dashboard-card__body">
-              <div className="empty-state">
-                <Clock size={32} className="text-[#d1d5db]" />
-                <p className="text-sm text-[#6b7280]">No lessons scheduled</p>
-                <p className="text-xs text-[#9ca3af]">Create courses to start teaching</p>
-              </div>
+            <div className="p-4">
+              {loadingStudents ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-sm font-bold text-muted">{t('dashboard.loadingStudents')}</span>
+                </div>
+              ) : students.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noStudentsFound')}</p>
+                  <p className="text-xs text-muted">{'//'} {t('dashboard.studentsWillAppear')}</p>
+                </div>
+              ) : (
+                <div className="space-y-0 divide-y divide-gray-200 max-h-[400px] overflow-y-auto">
+                  {students.map((student) => {
+                    const studentName = student?.name || [student?.firstName, student?.lastName].filter(Boolean).join(' ') || 'Student'
+                    const studentEmail = student?.email || '—'
+                    const initials = studentName
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)
+                    
+                    return (
+                      <div
+                        key={student?.id || student?.userId || studentEmail}
+                        className="flex items-center gap-4 py-3 hover:bg-th-page transition-colors"
+                      >
+                        <div className="w-10 h-10 bg-th-card border border-bd-strong flex items-center justify-center flex-shrink-0">
+                          <span className="text-heading font-bold text-sm">[{initials}]</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-heading text-sm truncate">{studentName}</p>
+                          <p className="text-xs text-muted truncate">email: {studentEmail}</p>
+                        </div>
+                        <button className="px-3 py-1 border border-bd-strong text-xs font-bold hover:bg-th-input transition-colors">
+                          [ {t('dashboard.view')} ]
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* RESOURCES & MATERIALS */}
-          <div className="dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--success">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#111827]">Resources</h2>
-                  <p className="text-xs text-[#6b7280]">Manage materials & notes</p>
-                </div>
+          {/* MY LESSONS */}
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
+              <div>
+                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.myLessons')}</h2>
+                <p className="text-xs text-muted">{'//'} {t('dashboard.trackFeedback')}</p>
               </div>
             </div>
             
-            <div className="dashboard-card__body">
-              <div className="empty-state">
-                <FileText size={32} className="text-[#d1d5db]" />
-                <p className="text-sm text-[#6b7280]">No resources yet</p>
-                <p className="text-xs text-[#9ca3af]">Upload learning materials when you create courses</p>
+            <div className="p-8 text-center">
+              <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noLessonsScheduled')}</p>
+              <p className="text-xs text-muted">{'//'} {t('dashboard.createCoursesStart')}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ========== RESOURCES & MATERIALS ========== */}
+        <div className="grid grid-cols-1 gap-6 mb-6">
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
+              <div>
+                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.resources')}</h2>
+                <p className="text-xs text-muted">{'//'} {t('dashboard.manageMaterials')}</p>
               </div>
+            </div>
+            
+            <div className="p-8 text-center">
+              <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noResourcesYet')}</p>
+              <p className="text-xs text-muted">{'//'} {t('dashboard.uploadMaterials')}</p>
             </div>
           </div>
         </div>
@@ -240,54 +292,41 @@ const MentorDashboard: React.FC = () => {
         {/* ========== STUDENT PERFORMANCE & ANALYTICS ========== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* STUDENT REVIEWS */}
-          <div className="dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--warning">
-                  <Star size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#111827]">Student Reviews</h2>
-                </div>
-              </div>
+          <div className="bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
+              <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.studentReviews')}</h2>
             </div>
             
-            <div className="dashboard-card__body">
-              <div className="empty-state">
-                <Star size={32} className="text-[#d1d5db]" />
-                <p className="text-sm text-[#6b7280]">No reviews yet</p>
-                <p className="text-xs text-[#9ca3af]">Students will rate your teaching</p>
-              </div>
+            <div className="p-8 text-center">
+              <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noReviewsYet')}</p>
+              <p className="text-xs text-muted">{'//'} {t('dashboard.studentsWillRate')}</p>
             </div>
           </div>
 
           {/* ANALYTICS */}
-          <div className="lg:col-span-2 dashboard-card">
-            <div className="dashboard-card__header">
-              <div className="flex items-center gap-3">
-                <div className="icon-badge icon-badge--info">
-                  <BarChart3 size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#111827]">Analytics</h2>
-                  <p className="text-xs text-[#6b7280]">Teaching performance overview</p>
-                </div>
+          <div className="lg:col-span-2 bg-th-card border border-bd-strong">
+            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+              <span className="text-status-blue font-bold">[*]</span>
+              <div>
+                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.analytics')}</h2>
+                <p className="text-xs text-muted">{'//'} {t('dashboard.performanceOverview')}</p>
               </div>
             </div>
             
-            <div className="dashboard-card__body">
-              <div className="analytics-grid">
-                <div className="analytics-item">
-                  <div className="analytics-item__label">Total Teaching Hours</div>
-                  <div className="analytics-item__value">0h</div>
+            <div className="p-4 border-t border-bd-muted">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+                <div className="px-4 py-2">
+                  <div className="text-xs font-bold text-muted mb-1">{t('dashboard.totalTeachingHours')}</div>
+                  <div className="text-2xl font-bold text-heading">0h</div>
                 </div>
-                <div className="analytics-item">
-                  <div className="analytics-item__label">Lessons Conducted</div>
-                  <div className="analytics-item__value">0</div>
+                <div className="px-4 py-2">
+                  <div className="text-xs font-bold text-muted mb-1">{t('dashboard.lessonsConducted')}</div>
+                  <div className="text-2xl font-bold text-heading">0</div>
                 </div>
-                <div className="analytics-item">
-                  <div className="analytics-item__label">Student Satisfaction</div>
-                  <div className="analytics-item__value">—</div>
+                <div className="px-4 py-2">
+                  <div className="text-xs font-bold text-muted mb-1">{t('dashboard.studentSatisfaction')}</div>
+                  <div className="text-2xl font-bold text-heading">—</div>
                 </div>
               </div>
             </div>
@@ -295,24 +334,22 @@ const MentorDashboard: React.FC = () => {
         </div>
 
         {/* ========== QUICK ACTIONS ========== */}
-        <div className="dashboard-card">
-          <div className="dashboard-card__header">
-            <h2 className="text-lg font-bold text-[#111827]">Quick Actions</h2>
+        <div className="bg-th-card border border-bd-strong">
+          <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
+            <span className="text-status-blue font-bold">[*]</span>
+            <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.quickActions')}</h2>
           </div>
           
-          <div className="dashboard-card__body">
-            <div className="action-buttons">
-              <button className="action-button action-button--primary">
-                <BookOpen size={18} />
-                <span>Create Course</span>
+          <div className="p-4">
+            <div className="flex flex-wrap gap-4">
+              <button className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors">
+                [ {t('dashboard.buildCourse')} ]
               </button>
-              <button className="action-button action-button--secondary">
-                <Users size={18} />
-                <span>View Students</span>
+              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors">
+                [ {t('dashboard.viewStudents')} ]
               </button>
-              <button className="action-button action-button--secondary" onClick={openSubjectModal}>
-                <Plus size={18} />
-                <span>Add Subject</span>
+              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors" onClick={openSubjectModal}>
+                [ {t('dashboard.addSubject')} ]
               </button>
             </div>
           </div>
@@ -320,70 +357,72 @@ const MentorDashboard: React.FC = () => {
 
         {/* ========== SUBJECT CREATE MODAL ========== */}
         {showSubjectModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-lg w-full max-w-md mx-4 p-6">
-              <h3 className="text-xl font-bold text-[#111827] mb-4">Tạo Subject mới</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-th-card border-2 border-bd-dark w-full max-w-md mx-4 p-6 shadow-2xl font-mono">
+              <h3 className="text-xl font-bold text-heading mb-4 border-b border-bd pb-2">
+                <span className="text-status-blue mr-2">{'>_'}</span>
+                {t('dashboard.createNewSubject')}
+              </h3>
               <form onSubmit={handleCreateSubject} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#374151] mb-1">Tên Subject</label>
+                  <label className="block text-xs font-bold text-muted mb-1">{t('dashboard.subjectName')}</label>
                   <input
                     type="text"
                     value={newSubjectName}
-                    onChange={(e) => {
-                      setNewSubjectName(e.target.value)
-                    }}
+                    onChange={(e) => setNewSubjectName(e.target.value)}
                     onBlur={() => {
                       if (!newSubjectSlug.trim() && newSubjectName.trim()) {
                         setNewSubjectSlug(slugify(newSubjectName))
                       }
                     }}
-                    placeholder="Ví dụ: JavaScript"
-                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2f80ed]"
+                    placeholder="e.g. JavaScript"
+                    className="w-full border border-bd-strong px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#374151] mb-1">Slug (tùy chọn)</label>
+                  <label className="block text-xs font-bold text-muted mb-1">{t('dashboard.slugOptional')}</label>
                   <input
                     type="text"
                     value={newSubjectSlug}
                     onChange={(e) => setNewSubjectSlug(slugify(e.target.value))}
-                    placeholder="vd: javascript"
-                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2f80ed]"
+                    placeholder="e.g. javascript"
+                    className="w-full border border-bd-strong px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
 
                 {subjectError && (
-                  <div className="text-sm text-[#b91c1c] bg-[#fee2e2] border border-[#fecaca] rounded-lg px-3 py-2">
-                    {subjectError}
+                  <div className="text-sm font-bold text-status-red border border-red-500 bg-status-red-bg px-3 py-2 text-center">
+                    {'//'} {subjectError}
                   </div>
                 )}
                 {subjectSuccess && (
-                  <div className="text-sm text-[#065f46] bg-[#ecfdf5] border border-[#d1fae5] rounded-lg px-3 py-2">
-                    {subjectSuccess}
+                  <div className="text-sm font-bold text-status-green-dark border border-green-500 bg-status-green-bg px-3 py-2 text-center">
+                    {'//'} {subjectSuccess}
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-3 pt-2">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-bd">
                   <button
                     type="button"
-                    className="px-4 py-2 rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]"
+                    className="px-6 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-input transition-colors"
                     onClick={() => setShowSubjectModal(false)}
                     disabled={creatingSubject}
                   >
-                    Hủy
+                    [ {t('dashboard.cancel')} ]
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-lg bg-[#2f80ed] text-white hover:bg-[#1d5ed4] disabled:opacity-60"
+                    className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors disabled:opacity-60"
                     disabled={creatingSubject}
                   >
-                    {creatingSubject ? 'Đang tạo...' : 'Tạo Subject'}
+                    {creatingSubject ? `[ ${t('dashboard.creating')} ]` : `[ ${t('dashboard.create')} ]`}
                   </button>
                 </div>
               </form>
             </div>
           </div>
         )}
+        </div>
       </div>
     </Layout>
   )

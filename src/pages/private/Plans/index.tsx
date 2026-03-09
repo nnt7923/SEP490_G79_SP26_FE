@@ -14,6 +14,7 @@ import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
 import PlanIcon from '../../../assets/plan.png'
 import { Plus, Globe, Code2, Target, BarChart3, Languages, Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -38,6 +39,7 @@ type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 
 const PlansPage: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
+  const { t } = useTranslation('student')
   const [language, setLanguage] = useState<string | null>(() => {
     try {
       const v = sessionStorage.getItem('plans.language') || null
@@ -127,7 +129,7 @@ const PlansPage: React.FC = () => {
     const title = editingTitle.trim()
     if (!id) return
     if (!title) {
-      setGoalActionError('Title cannot be empty')
+      setGoalActionError(t('plans.titleEmpty'))
       return
     }
     setSavingGoal(true)
@@ -135,11 +137,11 @@ const PlansPage: React.FC = () => {
     try {
       const updated = await GoalService.updateGoal(id, { title })
       setMyGoals((prev) => prev.map((g: any) => (String(g?.id ?? g?.goalId ?? g?.key) === String(id) ? { ...g, ...updated } : g)))
-      setToast({ message: 'Goal updated successfully', type: 'success' })
+      setToast({ message: t('plans.goalUpdated'), type: 'success' })
       setEditingGoalId(null)
       setEditingTitle('')
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to update goal'
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || t('plans.goalUpdateFailed')
       setGoalActionError(msg)
     } finally {
       setSavingGoal(false)
@@ -166,9 +168,9 @@ const PlansPage: React.FC = () => {
       await GoalService.deleteGoal(id)
       setMyGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
       setSelectedGoals((prev) => prev.filter((k) => String(k) !== String(id)))
-      setToast({ message: 'Goal deleted successfully', type: 'success' })
+      setToast({ message: t('plans.goalDeleted'), type: 'success' })
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to delete goal'
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || t('plans.goalDeleteFailed')
       setToast({ message: msg, type: 'error' })
     } finally {
       setDeletingGoalId(null)
@@ -278,7 +280,7 @@ const PlansPage: React.FC = () => {
         }
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load subjects.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSubjects')
         if (active) setSubjectsError(msg)
       } finally {
         if (active) setSubjectsLoading(false)
@@ -300,7 +302,7 @@ const PlansPage: React.FC = () => {
         }
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load system goals.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSystemGoals')
         if (active) setGoalsError(msg)
       } finally {
         if (active) setGoalsLoading(false)
@@ -318,7 +320,7 @@ const PlansPage: React.FC = () => {
         if (active) setMyGoals(Array.isArray(data) ? data : [])
       } catch (e: any) {
         const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || 'Unable to load your goals.'
+        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadYourGoals')
         if (active) setMyGoalsError(msg)
       } finally {
         if (active) setMyGoalsLoading(false)
@@ -379,7 +381,7 @@ const PlansPage: React.FC = () => {
     const title = newGoalTitle.trim()
     const description = newGoalDesc.trim()
     if (!title) {
-      setCreateGoalError('Please enter a goal title')
+      setCreateGoalError(t('plans.enterGoalTitle'))
       return
     }
     setCreatingGoal(true)
@@ -389,13 +391,13 @@ const PlansPage: React.FC = () => {
       const newKey = String(created?.goalId ?? created?.id ?? created?.key ?? '')
       setMyGoals((prev) => [created, ...prev])
       if (newKey) setSelectedGoals([newKey])
-      setToast({ message: 'Goal created successfully', type: 'success' })
+      setToast({ message: t('plans.goalCreated'), type: 'success' })
       setShowAddGoal(false)
       setNewGoalTitle('')
       setNewGoalDesc('')
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message
-      setCreateGoalError(msg || 'Failed to create goal')
+      setCreateGoalError(msg || t('plans.goalCreateFailed'))
     } finally {
       setCreatingGoal(false)
     }
@@ -413,48 +415,49 @@ const PlansPage: React.FC = () => {
      : []
 
    return (
-     <div className="layout min-h-screen bg-blue-50">
-       <Header />
-       <main className="page-main " role="main" aria-labelledby="plans-title">
-         <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           {/* Stepper */}
-           <Stepper currentStep={step} totalSteps={5} />
+     <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Header />
+      <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
+        <div style={{ width: '100%' }}>
+          {/* Stepper */}
+          <Stepper currentStep={step} totalSteps={5} />
 
            {/* Content */}
-           {step === 1 && (
-             <>
-               <StepHeader
-                 title="Choose Programming Language"
-                 subtitle="Select the programming language you want to learn."
-                 icon={<img src={PlanIcon} alt="plan" className="w-60 h-75 object-contain" />}
-               />
-               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 items-stretch" aria-label="subject-list">
+          {step === 1 && (
+            <>
+              <StepHeader
+                title={t('plans.step1Title')}
+                subtitle={t('plans.step1Subtitle')}
+                icon="$"
+                selectedValue={language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined}
+              />
+              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="subject-list">
                  {subjectsLoading ? (
                    Array.from({ length: 8 }).map((_, i) => (
-                     <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white p-5">
+                     <div key={i} className="animate-pulse rounded-xl border border-bd-muted bg-th-card p-5">
                        <div className="flex flex-col gap-3">
                          <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-gray-200 rounded-lg" />
+                           <div className="w-12 h-12 bg-th-hover rounded-lg" />
                            <div className="flex-1">
-                             <div className="w-24 h-4 bg-gray-200 rounded" />
-                             <div className="w-20 h-3 bg-gray-100 rounded mt-2" />
+                             <div className="w-24 h-4 bg-th-hover rounded" />
+                             <div className="w-20 h-3 bg-th-input rounded mt-2" />
                            </div>
                          </div>
                        </div>
                      </div>
                    ))
                  ) : subjectsError ? (
-                   <div className="col-span-full text-center py-6 text-red-600 bg-red-50 rounded-xl border border-red-200">
-                     Failed to load subjects: {subjectsError}
+                   <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
+                     {t('plans.failedLoadSubjects')}: {subjectsError}
                    </div>
                  ) : subjects.length > 0 ? (
                    subjects.map((s, idx) => (
                      <LanguageCard
-                       key={`${(s as any).id ?? (s as any).subjectId ?? s.slug ?? idx}`}
+                       key={s.slug ?? idx}
                        name={s.name}
                        tag={s.slug ?? undefined}
                        icon={s.icon}
-                       desc={`Explore the learning path for ${s.name}`}
+                       desc={t('plans.explorePathFor', { name: s.name })}
                        active={language === String((s as any).id ?? (s as any).subjectId)}
                        onClick={() => {
                          setLanguage(String((s as any).id ?? (s as any).subjectId))
@@ -462,8 +465,8 @@ const PlansPage: React.FC = () => {
                      />
                    ))
                  ) : (
-                   <div className="col-span-full text-center py-8 text-gray-500">
-                     No subjects available.
+                   <div className="col-span-full text-center py-8 text-muted">
+                     {t('plans.noSubjectsAvailable')}
                    </div>
                  )}
                </section>
@@ -471,58 +474,42 @@ const PlansPage: React.FC = () => {
            )}
 
            {step === 2 && (
-             <>
-               <StepHeader
-                 title="Choose Your Goal"
-                 subtitle="Select a goal from system goals or your personal goals"
-                 icon="📍"
-               />
-              <div className="flex items-center justify-end ">
-                {/* <button
-                  type="button"
-                  onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-blue-400 text-blue-500 hover:bg-blue-50 font-medium"
-                >
-                  <Plus size={18} /> Add Goal
-                </button> */}
-              </div>
+            <>
+              <StepHeader
+                title={t('plans.step2Title')}
+                subtitle={t('plans.step2Subtitle')}
+                icon="$"
+                selectedValue={selectedGoals.length > 0 ? goalItems.find((x) => String(x.key) === String(selectedGoals[0]))?.label : undefined}
+              />
 
-               {/* Thông báo hành động goal */}
-               {(goalNotice || goalActionError) && (
-                 <div className="mb-6">
-                   {goalNotice && (
-                     <div className="px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl text-green-700 font-medium">
-                       {goalNotice}
-                     </div>
-                   )}
-                   {goalActionError && (
-                     <div className="px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 font-medium mt-3">
-                       {goalActionError}
-                     </div>
-                   )}
-                 </div>
-               )}
+              {/* Thông báo hành động goal */}
+              {(goalNotice || goalActionError) && (
+                <div style={{ marginBottom: 24 }}>
+                  {goalNotice && <div style={{ padding: 12, border: '1px solid var(--success-primary)', borderRadius: 2, color: 'var(--success-primary)', fontSize: 13, background: 'var(--bg-leaf-tint)' }}>// {goalNotice}</div>}
+                  {goalActionError && <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)', marginTop: 12 }}>// {goalActionError}</div>}
+                </div>
+              )}
 
-               {/* System Goals Section */}
-               <div className="mb-10">
-                 <div className="flex items-center justify-between mb-4">
-                   <h3 className="text-xl font-semibold text-gray-900">Suggest Goals</h3>
-                 </div>
-                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-label="system-goals">
+              {/* System Goals Section */}
+              <div style={{ marginBottom: 40 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('plans.suggestGoals')}</h3>
+                </div>
+                <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
                    {goalsLoading ? (
                      Array.from({ length: 3 }).map((_, i) => (
-                       <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                       <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
                          <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                           <div className="w-12 h-12 bg-th-hover rounded-xl" />
                            <div className="flex-1">
-                             <div className="w-32 h-5 bg-gray-200 rounded" />
+                             <div className="w-32 h-5 bg-th-hover rounded" />
                            </div>
                          </div>
                        </div>
                      ))
                    ) : goalsError ? (
-                     <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
-                       Failed to load system goals: {goalsError}
+                     <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                       {t('plans.failedLoadSystemGoals')}: {goalsError}
                      </div>
                    ) : systemGoals.length > 0 ? (
                      systemGoals.map((g: any, idx: number) => {
@@ -551,40 +538,41 @@ const PlansPage: React.FC = () => {
                        )
                      })
                    ) : (
-                     <div className="col-span-full text-center py-8 text-gray-500 bg-white rounded-2xl border-2 border-gray-200">
-                       No system goals available.
+                     <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                       {t('plans.noSystemGoals')}
                      </div>
                    )}
                  </section>
                </div>
 
-               {/* My Goals Section */}
-               <div>
-                 <div className="flex items-center justify-between mb-4">
-                   <h3 className="text-xl font-semibold text-gray-900">My Goals</h3>
-                   <button
-                     type="button"
-                     onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
-                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-teal-500 text-teal-600 hover:bg-teal-50 font-medium"
-                   >
-                     <Plus size={18} /> Add Goal
-                   </button>
-                 </div>
-                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-label="my-goals">
+              {/* My Goals Section */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('plans.myGoals')}</h3>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
+                    style={{ padding: '6px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
+                  >
+                    {'>'} {t('plans.addGoal')}
+                  </button>
+                </div>
+                <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
                    {myGoalsLoading ? (
                      Array.from({ length: 3 }).map((_, i) => (
-                       <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-gray-200 bg-white p-6">
+                       <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
                          <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                           <div className="w-12 h-12 bg-th-hover rounded-xl" />
                            <div className="flex-1">
-                             <div className="w-32 h-5 bg-gray-200 rounded" />
+                             <div className="w-32 h-5 bg-th-hover rounded" />
                            </div>
                          </div>
                        </div>
                      ))
                    ) : myGoalsError ? (
-                     <div className="col-span-full text-center py-8 text-red-600 bg-red-50 rounded-2xl border-2 border-red-200">
-                       Failed to load your goals: {myGoalsError}
+                     <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                       {t('plans.failedLoadYourGoals')}: {myGoalsError}
                      </div>
                    ) : myGoals.length > 0 ? (
                      myGoals.map((g: any, idx: number) => {
@@ -612,386 +600,249 @@ const PlansPage: React.FC = () => {
                        )
                      })
                    ) : (
-                     <div className="col-span-full text-center py-8 text-gray-500 bg-white rounded-2xl border-2 border-gray-200">
-                       No personal goals yet. Click "Add Goal" to create one.
+                     <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                       {t('plans.noPersonalGoals')}
                      </div>
                    )}
                  </section>
-               </div>
-
-              {/* Add Goal Modal */}
-              {showAddGoal && (
-                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">Add New Goal</h3>
-                    </div>
-                    <div className="p-6 space-y-4">
-                      {createGoalError && (
-                        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{createGoalError}</div>
-                      )}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                        <input
-                          type="text"
-                          value={newGoalTitle}
-                          onChange={(e) => setNewGoalTitle(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="e.g., Learn Docker fundamentals"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
-                        <textarea
-                          value={newGoalDesc}
-                          onChange={(e) => setNewGoalDesc(e.target.value)}
-                          rows={3}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="Short description"
-                        />
-                      </div>
-                      <div className="flex justify-end gap-3 pt-2">
-                        <button
-                          type="button"
-                          className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); setNewGoalDesc(''); setCreateGoalError(null) }}
-                        >Cancel</button>
-                        <button
-                          type="button"
-                          disabled={creatingGoal}
-                          onClick={handleCreateGoalModal}
-                          className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-60"
-                        >{creatingGoal ? 'Saving…' : 'Save Goal'}</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-             </>
-           )}
-
-           {step === 3 && (
-             <>
-               <StepHeader
-                 title="Choose Level"
-                 subtitle="Pick your current level to tailor the plan"
-                 icon="🎯"
-               />
-               <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6" aria-label="level-list">
-                 {(['Beginner','Intermediate','Advanced'] as Level[]).map((lv) => (
-                   <button
-                     key={lv}
-                     type="button"
-                     onClick={() => setLevel(lv)}
-                     className={`p-5 rounded-xl border transition-all cursor-pointer ${
-                       level === lv ? 'border-teal-600 bg-teal-50' : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
-                     }`}
-                   >
-                     <div className="text-lg font-semibold text-gray-900">{lv}</div>
-                     <div className="text-sm text-gray-600 mt-1">{lv === 'Beginner' ? 'Start from basics' : lv === 'Intermediate' ? 'Build on fundamentals' : 'Master advanced topics'}</div>
-                   </button>
-                 ))}
-               </section>
-             </>
-           )}
-
-           {step === 4 && (
-             <>
-               <StepHeader
-                 title="Choose Language"
-                 subtitle="Select your preferred language for the learning materials"
-                 icon="🌐"
-               />
-               <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto" aria-label="language-selection">
-                 {/* Vietnamese Option */}
-                 <button
-                   type="button"
-                   onClick={() => setLanguageSelection(LanguageSelection.Vietnamese)}
-                   className={`group relative p-6 rounded-xl border transition-all duration-200 cursor-pointer ${
-                     languageSelection === LanguageSelection.Vietnamese
-                       ? 'border-teal-600 bg-teal-50'
-                       : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
-                   }`}
-                 >
-                   {/* Icon Container */}
-                   <div className="flex justify-center mb-4">
-                     <div className={`relative w-20 h-20 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                       languageSelection === LanguageSelection.Vietnamese
-                         ? 'bg-gradient-to-br from-red-500 to-yellow-500'
-                         : 'bg-gradient-to-br from-red-400 to-yellow-400'
-                     }`}>
-                       {/* Vietnamese Flag Star */}
-                       <svg className="w-10 h-10 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
-                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                       </svg>
+                        {/* Add Goal Modal */}
+             {showAddGoal && (
+               <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+                 <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                   <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
+                     <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {t('plans.addNewGoal')}</h3>
+                   </div>
+                   <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                     {createGoalError && (
+                       <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {createGoalError}</div>
+                     )}
+                     <div>
+                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.titleLabel')}</label>
+                       <input
+                         type="text"
+                         value={newGoalTitle}
+                         onChange={(e) => setNewGoalTitle(e.target.value)}
+                         placeholder={t('plans.titlePlaceholder')}
+                         style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                       />
                      </div>
-                   </div>
-                   
-                   {/* Content */}
-                   <div className="text-center">
-                     <h3 className={`text-lg font-bold mb-2 transition-colors ${
-                       languageSelection === LanguageSelection.Vietnamese ? 'text-teal-700' : 'text-gray-900'
-                     }`}>
-                       Tiếng Việt
-                     </h3>
-                     <p className="text-sm text-gray-600 leading-relaxed">
-                       Học với nội dung bằng tiếng Việt, dễ hiểu và phù hợp với người Việt
-                     </p>
-                   </div>
-                   
-                   {/* Status Indicator */}
-                   <div className={`mt-4 pt-3 border-t transition-colors ${
-                     languageSelection === LanguageSelection.Vietnamese
-                       ? 'border-teal-200'
-                       : 'border-gray-200'
-                   }`}>
-                     <div className="flex items-center justify-center text-xs font-semibold">
-                       {languageSelection === LanguageSelection.Vietnamese ? (
-                         <span className="text-teal-600">Selected</span>
-                       ) : (
-                         <span className="text-gray-400">Click to select</span>
-                       )}
+                     <div>
+                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.descriptionLabel')}</label>
+                       <textarea
+                         value={newGoalDesc}
+                         onChange={(e) => setNewGoalDesc(e.target.value)}
+                         rows={3}
+                         placeholder={t('plans.descriptionPlaceholder')}
+                         style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                       />
                      </div>
-                   </div>
-                 </button>
-
-                 {/* English Option */}
-                 <button
-                   type="button"
-                   onClick={() => setLanguageSelection(LanguageSelection.English)}
-                   className={`group relative p-6 rounded-xl border transition-all duration-200 cursor-pointer ${
-                     languageSelection === LanguageSelection.English
-                       ? 'border-teal-600 bg-teal-50'
-                       : 'border-gray-300 bg-white hover:border-teal-500 hover:bg-gray-50'
-                   }`}
-                 >
-                   {/* Icon Container */}
-                   <div className="flex justify-center mb-4">
-                     <div className={`relative w-20 h-20 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                       languageSelection === LanguageSelection.English
-                         ? 'bg-gradient-to-br from-blue-600 to-indigo-600'
-                         : 'bg-gradient-to-br from-blue-500 to-indigo-500'
-                     }`}>
-                       {/* Globe Icon */}
-                       <div className="relative w-full h-full flex items-center justify-center">
-                         <Globe className="w-10 h-10 text-white" strokeWidth={2} />
-                       </div>
-                     </div>
-                   </div>
-                   
-                   {/* Content */}
-                   <div className="text-center">
-                     <h3 className={`text-lg font-bold mb-2 transition-colors ${
-                       languageSelection === LanguageSelection.English ? 'text-teal-700' : 'text-gray-900'
-                     }`}>
-                       English
-                     </h3>
-                     <p className="text-sm text-gray-600 leading-relaxed">
-                       Learn with English content, widely used in tech industry
-                     </p>
-                   </div>
-                   
-                   {/* Status Indicator */}
-                   <div className={`mt-4 pt-3 border-t transition-colors ${
-                     languageSelection === LanguageSelection.English
-                       ? 'border-teal-200'
-                       : 'border-gray-200'
-                   }`}>
-                     <div className="flex items-center justify-center text-xs font-semibold">
-                       {languageSelection === LanguageSelection.English ? (
-                         <span className="text-teal-600">Selected</span>
-                       ) : (
-                         <span className="text-gray-400">Click to select</span>
-                       )}
-                     </div>
-                   </div>
-                 </button>
-               </section>
-             </>
-           )}
-
-           {step === 5 && (
-             <>
-               <StepHeader
-                 title="Review & Generate"
-                 subtitle="Review your selections and generate your personalized learning path"
-                 icon="✨"
-               />
-               
-               {/* Summary Cards with Icons */}
-               <section aria-label="summary" className="max-w-4xl mx-auto mb-8">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {/* Programming Language Card */}
-                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
-                     <div className="flex items-start gap-3">
-                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                         <Code2 className="w-5 h-5 text-white" strokeWidth={2.5} />
-                       </div>
-                       <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-1">Programming Language</h3>
-                         {language ? (
-                           <p className="text-base font-semibold text-gray-900 truncate">
-                             {subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name || 'Selected'}
-                           </p>
-                         ) : (
-                           <p className="text-gray-400 italic">Not selected</p>
-                         )}
-                       </div>
-                     </div>
-                   </div>
-
-                   {/* Learning Goal Card */}
-                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
-                     <div className="flex items-start gap-3">
-                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
-                         <Target className="w-5 h-5 text-white" strokeWidth={2.5} />
-                       </div>
-                       <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-1">Learning Goal</h3>
-                         {selectedGoals.length > 0 ? (
-                           <p className="text-base font-semibold text-gray-900 truncate">
-                             {goalItems.find((x) => x.key === selectedGoals[0])?.label || 'Selected'}
-                           </p>
-                         ) : (
-                           <p className="text-gray-400 italic">Not selected</p>
-                         )}
-                       </div>
-                     </div>
-                   </div>
-
-                   {/* Difficulty Level Card */}
-                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
-                     <div className="flex items-start gap-3">
-                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                         <BarChart3 className="w-5 h-5 text-white" strokeWidth={2.5} />
-                       </div>
-                       <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-1">Difficulty Level</h3>
-                         {level ? (
-                           <p className="text-base font-semibold text-gray-900">{level}</p>
-                         ) : (
-                           <p className="text-gray-400 italic">Not selected</p>
-                         )}
-                       </div>
-                     </div>
-                   </div>
-
-                   {/* Content Language Card */}
-                   <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-300 p-5 hover:border-teal-500 transition-all duration-200">
-                     <div className="flex items-start gap-3">
-                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                         <Languages className="w-5 h-5 text-white" strokeWidth={2.5} />
-                       </div>
-                       <div className="flex-1 min-w-0">
-                         <h3 className="text-sm font-medium text-gray-500 mb-1">Content Language</h3>
-                         {languageSelection ? (
-                           <p className="text-base font-semibold text-gray-900">
-                             {languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English'}
-                           </p>
-                         ) : (
-                           <p className="text-gray-400 italic">Not selected</p>
-                         )}
-                       </div>
+                     <div style={{ display: 'flex', gap: 12, paddingTop: 16 }}>
+                       <button
+                         type="button"
+                         onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); setNewGoalDesc(''); setCreateGoalError(null) }}
+                         style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
+                       >{t('plans.cancel')}</button>
+                       <button
+                         type="button"
+                         disabled={creatingGoal}
+                         onClick={handleCreateGoalModal}
+                         style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
+                         onMouseEnter={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
+                       >{creatingGoal ? t('plans.savingGoal') : t('plans.saveGoal')}</button>
                      </div>
                    </div>
                  </div>
-               </section>
-
-               {/* Generate Button */}
-               <div className="flex items-center justify-center">
-                 <button
-                   type="button"
-                   className={`group relative px-8 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl font-semibold text-base transition-all duration-200 ${
-                     !canGenerate || generating 
-                       ? 'opacity-50 cursor-not-allowed' 
-                       : 'hover:from-teal-700 hover:to-emerald-700 cursor-pointer'
-                   }`}
-                   disabled={!canGenerate || generating}
-                   onClick={async () => {
-                     if (!language) {
-                       setPlanError('Please select a language')
-                       return
-                     }
-                     if (selectedGoals.length !== 1) {
-                       setPlanError('Please select exactly one goal')
-                       return
-                     }
-                     if (!level) {
-                       setPlanError('Please select a level')
-                       return
-                     }
-                     if (!languageSelection) {
-                       setPlanError('Please select a language')
-                       return
-                     }
-                     setPlanError(null)
-                     setGenerating(true)
-                     try {
-                       const payload: any = { 
-                         subjectId: language, 
-                         goalId: selectedGoals[0], 
-                         complexityLevel: level,
-                         languageSelection: languageSelection
-                       }
-                       const sk = await LearningPathService.generateSkeleton(payload)
-                       setSkeleton(sk)
-                       setPlanGenerated(true)
-                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch {}
-                       navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
-                     } catch (e: any) {
-                       const d = e?.response?.data
-                       const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
-                       const code = d?.errorCode || d?.code
-                       let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || 'Unable to generate learning path')
-                       const lower = String(serverMsg || e?.message || '').toLowerCase()
-                       if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
-                         msg = 'AI service is not configured properly (Invalid API Key). Please set GROQ_API_KEY on the backend and try again.'
-                       }
-                       setPlanError(msg)
-                     } finally {
-                       setGenerating(false)
-                     }
-                   }}
-                 >
-                   <span className="flex items-center gap-3">
-                     {generating ? (
-                       <>
-                         <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                         </svg>
-                         <span>Generating your path...</span>
-                       </>
-                     ) : (
-                       <>
-                         <Sparkles className="w-5 h-5" />
-                         <span>Generate Learning Path</span>
-                       </>
-                     )}
-                   </span>
-                 </button>
                </div>
+             )}
+            </div>
+            </>
+          )}
+
+           {step === 3 && (
+            <>
+              <StepHeader
+                title={t('plans.step3Title')}
+                subtitle={t('plans.step3Subtitle')}
+                icon="$"
+                selectedValue={level || undefined}
+              />
+              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, maxWidth: 900, margin: '0 auto' }} aria-label="level-list">
+                {(['Beginner','Intermediate','Advanced'] as Level[]).map((lv) => (
+                  <button
+                    key={lv}
+                    type="button"
+                    onClick={() => setLevel(lv)}
+                    style={{
+                      padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: level === lv ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+                      borderColor: level === lv ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => { if (level !== lv) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
+                    onMouseLeave={(e) => { if (level !== lv) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{level === lv ? '> ' : '$ '}{lv}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>// {lv === 'Beginner' ? t('plans.beginnerDesc') : lv === 'Intermediate' ? t('plans.intermediateDesc') : t('plans.advancedDesc')}</div>
+                  </button>
+                ))}
+              </section>
+            </>
+          )}
+           {step === 4 && (
+            <>
+              <StepHeader
+                title={t('plans.step4Title')}
+                subtitle={t('plans.step4Subtitle')}
+                icon="$"
+                selectedValue={languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined}
+              />
+              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, maxWidth: 700, margin: '0 auto' }} aria-label="language-selection">
+                {/* Vietnamese Option */}
+                <button
+                  type="button"
+                  onClick={() => setLanguageSelection(LanguageSelection.Vietnamese)}
+                  style={{
+                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.Vietnamese ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+                    borderColor: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
+                  onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
+                >
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.Vietnamese ? '> ' : '$ '}Tiếng Việt</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.vietnameseDesc')}</div>
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.Vietnamese ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
+                    {languageSelection === LanguageSelection.Vietnamese ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
+                  </div>
+                </button>
+
+                {/* English Option */}
+                <button
+                  type="button"
+                  onClick={() => setLanguageSelection(LanguageSelection.English)}
+                  style={{
+                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.English ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+                    borderColor: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
+                  onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
+                >
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.English ? '> ' : '$ '}English</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.englishDesc')}</div>
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.English ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
+                    {languageSelection === LanguageSelection.English ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
+                  </div>
+                </button>
+              </section>
+            </>
+          )}
+
+           {step === 5 && (
+            <>
+              <StepHeader
+                title={t('plans.step5Title')}
+                subtitle={t('plans.step5Subtitle')}
+                icon="$"
+                selectedValue={t('plans.readyToGenerate')}
+              />
+              
+              {/* Summary Cards */}
+              <section aria-label="summary" style={{ maxWidth: 800, margin: '0 auto 40px auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+                  {[
+                    { label: `$ ${t('plans.programmingLanguage')}`, val: language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined },
+                    { label: `$ ${t('plans.learningGoal')}`, val: selectedGoals.length > 0 ? goalItems.find((x) => x.key === selectedGoals[0])?.label : undefined },
+                    { label: `$ ${t('plans.difficultyLevel')}`, val: level },
+                    { label: `$ ${t('plans.contentLanguage')}`, val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined }
+                  ].map((sum, i) => (
+                    <div key={i} style={{ padding: 16, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)' }}>
+                      <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px 0' }}>{sum.label}</h3>
+                      {sum.val ? (
+                         <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{sum.val}</p>
+                      ) : (
+                         <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--text-disabled)', margin: 0 }}>// {t('plans.notSelected')}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Generate Button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
+                 <button
+                  type="button"
+                  style={{
+                    padding: '12px 32px', background: (!canGenerate || generating) ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)',
+                    border: 'none', borderRadius: 2, fontSize: 14, fontWeight: 700,
+                    cursor: (!canGenerate || generating) ? 'not-allowed' : 'pointer', transition: 'background 0.2s',
+                    display: 'flex', alignItems: 'center', gap: 12
+                  }}
+                  onMouseEnter={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--text-strong)' }}
+                  onMouseLeave={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--text-primary)' }}
+                  disabled={!canGenerate || generating}
+                  onClick={async () => {
+                    if (!language) { setPlanError(t('plans.selectLanguage')); return }
+                    if (selectedGoals.length !== 1) { setPlanError(t('plans.selectOneGoal')); return }
+                    if (!level) { setPlanError(t('plans.selectLevel')); return }
+                    if (!languageSelection) { setPlanError(t('plans.selectLanguage')); return }
+                    setPlanError(null)
+                    setGenerating(true)
+                    try {
+                      const payload: any = { subjectId: language, goalId: selectedGoals[0], complexityLevel: level, languageSelection: languageSelection }
+                      const sk = await LearningPathService.generateSkeleton(payload)
+                      setSkeleton(sk)
+                      setPlanGenerated(true)
+                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch {}
+                      navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
+                    } catch (e: any) {
+                      const d = e?.response?.data
+                      const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
+                      const code = d?.errorCode || d?.code
+                      let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || t('plans.unableToGenerate'))
+                      const lower = String(serverMsg || e?.message || '').toLowerCase()
+                      if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
+                        msg = t('plans.aiKeyError')
+                      }
+                      setPlanError(msg)
+                    } finally {
+                      setGenerating(false)
+                    }
+                  }}
+                >
+                  {generating ? (
+                    <>
+                      <div className="animate-spin" style={{ width: 16, height: 16, border: '2px solid var(--bg-surface-short)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                      <span>// {t('plans.generatingPath')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{'>_'}</span>
+                      <span>{t('plans.generateLearningPath')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
 
                {planError && (
-                 <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-red-50 border-2 border-red-200 rounded-2xl text-red-700 font-medium text-center shadow-sm">
+                 <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-status-red-bg border-2 border-red-200 rounded-2xl text-status-red-dark font-medium text-center shadow-sm">
                    {planError}
                  </div>
                )}
                {planGenerated && skeleton && (
-                 <section className="mt-8 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-sm" aria-label="generated-plan">
-                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Learning Path Result</h2>
+                 <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
+                   <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
                    {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
                      <ul className="space-y-4">
                        {skeleton.lessons.map((ls: any) => (
-                         <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
-                           <span className="mt-1 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                         <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
+                           <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
                            <div className="flex-1">
-                             <div className="font-semibold text-gray-900">{ls.title ?? 'Lesson'}</div>
-                             {ls.description && <div className="text-sm text-gray-600 mt-1">{ls.description}</div>}
+                             <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
+                             {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
                              {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
                                <ul className="mt-2 ml-4 space-y-1">
                                  {ls.chapters.map((ch: any) => (
-                                   <li key={ch.id ?? ch.title} className="text-sm text-gray-700">
+                                   <li key={ch.id ?? ch.title} className="text-sm text-body">
                                      • {ch.title ?? 'Chapter'}
                                    </li>
                                  ))}
@@ -1002,44 +853,45 @@ const PlansPage: React.FC = () => {
                        ))}
                      </ul>
                    ) : (
-                     <div className="text-gray-500 text-center py-4">No learning path data from server.</div>
+                     <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
                    )}
                  </section>
                )}
              </>
            )}
 
-           {/* Footer actions */}
-           <div className="flex items-center justify-center gap-4 mt-8">
-             <button
-               type="button"
-               className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer"
-               onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
-             >
-               Back
-             </button>
-             <button
-               type="button"
-               className={`px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all ${
-                 !canNext ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-               }`}
-               disabled={!canNext}
-               onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
-             >
-               Continue
-             </button>
-           </div>
-         </div>
-       </main>
-       <Footer />
+            {/* Footer actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 40, paddingTop: 32, borderTop: '1px solid var(--border-base)' }}>
+              <button
+                type="button"
+                style={{ padding: '8px 24px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
+                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
+              >
+                {/*  eslint-disable-next-line react/jsx-no-comment-textnodes */}
+                {'<'} {t('plans.back')}
+              </button>
+              <button
+                type="button"
+                style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-primary)' }}
+                disabled={!canNext}
+                onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
+              >
+                {t('plans.continue')} {'>'}
+              </button>
+            </div>
+          </div>
+      </main>
+      <Footer />
 
        {/* Confirm Delete Dialog */}
        <ConfirmDialog
          isOpen={showDeleteConfirm}
-         title="Delete Goal"
-         message={`Are you sure you want to delete "${goalToDelete?.title}"? This action cannot be undone.`}
-         confirmText="Delete"
-         cancelText="Cancel"
+         title={t('plans.deleteGoal')}
+         message={t('plans.deleteGoalConfirm', { title: goalToDelete?.title })}
+         confirmText={t('plans.delete')}
+         cancelText={t('plans.cancel')}
          variant="danger"
          onConfirm={confirmDeleteGoal}
          onCancel={() => {

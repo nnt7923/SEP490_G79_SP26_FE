@@ -1,40 +1,52 @@
-import React from 'react'
-import { LayoutDashboard, BookOpen, TrendingUp, User, Bookmark, Target, FileText } from 'lucide-react'
-import ROUTER from '../../../../router/ROUTER'
+import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 
 export const getStudentSidebarConfig = (): SidebarNavItem[] => {
+  // Note: We can't use hooks directly in non-component functions,
+  // so we keep the labels as translation keys and translate in the component
   return [
     {
       label: 'Overview',
-      path: ROUTER.STUDENT_DASHBOARD,
-      icon: <LayoutDashboard className="w-5 h-5" />,
+      path: '/dashboard',
+      icon: '[ovw]',
     },
     {
       label: 'My Plans',
-      path: ROUTER.MY_PLANS,
-      icon: <Bookmark className="w-5 h-5" />,
+      path: '/my-plans',
+      icon: '[pln]',
     },
     {
       label: 'Goals',
-      path: ROUTER.GOALS,
-      icon: <Target className="w-5 h-5" />,
+      path: '/goals',
+      icon: '[gol]',
     },
-
     {
       label: 'Progress',
-      path: ROUTER.PLANS,
-      icon: <TrendingUp className="w-5 h-5" />,
+      path: '/plans',
+      icon: '[prg]',
     },
     {
-      label: 'My Resources',
-      path: ROUTER.MY_RESOURCES,
-      icon: <FileText className="w-5 h-5" />,
+      label: 'Resources',
+      path: '/my-resources',
+      icon: '[res]',
     },
     {
       label: 'Profile',
-      path: ROUTER.PROFILE,
-      icon: <User className="w-5 h-5" />,
+      path: '/profile',
+      icon: '[usr]',
     },
+  ]
+}
+
+// Hook version for use in React components
+export const useStudentSidebarConfig = (): SidebarNavItem[] => {
+  const { t } = useTranslation('common')
+  return [
+    { label: t('sidebar.overview'), path: '/dashboard', icon: '[ovw]' },
+    { label: t('sidebar.myPlans'), path: '/my-plans', icon: '[pln]' },
+    { label: t('sidebar.goals'), path: '/goals', icon: '[gol]' },
+    { label: t('sidebar.progress'), path: '/plans', icon: '[prg]' },
+    { label: t('sidebar.resources'), path: '/my-resources', icon: '[res]' },
+    { label: t('sidebar.profile'), path: '/profile', icon: '[usr]' },
   ]
 }

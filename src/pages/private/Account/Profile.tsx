@@ -4,12 +4,14 @@ import dayjs from 'dayjs'
 import useAuthStore from '../../../store/useAuthStore'
 import type { User } from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
-import { getStudentSidebarConfig } from '../Student/components/StudentSideBar'
-import { getMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
+import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
+import { useMentorSidebarConfig } from '../Mentor/components/MentorSideBar'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Camera, X, Loader } from 'lucide-react'
+import { LogOut, Loader } from 'lucide-react'
 import ProgressToast from '../../../components/Toast/ProgressToast'
+import { useTranslation } from 'react-i18next'
+
 interface ProfileForm extends Partial<User> {
     dateOfBirth?: string
 }
@@ -20,105 +22,62 @@ const Profile: React.FC = () => {
     const [open, setOpen] = useState<boolean>(false)
     const [form, setForm] = useState<ProfileForm | null>(null)
     const [errors, setErrors] = useState<Record<string, string>>({})
-    const [toast, setToast] = useState<{
-        message: string
-        progress: number
-        status: 'loading' | 'success' | 'error'
-    } | null>(null)
-    const [message, setMessage] = useState<{
-        type: 'success' | 'error'
-        text: string
-    } | null>(null)
-
+    const [toast, setToast] = useState<{ message: string; progress: number; status: 'loading' | 'success' | 'error' } | null>(null)
+    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
     const navigate = useNavigate()
+    const { t } = useTranslation('student')
+    const { t: tc } = useTranslation('common')
 
-    const handleLogout = async () => {
-        await logout()
-        navigate(ROUTER.LOGIN)
-    }
-
+    const handleLogout = async () => { await logout(); navigate(ROUTER.LOGIN) }
     const roleName = (user?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0] || '').toString().trim().toLowerCase()
 
     useEffect(() => {
-        if (roleName === 'admin') {
-            navigate(ROUTER.ADMIN_DASHBOARD, { replace: true })
-        }
+        if (roleName === 'admin') navigate(ROUTER.ADMIN_DASHBOARD, { replace: true })
     }, [roleName, navigate])
 
-    const navItems = roleName === 'mentor' ? getMentorSidebarConfig() : getStudentSidebarConfig()
-
+    const studentNav = useStudentSidebarConfig()
+    const mentorNav = useMentorSidebarConfig()
+    const navItems = roleName === 'mentor' ? mentorNav : studentNav
     const sidebarConfig = {
         navItems,
-        actions: [
-            {
-                label: 'Logout',
-                icon: <LogOut className="w-5 h-5" />,
-                onClick: handleLogout,
-                variant: 'danger' as const,
-            },
-        ],
-        brand: {
-            name: 'Profile',
-            subtitle: roleName === 'mentor' ? 'Teaching' : 'Learning',
-        },
+        actions: [{ label: tc('sidebar.logout'), icon: <LogOut className="w-5 h-5" />, onClick: handleLogout, variant: 'danger' as const }],
+        brand: { name: 'Profile', subtitle: roleName === 'mentor' ? 'Teaching' : 'Learning' },
     }
 
     useEffect(() => {
         if (user) {
             setForm({
-                firstName: user.firstName || '',
-                lastName: user.lastName || '',
-                email: user.email || '',
-                phone: user.phone || '',
-                bio: user.bio || '',
-                address: user.address || '',
-                dateOfBirth: user.dateOfBirth
-                    ? dayjs(user.dateOfBirth).format('YYYY-MM-DD')
-                    : ''
+                firstName: user.firstName || '', lastName: user.lastName || '', email: user.email || '',
+                phone: user.phone || '', bio: user.bio || '', address: user.address || '',
+                dateOfBirth: user.dateOfBirth ? dayjs(user.dateOfBirth).format('YYYY-MM-DD') : ''
             })
         }
     }, [user])
 
     useEffect(() => {
         if (!toast) return
-
-        const timer = setTimeout(() => {
-            setToast(null)
-        }, 3000)
-
+        const timer = setTimeout(() => setToast(null), 3000)
         return () => clearTimeout(timer)
     }, [toast])
 
     const handleChange = (field: keyof ProfileForm, value: string) => {
-        setForm(prev => {
-            if (!prev) return prev
-            return { ...prev, [field]: value }
-        })
+        setForm(prev => prev ? { ...prev, [field]: value } : prev)
     }
 
-    if (!user || !form) return <div>Loading...</div>
+    if (!user || !form) return <div style={{ padding: 24, color: 'var(--text-secondary)', fontSize: 13 }}>{tc('status.loading')}</div>
 
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {}
         const phoneRegex = /^0\d{9}$/
-
-        if (form.phone && form.phone.trim() !== '') {
-            if (!phoneRegex.test(form.phone)) {
-                newErrors.phone =
-                    'Phone number must contain 10 digits and start with 0'
-            }
+        if (form.phone && form.phone.trim() !== '' && !phoneRegex.test(form.phone)) {
+            newErrors.phone = t('profile.phoneError')
         }
         if (!form.dateOfBirth || form.dateOfBirth.trim() === '') {
-            newErrors.dateOfBirth = 'Please enter date of birth'
+            newErrors.dateOfBirth = t('profile.dobRequired')
         } else {
             const dob = dayjs(form.dateOfBirth)
-
-            if (!dob.isValid()) {
-                newErrors.dateOfBirth = 'Invalid date of birth'
-            } else if (dob.isAfter(dayjs())) {
-                newErrors.dateOfBirth =
-                    'Date of birth cannot be in the future'
-            }
+            if (!dob.isValid()) newErrors.dateOfBirth = t('profile.dobInvalid')
+            else if (dob.isAfter(dayjs())) newErrors.dateOfBirth = t('profile.dobFuture')
         }
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
@@ -127,95 +86,33 @@ const Profile: React.FC = () => {
     const handleSubmit = async () => {
         if (!validate()) return
         const res = await updateProfile(form)
-
         if (res?.isOk) {
-            setToast({
-                message: res.msg || 'Profile updated successfully',
-                progress: 100,
-                status: 'success'
-            })
+            setToast({ message: res.msg || t('profile.updateSuccess'), progress: 100, status: 'success' })
             setOpen(false)
         } else {
-            setToast({
-                message: res?.msg || 'Update failed',
-                progress: 100,
-                status: 'error'
-            })
+            setToast({ message: res?.msg || t('profile.updateFailed'), progress: 100, status: 'error' })
         }
     }
 
-    const handleAvatarUpload = async (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-
-        const allowedTypes = [
-            'image/jpeg',
-            'image/png',
-            'image/jpg',
-            'image/webp'
-        ]
-
-        if (!allowedTypes.includes(file.type)) {
-            setToast({
-                message: 'Only image files are allowed',
-                progress: 100,
-                status: 'error'
-            })
-            return
-        }
-
-        if (file.size > 10 * 1024 * 1024) {
-            setToast({
-                message: 'Maximum file size is 10MB',
-                progress: 100,
-                status: 'error'
-            })
-            return
-        }
-
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+        if (!allowedTypes.includes(file.type)) { setToast({ message: t('profile.avatarOnlyImages'), progress: 100, status: 'error' }); return }
+        if (file.size > 10 * 1024 * 1024) { setToast({ message: t('profile.avatarMaxSize'), progress: 100, status: 'error' }); return }
         setUploadingAvatar(true)
-
-        setToast({
-            message: 'Uploading avatar...',
-            progress: 0,
-            status: 'loading'
-        })
-
+        setToast({ message: t('profile.avatarUploading'), progress: 0, status: 'loading' })
         const res = await uploadAvatar(file, (progress) => {
-            setToast(prev =>
-                prev
-                    ? { ...prev, progress }
-                    : {
-                        message: 'Uploading avatar...',
-                        progress,
-                        status: 'loading'
-                    }
-            )
+            setToast(prev => prev ? { ...prev, progress } : { message: t('profile.avatarUploading'), progress, status: 'loading' })
         })
-
         setUploadingAvatar(false)
-
-        if (res?.isOk) {
-            setToast({
-                message: res.msg || 'Avatar uploaded successfully',
-                progress: 100,
-                status: 'success'
-            })
-        } else {
-            setToast({
-                message: res?.msg || 'Upload failed',
-                progress: 100,
-                status: 'error'
-            })
-        }
-
+        if (res?.isOk) setToast({ message: res.msg || t('profile.avatarSuccess'), progress: 100, status: 'success' })
+        else setToast({ message: res?.msg || t('profile.avatarFailed'), progress: 100, status: 'error' })
         e.target.value = ''
     }
 
     const formatDate = (dateStr?: string): string => {
-        if (!dateStr) return 'Not updated'
+        if (!dateStr) return tc('status.notUpdated')
         return dayjs(dateStr).format('MM/DD/YYYY')
     }
 
@@ -223,147 +120,89 @@ const Profile: React.FC = () => {
         return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || 'U'
     }
 
+    const infoCardStyle: React.CSSProperties = {
+        padding: 12, background: 'var(--bg-main)', border: '1px solid var(--gray-200)', borderRadius: 2,
+    }
+
+    const inputStyle: React.CSSProperties = {
+        width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2,
+        background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+    }
+
     return (
         <Layout sidebar={sidebarConfig}>
-            {toast && (
-                <ProgressToast
-                    message={toast.message}
-                    progress={toast.progress}
-                    status={toast.status}
-                    onClose={() => setToast(null)}
-                />
-            )}
-            <div className="px-6 py-8 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen">
+            {toast && <ProgressToast message={toast.message} progress={toast.progress} status={toast.status} onClose={() => setToast(null)} />}
+            <div style={{ padding: 24, background: 'var(--bg-surface)', minHeight: '100vh' }}>
                 {/* Message Alert */}
                 {message && (
-                    <div className={`mb-6 p-4 rounded-lg border-l-4 ${message.type === 'success'
-                        ? 'bg-[#dcfce7] border-[#16a34a]'
-                        : 'bg-[#fee2e2] border-[#dc2626]'
-                        }`}>
-                        <p className={message.type === 'success' ? 'text-[#15803d]' : 'text-[#991b1b]'}>
-                            {message.text}
-                        </p>
+                    <div style={{ marginBottom: 20, padding: 12, border: `1px solid ${message.type === 'success' ? 'var(--success-primary)' : 'var(--danger-primary)'}`, borderRadius: 2, color: message.type === 'success' ? 'var(--success-primary)' : 'var(--danger-primary)', fontSize: 13 }}>
+                        // {message.type === 'success' ? 'SUCCESS' : 'ERROR'}: {message.text}
                     </div>
                 )}
 
-                {/* Profile Header Card */}
-                <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm mb-8">
-                    <div className="h-24 bg-gradient-to-r "></div>
-
-                    <div className="px-6 pb-6 -mt-12 relative">
-                        <div className="flex items-end gap-4 mb-6">
+                {/* Profile Header */}
+                <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
+                    <div style={{ height: 4, background: 'var(--text-primary)' }} />
+                    <div style={{ padding: '20px 24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                             {/* Avatar */}
-                            <div className="relative group">
-                                <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-[#2f80ed] to-[#7c3aed] border-4 border-white shadow-lg flex items-center justify-center">
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ width: 80, height: 80, borderRadius: 2, border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', overflow: 'hidden', position: 'relative' }}>
                                     {user.avatarUrl?.trim() ? (
-                                        <img
-                                            src={user.avatarUrl}
-                                            alt="avatar"
-                                            className="w-full h-full rounded-lg object-cover"
-                                        />
+                                        <img src={user.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
-                                        <span className="text-white font-bold text-3xl">
-                                            {getInitials(user.firstName, user.lastName)}
-                                        </span>
+                                        <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)' }}>{getInitials(user.firstName, user.lastName)}</span>
                                     )}
                                     {uploadingAvatar && (
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                            <Loader size={30} className="text-white animate-spin" />
+                                        <div style={{ position: 'absolute', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Loader size={24} className="animate-spin" style={{ color: 'var(--bg-surface-short)' }} />
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Avatar Upload Overlay */}
-                                <label className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer">
-                                    <Camera size={24} className="text-white" />
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        hidden
-                                        onChange={handleAvatarUpload}
-                                    />
+                                <label style={{ position: 'absolute', inset: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--shadow-lg)', opacity: 0, transition: 'opacity 0.2s', borderRadius: 2, fontSize: 11, color: 'var(--bg-surface-short)', fontWeight: 600 }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0' }}>
+                                    {t('profile.upload')}
+                                    <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
                                 </label>
                             </div>
 
-                            {/* Profile Info */}
-                            <div className="flex-1 pb-2">
-                                <h1 className="text-2xl font-bold text-[#111827]">
-                                    {user.firstName} {user.lastName}
-                                </h1>
-                                <p className="text-sm text-[#6b7280]">{user.email}</p>
-                                {/* <p className="text-sm text-[#9ca3af] mt-1">{user.bio || 'No bio yet'}</p> */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {user.firstName} {user.lastName}</h1>
+                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>// {user.email}</p>
                             </div>
 
-                            {/* Edit Button */}
-                            <button
-                                onClick={() => setOpen(true)}
-                                className="h-10 px-6 rounded-lg bg-[#2f80ed] text-white text-sm font-600 hover:bg-[#1d5ed4] transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg"
-                            >
-                                Edit Profile
+                            <button onClick={() => setOpen(true)} style={{ padding: '8px 20px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}>
+                                {t('profile.editProfile')}
                             </button>
                         </div>
-
-                        {/* Quick Stats */}
-                        {/* <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            
-                            <div className="stat-card">
-                                <div className="stat-card__label">Phone</div>
-                                <div className="stat-card__value">{user.phone || '—'}</div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-card__label">Birth Date</div>
-                                <div className="stat-card__value text-xs">{formatDate(user.dateOfBirth)}</div>
-                            </div>
-                        </div> */}
                     </div>
                 </div>
 
-                {/* Personal Information Card */}
-                <div className="dashboard-card">
-                    <div className="dashboard-card__header">
-                        <div className="flex items-center gap-3">
-                            {/* <div className="icon-badge icon-badge--primary">
-                                <Settings size={20} />
-                            </div> */}
-                            <div>
-                                <h2 className="text-lg font-bold text-[#111827]">Personal Information</h2>
-                            </div>
-                        </div>
+                {/* Personal Information */}
+                <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border-base)' }}>
+                        <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{t('profile.personalInfo')}</h2>
                     </div>
-
-                    <div className="dashboard-card__body">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <InfoCard
-                                label="First Name"
-                                value={user.firstName || 'Not updated'}
-                            />
-                            <InfoCard
-                                label="Last Name"
-                                value={user.lastName || 'Not updated'}
-                            />
-                            <InfoCard
-                                label="Email"
-                                value={user.email}
-                            />
-                            <InfoCard
-                                label="Phone Number"
-                                value={user.phone || 'Not updated'}
-                            />
-                            <InfoCard
-                                label="Date of Birth"
-                                value={formatDate(user.dateOfBirth)}
-                            />
-                            <InfoCard
-                                label="Address"
-                                value={user.address || 'Not updated'}
-                            />
+                    <div style={{ padding: 24 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            {[
+                                { label: '$ firstName', value: user.firstName || tc('status.notUpdated') },
+                                { label: '$ lastName', value: user.lastName || tc('status.notUpdated') },
+                                { label: '$ email', value: user.email },
+                                { label: '$ phone', value: user.phone || tc('status.notUpdated') },
+                                { label: '$ dateOfBirth', value: formatDate(user.dateOfBirth) },
+                                { label: '$ address', value: user.address || tc('status.notUpdated') },
+                            ].map((info) => (
+                                <div key={info.label} style={infoCardStyle}>
+                                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{info.label}</p>
+                                    <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>{info.value}</p>
+                                </div>
+                            ))}
                         </div>
-
-                        <div className="mt-6 pt-6 border-t border-[#e5e7eb]">
-                            <h3 className="text-sm font-600 text-[#6b7280] mb-3">Bio</h3>
-                            <p className="text-sm text-[#374151] leading-relaxed">
-                                {user.bio || 'No bio added yet.'}
-                            </p>
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--gray-200)' }}>
+                            <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ bio</h3>
+                            <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.6 }}>{user.bio || t('profile.noBio')}</p>
                         </div>
                     </div>
                 </div>
@@ -371,90 +210,52 @@ const Profile: React.FC = () => {
 
             {/* Edit Modal */}
             {open && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+                    <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 640, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
                         {/* Modal Header */}
-                        <div className="sticky top-0 flex items-center justify-between p-6 border-b border-[#e5e7eb] bg-white">
-                            <h2 className="text-xl font-bold text-[#111827]">Update Personal Information</h2>
-                            <button
-                                onClick={() => setOpen(false)}
-                                className="p-2 hover:bg-[#f3f4f6] rounded-lg transition-colors duration-200"
-                                title="Close modal"
-                            >
-                                <X size={20} className="text-[#6b7280]" />
-                            </button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottom: '1px solid var(--border-base)', position: 'sticky', top: 0, background: 'var(--bg-surface-short)', zIndex: 1 }}>
+                            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{t('profile.updateProfile')}</h2>
+                            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--text-secondary)', cursor: 'pointer', padding: 4 }}>✕</button>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormInput
-                                    label="First Name"
-                                    value={form.firstName}
-                                    onChange={(v) => handleChange('firstName', v)}
-                                />
-
-                                <FormInput
-                                    label="Last Name"
-                                    value={form.lastName}
-                                    onChange={(v) => handleChange('lastName', v)}
-                                />
-
-                                <FormInput
-                                    label="Phone Number"
-                                    value={form.phone}
-                                    placeholder="0123456789"
-                                    onChange={(v) => handleChange('phone', v)}
-                                    error={errors.phone}
-                                />
-
-                                <FormInput
-                                    label="Date of Birth"
-                                    type="date"
-                                    value={form.dateOfBirth}
-                                    onChange={(v) => handleChange('dateOfBirth', v)}
-                                    error={errors.dateOfBirth}
-                                />
-
-                                <div className="md:col-span-2">
-                                    <FormInput
-                                        label="Address"
-                                        value={form.address}
-                                        onChange={(v) => handleChange('address', v)}
-                                    />
+                        <div style={{ padding: 20 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                {[
+                                    { field: 'firstName' as keyof ProfileForm, label: '$ firstName', type: 'text' },
+                                    { field: 'lastName' as keyof ProfileForm, label: '$ lastName', type: 'text' },
+                                    { field: 'phone' as keyof ProfileForm, label: '$ phone', type: 'text', placeholder: '0123456789' },
+                                    { field: 'dateOfBirth' as keyof ProfileForm, label: '$ dateOfBirth', type: 'date' },
+                                ].map(({ field, label, type, placeholder }) => (
+                                    <div key={field}>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</label>
+                                        <input type={type} value={(form[field] as string) || ''} onChange={(e) => handleChange(field, e.target.value)} placeholder={placeholder}
+                                            style={{ ...inputStyle, borderColor: errors[field] ? 'var(--danger-primary)' : 'var(--border-base)' }}
+                                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = errors[field] ? 'var(--danger-primary)' : 'var(--border-base)' }} />
+                                        {errors[field] && <p style={{ fontSize: 11, color: 'var(--danger-primary)', margin: '4px 0 0' }}>// {errors[field]}</p>}
+                                    </div>
+                                ))}
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ address</label>
+                                    <input type="text" value={form.address || ''} onChange={(e) => handleChange('address', e.target.value)} style={inputStyle}
+                                        onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
                                 </div>
-
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-600 text-[#111827] mb-2">
-                                        Bio
-                                    </label>
-                                    <textarea
-                                        value={form.bio || ''}
-                                        onChange={(e) => handleChange('bio', e.target.value)}
-                                        placeholder="Tell us about yourself..."
-                                        className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent resize-none"
-                                        rows={4}
-                                    />
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ bio</label>
+                                    <textarea value={form.bio || ''} onChange={(e) => handleChange('bio', e.target.value)} placeholder={t('profile.bioPlaceholder')}
+                                        style={{ ...inputStyle, resize: 'none', minHeight: 100 }}
+                                        onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
                                 </div>
                             </div>
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="sticky bottom-0 flex items-center justify-end gap-3 p-6 border-t border-[#e5e7eb] bg-[#f9fafb]">
-                            <button
-                                onClick={() => setOpen(false)}
-                                className="px-6 py-2 rounded-lg border border-[#e5e7eb] text-[#374151] font-600 hover:bg-[#f3f4f6] transition-all duration-200 cursor-pointer"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                onClick={handleSubmit}
-                                disabled={updatingProfile}
-                                className="px-6 py-2 rounded-lg bg-[#2f80ed] text-white font-600 hover:bg-[#1d5ed4] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
-                            >
-                                {updatingProfile && <Loader size={16} className="animate-spin" />}
-                                {updatingProfile ? 'Updating...' : 'Update Profile'}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: 20, borderTop: '1px solid var(--border-base)', position: 'sticky', bottom: 0, background: 'var(--bg-main)' }}>
+                            <button onClick={() => setOpen(false)} style={{ padding: '8px 20px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{tc('actions.cancel')}</button>
+                            <button onClick={handleSubmit} disabled={updatingProfile}
+                                style={{ padding: '8px 20px', background: updatingProfile ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: updatingProfile ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {updatingProfile && <Loader size={14} className="animate-spin" />}
+                                {'>'} {updatingProfile ? t('profile.updating') : t('profile.update')}
                             </button>
                         </div>
                     </div>
@@ -463,60 +264,5 @@ const Profile: React.FC = () => {
         </Layout>
     )
 }
-
-interface InfoCardProps {
-    label: string
-    value?: string
-}
-
-const InfoCard: React.FC<InfoCardProps> = ({ label, value }) => (
-    <div className="p-4 bg-[#f9fafb] rounded-lg border border-[#f3f4f6]">
-        <p className="text-xs font-600 text-[#6b7280] text-transform: uppercase letter-spacing-0.5 mb-2">
-            {label}
-        </p>
-        <p className="text-sm font-500 text-[#111827]">
-            {value || 'Not updated'}
-        </p>
-    </div>
-)
-
-interface FormInputProps {
-    label: string
-    value?: string
-    onChange: (value: string) => void
-    type?: string
-    error?: string
-    placeholder?: string
-}
-
-const FormInput: React.FC<FormInputProps> = ({
-    label,
-    value,
-    onChange,
-    type = 'text',
-    error,
-    placeholder
-}) => (
-    <div className="flex flex-col gap-2">
-        <label className="text-sm font-600 text-[#111827]">
-            {label}
-        </label>
-        <input
-            type={type}
-            value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            className={`px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all duration-200 ${error
-                ? 'border-[#dc2626] focus:ring-[#dc2626]'
-                : 'border-[#e5e7eb]'
-                }`}
-        />
-        {error && (
-            <p className="text-xs text-[#dc2626]">
-                {error}
-            </p>
-        )}
-    </div>
-)
 
 export default Profile

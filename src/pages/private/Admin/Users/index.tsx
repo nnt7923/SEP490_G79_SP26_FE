@@ -1,16 +1,20 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Layout from '../../../../components/Layout'
-import { getAdminSidebarConfig } from '../components/AdminSideBar'
+import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { UserService } from '../../../../services'
-import { Search, RefreshCw, ChevronDown, Mail, Calendar, Shield, Ban, CheckCircle } from 'lucide-react'
+import { Search, RefreshCw, Ban, CheckCircle } from 'lucide-react'
+import { formatDateTimeVN } from '../../../../utils/dateUtils'
+import { useTranslation } from 'react-i18next'
 
 const AdminUsersPage: React.FC = () => {
-  const sidebarConfig = useMemo(() => ({
-    navItems: getAdminSidebarConfig(),
+  const adminNavItems = useAdminSidebarConfig()
+  const sidebarConfig = {
+    navItems: adminNavItems as any,
     actions: [],
     brand: { name: 'Users', subtitle: 'Admin' },
-  }), [])
+  }
+  const { t } = useTranslation('admin')
 
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(false)
@@ -19,6 +23,7 @@ const AdminUsersPage: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [roleFilter, setRoleFilter] = useState<string>('all')
 
   const unwrapUsers = (raw: any): any[] => {
     const value = raw?.data ?? raw
@@ -37,7 +42,7 @@ const AdminUsersPage: React.FC = () => {
       const list = unwrapUsers(data)
       setUsers(list)
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to load users'
+      const msg = e?.response?.data?.message || e?.message || t('users.failedToLoad')
       setError(msg)
     } finally {
       setLoading(false)
@@ -51,15 +56,15 @@ const AdminUsersPage: React.FC = () => {
     try {
       if (currentlyBanned) {
         await UserService.unbanUser(userId)
-        setToast({ message: 'User unbanned successfully', type: 'success' })
+        setToast({ message: t('users.unbanSuccess'), type: 'success' })
       } else {
         await UserService.banUser(userId)
-        setToast({ message: 'User banned successfully', type: 'success' })
+        setToast({ message: t('users.banSuccess'), type: 'success' })
       }
       // Refresh users list
       await fetchUsers()
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to update user status'
+      const msg = e?.response?.data?.message || e?.message || t('users.banFailed')
       setToast({ message: msg, type: 'error' })
     } finally {
       setActionLoading(null)
@@ -69,15 +74,29 @@ const AdminUsersPage: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return users
-    return users.filter((u) => {
-      const name = (u?.name || `${u?.firstName || ''} ${u?.lastName || ''}` || '').toLowerCase()
-      const email = (u?.email || '').toLowerCase()
-      const username = (u?.username || '').toLowerCase()
-      const role = (u?.role?.name || u?.roleName || '').toLowerCase()
-      return name.includes(q) || email.includes(q) || username.includes(q) || role.includes(q)
-    })
-  }, [users, query])
+    let result = users
+    
+    // Filter by role
+    if (roleFilter !== 'all') {
+      result = result.filter((u) => {
+        const role = (u?.role?.name || u?.roleName || '').toLowerCase()
+        return role === roleFilter.toLowerCase()
+      })
+    }
+    
+    // Filter by search query
+    if (q) {
+      result = result.filter((u) => {
+        const name = (u?.name || `${u?.firstName || ''} ${u?.lastName || ''}` || '').toLowerCase()
+        const email = (u?.email || '').toLowerCase()
+        const username = (u?.username || '').toLowerCase()
+        const role = (u?.role?.name || u?.roleName || '').toLowerCase()
+        return name.includes(q) || email.includes(q) || username.includes(q) || role.includes(q)
+      })
+    }
+    
+    return result
+  }, [users, query, roleFilter])
 
   const getInitials = (name: string) => {
     return name
@@ -90,48 +109,75 @@ const AdminUsersPage: React.FC = () => {
 
   const getRoleColor = (role: string) => {
     const normalized = role?.toLowerCase() || ''
-    if (normalized === 'admin') return { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' }
-    if (normalized === 'mentor') return { bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff' }
-    return { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' }
+    if (normalized === 'admin') return { bg: 'var(--bg-surface-short)', text: 'var(--text-amber-deep)', border: 'var(--text-amber-deep)' }
+    if (normalized === 'mentor') return { bg: 'var(--bg-surface-short)', text: 'var(--text-purple-deep)', border: 'var(--text-purple-deep)' }
+    return { bg: 'var(--bg-surface-short)', text: 'var(--brand-blue-deep)', border: 'var(--brand-blue-deep)' }
   }
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-4 py-6 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-[#111827]">Users</h1>
-              <p className="text-[#6b7280] mt-1">Manage system users and permissions</p>
+      <div className="px-4 py-8 bg-[var(--gray-100)] min-h-screen font-mono">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="mb-6 border-b border-bd pb-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
+                  <span className="text-status-blue mr-2">{'>_'}</span>
+                   {t('users.title')}
+                </h1>
+                <p className="text-muted mt-2">
+                  <span className="text-placeholder mr-2">{'//'}</span>
+                   {t('users.subtitle')}
+                </p>
+              </div>
+              <button
+                onClick={fetchUsers}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer"
+                title="Reload"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                [ {t('users.reload')} ]
+              </button>
             </div>
-             <button
-               onClick={fetchUsers}
-               disabled={loading}
-               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#2f80ed] to-[#7c3aed] text-white text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-60 cursor-pointer"
-               title="Reload"
-             >
-               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-               Reload
-             </button>
-           </div>
-         </div>
+          </div>
 
-         {/* Search */}
-         <div className="mb-6 relative">
-           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
-           <input
-             value={query}
-             onChange={(e) => setQuery(e.target.value)}
-             placeholder="Search by name, username, email, or role..."
-             className="pl-11 pr-4 py-3 w-full rounded-lg border border-[#e5e7eb] bg-white focus:outline-none focus:ring-2 focus:ring-[#2f80ed] focus:border-transparent transition-all"
-           />
+          {/* Search */}
+          <div className="mb-6 relative">
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-placeholder" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('users.searchPlaceholder')}
+              className="pl-11 pr-4 py-3 w-full bg-th-card border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
+            />
+          </div>
+
+         {/* Role Filter */}
+         <div className="mb-6 flex items-center gap-3">
+           <span className="text-sm font-bold text-muted">{t('users.filterBy')}</span>
+           <div className="flex gap-2">
+             {['all', 'Student', 'Mentor', 'Admin'].map((role) => (
+               <button
+                 key={role}
+                 onClick={() => setRoleFilter(role)}
+                 className={`px-3 py-1 text-sm font-bold transition-colors border cursor-pointer ${
+                   roleFilter === role
+                     ? 'bg-status-blue-solid text-white border-blue-600'
+                     : 'bg-th-card text-label border-bd-strong hover:border-bd-input'
+                 }`}
+               >
+                 {role === 'all' ? '[ * ]' : `[ ${role.toLowerCase()} ]`}
+               </button>
+             ))}
+           </div>
          </div>
 
          {/* Error Message */}
          {error ? (
-           <div className="mb-6 rounded-lg border border-red-300 bg-red-50 text-red-700 p-4 text-sm flex items-start gap-3">
-             <div className="w-1 h-1 rounded-full bg-red-700 mt-2 flex-shrink-0"></div>
+           <div className="mb-6 rounded-lg border border-red-300 bg-status-red-bg text-status-red-dark p-4 text-sm flex items-start gap-3">
+             <div className="w-1 h-1 rounded-full bg-status-red-solid-dark mt-2 flex-shrink-0"></div>
              <span>{error}</span>
            </div>
          ) : null}
@@ -140,16 +186,16 @@ const AdminUsersPage: React.FC = () => {
          <div className="space-y-3">
            {loading && (
              <div className="text-center py-12">
-               <div className="inline-flex items-center gap-2 text-[#6b7280]">
-                 <div className="w-4 h-4 rounded-full border-2 border-[#2f80ed] border-t-transparent animate-spin"></div>
-                 <span>Loading users...</span>
+               <div className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
+                 <div className="w-4 h-4 rounded-full border-2 border-[var(--brand-blue)] border-t-transparent animate-spin"></div>
+                 <span>{t('users.loading')}</span>
                </div>
              </div>
            )}
 
            {!loading && filtered.length === 0 && (
-             <div className="text-center py-12 bg-white rounded-lg border border-[#e5e7eb]">
-               <p className="text-[#6b7280]">No users found</p>
+             <div className="text-center py-12 bg-th-card rounded-lg border border-[var(--gray-200)]">
+                <p className="text-[var(--text-secondary)]">{t('users.noUsersFound')}</p>
              </div>
            )}
 
@@ -163,150 +209,120 @@ const AdminUsersPage: React.FC = () => {
               return (
                 <div
                   key={uid}
-                  className="bg-white rounded-lg border border-[#e5e7eb] overflow-hidden hover:shadow-md transition-all duration-200"
+                  className="bg-th-card border border-bd-strong transition-colors"
                 >
                   {/* Main Row */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : uid)}
-                    className="w-full px-6 py-4 flex items-center gap-4 hover:bg-[#f9fafb] transition-colors text-left cursor-pointer"
+                    className="w-full px-4 py-3 flex flex-wrap items-center gap-4 hover:bg-th-page transition-colors text-left cursor-pointer"
                   >
                    {/* Avatar */}
-                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#2f80ed] to-[#7c3aed] flex items-center justify-center flex-shrink-0">
-                     <span className="text-white font-semibold text-sm">{getInitials(name)}</span>
+                   <div className="flex-shrink-0">
+                     <span className="text-heading font-bold text-sm">[{getInitials(name)}]</span>
                    </div>
 
                    {/* Info */}
                    <div className="flex-1 min-w-0">
-                     <p className="font-semibold text-[#111827] truncate">{name}</p>
-                     <p className="text-sm text-[#6b7280] truncate">{u?.email ?? '—'}</p>
+                     <p className="font-bold text-heading truncate">{name}</p>
+                     <p className="text-xs text-muted truncate">{u?.email ?? '—'}</p>
                    </div>
 
                    {/* Role Badge */}
                    <div
-                     className="px-3 py-1 rounded-full text-xs font-medium flex-shrink-0"
+                     className="px-2 py-0.5 text-xs font-bold flex-shrink-0"
                      style={{
-                       backgroundColor: roleColor.bg,
                        color: roleColor.text,
-                       borderColor: roleColor.border,
                        border: `1px solid ${roleColor.border}`,
                      }}
                    >
-                     {role}
+                     [{role.toLowerCase()}]
                    </div>
 
                    {/* Banned Badge */}
                    {u?.status?.toLowerCase() === 'banned' && (
-                     <div className="px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 bg-red-100 text-red-700 border border-red-300 flex items-center gap-1">
-                       <Ban size={12} />
-                       <span>Banned</span>
+                     <div className="px-2 py-0.5 text-xs font-bold flex-shrink-0 bg-status-red-bg text-status-red-dark border border-red-300">
+                       [banned]
                      </div>
                    )}
 
                    {/* Expand Icon */}
-                   <ChevronDown
-                     size={20}
-                     className={`text-[#9ca3af] flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                   />
+                   <div className="text-muted font-bold text-sm w-12 text-right flex-shrink-0">
+                     {isExpanded ? '[-]' : '[+]'}
+                   </div>
                  </button>
 
                  {/* Expanded Details */}
                  {isExpanded && (
-                   <div className="border-t border-[#e5e7eb] bg-[#f9fafb] px-6 py-4 space-y-4">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div className="border-t border-bd bg-th-page px-4 py-4 space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                        {/* Username */}
                        <div>
-                         <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide mb-1">Username</p>
-                         <p className="text-sm text-[#111827]">{u?.username ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">username:</p>
+                         <p className="text-sm text-heading">{u?.username ?? '—'}</p>
                        </div>
 
                        {/* Email */}
                        <div>
-                         <div className="flex items-center gap-2 mb-1">
-                           <Mail size={14} className="text-[#6b7280]" />
-                           <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Email</p>
-                         </div>
-                         <p className="text-sm text-[#111827]">{u?.email ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">email_address:</p>
+                         <p className="text-sm text-heading">{u?.email ?? '—'}</p>
                        </div>
 
                        {/* Created Date */}
                        <div>
-                         <div className="flex items-center gap-2 mb-1">
-                           <Calendar size={14} className="text-[#6b7280]" />
-                           <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Created</p>
-                         </div>
-                         <p className="text-sm text-[#111827]">
+                         <p className="text-xs font-bold text-muted lowercase">created_at:</p>
+                         <p className="text-sm text-heading">
                            {u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
                          </p>
                        </div>
 
                        {/* Last Login */}
                        <div>
-                         <div className="flex items-center gap-2 mb-1">
-                           <Shield size={14} className="text-[#6b7280]" />
-                           <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Last Login</p>
-                         </div>
-                         <p className="text-sm text-[#111827]">
-                           {u?.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never'}
+                         <p className="text-xs font-bold text-muted lowercase">last_login:</p>
+                         <p className="text-sm text-heading">
+                            {u?.lastLogin ? formatDateTimeVN(u.lastLogin) : t('users.never')}
                          </p>
                        </div>
 
                        {/* Status */}
                        <div>
-                         <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide mb-1">Status</p>
+                         <p className="text-xs font-bold text-muted lowercase">status:</p>
                          <div className="flex items-center gap-2">
-                           <div className={`w-2 h-2 rounded-full ${u?.status?.toLowerCase() === 'banned' ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}></div>
-                           <span className="text-sm text-[#111827]">{u?.status || 'Active'}</span>
+                           <span className="text-sm font-bold text-heading">
+                             [{u?.status?.toLowerCase() || 'active'}]
+                           </span>
                          </div>
                        </div>
 
                        {/* First Name */}
                        <div>
-                         <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide mb-1">First Name</p>
-                         <p className="text-sm text-[#111827]">{u?.firstName ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">first_name:</p>
+                         <p className="text-sm text-heading">{u?.firstName ?? '—'}</p>
                        </div>
 
                        {/* Last Name */}
                        <div>
-                         <p className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide mb-1">Last Name</p>
-                         <p className="text-sm text-[#111827]">{u?.lastName ?? '—'}</p>
+                         <p className="text-xs font-bold text-muted lowercase">last_name:</p>
+                         <p className="text-sm text-heading">{u?.lastName ?? '—'}</p>
                        </div>
                      </div>
 
                      {/* Action Buttons */}
-                     <div className="pt-4 border-t border-[#e5e7eb] flex gap-3">
+                     <div className="pt-4 border-t border-bd flex gap-3">
                        {u?.status?.toLowerCase() === 'banned' ? (
                          <button
                            onClick={() => handleBanUser(uid, true)}
                            disabled={actionLoading === uid}
-                           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-60 cursor-pointer"
+                           className="flex items-center gap-2 px-3 py-1.5 border border-green-600 text-status-green-dark bg-th-card hover:bg-status-green-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
                          >
-                           {actionLoading === uid ? (
-                             <>
-                               <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-                               <span>Unbanning...</span>
-                             </>
-                           ) : (
-                             <>
-                               <span>Unban</span>
-                             </>
-                           )}
+                            {actionLoading === uid ? `[ ${t('users.unbanning')} ]` : `[ ${t('users.unban')} ]`}
                          </button>
                        ) : (
                          <button
                            onClick={() => handleBanUser(uid, false)}
                            disabled={actionLoading === uid}
-                           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-60 cursor-pointer"
+                           className="flex items-center gap-2 px-3 py-1.5 border border-red-600 text-status-red-dark bg-th-card hover:bg-status-red-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
                          >
-                           {actionLoading === uid ? (
-                             <>
-                               <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-                               <span>Banning...</span>
-                             </>
-                           ) : (
-                             <>
-                               <span>Ban</span>
-                             </>
-                           )}
+                            {actionLoading === uid ? `[ ${t('users.banning')} ]` : `[ ${t('users.ban')} ]`}
                          </button>
                        )}
                      </div>
@@ -317,40 +333,39 @@ const AdminUsersPage: React.FC = () => {
            })}
          </div>
 
-         {/* Summary */}
-         {!loading && filtered.length > 0 && (
-           <div className="mt-6 text-sm text-[#6b7280]">
-             Showing {filtered.length} of {users.length} users
-           </div>
-         )}
+          {/* Summary */}
+          {!loading && filtered.length > 0 && (
+            <div className="mt-6 text-sm text-muted font-bold">
+              [showing: {filtered.length}/{users.length}]
+            </div>
+          )}
 
-         {/* Toast Notification */}
-         {toast && (
-           <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
-             <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg min-w-[300px] max-w-md ${
-               toast.type === 'success' 
-                 ? 'bg-green-50 border-green-200 text-green-800' 
-                 : 'bg-red-50 border-red-200 text-red-800'
-             }`}>
-               {toast.type === 'success' ? (
-                 <CheckCircle className="w-5 h-5 text-green-500" />
-               ) : (
-                 <Ban className="w-5 h-5 text-red-500" />
-               )}
-               <p className="flex-1 text-sm font-medium">{toast.message}</p>
-               <button
-                 onClick={() => setToast(null)}
-                 className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-               >
-                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                 </svg>
-               </button>
-             </div>
-           </div>
-         )}
-       </div>
-     </Layout>
+          {/* Toast Notification */}
+          {toast && (
+            <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
+              <div className={`flex items-center gap-3 px-4 py-3 border shadow-none font-mono min-w-[300px] max-w-md ${
+                toast.type === 'success' 
+                  ? 'bg-status-green-bg border-green-600 text-status-green-darker' 
+                  : 'bg-status-red-bg border-red-600 text-status-red-darker'
+              }`}>
+                {toast.type === 'success' ? (
+                  <CheckCircle className="w-5 h-5 text-status-green" />
+                ) : (
+                  <Ban className="w-5 h-5 text-status-red" />
+                )}
+                <p className="flex-1 text-sm font-bold">{toast.message}</p>
+                <button
+                  onClick={() => setToast(null)}
+                  className="text-muted hover:text-heading transition-colors cursor-pointer"
+                >
+                  <span className="font-bold">[x]</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </Layout>
   )
 }
 

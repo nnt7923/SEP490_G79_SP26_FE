@@ -1,8 +1,17 @@
 import api from '../Axios'
 import { getMyResourcesUrl, createResourceUrl, updateResourceUrl, deleteResourceUrl, getResourcePagesUrl, generateSummaryUrl } from './url'
 
-export async function getMyResources() {
-  const res: any = await api.get(getMyResourcesUrl)
+export interface GetMyResourcesParams {
+  PageNumber?: number
+  PageSize?: number
+  SubjectId?: string
+  SearchTerm?: string
+  SortBy?: string
+  SortDescending?: boolean
+}
+
+export async function getMyResources(params?: GetMyResourcesParams) {
+  const res: any = await api.get(getMyResourcesUrl, { params })
   return res?.data ?? res
 }
 

@@ -2,17 +2,27 @@
 import React, { useEffect, useState } from 'react'
 import useAuthStore from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
-import { getAdminSidebarConfig } from './components/AdminSideBar'
+import { useAdminSidebarConfig } from './components/AdminSideBar'
 import { UserService } from '../../../services'
 import { AIConfigService } from '../../../services'
-import { Users, KeyRound, TrendingUp, Activity } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuthStore()
   const name = user?.name || user?.username || 'Admin'
-  const [userCount, setUserCount] = useState(0)
+  const { t } = useTranslation('admin')
+  const [studentCount, setStudentCount] = useState(0)
   const [apiKeyCount, setApiKeyCount] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  const unwrapUsers = (raw: any): any[] => {
+    const value = raw?.data ?? raw
+    if (Array.isArray(value)) return value
+    if (Array.isArray(value?.items)) return value.items
+    if (Array.isArray(value?.results)) return value.results
+    if (Array.isArray(value?.records)) return value.records
+    return []
+  }
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -23,9 +33,14 @@ const AdminDashboard: React.FC = () => {
           AIConfigService.getAIConfig(),
         ])
 
-        // Extract user count
-        const users = Array.isArray(usersData) ? usersData : usersData?.data ?? []
-        setUserCount(users.length)
+        // Extract student count (only role=Student and status≠Banned)
+        const users = unwrapUsers(usersData)
+        const activeStudents = users.filter((u) => {
+          const userRole = (u?.role?.name || u?.roleName || '').toLowerCase()
+          const userStatus = (u?.status || '').toLowerCase()
+          return userRole === 'student' && userStatus !== 'banned'
+        })
+        setStudentCount(activeStudents.length)
 
         // Extract API key count
         const configs = Array.isArray(configData) ? configData : [configData]
@@ -41,155 +56,164 @@ const AdminDashboard: React.FC = () => {
   }, [])
 
   const sidebarConfig = {
-    navItems: getAdminSidebarConfig(),
+    navItems: useAdminSidebarConfig() as any,
     actions: [],
     brand: { name: 'Overview', subtitle: 'Admin' },
   }
 
   // Simple pie chart for user distribution (mock data)
   const roleDistribution = [
-    { name: 'Students', count: Math.max(1, Math.floor(userCount * 0.7)), color: '#2f80ed' },
-    { name: 'Mentors', count: Math.max(1, Math.floor(userCount * 0.2)), color: '#7c3aed' },
-    { name: 'Admins', count: Math.max(1, Math.ceil(userCount * 0.1)), color: '#f59e0b' },
+    { name: 'Students', count: Math.max(1, Math.floor(studentCount * 0.7)), color: 'var(--brand-blue)' },
+    { name: 'Mentors', count: Math.max(1, Math.floor(studentCount * 0.2)), color: 'var(--accent-purple)' },
+    { name: 'Admins', count: Math.max(1, Math.ceil(studentCount * 0.1)), color: 'var(--color-amber-500)' },
   ]
 
   const totalForChart = roleDistribution.reduce((sum, item) => sum + item.count, 0)
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-4 py-6 bg-gradient-to-br from-[#f9fafb] to-[#f3f4f6] min-h-screen max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-[#111827]">Admin Dashboard</h1>
-          <p className="text-[#6b7280] mt-1">Welcome back, {name}</p>
-        </div>
+      <div className="px-4 py-8 bg-[var(--gray-100)] min-h-screen font-mono">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="mb-6 border-b border-bd pb-4">
+            <h1 className="text-2xl outline-none font-bold text-heading border-none bg-transparent">
+              <span className="text-status-blue mr-2">{'>_'}</span> 
+               {t('dashboard.title')}
+            </h1>
+            <p className="text-muted mt-2">
+              <span className="text-placeholder mr-2">{'//'}</span>
+               {t('dashboard.welcome', { name })}
+            </p>
+          </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Users Card */}
-          <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-            <div className="h-2 bg-gradient-to-r from-[#2f80ed] to-[#7c3aed]"></div>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-lg bg-[#dbeafe] flex items-center justify-center">
-                  <Users size={24} className="text-[#2f80ed]" />
-                </div>
-                <span className="text-xs font-semibold text-[#10b981] bg-[#ecfdf5] px-2 py-1 rounded-full">Active</span>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {/* Students Card */}
+            <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-muted text-sm font-bold uppercase">{t('dashboard.totalStudents')}</span>
+                <span className="text-xs font-bold text-status-green-dark bg-status-green-bg-strong px-2 py-0.5 border border-green-300">
+                  [{t('dashboard.active')}]
+                </span>
               </div>
-              <p className="text-[#6b7280] text-sm font-medium mb-1">Total Users</p>
-              <div className="text-4xl font-bold text-[#111827]">
-                {loading ? '—' : userCount}
+              <div className="text-3xl font-bold text-heading my-2">
+                {loading ? '...' : studentCount}
               </div>
-              <p className="text-xs text-[#9ca3af] mt-3">Across all roles</p>
+              <div className="text-xs text-muted flex items-center gap-2">
+                <span className="text-status-blue-muted font-bold">[usr]</span>
+                {t('dashboard.activeStudentAccounts')}
+              </div>
+            </div>
+
+            {/* API Keys Card */}
+            <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-muted text-sm font-bold uppercase">{t('dashboard.apiKeys')}</span>
+                <span className="text-xs font-bold text-status-blue bg-status-blue-bg-strong px-2 py-0.5 border border-blue-300">
+                  [{t('dashboard.configured')}]
+                </span>
+              </div>
+              <div className="text-3xl font-bold text-heading my-2">
+                {loading ? '...' : apiKeyCount}
+              </div>
+              <div className="text-xs text-muted flex items-center gap-2">
+                <span className="text-purple-500 font-bold">[api]</span>
+                {t('dashboard.aiModelConfigurations')}
+              </div>
             </div>
           </div>
 
-          {/* API Keys Card */}
-          <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-            <div className="h-2 bg-gradient-to-r from-[#7c3aed] to-[#2f80ed]"></div>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-lg bg-[#f3e8ff] flex items-center justify-center">
-                  <KeyRound size={24} className="text-[#7c3aed]" />
-                </div>
-                <span className="text-xs font-semibold text-[#3b82f6] bg-[#eff6ff] px-2 py-1 rounded-full">Configured</span>
-              </div>
-              <p className="text-[#6b7280] text-sm font-medium mb-1">API Keys</p>
-              <div className="text-4xl font-bold text-[#111827]">
-                {loading ? '—' : apiKeyCount}
-              </div>
-              <p className="text-xs text-[#9ca3af] mt-3">AI model configurations</p>
-            </div>
-          </div>
-        </div>
+          {/* Charts & Status Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* User Distribution Pie Chart */}
+            <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6">
+              <h2 className="text-base font-bold text-heading mb-6 flex items-center gap-2">
+                <span className="text-status-blue-muted">##</span> {t('dashboard.userDistribution')}
+              </h2>
+              <div className="flex items-center justify-center gap-8">
+                {/* Pie Chart SVG */}
+                <svg width="140" height="140" viewBox="0 0 160 160" className="flex-shrink-0">
+                  {roleDistribution.reduce((acc, item, idx) => {
+                    const startAngle = acc.angle
+                    const sliceAngle = (item.count / totalForChart) * 360
+                    const endAngle = startAngle + sliceAngle
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* User Distribution Pie Chart */}
-          <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6">
-            <h2 className="text-lg font-bold text-[#111827] mb-6">User Distribution by Role</h2>
-            <div className="flex items-center justify-center gap-8">
-              {/* Pie Chart SVG */}
-              <svg width="160" height="160" viewBox="0 0 160 160" className="flex-shrink-0">
-                {roleDistribution.reduce((acc, item, idx) => {
-                  const startAngle = acc.angle
-                  const sliceAngle = (item.count / totalForChart) * 360
-                  const endAngle = startAngle + sliceAngle
+                    const startRad = (startAngle * Math.PI) / 180
+                    const endRad = (endAngle * Math.PI) / 180
 
-                  const startRad = (startAngle * Math.PI) / 180
-                  const endRad = (endAngle * Math.PI) / 180
+                    const x1 = 80 + 60 * Math.cos(startRad)
+                    const y1 = 80 + 60 * Math.sin(startRad)
+                    const x2 = 80 + 60 * Math.cos(endRad)
+                    const y2 = 80 + 60 * Math.sin(endRad)
 
-                  const x1 = 80 + 60 * Math.cos(startRad)
-                  const y1 = 80 + 60 * Math.sin(startRad)
-                  const x2 = 80 + 60 * Math.cos(endRad)
-                  const y2 = 80 + 60 * Math.sin(endRad)
+                    const largeArc = sliceAngle > 180 ? 1 : 0
 
-                  const largeArc = sliceAngle > 180 ? 1 : 0
+                    const path = `M 80 80 L ${x1} ${y1} A 60 60 0 ${largeArc} 1 ${x2} ${y2} Z`
 
-                  const path = `M 80 80 L ${x1} ${y1} A 60 60 0 ${largeArc} 1 ${x2} ${y2} Z`
+                    acc.paths.push(
+                      <path key={idx} d={path} fill={item.color} stroke="var(--gray-100)" strokeWidth="2" />
+                    )
 
-                  acc.paths.push(
-                    <path key={idx} d={path} fill={item.color} stroke="white" strokeWidth="2" />
-                  )
+                    return { angle: endAngle, paths: acc.paths }
+                  }, { angle: 0, paths: [] as React.ReactNode[] }).paths}
+                </svg>
 
-                  return { angle: endAngle, paths: acc.paths }
-                }, { angle: 0, paths: [] as React.ReactNode[] }).paths}
-              </svg>
-
-              {/* Legend */}
-              <div className="space-y-3">
-                {roleDistribution.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    ></div>
-                    <div>
-                      <p className="text-sm font-medium text-[#111827]">{item.name}</p>
-                      <p className="text-xs text-[#6b7280]">{item.count} users</p>
+                {/* Legend */}
+                <div className="space-y-3">
+                  {roleDistribution.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className="font-bold" style={{ color: item.color }}>{'['}&#9632;{']'}</div>
+                      <div>
+                        <p className="text-sm font-bold text-heading lowercase">{item.name}</p>
+                        <p className="text-xs text-muted">{item.count} {t('dashboard.users')}</p>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Activity Overview */}
+            <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col">
+              <h2 className="text-base font-bold text-heading mb-6 flex items-center gap-2">
+                <span className="text-status-blue-muted">##</span> {t('dashboard.systemStatus')}
+              </h2>
+              
+              <div className="space-y-3 flex-1">
+                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="text-status-green font-bold">[*]</span>
+                    <span className="text-sm font-bold text-heading">{t('dashboard.apiServices')}</span>
                   </div>
-                ))}
+                  <span className="text-sm font-bold text-status-green-dark bg-status-green-bg px-2 border border-green-200">[ {t('dashboard.ok')} ]</span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="text-status-blue font-bold">[*]</span>
+                    <span className="text-sm font-bold text-heading">{t('dashboard.database')}</span>
+                  </div>
+                  <span className="text-sm font-bold text-status-blue bg-status-blue-bg px-2 border border-blue-200">[ {t('dashboard.connected')} ]</span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="text-orange-500 font-bold">[*]</span>
+                    <span className="text-sm font-bold text-heading">{t('dashboard.aiModels')}</span>
+                  </div>
+                  <span className="text-sm font-bold text-orange-700 bg-orange-50 px-2 border border-orange-200">[{apiKeyCount} {t('dashboard.configured')}]</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-bd">
+                <div className="flex items-center gap-2 text-sm text-label font-bold">
+                  <span className="text-status-green">{'>>>'}</span>
+                  <span>{t('dashboard.allSystemsOperational')}</span>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Activity Overview */}
-          <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6">
-            <h2 className="text-lg font-bold text-[#111827] mb-6">System Status</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-[#f0fdf4] rounded-lg border border-[#dcfce7]">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#10b981]"></div>
-                  <span className="text-sm font-medium text-[#065f46]">API Services</span>
-                </div>
-                <span className="text-sm font-semibold text-[#10b981]">Operational</span>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-[#eff6ff] rounded-lg border border-[#bfdbfe]">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#3b82f6]"></div>
-                  <span className="text-sm font-medium text-[#1e40af]">Database</span>
-                </div>
-                <span className="text-sm font-semibold text-[#3b82f6]">Connected</span>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-[#fef3c7] rounded-lg border border-[#fcd34d]">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#f59e0b]"></div>
-                  <span className="text-sm font-medium text-[#92400e]">AI Models</span>
-                </div>
-                <span className="text-sm font-semibold text-[#f59e0b]">{apiKeyCount} Configured</span>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-[#e5e7eb]">
-              <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                <Activity size={16} />
-                <span>All systems operational</span>
-              </div>
-            </div>
-          </div>
+          
         </div>
       </div>
     </Layout>

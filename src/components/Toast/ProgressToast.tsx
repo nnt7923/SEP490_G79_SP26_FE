@@ -12,15 +12,15 @@ const ProgressToast: React.FC<ProgressToastProps> = ({ message, progress, status
   const circumference = 2 * Math.PI * 16 // radius = 16
 
   const bgColors = {
-    loading: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+    loading: 'bg-status-blue-bg border-blue-200',
+    success: 'bg-status-green-bg border-green-200',
+    error: 'bg-status-red-bg border-red-200',
   }
 
   const textColors = {
-    loading: 'text-blue-800 dark:text-blue-200',
-    success: 'text-green-800 dark:text-green-200',
-    error: 'text-red-800 dark:text-red-200',
+    loading: 'text-status-blue-dark',
+    success: 'text-status-green-darker',
+    error: 'text-status-red-darker',
   }
 
   return (
@@ -39,7 +39,7 @@ const ProgressToast: React.FC<ProgressToastProps> = ({ message, progress, status
                   stroke="currentColor"
                   strokeWidth="2.5"
                   fill="none"
-                  className="text-blue-200 dark:text-blue-800"
+                  className="text-status-blue-muted"
                 />
                 {/* Progress Circle */}
                 <circle
@@ -51,13 +51,13 @@ const ProgressToast: React.FC<ProgressToastProps> = ({ message, progress, status
                   fill="none"
                   strokeDasharray={circumference}
                   strokeDashoffset={circumference - (progress / 100) * circumference}
-                  className="text-blue-600 dark:text-blue-400 transition-all duration-300"
+                  className="text-status-blue transition-all duration-300"
                   strokeLinecap="round"
                 />
               </svg>
               {/* Percentage Text */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300">
+                <span className="text-[10px] font-bold text-status-blue">
                   {Math.round(progress)}%
                 </span>
               </div>
@@ -65,11 +65,11 @@ const ProgressToast: React.FC<ProgressToastProps> = ({ message, progress, status
           )}
           
           {status === 'success' && (
-            <CheckCircle className="w-5 h-5 text-green-500" />
+            <CheckCircle className="w-5 h-5 text-status-green" />
           )}
           
           {status === 'error' && (
-            <XCircle className="w-5 h-5 text-red-500" />
+            <XCircle className="w-5 h-5 text-status-red-muted" />
           )}
         </div>
 
@@ -82,7 +82,7 @@ const ProgressToast: React.FC<ProgressToastProps> = ({ message, progress, status
         {status !== 'loading' && onClose && (
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+            className="text-sl-400 hover:text-sl-600 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

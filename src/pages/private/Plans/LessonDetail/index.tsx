@@ -104,16 +104,16 @@ const LessonDetailPage: React.FC = () => {
 
   if (!skeleton) {
     return (
-      <div className="layout min-h-screen  from-teal-50 via-cyan-50 to-blue-50">
+      <div className="layout min-h-screen bg-[var(--gray-100)]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-600">No learning path found. Please generate a learning path first.</p>
+            <p className="text-label mb-4">// no learning path found. please generate a learning path first.</p>
             <button
               onClick={() => navigate(ROUTER.PLANS)}
-              className="mt-4 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+              className="px-6 py-2 bg-[var(--code-block-bg)] text-white font-medium hover:opacity-90 transition-all"
             >
-              Go to Plans
+              {'>_'} goToPlans()
             </button>
           </div>
         </main>
@@ -124,16 +124,16 @@ const LessonDetailPage: React.FC = () => {
 
   if (!currentLesson) {
     return (
-      <div className="layout min-h-screen  from-teal-50 via-cyan-50 to-blue-50">
+      <div className="layout min-h-screen bg-[var(--gray-100)]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-600">Lesson not found.</p>
+            <p className="text-label mb-4">[ERROR]: lesson not found.</p>
             <button
               onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-              className="mt-4 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+              className="px-6 py-2 bg-[var(--code-block-bg)] text-white font-medium hover:opacity-90 transition-all"
             >
-              Back to Learning Path
+              {'<'} backToPath()
             </button>
           </div>
         </main>
@@ -143,87 +143,80 @@ const LessonDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="layout min-h-screen  from-teal-50 via-cyan-50 to-blue-50">
+    <div className="layout min-h-screen bg-[var(--gray-100)]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
       <Header />
       <main className="page-main py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back button */}
           <button
             onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-            className="flex items-center gap-2 text-teal-600 hover:text-teal-700 mb-6 font-medium transition-colors"
+            className="flex items-center gap-2 text-label hover:text-black mb-6 font-medium transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Learning Path
+            {'<'} back to learning path
           </button>
 
           {/* Lesson Header */}
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6 mb-6">
+          <div className="bg-th-card border border-bd p-6 mb-6">
             <div className="flex items-start gap-4 mb-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-cyan-600 text-white flex items-center justify-center font-semibold">
-                <BookOpen className="w-6 h-6" />
-              </div>
               <div className="flex-1">
-                <div className="text-sm text-gray-600 mb-1">
-                  {currentLesson.chapterTitle} • Lesson {currentLesson.lessonIndex + 1}
+                <div className="text-sm text-muted mb-2 font-mono">
+                  // {currentLesson.chapterTitle} • Lesson {currentLesson.lessonIndex + 1}
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900">{currentLesson.title}</h1>
+                <h1 className="text-2xl font-bold text-heading flex items-center gap-2">
+                  <span className="text-status-blue">{'>_'}</span> {currentLesson.title}
+                </h1>
                 {currentLesson.description && (
-                  <p className="text-gray-600 mt-2">{currentLesson.description}</p>
+                  <p className="text-label mt-2 text-sm">{currentLesson.description}</p>
                 )}
               </div>
             </div>
 
             {/* Progress indicator */}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Lesson {currentLessonIndex + 1} of {allLessons.length}</span>
-              <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="flex items-center gap-3 text-sm text-label font-mono mt-4 pt-4 border-t border-bd-subtle">
+              <span className="w-24">progress:</span>
+              <div className="flex-1 h-[6px] bg-th-input">
                 <div 
-                  className="h-full bg-teal-600 transition-all duration-300"
+                  className="h-full bg-status-blue-solid transition-all duration-300"
                   style={{ width: `${((currentLessonIndex + 1) / allLessons.length) * 100}%` }}
                 />
               </div>
+              <span className="w-16 text-right">[{currentLessonIndex + 1}/{allLessons.length}]</span>
             </div>
           </div>
 
           {/* Lesson Content */}
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-6 mb-6">
+          <div className="bg-th-card border border-bd p-6 mb-6">
             <LessonContent content={md} loading={loading} error={error || undefined} />
           </div>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 mt-8">
             {prevLesson ? (
               <button
                 onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
-                className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+                className="flex flex-col items-start px-5 py-3 bg-th-card border border-bd hover:border-black transition-colors w-1/2 max-w-[240px]"
               >
-                <ChevronLeft className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="text-xs text-gray-500">Previous</div>
-                  <div className="text-sm">{prevLesson.title}</div>
-                </div>
+                <div className="text-xs text-muted mb-1">{'<'} previous block</div>
+                <div className="text-sm font-medium text-heading truncate w-full text-left">{String(prevLesson.title).toLowerCase()}</div>
               </button>
             ) : (
-              <div />
+              <div className="w-1/2 max-w-[240px]" />
             )}
 
             {nextLesson ? (
               <button
                 onClick={() => navigate(`/lesson/${nextLesson.id}`, { state: { skeleton } })}
-                className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 transition-all shadow-md hover:shadow-lg ml-auto"
+                className="flex flex-col items-end px-5 py-3 bg-[var(--code-block-bg)] text-white hover:opacity-90 transition-all w-1/2 max-w-[240px] ml-auto"
               >
-                <div className="text-right">
-                  <div className="text-xs text-teal-100">Next</div>
-                  <div className="text-sm">{nextLesson.title}</div>
-                </div>
-                <ChevronRight className="w-5 h-5" />
+                <div className="text-xs text-placeholder mb-1">next block {'>'}</div>
+                <div className="text-sm font-medium truncate w-full text-right">{String(nextLesson.title).toLowerCase()}</div>
               </button>
             ) : (
               <button
                 onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-                className="px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-all shadow-md hover:shadow-lg ml-auto"
+                className="px-6 py-4 bg-status-green-solid-dark text-white font-medium hover:bg-status-green-solid-darker transition-colors ml-auto"
               >
-                Complete Learning Path
+                [✓] complete_path
               </button>
             )}
           </div>
