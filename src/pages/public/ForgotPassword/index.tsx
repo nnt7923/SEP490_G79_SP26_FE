@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import * as AuthService from '../../../services/AuthService'
 import ROUTER from '../../../router/ROUTER'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
-import { useResponsive } from '../../../hook/useResponsive'
 import { useTranslation } from 'react-i18next'
 
 const ForgotPassword: React.FC = () => {
@@ -49,36 +48,56 @@ const ForgotPassword: React.FC = () => {
     }
   }
 
-  const { isSmallScreen } = useResponsive()
-  const containerClass = `auth auth--split ${isSmallScreen ? 'auth--stack auth--fluid' : ''}`
-
   return (
-    <div className="page">
-      <section className={containerClass}>
-        <div className="auth__card">
-          <h2 className="auth__title">{t('forgotPassword.title')}</h2>
-          <p className="auth__subtitle">{t('forgotPassword.subtitle')}</p>
-          <form className="form" onSubmit={onSubmit}>
-            <label className="form__label" htmlFor="email">{t('forgotPassword.email')}</label>
-            <input
-              id="email"
-              type="email"
-              className="form__input"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+    <div className="page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <section style={{ width: '100%', maxWidth: 480, margin: '0 auto' }}>
+        <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 32, background: 'var(--bg-surface)' }}>
+          <div style={{ marginBottom: 24 }}>
+             <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'inherit' }}>{t('forgotPassword.title')}</h2>
+             <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0, fontFamily: 'inherit' }}>{t('forgotPassword.subtitle')}</p>
+          </div>
+          <form onSubmit={onSubmit}>
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="email" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'inherit' }}>{t('forgotPassword.email')}</label>
+              <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-base)', borderRadius: 2, width: '100%', boxSizing: 'border-box', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s ease' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              />
+            </div>
 
-            {error && <div className="form__error" role="alert">{error}</div>}
-            {message && <div style={{ color: 'var(--color-emerald-500)', fontSize: 14 }}>{message}</div>}
+            {error && (
+              <div style={{ background: 'var(--bg-red-light)', border: '1px solid var(--danger-primary)', borderRadius: 2, padding: '8px 12px', margin: '12px 0', color: 'var(--danger-primary)', fontSize: 13, fontFamily: 'inherit' }} role="alert">
+                // ERROR: {error}
+              </div>
+            )}
+            
+            {message && (
+               <div style={{ background: 'var(--bg-green-tint)', border: '1px solid var(--success-primary)', borderRadius: 2, padding: '8px 12px', margin: '12px 0', color: 'var(--success-primary)', fontSize: 13, fontFamily: 'inherit' }} role="status">
+                 // SUCCESS: {message}
+               </div>
+            )}
 
-            <button type="submit" className="btn btn-primary auth__submit" disabled={submitting}>
+            <button
+               type="submit"
+               disabled={submitting}
+               style={{ width: '100%', padding: '10px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background-color 0.2s ease', marginTop: 8 }}
+               onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = 'var(--text-strong)' }}
+               onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.background = 'var(--text-primary)' }}
+            >
               {submitting ? t('forgotPassword.submitting') : t('forgotPassword.submit')}
             </button>
 
-            <div className="auth__links" style={{ justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'inherit' }}>
               <span>{t('forgotPassword.remembered')}</span>
-              <Link to={ROUTER.LOGIN}>{t('forgotPassword.backToLogin')}</Link>
+              <Link to={ROUTER.LOGIN} style={{ color: 'var(--accent-primary)', textDecoration: 'none' }} onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }} onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}>
+                {t('forgotPassword.backToLogin')}
+              </Link>
             </div>
           </form>
         </div>
