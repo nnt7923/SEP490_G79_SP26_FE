@@ -310,7 +310,7 @@ const MyPlansDetailPage: React.FC = () => {
                                     className="lesson-link"
                                     onClick={() => {
                                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch { }
-                                      navigate(`/ lesson / ${lesson.id} `, { state: { skeleton: plan } })
+                                      navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
                                     }}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
