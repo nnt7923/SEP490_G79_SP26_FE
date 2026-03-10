@@ -8,12 +8,13 @@ import { generateAllContent } from '../../../../services/ContentGenerator'
 import LessonContent from '../components/LessonContent'
 import ChapterTasks from '../components/ChapterTasks'
 import { useTranslation } from 'react-i18next'
+import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 
 const ResultPage: React.FC = () => {
   const location = useLocation() as any
   const navigate = useNavigate()
   const { t } = useTranslation('student')
-  
+
   const [skeleton] = useState<any | null>(() => {
     const fromState = location?.state?.skeleton
     if (fromState) return fromState
@@ -35,14 +36,14 @@ const ResultPage: React.FC = () => {
       if (!import.meta.env.DEV || !skeleton) return
       const lessonCount = Array.isArray(skeleton?.lessons) ? skeleton.lessons.length : 0
       if (lessonCount === 0) {
-         return
-       }
-       try {
-         await generateAllContent(skeleton, { concurrency: 2 })
-       } catch (err: any) {} // eslint-disable-line no-empty
-     }
-     run()
-   }, [skeleton])
+        return
+      }
+      try {
+        await generateAllContent(skeleton, { concurrency: 2 })
+      } catch (err: any) { } // eslint-disable-line no-empty
+    }
+    run()
+  }, [skeleton])
 
   // Lessons list from skeleton (normalize id/title)
   const lessons = useMemo(() => {
@@ -98,7 +99,7 @@ const ResultPage: React.FC = () => {
       if (!disposed && fromSkeleton && fromSkeleton.trim().length > 0) {
         setMd(fromSkeleton)
         setLoading(false)
-        try { sessionStorage.setItem(`lessonContent:${selectedLessonId}`, JSON.stringify(found?.content)) } catch {}
+        try { sessionStorage.setItem(`lessonContent:${selectedLessonId}`, JSON.stringify(found?.content)) } catch { }
         return
       }
 
@@ -108,7 +109,7 @@ const ResultPage: React.FC = () => {
           if (!disposed) setLoading(true)
         })
         if (disposed) return
-        try { sessionStorage.setItem(`lessonContent:${selectedLessonId}`, JSON.stringify(content)) } catch {}
+        try { sessionStorage.setItem(`lessonContent:${selectedLessonId}`, JSON.stringify(content)) } catch { }
         setMd(extractMarkdown(content))
       } catch (e: any) {
         if (disposed) return
@@ -182,7 +183,7 @@ const ResultPage: React.FC = () => {
         fontFamily: 'monospace'
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          
+
           {/* Hero frame */}
           <section style={{
             background: 'var(--bg-surface)',
@@ -196,39 +197,39 @@ const ResultPage: React.FC = () => {
           }}>
             {/* Terminal decorative top bar */}
             <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 4, 
+              position: 'absolute', top: 0, left: 0, right: 0, height: 4,
               background: 'linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%)'
             }} />
-            
-            <h1 style={{ 
+
+            <h1 style={{
               color: 'var(--text-primary)', fontSize: 24, fontWeight: 700, margin: '0 0 16px 0',
               display: 'flex', alignItems: 'center', gap: 12
             }}>
-              <span style={{ color: 'var(--accent-primary)' }}>{'>'}</span> 
+              <span style={{ color: 'var(--accent-primary)' }}>{'>'}</span>
               {pathTitle}
               <span style={{ animation: 'blink 1s step-end infinite', color: 'var(--accent-primary)', fontWeight: 300 }}>_</span>
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px 0', lineHeight: 1.6 }}>
               // {pathDescription || t('plansResult.noDescription')}
             </p>
-            
-            <div style={{ 
-              display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-primary)', 
+
+            <div style={{
+              display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-primary)',
               fontWeight: 600, flexWrap: 'wrap'
             }}>
-              <span style={{ 
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)' 
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
               }}>
                 [ {t('plansResult.chaptersFormat', { count: chapters.length })} ]
               </span>
-              <span style={{ 
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)' 
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
               }}>
                 [ {t('plansResult.lessonsFormat', { count: lessons.length })} ]
               </span>
               {createdAt && (
-                <span style={{ 
-                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)' 
+                <span style={{
+                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
                 }}>
                   [ {new Date(createdAt).toLocaleDateString()} ]
                 </span>
@@ -255,17 +256,17 @@ const ResultPage: React.FC = () => {
                   .term-scroll { scrollbar-width: thin; scrollbar-color: var(--border-base) transparent; }
                 `}
               </style>
-              
+
               {/* Left Column: Chapters List */}
               <div className="term-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '600px', overflowY: 'auto', paddingRight: '8px' }}>
                 <h2 style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8, marginTop: 0, textTransform: 'uppercase', letterSpacing: 1 }}>
                   {'// '} {t('plansResult.contentTree')}
                 </h2>
-                
+
                 {chapters.map((chapter: any, chapterIdx: number) => {
                   const isActive = activeChapterId === chapter.id
                   const isCompleted = chapterCompletionStatus[chapter.id] === true
-                  
+
                   return (
                     <button
                       key={chapter.id || chapterIdx}
@@ -299,10 +300,10 @@ const ResultPage: React.FC = () => {
               </div>
 
               {/* Right Column: Selected Chapter Detail */}
-              <div ref={detailScrollRef} className="term-scroll" style={{ 
-                background: 'var(--bg-surface)', 
-                border: '1px solid var(--border-base)', 
-                borderRadius: 4, 
+              <div ref={detailScrollRef} className="term-scroll" style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-base)',
+                borderRadius: 4,
                 height: '600px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -312,7 +313,7 @@ const ResultPage: React.FC = () => {
                 {(() => {
                   const chapter = chapters.find((c: any) => c.id === activeChapterId)
                   if (!chapter) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-disabled)' }}>[ SELECT_CHAPTER ]</div>
-                  
+
                   return (
                     <>
                       {/* Detail Header */}
@@ -321,9 +322,9 @@ const ResultPage: React.FC = () => {
                           {chapter.title}
                         </h3>
                         {chapter.content && (
-                           <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                             {chapter.content}
-                           </p>
+                          <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            {chapter.content}
+                          </p>
                         )}
                       </div>
 
@@ -369,8 +370,8 @@ const ResultPage: React.FC = () => {
                                         {lesson.quizzes.map((quiz: any, quizIdx: number) => (
                                           <button
                                             key={quiz.id || quizIdx}
-                                            onClick={() => navigate(`/quiz/${quiz.id}`, { 
-                                              state: { quizTitle: quiz.title, skeleton } 
+                                            onClick={() => navigate(`/quiz/${quiz.id}`, {
+                                              state: { quizTitle: quiz.title, skeleton }
                                             })}
                                             style={{
                                               background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
@@ -379,7 +380,11 @@ const ResultPage: React.FC = () => {
                                             onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                                             onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
                                           >
-                                            <span style={{ color: 'var(--success-primary)' }}>➔</span> {quiz.title}
+                                            <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                                              {quiz.title}
+                                              {quiz.id && <QuizStatusBadge quizId={quiz.id} />}
+                                            </span>
                                           </button>
                                         ))}
                                       </div>
@@ -394,8 +399,8 @@ const ResultPage: React.FC = () => {
 
                       {/* Chapter Tasks */}
                       <div style={{ marginTop: 'auto' }}>
-                        <ChapterTasks 
-                          chapterId={chapter.id} 
+                        <ChapterTasks
+                          chapterId={chapter.id}
                           onAllTasksCompleted={handleChapterTasksCompleted}
                         />
                       </div>
@@ -426,7 +431,7 @@ const ResultPage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <select
                     style={{
-                      padding: '6px 16px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', 
+                      padding: '6px 16px', background: 'var(--bg-main)', border: '1px solid var(--border-base)',
                       borderRadius: 2, color: 'var(--text-primary)', fontSize: 13, outline: 'none', cursor: 'pointer'
                     }}
                     value={selectedLessonId || ''}

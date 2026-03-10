@@ -6,6 +6,7 @@ import LearningPathService, { type SkeletonResponse } from '../../../../services
 import useAuthStore from '../../../../store/useAuthStore'
 import { ArrowLeft, Loader, AlertCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 import ChapterTasks from '../../Plans/components/ChapterTasks'
 
 const MyPlansDetailPage: React.FC = () => {
@@ -17,7 +18,7 @@ const MyPlansDetailPage: React.FC = () => {
   const [plan, setPlan] = useState<SkeletonResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
 
@@ -44,7 +45,7 @@ const MyPlansDetailPage: React.FC = () => {
         pageNumber: 1,
         pageSize: 100,
       })
-      
+
       const foundPlan = response.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         setPlan(foundPlan)
@@ -101,7 +102,7 @@ const MyPlansDetailPage: React.FC = () => {
           >
             <ArrowLeft className="w-4 h-4" /> [ {t('plansResult.back').toUpperCase()} ]
           </button>
-          
+
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--error-primary)', borderRadius: 4, padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <AlertCircle className="w-5 h-5" style={{ color: 'var(--error-primary)' }} />
@@ -125,7 +126,7 @@ const MyPlansDetailPage: React.FC = () => {
         fontFamily: 'monospace'
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          
+
           {/* Back Button */}
           <button
             onClick={() => navigate(-1)}
@@ -149,17 +150,17 @@ const MyPlansDetailPage: React.FC = () => {
           }}>
             {/* Terminal decorative top bar */}
             <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 4, 
+              position: 'absolute', top: 0, left: 0, right: 0, height: 4,
               background: 'linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%)'
             }} />
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h1 style={{ 
+                <h1 style={{
                   color: 'var(--text-primary)', fontSize: 24, fontWeight: 700, margin: '0 0 16px 0',
                   display: 'flex', alignItems: 'center', gap: 12
                 }}>
-                  <span style={{ color: 'var(--accent-primary)' }}>{'>'}</span> 
+                  <span style={{ color: 'var(--accent-primary)' }}>{'>'}</span>
                   {plan.title || t('myPlans.untitled')}
                   <span style={{ animation: 'blink 1s step-end infinite', color: 'var(--accent-primary)', fontWeight: 300 }}>_</span>
                 </h1>
@@ -168,29 +169,29 @@ const MyPlansDetailPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            
-            <div style={{ 
-              display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-primary)', 
+
+            <div style={{
+              display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-primary)',
               fontWeight: 600, flexWrap: 'wrap'
             }}>
-              <span style={{ 
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)' 
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
               }}>
                 [ {t('plansResult.chaptersFormat', { count: plan.chapterCount || plan.chapters?.length || 0 })} ]
               </span>
-              <span style={{ 
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)' 
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
               }}>
                 [ {t('plansResult.lessonsFormat', { count: plan.lessons?.length || 0 })} ]
               </span>
-              <span style={{ 
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)', color: 'var(--success-primary)' 
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)', color: 'var(--success-primary)'
               }}>
                 [ 0% PROGRESS ]
               </span>
               {plan.createdAt && (
-                <span style={{ 
-                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)' 
+                <span style={{
+                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
                 }}>
                   [ {new Date(plan.createdAt).toLocaleDateString()} ]
                 </span>
@@ -203,35 +204,35 @@ const MyPlansDetailPage: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 30%) 1fr', gap: 24, marginBottom: 32, alignItems: 'start' }}>
               <style>
                 {`
-                  @keyframes blink { 50% { opacity: 0; } }
-                  .chapter-btn { transition: all 0.2s ease; border-left: 2px solid transparent; }
-                  .chapter-btn:hover { background: var(--gray-100); }
-                  .chapter-btn.active { background: var(--bg-surface); border-left-color: var(--accent-primary); border-top: 1px solid var(--border-base); border-right: 1px solid var(--border-base); border-bottom: 1px solid var(--border-base); }
-                  .lesson-link { transition: all 0.2s ease; }
-                  .lesson-link:hover { padding-left: 8px; color: var(--accent-primary) !important; text-decoration: underline; }
+@keyframes blink { 50 % { opacity: 0; } }
+                  .chapter - btn { transition: all 0.2s ease; border - left: 2px solid transparent; }
+                  .chapter - btn:hover { background: var(--gray - 100); }
+                  .chapter - btn.active { background: var(--bg - surface); border - left - color: var(--accent - primary); border - top: 1px solid var(--border - base); border - right: 1px solid var(--border - base); border - bottom: 1px solid var(--border - base); }
+                  .lesson - link { transition: all 0.2s ease; }
+                  .lesson - link:hover { padding - left: 8px; color: var(--accent - primary)!important; text - decoration: underline; }
                   
-                  .term-scroll::-webkit-scrollbar { width: 6px; }
-                  .term-scroll::-webkit-scrollbar-track { background: transparent; }
-                  .term-scroll::-webkit-scrollbar-thumb { background: var(--border-base); border-radius: 3px; }
-                  .term-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-disabled); }
-                  .term-scroll { scrollbar-width: thin; scrollbar-color: var(--border-base) transparent; }
-                `}
+                  .term - scroll:: -webkit - scrollbar { width: 6px; }
+                  .term - scroll:: -webkit - scrollbar - track { background: transparent; }
+                  .term - scroll:: -webkit - scrollbar - thumb { background: var(--border - base); border - radius: 3px; }
+                  .term - scroll:: -webkit - scrollbar - thumb:hover { background: var(--text - disabled); }
+                  .term - scroll { scrollbar - width: thin; scrollbar - color: var(--border - base) transparent; }
+`}
               </style>
-              
+
               {/* Left Column: Chapters List */}
               <div className="term-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '600px', overflowY: 'auto', paddingRight: '8px' }}>
                 <h2 style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8, marginTop: 0, textTransform: 'uppercase', letterSpacing: 1 }}>
                   {'// '} {t('plansResult.contentTree')}
                 </h2>
-                
+
                 {plan.chapters.map((chapter, chapterIdx) => {
                   const isActive = activeChapterId === chapter.id
                   const isCompleted = chapterCompletionStatus[chapter.id] === true
-                  
+
                   return (
                     <button
                       key={chapter.id || chapterIdx}
-                      className={`chapter-btn ${isActive ? 'active' : ''}`}
+                      className={`chapter - btn ${isActive ? 'active' : ''} `}
                       onClick={() => setActiveChapterId(chapter.id)}
                       style={{
                         width: '100%', padding: '16px', display: 'flex', alignItems: 'center', gap: 12,
@@ -244,7 +245,7 @@ const MyPlansDetailPage: React.FC = () => {
                       <div style={{
                         width: 28, height: 28, borderRadius: 2, flexShrink: 0,
                         background: isCompleted ? 'var(--success-primary)' : 'var(--bg-main)',
-                        border: `1px solid ${isCompleted ? 'transparent' : 'var(--border-base)'}`,
+                        border: `1px solid ${isCompleted ? 'transparent' : 'var(--border-base)'} `,
                         color: isCompleted ? 'var(--bg-surface)' : 'var(--text-primary)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12
                       }}>
@@ -261,10 +262,10 @@ const MyPlansDetailPage: React.FC = () => {
               </div>
 
               {/* Right Column: Selected Chapter Detail */}
-              <div ref={detailScrollRef} className="term-scroll" style={{ 
-                background: 'var(--bg-surface)', 
-                border: '1px solid var(--border-base)', 
-                borderRadius: 4, 
+              <div ref={detailScrollRef} className="term-scroll" style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-base)',
+                borderRadius: 4,
                 height: '600px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -274,7 +275,7 @@ const MyPlansDetailPage: React.FC = () => {
                 {(() => {
                   const chapter = plan.chapters?.find(c => c.id === activeChapterId)
                   if (!chapter) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-disabled)' }}>[ SELECT_CHAPTER ]</div>
-                  
+
                   return (
                     <>
                       {/* Detail Header */}
@@ -283,9 +284,9 @@ const MyPlansDetailPage: React.FC = () => {
                           {chapter.title}
                         </h3>
                         {chapter.content && (
-                           <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                             {chapter.content}
-                           </p>
+                          <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            {chapter.content}
+                          </p>
                         )}
                       </div>
 
@@ -308,8 +309,8 @@ const MyPlansDetailPage: React.FC = () => {
                                   <button
                                     className="lesson-link"
                                     onClick={() => {
-                                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch {}
-                                      navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
+                                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch { }
+                                      navigate(`/ lesson / ${lesson.id} `, { state: { skeleton: plan } })
                                     }}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
@@ -340,8 +341,8 @@ const MyPlansDetailPage: React.FC = () => {
                                                 alert('Quiz ID is missing! Cannot navigate to quiz.')
                                                 return
                                               }
-                                              navigate(`/quiz/${quiz.id}`, { 
-                                                state: { quizTitle: quiz.title, skeleton: plan } 
+                                              navigate(`/quiz/${quiz.id}`, {
+                                                state: { quizTitle: quiz.title, skeleton: plan }
                                               })
                                             }}
                                             style={{
@@ -351,7 +352,11 @@ const MyPlansDetailPage: React.FC = () => {
                                             onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                                             onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
                                           >
-                                            <span style={{ color: 'var(--success-primary)' }}>➔</span> {quiz.title}
+                                            <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                                              {quiz.title}
+                                              {quiz.id && <QuizStatusBadge quizId={quiz.id} />}
+                                            </span>
                                           </button>
                                         ))}
                                       </div>
@@ -366,8 +371,8 @@ const MyPlansDetailPage: React.FC = () => {
 
                       {/* Chapter Tasks */}
                       <div style={{ marginTop: 'auto' }}>
-                        <ChapterTasks 
-                          chapterId={chapter.id!} 
+                        <ChapterTasks
+                          chapterId={chapter.id!}
                           onAllTasksCompleted={handleChapterTasksCompleted}
                         />
                       </div>
@@ -381,7 +386,7 @@ const MyPlansDetailPage: React.FC = () => {
               padding: 40, textAlign: 'center', color: 'var(--text-disabled)', fontFamily: 'monospace',
               background: 'var(--bg-surface)', border: '1px dashed var(--border-base)', borderRadius: 2, marginBottom: 32
             }}>
-               [ {t('plansResult.noChapters')} ]
+              [ {t('plansResult.noChapters')} ]
             </div>
           )}
         </div>
