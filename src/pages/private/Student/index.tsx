@@ -51,7 +51,7 @@ const StudentIndex: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div style={{ padding: 16, background: 'var(--bg-surface)', minHeight: '100vh' }}>
+      <div className="page-fade-in" style={{ padding: 16, background: 'var(--bg-surface)', minHeight: '100vh' }}>
         {/* Profile Header */}
         <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '16px 20px', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -96,7 +96,14 @@ const StudentIndex: React.FC = () => {
             <button type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ fontSize: 12, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{t('dashboard.viewAll')}</button>
           </div>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)', fontSize: 12 }}>// loading...</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="dash-skeleton-card">
+                  <div className="skeleton-block" style={{ width: '60%', height: 14 }} />
+                  <div className="skeleton-block" style={{ width: '40%', height: 11 }} />
+                </div>
+              ))}
+            </div>
           ) : goals.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>// {t('dashboard.noGoalsYet')}</p>
@@ -127,7 +134,18 @@ const StudentIndex: React.FC = () => {
             <button type="button" onClick={() => navigate(ROUTER.MY_PLANS)} style={{ fontSize: 12, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{t('dashboard.viewAll')}</button>
           </div>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)', fontSize: 12 }}>// loading...</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="dash-skeleton-card">
+                  <div className="skeleton-block" style={{ width: '55%', height: 14 }} />
+                  <div className="skeleton-block" style={{ width: '35%', height: 11 }} />
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div className="skeleton-block" style={{ width: 60, height: 11 }} />
+                    <div className="skeleton-block" style={{ width: 80, height: 11 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : plans.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>// {t('dashboard.noPlansYet')}</p>
@@ -136,7 +154,7 @@ const StudentIndex: React.FC = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {plans.map((plan) => (
-                <div key={plan.pathId} onClick={() => navigate(`${ROUTER.MY_PLANS}/${plan.pathId}`)} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, cursor: 'pointer', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
+                <div key={plan.pathId} onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, cursor: 'pointer', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} role="button" tabIndex={0}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.title || 'Learning Path'}</h3>

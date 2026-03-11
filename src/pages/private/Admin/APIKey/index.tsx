@@ -165,8 +165,8 @@ const AdminApiKeyPage: React.FC = () => {
     setProviderName(name)
     setApiKey(it.apiKey ?? it.ApiKey ?? '')
     
-    // Set aiUsageType
-    const usageType = it.aiUsageType ?? AIUsageType.StructureGeneration
+    // Set aiUsageType - use mapUsageTypeToEnum to handle backend response
+    const usageType = mapUsageTypeToEnum(it.usageType ?? it.aiUsageType)
     setAiUsageType(usageType)
     
     // Convert additionalProps or configJson to additionalProps
@@ -197,18 +197,42 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
+      // Convert additionalProps array to configJson object
+      const configJson: Record<string, string> = {}
+      additionalProps.forEach(prop => {
+        if (prop.key && prop.value) {
+          configJson[prop.key] = prop.value
+        }
+      })
+      
+      // Map aiUsageType enum to string for backend
+      const getUsageTypeString = (type: AIUsageType): string => {
+        switch (type) {
+          case AIUsageType.StructureGeneration: return 'StructureGeneration'
+          case AIUsageType.ContentGeneration: return 'ContentGeneration'
+          case AIUsageType.Verification: return 'Verification'
+          case AIUsageType.Assistant: return 'Assistant'
+          default: return 'StructureGeneration'
+        }
+      }
+      
       const payload = {
-        providerName,
         apiKey,
-        aiUsageType,
+        providerName,
+        configJson,
+        usageType: getUsageTypeString(aiUsageType),
         isActive,
-        additionalProps,
       }
       await AIConfigService.putAIConfigById(configId, payload as any)
       setShowForm(false)
       resetForm()
       await fetchList()
-      setNotice(t('apiKey.updateSuccess'))
+      setNotice('Configuration updated successfully')
+      
+      // Scroll to top to show success message
+      setTimeout(() => {
+        window.scrollTo({ top: 200, behavior: 'smooth' })
+      }, 100)
     } catch (e: any) {
       setError(e?.message || t('apiKey.updateFailed'))
     } finally {

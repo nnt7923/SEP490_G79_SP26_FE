@@ -1261,3 +1261,126 @@
 .lesson-content h3.cm-section + ul li + li {
   margin-top: 8px;
 }
+
+/* ============================
+   Skeleton / Shimmer Animations
+   ============================ */
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes fadeInPage {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes terminalBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* Skeleton block — generic shimmering placeholder */
+.skeleton-block {
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite ease-in-out;
+  border-radius: 2px;
+}
+
+/* Page fade-in — applied to page wrappers after lazy-load */
+.page-fade-in {
+  animation: fadeInPage 0.3s ease-out both;
+}
+
+/* ============================
+   PageSkeleton layout
+   ============================ */
+.page-skeleton {
+  min-height: 100vh;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.page-skeleton__topbar {
+  height: 52px;
+  border-bottom: 1px solid var(--border-base);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+}
+
+.page-skeleton__body {
+  flex: 1;
+  display: flex;
+}
+
+.page-skeleton__sidebar {
+  width: 220px;
+  border-right: 1px solid var(--border-base);
+  padding: 24px 16px;
+  flex-shrink: 0;
+}
+
+.page-skeleton__main {
+  flex: 1;
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .page-skeleton__sidebar { display: none; }
+}
+
+/* ============================
+   Providers loading animation
+   ============================ */
+.app-loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg-surface);
+}
+
+.app-loader__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-loader__prompt {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.app-loader__cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: var(--accent-primary);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: terminalBlink 1s step-end infinite;
+}
+
+.app-loader__dots {
+  font-size: 13px;
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+}
+
+/* Dashboard skeleton cards */
+.dash-skeleton-card {
+  border: 1px solid var(--border-base);
+  border-radius: 2px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

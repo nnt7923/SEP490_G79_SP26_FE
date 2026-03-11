@@ -15,7 +15,16 @@ const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [init])
 
   if (starting || loading) {
-    return <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center' }}>Loading...</div>
+    return (
+      <div className="app-loader">
+        <div className="app-loader__content">
+          <span className="app-loader__prompt">
+            {'>'}_<span className="app-loader__cursor" />
+          </span>
+          <span className="app-loader__dots">loading</span>
+        </div>
+      </div>
+    )
   }
 
   return <AuthProvider>{children}</AuthProvider>

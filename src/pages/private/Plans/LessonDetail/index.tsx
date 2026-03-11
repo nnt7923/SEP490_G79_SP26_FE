@@ -2,17 +2,43 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import Header from '../../../../components/Layout/Header'
 import Footer from '../../../../components/Layout/Footer'
-import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 import { requestLessonContent } from '../../../../services/SignalR'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
+import { ArrowLeft, Maximize2, Minimize2, Terminal, BookOpen, AlertCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+
+// Helper to extract headings (## and ###) from markdown
+const extractHeadings = (md: string) => {
+  if (!md) return []
+  const matches = [...md.matchAll(/^(##|###)\s+(.+)$/gm)]
+  let h2Counter = 0
+  let h3Counter = 0
+  return matches.map(m => {
+    const level = m[1].length // 2 for ##, 3 for ###
+    let numberPrefix = ''
+    if (level === 2) {
+      h2Counter++
+      h3Counter = 0
+      numberPrefix = `${h2Counter}.`
+    } else if (level === 3) {
+      h3Counter++
+      numberPrefix = `${h2Counter}.${h3Counter}.`
+    }
+    const rawText = m[2].trim()
+    const text = `${numberPrefix} ${rawText}`
+    const id = rawText.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')
+    return { level, text, id, element: null as HTMLElement | null }
+  })
+}
 
 const LessonDetailPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>()
   const navigate = useNavigate()
   const location = useLocation() as any
+  const { t } = useTranslation('student')
   
-  const [skeleton, setSkeleton] = useState<any | null>(() => {
+  const [skeleton] = useState<any | null>(() => {
     const fromState = location?.state?.skeleton
     if (fromState) return fromState
     try {
@@ -26,6 +52,35 @@ const LessonDetailPage: React.FC = () => {
   const [md, setMd] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  
+  const [isFocusMode, setIsFocusMode] = useState(false)
+
+  const toggleFocusMode = async () => {
+    if (!isFocusMode) {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen().catch(() => {})
+      }
+      setIsFocusMode(true)
+    } else {
+      if (document.exitFullscreen && document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {})
+      }
+      setIsFocusMode(false)
+    }
+  }
+
+  // Handle ESC key or exiting fullscreen manually
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFocusMode) {
+        setIsFocusMode(false)
+      }
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [isFocusMode])
+
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null)
 
   // Extract all lessons from chapters
   const allLessons = useMemo(() => {
@@ -47,6 +102,31 @@ const LessonDetailPage: React.FC = () => {
   const currentLesson = allLessons[currentLessonIndex]
   const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null
   const nextLesson = currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
+
+  // Table of Contents
+  const headings = useMemo(() => extractHeadings(md), [md])
+
+  // Scroll spy to highlight active TOC item
+  useEffect(() => {
+    if (!headings.length || isFocusMode) return
+
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 100 // Offset for fixed header
+      
+      for (let i = headings.length - 1; i >= 0; i--) {
+        const element = document.getElementById(headings[i].id)
+        if (element && element.offsetTop <= scrollPosition) {
+          setActiveHeadingId(headings[i].id)
+          break
+        }
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    // Call once to set initial state
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [headings, isFocusMode])
 
   // Helper to extract markdown from various payload shapes
   const extractMarkdown = (payload: any): string => {
@@ -102,16 +182,26 @@ const LessonDetailPage: React.FC = () => {
     return () => { disposed = true }
   }, [lessonId, allLessons])
 
+  const scrollToHeading = (id: string) => {
+    const el = document.getElementById(id)
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' })
+    }
+  }
+
   if (!skeleton) {
     return (
-      <div className="layout min-h-screen bg-[var(--gray-100)]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+      <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace' }}>
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-label mb-4">// no learning path found. please generate a learning path first.</p>
+            <p style={{ color: 'var(--text-secondary)' }} className="mb-4">// no learning path found. please generate a learning path first.</p>
             <button
               onClick={() => navigate(ROUTER.PLANS)}
-              className="px-6 py-2 bg-[var(--code-block-bg)] text-white font-medium hover:opacity-90 transition-all"
+              style={{
+                background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)',
+                padding: '8px 16px', borderRadius: 4, fontWeight: 700
+              }}
             >
               {'>_'} goToPlans()
             </button>
@@ -124,14 +214,17 @@ const LessonDetailPage: React.FC = () => {
 
   if (!currentLesson) {
     return (
-      <div className="layout min-h-screen bg-[var(--gray-100)]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+      <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace' }}>
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-label mb-4">[ERROR]: lesson not found.</p>
+            <p style={{ color: 'var(--error-primary)' }} className="mb-4">[ERROR]: lesson not found.</p>
             <button
               onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-              className="px-6 py-2 bg-[var(--code-block-bg)] text-white font-medium hover:opacity-90 transition-all"
+              style={{
+                background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)',
+                padding: '8px 16px', borderRadius: 4, fontWeight: 700
+              }}
             >
               {'<'} backToPath()
             </button>
@@ -143,86 +236,204 @@ const LessonDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="layout min-h-screen bg-[var(--gray-100)]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-      <Header />
-      <main className="page-main py-12">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Back button */}
-          <button
-            onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-            className="flex items-center gap-2 text-label hover:text-black mb-6 font-medium transition-colors"
-          >
-            {'<'} back to learning path
-          </button>
+    <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+      {!isFocusMode && <Header />}
+      
+      {/* Top Banner specific for Lessons */}
+      {!isFocusMode && (
+        <div style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-base)', position: 'sticky', top: 0, zIndex: 40 }}>
+          <div style={{ maxWidth: 1280, margin: '0 auto', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button
+              onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent',
+                border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700 
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+            >
+              <ArrowLeft className="w-4 h-4" /> [ {t('lessonDetail.backToPlan')} ]
+            </button>
 
-          {/* Lesson Header */}
-          <div className="bg-th-card border border-bd p-6 mb-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="flex-1">
-                <div className="text-sm text-muted mb-2 font-mono">
-                  // {currentLesson.chapterTitle} • Lesson {currentLesson.lessonIndex + 1}
-                </div>
-                <h1 className="text-2xl font-bold text-heading flex items-center gap-2">
-                  <span className="text-status-blue">{'>_'}</span> {currentLesson.title}
-                </h1>
-                {currentLesson.description && (
-                  <p className="text-label mt-2 text-sm">{currentLesson.description}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Progress indicator */}
-            <div className="flex items-center gap-3 text-sm text-label font-mono mt-4 pt-4 border-t border-bd-subtle">
-              <span className="w-24">progress:</span>
-              <div className="flex-1 h-[6px] bg-th-input">
-                <div 
-                  className="h-full bg-status-blue-solid transition-all duration-300"
-                  style={{ width: `${((currentLessonIndex + 1) / allLessons.length) * 100}%` }}
-                />
-              </div>
-              <span className="w-16 text-right">[{currentLessonIndex + 1}/{allLessons.length}]</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+               <button
+                 onClick={toggleFocusMode}
+                 style={{
+                   display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-main)', border: '1px dashed var(--border-base)',
+                   color: 'var(--accent-primary)', padding: '6px 12px', borderRadius: 2, cursor: 'pointer', fontSize: 12, fontWeight: 600
+                 }}
+                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
+                 title="Toggle Distraction-Free Reading"
+               >
+                 <Maximize2 className="w-3.5 h-3.5" />
+                 [ {t('lessonDetail.enableFocus')} ]
+               </button>
             </div>
           </div>
-
-          {/* Lesson Content */}
-          <div className="bg-th-card border border-bd p-6 mb-6">
-            <LessonContent content={md} loading={loading} error={error || undefined} />
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between gap-4 mt-8">
-            {prevLesson ? (
-              <button
-                onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
-                className="flex flex-col items-start px-5 py-3 bg-th-card border border-bd hover:border-black transition-colors w-1/2 max-w-[240px]"
-              >
-                <div className="text-xs text-muted mb-1">{'<'} previous block</div>
-                <div className="text-sm font-medium text-heading truncate w-full text-left">{String(prevLesson.title).toLowerCase()}</div>
-              </button>
-            ) : (
-              <div className="w-1/2 max-w-[240px]" />
-            )}
-
-            {nextLesson ? (
-              <button
-                onClick={() => navigate(`/lesson/${nextLesson.id}`, { state: { skeleton } })}
-                className="flex flex-col items-end px-5 py-3 bg-[var(--code-block-bg)] text-white hover:opacity-90 transition-all w-1/2 max-w-[240px] ml-auto"
-              >
-                <div className="text-xs text-placeholder mb-1">next block {'>'}</div>
-                <div className="text-sm font-medium truncate w-full text-right">{String(nextLesson.title).toLowerCase()}</div>
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
-                className="px-6 py-4 bg-status-green-solid-dark text-white font-medium hover:bg-status-green-solid-darker transition-colors ml-auto"
-              >
-                [✓] complete_path
-              </button>
-            )}
+          
+          {/* Progress Bar inside banner */}
+          <div style={{ height: 2, width: '100%', background: 'var(--bg-main)' }}>
+             <div style={{ height: '100%', background: 'var(--accent-primary)', width: `${((currentLessonIndex + 1) / allLessons.length) * 100}%`, transition: 'width 0.3s ease' }} />
           </div>
         </div>
+      )}
+
+      {/* Floating Exit Focus Button in Focus Mode */}
+      {isFocusMode && (
+        <button
+          onClick={toggleFocusMode}
+          style={{
+            position: 'fixed', top: 24, right: 24, zIndex: 100000,
+            display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-main)', border: '1px dashed var(--border-base)',
+            color: 'var(--text-primary)', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 700
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+        >
+          <Minimize2 className="w-4 h-4" /> [ {t('lessonDetail.exitFocus')} ]
+        </button>
+      )}
+
+      <main style={{ padding: isFocusMode ? '100px 0 64px' : '32px 0' }}>
+        <div style={{ 
+          maxWidth: 1280, 
+          margin: '0 auto', 
+          padding: '0 24px',
+          display: 'grid',
+          gridTemplateColumns: isFocusMode ? '1fr' : '1fr 300px',
+          gap: 40,
+          alignItems: 'start',
+          transition: 'all 0.3s ease'
+        }}>
+          
+          {/* Main Reading Column */}
+          <div style={{ minWidth: 0 }}>
+            {/* Lesson Title Header */}
+            <div style={{ marginBottom: 40, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                 <Terminal className="w-4 h-4" />
+                 {currentLesson.chapterTitle} <span style={{ color: 'var(--border-strong)' }}>/</span> {String(currentLessonIndex + 1).padStart(2, '0')}
+              </div>
+              <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 16px 0', lineHeight: 1.3, color: 'var(--text-primary)' }}>
+                {currentLesson.title}
+              </h1>
+              {currentLesson.description && (
+                <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6, borderLeft: '3px solid var(--accent-primary)', paddingLeft: 16 }}>
+                  {currentLesson.description}
+                </p>
+              )}
+            </div>
+
+            {/* Lesson Content Render */}
+            <LessonContent content={md} loading={loading} error={error || undefined} isFocusMode={isFocusMode} />
+
+            {/* Interactive Footer & Actions */}
+            <div style={{ marginTop: 64, borderTop: '1px dashed var(--border-strong)', paddingTop: 32, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
+               
+               {/* Next / Prev Lessons */}
+               <div style={{ display: 'flex', gap: 24, justifyContent: 'space-between' }}>
+                  {prevLesson ? (
+                    <button
+                      onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
+                      style={{
+                        flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
+                        borderRadius: 4, cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-primary)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
+                    >
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>{'<'} {t('lessonDetail.prevLesson')}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'underline decoration-transparent', transition: '0.2s' }}>{prevLesson.title}</span>
+                    </button>
+                  ) : <div style={{ flex: 1 }} />}
+
+                  {nextLesson ? (
+                    <button
+                      onClick={() => navigate(`/lesson/${nextLesson.id}`, { state: { skeleton } })}
+                      style={{
+                        flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
+                        borderRadius: 4, cursor: 'pointer', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 8
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
+                    >
+                      <span style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 700 }}>{t('lessonDetail.nextLesson')} {'>'}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'underline decoration-transparent', transition: '0.2s' }}>{nextLesson.title}</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
+                      style={{
+                        flex: 1, padding: 24, background: 'var(--success-primary)', border: '1px solid var(--success-primary)',
+                        borderRadius: 4, cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8,
+                        alignItems: 'center', justifyContent: 'center'
+                      }}
+                    >
+                      <span style={{ fontSize: 12, color: 'var(--bg-main)', fontWeight: 800 }}>[ {t('lessonDetail.completePlan')} ]</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--bg-main)' }}>{t('lessonDetail.returnToPlan')}</span>
+                    </button>
+                  )}
+               </div>
+            </div>
+          </div>
+
+          {/* Right Sidebar: Table of Contents */}
+          {!isFocusMode && (
+            <div style={{ position: 'sticky', top: 96, maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+               <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ borderBottom: '1px dashed var(--border-base)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                     <BookOpen className="w-4 h-4 text-[var(--accent-primary)]" />
+                     <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
+                       {t('lessonDetail.tableOfContents')}
+                     </h3>
+                  </div>
+                  
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', maxHeight: '500px' }} className="term-scroll">
+                     {headings.length > 0 ? (
+                       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                         {headings.map((h, i) => (
+                           <li key={i} style={{ paddingLeft: h.level === 3 ? 16 : 0 }}>
+                             <button
+                               onClick={() => scrollToHeading(h.id)}
+                               style={{
+                                 background: 'none', border: 'none', padding: 0, margin: 0,
+                                 textAlign: 'left', cursor: 'pointer', fontSize: 13, lineHeight: 1.4,
+                                 color: activeHeadingId === h.id ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                 fontWeight: activeHeadingId === h.id ? 700 : 500,
+                                 textDecoration: 'none',
+                                 transition: 'color 0.2s',
+                                 display: 'block',
+                                 width: '100%'
+                               }}
+                               onMouseEnter={e => { if (activeHeadingId !== h.id) e.currentTarget.style.color = 'var(--text-primary)' }}
+                               onMouseLeave={e => { if (activeHeadingId !== h.id) e.currentTarget.style.color = 'var(--text-secondary)' }}
+                             >
+                               {h.text}
+                             </button>
+                           </li>
+                         ))}
+                       </ul>
+                     ) : (
+                       <div style={{ fontSize: 13, color: 'var(--text-disabled)', display: 'flex', gap: 8, alignItems: 'center' }}>
+                         <AlertCircle className="w-4 h-4" /> [ {t('lessonDetail.noHeadings')} ]
+                       </div>
+                     )}
+                     
+                     <style>
+                       {`
+                         .term-scroll::-webkit-scrollbar { width: 4px; }
+                         .term-scroll::-webkit-scrollbar-track { background: transparent; }
+                         .term-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+                       `}
+                     </style>
+                  </div>
+               </div>
+            </div>
+          )}
+        </div>
       </main>
-      <Footer />
+      {!isFocusMode && <Footer />}
     </div>
   )
 }

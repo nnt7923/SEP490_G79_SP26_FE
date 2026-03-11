@@ -1,34 +1,37 @@
-
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
-import { requestChapterTasks } from '../../../../services/SignalR'
 import useAuthStore from '../../../../store/useAuthStore'
-import { ArrowLeft, Loader, AlertCircle, BookOpen, CheckCircle2, Clock, ListTodo } from 'lucide-react'
+import { ArrowLeft, Loader, AlertCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
+import ChapterTasks from '../../Plans/components/ChapterTasks'
 
 const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
   const pathId = location.state?.pathId
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { t } = useTranslation('student')
   const [plan, setPlan] = useState<SkeletonResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
-  const [chapterTasks, setChapterTasks] = useState<Record<string, any[]>>({})
-  const [loadingTasks, setLoadingTasks] = useState<Set<string>>(new Set())
+
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
+  const detailScrollRef = useRef<HTMLDivElement>(null)
+
+  // Track chapter completion status
+  const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
     actions: [],
-    brand: { name: 'Plan Details', subtitle: 'Learning' },
+    brand: { name: t('dashboard.learningPaths'), subtitle: t('plansResult.brandSubtitle') },
   }
 
   useEffect(() => {
-    // In a real app, you'd fetch the specific plan by ID
-    // For now, we'll get it from the list and find it
     fetchPlanDetail()
   }, [pathId])
 
@@ -38,17 +41,17 @@ const MyPlansDetailPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      // Fetch all plans and find the one matching pathId
       const response = await LearningPathService.getUserLearningPaths(user.id, {
         pageNumber: 1,
         pageSize: 100,
       })
-      
+
       const foundPlan = response.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         setPlan(foundPlan)
-        // Start with all chapters collapsed
-        setExpandedChapters(new Set())
+        if (foundPlan.chapters && foundPlan.chapters.length > 0) {
+          setActiveChapterId(foundPlan.chapters[0].id)
+        }
       } else {
         setError('Learning path not found')
       }
@@ -60,70 +63,27 @@ const MyPlansDetailPage: React.FC = () => {
     }
   }
 
-  // Auto-load tasks when chapter is expanded
-  const handleChapterToggle = async (chapterId: string) => {
-    const newExpanded = new Set(expandedChapters)
-    const isExpanding = !newExpanded.has(chapterId)
-    
-    if (isExpanding) {
-      newExpanded.add(chapterId)
-      
-      // Load tasks if not already loaded
-      if (!chapterTasks[chapterId] && !loadingTasks.has(chapterId)) {
-        setLoadingTasks(prev => new Set(prev).add(chapterId))
-        const loadWithRetry = async (retryCount = 0) => {
-          try {
-            const result = await requestChapterTasks(chapterId)
-            
-            // Handle different response formats robustly
-            let taskArray: any[] = []
-            if (Array.isArray(result)) {
-              taskArray = result
-            } else if (result && typeof result === 'object') {
-              if (Array.isArray(result.tasks)) {
-                taskArray = result.tasks
-              } else if (Array.isArray(result.data)) {
-                taskArray = result.data
-              } else if (Array.isArray(result.items)) {
-                taskArray = result.items
-              } else {
-                taskArray = [result]
-              }
-            }
-            
-            setChapterTasks(prev => ({ ...prev, [chapterId]: taskArray }))
-          } catch (err) {
-            // Auto-retry once on failure
-            if (retryCount < 1) {
-              await new Promise(r => setTimeout(r, 1000))
-              return loadWithRetry(retryCount + 1)
-            }
-            setChapterTasks(prev => ({ ...prev, [chapterId]: [] }))
-          } finally {
-            setLoadingTasks(prev => {
-              const next = new Set(prev)
-              next.delete(chapterId)
-              return next
-            })
-          }
-        }
-        loadWithRetry()
-      }
-    } else {
-      newExpanded.delete(chapterId)
+  // Scroll details pane to top when chapter changes
+  useEffect(() => {
+    if (detailScrollRef.current) {
+      detailScrollRef.current.scrollTop = 0
     }
-    
-    setExpandedChapters(newExpanded)
+  }, [activeChapterId])
+
+  const handleChapterTasksCompleted = (chapterId: string, completed: boolean) => {
+    setChapterCompletionStatus(prev => ({
+      ...prev,
+      [chapterId]: completed
+    }))
   }
 
   if (loading) {
     return (
       <Layout sidebar={sidebarConfig}>
-      
-        <div className="px-6 py-8 bg-gradient-to-br from-[var(--bg-subtle)] to-[var(--gray-100)] min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <Loader className="w-8 h-8 text-[var(--brand-blue)] animate-spin mx-auto mb-3" />
-            <p className="text-[var(--text-secondary)]">Loading learning path details...</p>
+        <div style={{ padding: 40, background: 'var(--bg-main)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' }}>
+          <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>
+            <Loader className="w-8 h-8 animate-spin mx-auto mb-3" />
+            <p>{'>'} {t('goals.loading')}</p>
           </div>
         </div>
       </Layout>
@@ -133,21 +93,22 @@ const MyPlansDetailPage: React.FC = () => {
   if (error || !plan) {
     return (
       <Layout sidebar={sidebarConfig}>
-        <div className="px-6 py-8 bg-gradient-to-br from-[var(--bg-subtle)] to-[var(--gray-100)] min-h-screen">
+        <div style={{ padding: 32, background: 'var(--bg-main)', minHeight: '100vh', fontFamily: 'monospace' }}>
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-[var(--brand-blue)] hover:text-[var(--brand-blue-alt)] mb-6 transition-colors"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', marginBottom: 24, fontSize: 14 }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
-            <ArrowLeft className="w-5 h-5" />
-            Back
+            <ArrowLeft className="w-4 h-4" /> [ {t('plansResult.back').toUpperCase()} ]
           </button>
-          
-          <div className="bg-th-card rounded-lg border border-[var(--gray-200)] p-8">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-[var(--color-red-500)] flex-shrink-0 mt-0.5" />
+
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--error-primary)', borderRadius: 4, padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <AlertCircle className="w-5 h-5" style={{ color: 'var(--error-primary)' }} />
               <div>
-                <h3 className="font-semibold text-[var(--gray-900)]">Error loading plan</h3>
-                <p className="text-sm text-[var(--text-secondary)] mt-1">{error || 'Learning path not found'}</p>
+                <h3 style={{ margin: '0 0 8px 0', fontWeight: 700, color: 'var(--text-primary)' }}>[ ERROR ]</h3>
+                <p style={{ margin: 0, fontSize: 14, color: 'var(--error-primary)' }}>{error || 'Learning path not found'}</p>
               </div>
             </div>
           </div>
@@ -158,227 +119,278 @@ const MyPlansDetailPage: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div className="px-4 py-4 bg-gradient-to-br from-[var(--bg-subtle)] to-[var(--gray-100)] min-h-screen">
-        {/* Back Button */}
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[var(--brand-blue)] hover:text-[var(--brand-blue-alt)] mb-4 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to My Plans
-        </button>
+      <div style={{
+        padding: 32,
+        background: 'var(--bg-main)',
+        minHeight: '100vh',
+        fontFamily: 'monospace'
+      }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
 
-        {/* Header */}
-        <div className="bg-th-card rounded-lg border border-[var(--gray-200)] p-5 mb-4">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h1 className="text-2xl font-bold text-[var(--gray-900)] mb-1">{plan.title || 'Untitled Plan'}</h1>
-              <p className="text-[var(--text-secondary)] text-sm">{plan.description || 'No description available'}</p>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-[var(--gray-200)]">
-            <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--brand-blue)]">{plan.chapterCount || plan.chapters?.length || 0}</div>
-              <div className="text-xs text-[var(--text-secondary)] mt-0.5">Chapters</div>
-            </div>
-            <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--accent-purple)]">{plan.lessons?.length || 0}</div>
-              <div className="text-xs text-[var(--text-secondary)] mt-0.5">Lessons</div>
-            </div>
-            <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--text-emerald)]">0</div>
-              <div className="text-xs text-[var(--text-secondary)] mt-0.5">Completed</div>
-            </div>
-            <div className="stat-box">
-              <div className="text-2xl font-bold text-[var(--color-amber-500)]">0%</div>
-              <div className="text-xs text-[var(--text-secondary)] mt-0.5">Progress</div>
-            </div>
-          </div>
-
-          {/* Meta Info */}
-          {plan.createdAt && (
-            <div className="flex items-center gap-2 mt-4 text-xs text-[var(--text-secondary)]">
-              <Clock className="w-3.5 h-3.5" />
-              Created on {new Date(plan.createdAt).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Chapters & Lessons - Full Width */}
-        <div className="space-y-3">
-          {plan.chapters && plan.chapters.length > 0 ? (
-            plan.chapters.map((chapter, chapterIdx) => (
-              <div key={chapter.id || chapterIdx} className="bg-th-card rounded-lg border border-[var(--gray-200)] overflow-hidden">
-                {/* Chapter Header */}
-                <button
-                  type="button"
-                  onClick={() => handleChapterToggle(chapter.id)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--bg-subtle)] transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1 text-left">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[var(--brand-blue)] text-white flex items-center justify-center font-semibold text-sm">
-                      {chapterIdx + 1}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-[var(--gray-900)] text-base">{chapter.title}</h3>
-                      {chapter.lessons && chapter.lessons.length > 0 && (
-                        <p className="text-xs text-[var(--text-secondary)] mt-0.5">{chapter.lessons.length} lessons</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className={`transform transition-transform ${expandedChapters.has(chapter.id) ? 'rotate-180' : ''}`}>
-                    <svg className="w-4 h-4 text-[var(--gray-400)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
-                  </div>
-                </button>
-
-                {/* Chapter Content */}
-                {chapter.content && (
-                  <div className="px-4 py-2 bg-[var(--bg-subtle)] border-t border-[var(--gray-200)]">
-                    <p className="text-xs text-[var(--gray-700)]">{chapter.content}</p>
-                  </div>
-                )}
-
-                {/* Tasks Button */}
-                {expandedChapters.has(chapter.id) && (
-                  <div className="border-t border-[var(--gray-200)] px-4 py-3 hover:bg-[var(--bg-subtle)] transition-colors">
-                    <div className="mt-2 space-y-1.5">
-                      <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Tasks:</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!chapter.id) {
-                            alert('Chapter ID is missing! Cannot navigate to task.')
-                            return
-                          }
-                          navigate(`/task/${chapter.id}`, { 
-                            state: { skeleton: plan } 
-                          })
-                        }}
-                        className="flex items-center justify-between w-full p-3 rounded-lg border border-[var(--gray-200)] hover:border-[var(--brand-blue)] hover:bg-[var(--bg-main)] transition-all"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--bg-yellow-light)] flex items-center justify-center">
-                            <ListTodo className="w-4 h-4 text-[var(--warning-primary)]" />
-                          </div>
-                          <span className="font-semibold text-sm text-[var(--gray-900)] text-left">
-                            Chapter Tasks
-                          </span>
-                        </div>
-                        <span className="text-xs font-medium text-[var(--brand-blue)] group-hover:underline">
-                          View Tasks &rarr;
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Lessons */}
-                {expandedChapters.has(chapter.id) && chapter.lessons && chapter.lessons.length > 0 && (
-                  <div className="border-t border-[var(--gray-200)]">
-                    <div className="divide-y divide-[var(--gray-200)]">
-                      {chapter.lessons.map((lesson, lessonIdx) => (
-                        <div key={lesson.id || lessonIdx} className="px-4 py-3 hover:bg-[var(--bg-subtle)] transition-colors">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--accent-purple)] text-white flex items-center justify-center text-xs font-semibold">
-                              {lessonIdx + 1}
-                            </div>
-                            <div className="flex-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch {}
-                                  navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
-                                }}
-                                title="View lesson content"
-                                className="font-medium text-[var(--gray-900)] text-sm text-left hover:text-[var(--brand-blue)] underline decoration-transparent hover:decoration-[var(--brand-blue)]"
-                              >
-                                {lesson.title}
-                              </button>
-                              {lesson.description && (
-                                <p className="text-xs text-[var(--text-secondary)] mt-1">{lesson.description}</p>
-                              )}
-                              
-
-                              {/* Quizzes */}
-                              {lesson.quizzes && lesson.quizzes.length > 0 && (
-                                <div className="mt-2 space-y-1.5">
-                                  <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Quizzes:</p>
-                                  <div className="space-y-1">
-                                    {lesson.quizzes.map((quiz, quizIdx) => (
-                                      <button
-                                        key={quiz.id || quizIdx}
-                                        type="button"
-                                        onClick={() => {
-                                          if (!quiz.id) {
-                                            alert('Quiz ID is missing! Cannot navigate to quiz.')
-                                            return
-                                          }
-                                          
-                                          navigate(`/quiz/${quiz.id}`, { 
-                                            state: { 
-                                              quizTitle: quiz.title,
-                                              skeleton: plan 
-                                            } 
-                                          })
-                                        }}
-                                        className="flex items-center gap-2 text-xs text-[var(--gray-700)] hover:text-[var(--brand-blue)] transition-colors cursor-pointer"
-                                      >
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-[var(--text-emerald)]" />
-                                        <span className="underline decoration-transparent hover:decoration-[var(--brand-blue)]">{quiz.title}</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="bg-th-card rounded-lg border border-[var(--gray-200)] p-8 text-center">
-              <BookOpen className="w-10 h-10 text-[var(--gray-300)] mx-auto mb-3" />
-              <p className="text-sm text-[var(--text-secondary)]">No chapters available for this learning path</p>
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="mt-6 flex gap-3">
-          <button type="button" className="flex-1 px-5 py-2.5 bg-[var(--brand-blue)] text-white rounded-lg font-medium hover:bg-[var(--brand-blue-alt)] transition-all duration-200 text-sm">
-            Start Learning
-          </button>
+          {/* Back Button */}
           <button
-            type="button"
             onClick={() => navigate(-1)}
-            className="flex-1 px-5 py-2.5 border border-[var(--gray-200)] text-[var(--gray-700)] rounded-lg font-medium hover:bg-[var(--bg-subtle)] transition-all duration-200 text-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', marginBottom: 24, fontSize: 14, fontWeight: 700 }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
-            Back
+            <ArrowLeft className="w-4 h-4" /> [ {t('plansResult.back').toUpperCase()} ]
           </button>
+
+          {/* Hero frame */}
+          <section style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-base)',
+            borderRadius: 4,
+            padding: 32,
+            marginBottom: 32,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Terminal decorative top bar */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+              background: 'linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%)'
+            }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h1 style={{
+                  color: 'var(--text-primary)', fontSize: 24, fontWeight: 700, margin: '0 0 16px 0',
+                  display: 'flex', alignItems: 'center', gap: 12
+                }}>
+                  <span style={{ color: 'var(--accent-primary)' }}>{'>'}</span>
+                  {plan.title || t('myPlans.untitled')}
+                  <span style={{ animation: 'blink 1s step-end infinite', color: 'var(--accent-primary)', fontWeight: 300 }}>_</span>
+                </h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px 0', lineHeight: 1.6 }}>
+                  // {plan.description || t('myPlans.noDescription')}
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-primary)',
+              fontWeight: 600, flexWrap: 'wrap'
+            }}>
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
+              }}>
+                [ {t('plansResult.chaptersFormat', { count: plan.chapterCount || plan.chapters?.length || 0 })} ]
+              </span>
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
+              }}>
+                [ {t('plansResult.lessonsFormat', { count: plan.lessons?.length || 0 })} ]
+              </span>
+              <span style={{
+                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)', color: 'var(--success-primary)'
+              }}>
+                [ 0% PROGRESS ]
+              </span>
+              {plan.createdAt && (
+                <span style={{
+                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
+                }}>
+                  [ {new Date(plan.createdAt).toLocaleDateString()} ]
+                </span>
+              )}
+            </div>
+          </section>
+
+          {/* Chapters & Lessons Display (Master-Detail Grid) */}
+          {plan.chapters && plan.chapters.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 30%) 1fr', gap: 24, marginBottom: 32, alignItems: 'start' }}>
+              <style>
+                {`
+@keyframes blink { 50 % { opacity: 0; } }
+                  .chapter - btn { transition: all 0.2s ease; border - left: 2px solid transparent; }
+                  .chapter - btn:hover { background: var(--gray - 100); }
+                  .chapter - btn.active { background: var(--bg - surface); border - left - color: var(--accent - primary); border - top: 1px solid var(--border - base); border - right: 1px solid var(--border - base); border - bottom: 1px solid var(--border - base); }
+                  .lesson - link { transition: all 0.2s ease; }
+                  .lesson - link:hover { padding - left: 8px; color: var(--accent - primary)!important; text - decoration: underline; }
+                  
+                  .term - scroll:: -webkit - scrollbar { width: 6px; }
+                  .term - scroll:: -webkit - scrollbar - track { background: transparent; }
+                  .term - scroll:: -webkit - scrollbar - thumb { background: var(--border - base); border - radius: 3px; }
+                  .term - scroll:: -webkit - scrollbar - thumb:hover { background: var(--text - disabled); }
+                  .term - scroll { scrollbar - width: thin; scrollbar - color: var(--border - base) transparent; }
+`}
+              </style>
+
+              {/* Left Column: Chapters List */}
+              <div className="term-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '600px', overflowY: 'auto', paddingRight: '8px' }}>
+                <h2 style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8, marginTop: 0, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  {'// '} {t('plansResult.contentTree')}
+                </h2>
+
+                {plan.chapters.map((chapter, chapterIdx) => {
+                  const isActive = activeChapterId === chapter.id
+                  const isCompleted = chapterCompletionStatus[chapter.id] === true
+
+                  return (
+                    <button
+                      key={chapter.id || chapterIdx}
+                      className={`chapter - btn ${isActive ? 'active' : ''} `}
+                      onClick={() => setActiveChapterId(chapter.id)}
+                      style={{
+                        width: '100%', padding: '16px', display: 'flex', alignItems: 'center', gap: 12,
+                        background: isActive ? 'var(--bg-surface)' : 'transparent',
+                        border: isActive ? '1px solid var(--border-base)' : '1px solid transparent',
+                        borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                        borderRadius: 4, cursor: 'pointer', textAlign: 'left'
+                      }}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: 2, flexShrink: 0,
+                        background: isCompleted ? 'var(--success-primary)' : 'var(--bg-main)',
+                        border: `1px solid ${isCompleted ? 'transparent' : 'var(--border-base)'} `,
+                        color: isCompleted ? 'var(--bg-surface)' : 'var(--text-primary)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12
+                      }}>
+                        {isCompleted ? '✓' : (chapterIdx + 1)}
+                      </div>
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: isActive ? 700 : 600, color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {chapter.title}
+                        </h3>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Right Column: Selected Chapter Detail */}
+              <div ref={detailScrollRef} className="term-scroll" style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-base)',
+                borderRadius: 4,
+                height: '600px',
+                display: 'flex',
+                flexDirection: 'column',
+                overflowY: 'auto',
+                overflowX: 'hidden'
+              }}>
+                {(() => {
+                  const chapter = plan.chapters?.find(c => c.id === activeChapterId)
+                  if (!chapter) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-disabled)' }}>[ SELECT_CHAPTER ]</div>
+
+                  return (
+                    <>
+                      {/* Detail Header */}
+                      <div style={{ padding: '24px', borderBottom: '1px dashed var(--border-base)', background: 'var(--bg-main)' }}>
+                        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {chapter.title}
+                        </h3>
+                        {chapter.content && (
+                          <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            {chapter.content}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Lessons List */}
+                      {chapter.lessons && chapter.lessons.length > 0 && (
+                        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                          <h4 style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                            {'//'} {t('plansResult.lessonsCount', { count: chapter.lessons.length })}
+                          </h4>
+                          <div style={{ display: 'grid', gap: 16 }}>
+                            {chapter.lessons.map((lesson, lessonIdx) => (
+                              <div key={lesson.id || lessonIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+                                <div style={{
+                                  width: 24, height: 24, borderRadius: '50%', background: 'var(--text-disabled)', color: 'var(--bg-surface)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
+                                }}>
+                                  {lessonIdx + 1}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <button
+                                    className="lesson-link"
+                                    onClick={() => {
+                                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch { }
+                                      navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
+                                    }}
+                                    style={{
+                                      background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
+                                      fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
+                                      textDecoration: 'none', textAlign: 'left', display: 'block'
+                                    }}
+                                  >
+                                    {lesson.title}
+                                  </button>
+                                  {lesson.description && (
+                                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                      {'>'} {lesson.description}
+                                    </p>
+                                  )}
+
+                                  {/* Quizzes */}
+                                  {lesson.quizzes && lesson.quizzes.length > 0 && (
+                                    <div style={{ marginTop: 12, padding: '12px', background: 'var(--bg-surface)', border: '1px dashed var(--border-base)', borderRadius: 2 }}>
+                                      <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
+                                        {t('plansResult.quizzes')}
+                                      </span>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                                        {lesson.quizzes.map((quiz, quizIdx) => (
+                                          <button
+                                            key={quiz.id || quizIdx}
+                                            onClick={() => {
+                                              if (!quiz.id) {
+                                                alert('Quiz ID is missing! Cannot navigate to quiz.')
+                                                return
+                                              }
+                                              navigate(`/quiz/${quiz.id}`, {
+                                                state: { quizTitle: quiz.title, skeleton: plan }
+                                              })
+                                            }}
+                                            style={{
+                                              background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
+                                              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
+                                            }}
+                                            onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                                            onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
+                                          >
+                                            <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                                              {quiz.title}
+                                              {quiz.id && <QuizStatusBadge quizId={quiz.id} />}
+                                            </span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Chapter Tasks */}
+                      <div style={{ marginTop: 'auto' }}>
+                        <ChapterTasks
+                          chapterId={chapter.id!}
+                          onAllTasksCompleted={handleChapterTasksCompleted}
+                        />
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              padding: 40, textAlign: 'center', color: 'var(--text-disabled)', fontFamily: 'monospace',
+              background: 'var(--bg-surface)', border: '1px dashed var(--border-base)', borderRadius: 2, marginBottom: 32
+            }}>
+              [ {t('plansResult.noChapters')} ]
+            </div>
+          )}
         </div>
       </div>
-
-      <style>{`
-        .stat-box {
-          padding: 0.75rem;
-          background: var(--bg-subtle);
-          border-radius: 0.5rem;
-          border: 1px solid var(--gray-200);
-        }
-      `}</style>
     </Layout>
   )
 }
