@@ -58,10 +58,10 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
     // Wait up to 10 seconds for connection to be established
     const maxWait = 10000
     const startTime = Date.now()
-    while (conn.state !== signalR.HubConnectionState.Connected && Date.now() - startTime < maxWait) {
+    while ((conn.state as signalR.HubConnectionState) !== signalR.HubConnectionState.Connected && Date.now() - startTime < maxWait) {
       await new Promise(resolve => setTimeout(resolve, 100))
     }
-    if (conn.state !== signalR.HubConnectionState.Connected) {
+    if ((conn.state as signalR.HubConnectionState) !== signalR.HubConnectionState.Connected) {
       throw new Error(`Connection timeout: ${_name} hub failed to connect`)
     }
     return
