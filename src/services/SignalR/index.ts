@@ -18,6 +18,7 @@ const CHAPTER_HUB_URL = `${HUB_BASE}/hubs/chapter`
 const TASK_HUB_URL = `${HUB_BASE}/hubs/task`
 const QUIZ_HUB_URL = `${HUB_BASE}/hubs/quiz`
 const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
+const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
 // ==== State ====
@@ -26,6 +27,7 @@ let chapterHub: signalR.HubConnection | null = null
 let taskHub: signalR.HubConnection | null = null
 let quizHub: signalR.HubConnection | null = null
 let summaryHub: signalR.HubConnection | null = null
+let learningPathHub: signalR.HubConnection | null = null
 
 // single-flight guards (avoid duplicate invokes for the same id)
 const inflightLesson = new Map<string, Promise<any>>()
@@ -33,6 +35,8 @@ const inflightChapter = new Map<string, Promise<any>>()
 const inflightTask = new Map<string, Promise<any>>()
 const inflightQuiz = new Map<string, Promise<any>>()
 const inflightSummary = new Map<string, Promise<any>>()
+const inflightLearningPath = new Map<string, Promise<any>>()
+const inflightChapterSkeleton = new Map<string, Promise<any>>()
 
 // ==== Utils ====
 function getToken(): string | undefined {
@@ -92,9 +96,12 @@ export async function getLessonHub(): Promise<signalR.HubConnection> {
 
 export async function getChapterHub(): Promise<signalR.HubConnection> {
   if (!chapterHub) {
+    console.log('Creating chapter hub connection to:', CHAPTER_HUB_URL)
     chapterHub = buildConnection(CHAPTER_HUB_URL)
   }
+  console.log('Chapter hub state:', chapterHub.state)
   await ensureStarted(chapterHub, 'chapter')
+  console.log('Chapter hub connected successfully')
   return chapterHub
 }
 
@@ -120,6 +127,17 @@ export async function getSummaryHub(): Promise<signalR.HubConnection> {
   }
   await ensureStarted(summaryHub, 'summary')
   return summaryHub
+}
+
+export async function getLearningPathHub(): Promise<signalR.HubConnection> {
+  if (!learningPathHub) {
+    console.log('Creating learning path hub connection to:', LEARNING_PATH_HUB_URL)
+    learningPathHub = buildConnection(LEARNING_PATH_HUB_URL)
+  }
+  console.log('Learning path hub state:', learningPathHub.state)
+  await ensureStarted(learningPathHub, 'learningpath')
+  console.log('Learning path hub connected successfully')
+  return learningPathHub
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
@@ -499,6 +517,255 @@ export async function disconnectSummaryHub(): Promise<void> {
   }
 }
 
+// ==== Types for better TypeScript support ====
+export interface ChapterSkeletonResult {
+  chapterId: string
+  title: string
+  orderIndex: number
+  lessonCount?: number
+  quizCount?: number
+}
+
+export interface LearningPathCreated {
+  pathId: string
+  title: string
+  description: string
+  chapterCount: number
+  chapterDtos: Array<{
+    chapterId: string
+    title: string
+    orderIndex: number
+  }>
+}
+
+export interface LearningPathError {
+  errorCode: 'INVALID_COMPLEXITY' | 'INVALID_LANGUAGE' | 'LEARNING_PATH_NOT_FOUND' | 'UNAUTHORIZED' | 'GENERATION_FAILED' | 'UNEXPECTED_ERROR'
+  errorMessage: string
+}
+
+// ==== Request learning path generation (pure SignalR) ====
+export async function requestLearningPathGeneration(
+  payload: {
+    subjectId: string
+    goalId: string
+    complexityLevel: string
+    languageSelection: number
+  },
+  onLoading?: () => void,
+  onProgress?: (progress: number) => void
+): Promise<any> {
+  if (!payload.subjectId || !payload.goalId || !payload.complexityLevel || !payload.languageSelection) {
+    return Promise.reject(new Error('Missing required parameters for learning path generation'))
+  }
+
+  // Convert languageSelection number to string for backend
+  const languageSelectionString = payload.languageSelection === 1 ? 'VietNamese' : 'English'
+
+  // single-flight: return running promise for same payload
+  const key = `${payload.subjectId}-${payload.goalId}-${payload.complexityLevel}-${payload.languageSelection}`
+  if (inflightLearningPath.has(key)) {
+    return inflightLearningPath.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getLearningPathHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('LearningPathGenerationStarted', handleLoading)
+        hub.off('LearningPathCreated', handleLearningPath)
+        hub.off('LearningPathGenerationCompleted', handleCompleted)
+        hub.off('LearningPathGenerationError', handleError)
+        inflightLearningPath.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+        onProgress?.(10) // Initial progress
+      }
+
+      const handleLearningPath = (learningPath: any) => {
+        console.log('LearningPathCreated event received:', learningPath)
+        console.log('LearningPathCreated full object:', JSON.stringify(learningPath, null, 2))
+        onProgress?.(80) // Progress when learning path is created
+        
+        // LearningPathCreated should have the complete data
+        if (learningPath && (learningPath.pathId || learningPath.chapterDtos || learningPath.title)) {
+          console.log('LearningPathCreated has data, resolving immediately')
+          if (done) return
+          done = true
+          cleanup()
+          onProgress?.(100)
+          resolve(learningPath)
+        }
+      }
+
+      const handleCompleted = (result: any) => {
+        console.log('LearningPathGenerationCompleted event received:', result)
+        if (done) return
+        done = true
+        cleanup()
+        onProgress?.(100) // Complete
+        console.log('Learning path generation completed, result:', result)
+        resolve(result)
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error(err?.errorMessage || err?.message || 'Failed to generate learning path'))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Learning path generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleCompletedWrap = (result: any) => { clearTo(); handleCompleted(result) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('LearningPathGenerationStarted', handleLoading)
+      hub.on('LearningPathCreated', handleLearningPath)
+      hub.on('LearningPathGenerationCompleted', handleCompletedWrap)
+      hub.on('LearningPathGenerationError', handleErrorWrap)
+
+      try {
+        // Backend expects 4 separate parameters, not an object
+        console.log('Invoking RequestLearningPathGeneration with params:', {
+          subjectId: payload.subjectId,
+          goalId: payload.goalId,
+          complexityLevel: payload.complexityLevel,
+          languageSelection: languageSelectionString
+        })
+        hub.invoke('RequestLearningPathGeneration', 
+          payload.subjectId, 
+          payload.goalId, 
+          payload.complexityLevel, 
+          languageSelectionString
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        console.error('Error invoking RequestLearningPathGeneration:', e)
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightLearningPath.set(key, p)
+  return p
+}
+
+// ==== Request chapter skeleton generation (pure SignalR) ====
+export async function requestChapterSkeleton(
+  pathId: string,
+  orderIndex: number,
+  onLoading?: () => void
+): Promise<any> {
+  if (!pathId || typeof orderIndex !== 'number') {
+    return Promise.reject(new Error('pathId and orderIndex are required for chapter skeleton generation'))
+  }
+
+  // single-flight: return running promise for same pathId-orderIndex
+  const key = `${pathId}-${orderIndex}`
+  if (inflightChapterSkeleton.has(key)) {
+    return inflightChapterSkeleton.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getChapterHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('ChapterSkeletonGenerationStarted', handleLoading)
+        hub.off('ChapterSkeletonGenerated', handleChapterSkeleton)
+        hub.off('ChapterSkeletonError', handleError)
+        inflightChapterSkeleton.delete(key)
+      }
+
+      const handleLoading = (data: any) => {
+        console.log('ChapterSkeletonGenerationStarted event received:', data)
+        // Check if this event is for our request
+        if (data?.pathId === pathId && data?.orderIndex === orderIndex) {
+          console.log('Loading event matches our request')
+          onLoading?.()
+        } else {
+          console.log('Loading event does not match our request:', { expected: { pathId, orderIndex }, received: data })
+        }
+      }
+
+      const handleChapterSkeleton = (chapterSkeleton: any) => {
+        console.log('ChapterSkeletonGenerated event received:', chapterSkeleton)
+        // Check if this event is for our request - be more flexible with matching
+        if (chapterSkeleton?.orderIndex === orderIndex || 
+            (chapterSkeleton?.pathId === pathId && chapterSkeleton?.orderIndex === orderIndex)) {
+          console.log('Chapter skeleton event matches our request')
+          if (done) return
+          done = true
+          cleanup()
+          resolve(chapterSkeleton)
+        } else {
+          console.log('Chapter skeleton event does not match our request:', { expected: { pathId, orderIndex }, received: chapterSkeleton })
+        }
+      }
+
+      const handleError = (err: any) => {
+        console.log('ChapterSkeletonError event received:', err)
+        // Check if this error is for our request
+        if (err?.pathId === pathId && err?.orderIndex === orderIndex) {
+          console.log('Error event matches our request')
+          if (done) return
+          done = true
+          cleanup()
+          reject(new Error(err?.errorMessage || err?.message || 'Failed to generate chapter skeleton'))
+        } else {
+          console.log('Error event does not match our request:', { expected: { pathId, orderIndex }, received: err })
+        }
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Chapter skeleton generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleChapterSkeletonWrap = (cs: any) => { clearTo(); handleChapterSkeleton(cs) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('ChapterSkeletonGenerationStarted', handleLoading)
+      hub.on('ChapterSkeletonGenerated', handleChapterSkeletonWrap)
+      hub.on('ChapterSkeletonError', handleErrorWrap)
+
+      try {
+        console.log('Invoking RequestChapterSkeleton with params:', { pathId, orderIndex })
+        hub.invoke('RequestChapterSkeleton', pathId, orderIndex).catch(handleErrorWrap)
+      } catch (e) {
+        console.error('Error invoking RequestChapterSkeleton:', e)
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightChapterSkeleton.set(key, p)
+  return p
+}
+
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
@@ -516,6 +783,18 @@ export async function disconnectHubs(): Promise<void> {
     if (summaryHub && summaryHub.state !== signalR.HubConnectionState.Disconnected) {
       await summaryHub.stop()
     }
+    if (learningPathHub && learningPathHub.state !== signalR.HubConnectionState.Disconnected) {
+      await learningPathHub.stop()
+    }
+    
+    // Clear all inflight requests
+    inflightLesson.clear()
+    inflightChapter.clear()
+    inflightTask.clear()
+    inflightQuiz.clear()
+    inflightSummary.clear()
+    inflightLearningPath.clear()
+    inflightChapterSkeleton.clear()
   } catch {
     // ignore
   }
