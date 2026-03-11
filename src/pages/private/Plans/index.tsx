@@ -86,8 +86,13 @@ const PlansPage: React.FC = () => {
   const [goalsError, setGoalsError] = useState<string | null>(null)
   const [myGoalsError, setMyGoalsError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<boolean>(false)
+  const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
+  
+  // Chapter skeleton generation states
+  const [generatingChapters, setGeneratingChapters] = useState<Set<string>>(new Set())
+  const [chapterErrors, setChapterErrors] = useState<Map<string, string>>(new Map())
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
@@ -180,6 +185,92 @@ const PlansPage: React.FC = () => {
 
   // IMPORTANT: initialize navigate for routing
   const navigate = useNavigate()
+
+  // Handle chapter skeleton generation
+  const handleChapterClick = async (pathId: string, chapterIndex: number, chapterId: string) => {
+    console.log('Chapter clicked:', { pathId, chapterIndex, chapterId })
+    const chapterKey = `${pathId}-${chapterIndex}`
+    
+    // Don't generate if already generating
+    if (generatingChapters.has(chapterKey)) {
+      console.log('Chapter already generating, skipping')
+      return
+    }
+    
+    console.log('Starting chapter skeleton generation...')
+    
+    // Clear any previous error for this chapter
+    setChapterErrors(prev => {
+      const newErrors = new Map(prev)
+      newErrors.delete(chapterKey)
+      return newErrors
+    })
+    
+    // Add to generating set
+    setGeneratingChapters(prev => new Set(prev).add(chapterKey))
+    console.log('Added to generating set:', chapterKey)
+    
+    try {
+      console.log(`Generating skeleton for chapter ${chapterIndex} of path ${pathId}`)
+      
+      const chapterSkeleton = await LearningPathService.generateChapterSkeleton(
+        pathId,
+        chapterIndex,
+        {
+          useSignalR: true,
+          onLoading: () => {
+            console.log(`Chapter ${chapterIndex} skeleton generation started`)
+          }
+        }
+      )
+      
+      console.log(`Chapter ${chapterIndex} skeleton generated:`, chapterSkeleton)
+      
+      // Update skeleton with lesson info
+      setSkeleton((prevSkeleton: any) => {
+        console.log('Updating skeleton with chapter info:', prevSkeleton)
+        if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
+        
+        // Handle both chapters and chapterDtos
+        const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
+        const updatedChapters = chaptersArray.map((ch: any, idx: number) => {
+          if (idx === chapterIndex) {
+            return {
+              ...ch,
+              lessonCount: chapterSkeleton.lessonCount || 0,
+              quizCount: chapterSkeleton.quizCount || 0,
+              hasLessons: (chapterSkeleton.lessonCount || 0) > 0
+            }
+          }
+          return ch
+        })
+        
+        const updated = {
+          ...prevSkeleton,
+          chapters: prevSkeleton.chapters ? updatedChapters : undefined,
+          chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
+        }
+        console.log('Updated skeleton:', updated)
+        return updated
+      })
+      
+    } catch (error: any) {
+      console.error(`Failed to generate chapter ${chapterIndex} skeleton:`, error)
+      setChapterErrors(prev => {
+        const newErrors = new Map(prev)
+        newErrors.set(chapterKey, error.message || 'Failed to generate chapter skeleton')
+        return newErrors
+      })
+    } finally {
+      // Remove from generating set
+      setGeneratingChapters(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(chapterKey)
+        return newSet
+      })
+      console.log('Removed from generating set:', chapterKey)
+    }
+  }
 
   // Persist selections
   useEffect(() => {
@@ -787,11 +878,30 @@ const PlansPage: React.FC = () => {
                     if (!languageSelection) { setPlanError(t('plans.selectLanguage')); return }
                     setPlanError(null)
                     setGenerating(true)
+                    setGenerationProgress(0)
                     try {
-                      const payload: any = { subjectId: language, goalId: selectedGoals[0], complexityLevel: level, languageSelection: languageSelection }
-                      const sk = await LearningPathService.generateSkeleton(payload)
+                      const payload: any = { 
+                        subjectId: language, 
+                        goalId: selectedGoals[0], 
+                        complexityLevel: level, 
+                        languageSelection: languageSelection 
+                      }
+                      
+                      // Use SignalR for real-time progress updates
+                      const sk = await LearningPathService.generateSkeleton(payload, {
+                        useSignalR: true,
+                        onLoading: () => {
+                          setGenerationProgress(10) // Initial loading
+                        },
+                        onProgress: (progress: number) => {
+                          setGenerationProgress(progress)
+                        }
+                      })
+                      
                       setSkeleton(sk)
                       setPlanGenerated(true)
+                      setGenerationProgress(100)
+                      console.log('Final skeleton set in state:', sk)
                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch {}
                       navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
                     } catch (e: any) {
@@ -806,13 +916,14 @@ const PlansPage: React.FC = () => {
                       setPlanError(msg)
                     } finally {
                       setGenerating(false)
+                      setGenerationProgress(0)
                     }
                   }}
                 >
                   {generating ? (
                     <>
                       <div className="animate-spin" style={{ width: 16, height: 16, border: '2px solid var(--bg-surface-short)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-                      <span>// {t('plans.generatingPath')}</span>
+                      <span>// {t('plans.generatingPath')} ({generationProgress}%)</span>
                     </>
                   ) : (
                     <>
@@ -831,29 +942,105 @@ const PlansPage: React.FC = () => {
                {planGenerated && skeleton && (
                  <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
                    <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
-                   {Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
-                     <ul className="space-y-4">
-                       {skeleton.lessons.map((ls: any) => (
-                         <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
-                           <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
-                           <div className="flex-1">
-                             <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
-                             {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
-                             {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
-                               <ul className="mt-2 ml-4 space-y-1">
-                                 {ls.chapters.map((ch: any) => (
-                                   <li key={ch.id ?? ch.title} className="text-sm text-body">
-                                     • {ch.title ?? 'Chapter'}
-                                   </li>
-                                 ))}
-                               </ul>
-                             )}
-                           </div>
-                         </li>
-                       ))}
-                     </ul>
+                   
+                   {/* Display chapters if available */}
+                   {(Array.isArray(skeleton?.chapters) && skeleton.chapters.length > 0) || (Array.isArray(skeleton?.chapterDtos) && skeleton.chapterDtos.length > 0) ? (
+                     <div>
+                       <h3 className="text-lg font-semibold text-heading mb-3">Chapters</h3>
+                       <p className="text-sm text-muted mb-4">Click on a chapter to generate lesson titles</p>
+                       <ul className="space-y-4">
+                         {(skeleton.chapters || skeleton.chapterDtos || []).map((ch: any, idx: number) => {
+                           const chapterKey = `${skeleton.pathId}-${idx}`
+                           const isGenerating = generatingChapters.has(chapterKey)
+                           const error = chapterErrors.get(chapterKey)
+                           const chapterId = ch.chapterId || ch.id
+                           
+                           return (
+                             <li key={chapterId ?? ch.title} className="relative">
+                               <button
+                                 type="button"
+                                 onClick={() => handleChapterClick(skeleton.pathId, idx, chapterId)}
+                                 disabled={isGenerating}
+                                 className={`w-full text-left flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
+                                   isGenerating 
+                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
+                                     : 'bg-status-blue-bg border-blue-200 hover:border-blue-300 hover:bg-blue-100'
+                                 }`}
+                               >
+                                 <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
+                                 <div className="flex-1">
+                                   <div className="flex items-center gap-2">
+                                     <div className="font-semibold text-heading">{ch.title ?? `Chapter ${idx + 1}`}</div>
+                                     {isGenerating && (
+                                       <div className="flex items-center gap-1 text-xs text-muted">
+                                         <div className="animate-spin w-3 h-3 border border-gray-400 border-t-transparent rounded-full"></div>
+                                         <span>Generating...</span>
+                                       </div>
+                                     )}
+                                     {ch.lessonCount && (
+                                       <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                                         {ch.lessonCount} lessons
+                                       </span>
+                                     )}
+                                     {ch.quizCount && ch.quizCount > 0 && (
+                                       <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                                         {ch.quizCount} quizzes
+                                       </span>
+                                     )}
+                                   </div>
+                                   {ch.content && <div className="text-sm text-label mt-1">{ch.content}</div>}
+                                   {error && (
+                                     <div className="text-sm text-red-600 mt-1 bg-red-50 p-2 rounded">
+                                       Error: {error}
+                                     </div>
+                                   )}
+                                   {Array.isArray(ch.lessons) && ch.lessons.length > 0 && (
+                                     <ul className="mt-2 ml-4 space-y-1">
+                                       {ch.lessons.map((ls: any) => (
+                                         <li key={ls.id ?? ls.title} className="text-sm text-body">
+                                           • {ls.title ?? 'Lesson'}
+                                         </li>
+                                       ))}
+                                     </ul>
+                                   )}
+                                 </div>
+                               </button>
+                             </li>
+                           )
+                         })}
+                       </ul>
+                     </div>
+                   ) : Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
+                     <div>
+                       <h3 className="text-lg font-semibold text-heading mb-3">Lessons</h3>
+                       <ul className="space-y-4">
+                         {skeleton.lessons.map((ls: any) => (
+                           <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
+                             <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
+                             <div className="flex-1">
+                               <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
+                               {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
+                               {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
+                                 <ul className="mt-2 ml-4 space-y-1">
+                                   {ls.chapters.map((ch: any) => (
+                                     <li key={ch.id ?? ch.title} className="text-sm text-body">
+                                       • {ch.title ?? 'Chapter'}
+                                     </li>
+                                   ))}
+                                 </ul>
+                               )}
+                             </div>
+                           </li>
+                         ))}
+                       </ul>
+                     </div>
                    ) : (
-                     <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
+                     <div>
+                       <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
+                       <div className="text-xs text-muted text-center mt-2">
+                         Debug: {JSON.stringify(skeleton, null, 2)}
+                       </div>
+                     </div>
                    )}
                  </section>
                )}
