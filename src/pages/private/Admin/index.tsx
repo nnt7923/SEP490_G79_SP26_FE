@@ -6,6 +6,7 @@ import { useAdminSidebarConfig } from './components/AdminSideBar'
 import { UserService } from '../../../services'
 import { AIConfigService } from '../../../services'
 import { useTranslation } from 'react-i18next'
+import { Shield, Users, Key, PieChart, Activity, CheckCircle2, Server, KeySquare, ChevronRight } from 'lucide-react'
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuthStore()
@@ -76,13 +77,12 @@ const AdminDashboard: React.FC = () => {
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
           <div className="mb-6 border-b border-bd pb-4">
-            <h1 className="text-2xl outline-none font-bold text-heading border-none bg-transparent">
-              <span className="text-status-blue mr-2">{'>_'}</span> 
-               {t('dashboard.title')}
+            <h1 className="text-2xl outline-none font-bold text-heading border-none bg-transparent flex items-center gap-2">
+              <Shield className="text-status-blue" size={28} />
+              {t('dashboard.title')}
             </h1>
             <p className="text-muted mt-2">
-              <span className="text-placeholder mr-2">{'//'}</span>
-               {t('dashboard.welcome', { name })}
+              {t('dashboard.welcome', { name })}
             </p>
           </div>
 
@@ -92,15 +92,15 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-muted text-sm font-bold uppercase">{t('dashboard.totalStudents')}</span>
-                <span className="text-xs font-bold text-status-green-dark bg-status-green-bg-strong px-2 py-0.5 border border-green-300">
-                  [{t('dashboard.active')}]
+                <span className="text-xs font-bold text-status-green-dark bg-status-green-bg-strong px-2 py-0.5 border border-green-300 rounded-sm">
+                  {t('dashboard.active')}
                 </span>
               </div>
               <div className="text-3xl font-bold text-heading my-2">
                 {loading ? '...' : studentCount}
               </div>
               <div className="text-xs text-muted flex items-center gap-2">
-                <span className="text-status-blue-muted font-bold">[usr]</span>
+                <Users size={16} className="text-status-blue-muted flex-shrink-0" />
                 {t('dashboard.activeStudentAccounts')}
               </div>
             </div>
@@ -109,15 +109,15 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-muted text-sm font-bold uppercase">{t('dashboard.apiKeys')}</span>
-                <span className="text-xs font-bold text-status-blue bg-status-blue-bg-strong px-2 py-0.5 border border-blue-300">
-                  [{t('dashboard.configured')}]
+                <span className="text-xs font-bold text-status-blue bg-status-blue-bg-strong px-2 py-0.5 border border-blue-300 rounded-sm">
+                  {t('dashboard.configured')}
                 </span>
               </div>
               <div className="text-3xl font-bold text-heading my-2">
                 {loading ? '...' : apiKeyCount}
               </div>
               <div className="text-xs text-muted flex items-center gap-2">
-                <span className="text-purple-500 font-bold">[api]</span>
+                <Key size={16} className="text-purple-500 flex-shrink-0" />
                 {t('dashboard.aiModelConfigurations')}
               </div>
             </div>
@@ -128,7 +128,8 @@ const AdminDashboard: React.FC = () => {
             {/* User Distribution Pie Chart */}
             <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6">
               <h2 className="text-base font-bold text-heading mb-6 flex items-center gap-2">
-                <span className="text-status-blue-muted">##</span> {t('dashboard.userDistribution')}
+                <PieChart size={20} className="text-status-blue-muted" />
+                {t('dashboard.userDistribution')}
               </h2>
               <div className="flex items-center justify-center gap-8">
                 {/* Pie Chart SVG */}
@@ -162,7 +163,7 @@ const AdminDashboard: React.FC = () => {
                 <div className="space-y-3">
                   {roleDistribution.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-3">
-                      <div className="font-bold" style={{ color: item.color }}>{'['}&#9632;{']'}</div>
+                      <div className="font-bold flex items-center" style={{ color: item.color }}>&#9632;</div>
                       <div>
                         <p className="text-sm font-bold text-heading lowercase">{item.name}</p>
                         <p className="text-xs text-muted">{item.count} {t('dashboard.users')}</p>
@@ -176,38 +177,39 @@ const AdminDashboard: React.FC = () => {
             {/* Activity Overview */}
             <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col">
               <h2 className="text-base font-bold text-heading mb-6 flex items-center gap-2">
-                <span className="text-status-blue-muted">##</span> {t('dashboard.systemStatus')}
+                <Activity size={20} className="text-status-blue-muted" />
+                {t('dashboard.systemStatus')}
               </h2>
               
               <div className="space-y-3 flex-1">
-                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors">
+                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors rounded-sm">
                   <div className="flex items-center gap-3">
-                    <span className="text-status-green font-bold">[*]</span>
+                    <CheckCircle2 size={18} className="text-status-green" />
                     <span className="text-sm font-bold text-heading">{t('dashboard.apiServices')}</span>
                   </div>
-                  <span className="text-sm font-bold text-status-green-dark bg-status-green-bg px-2 border border-green-200">[ {t('dashboard.ok')} ]</span>
+                  <span className="text-sm font-bold text-status-green-dark bg-status-green-bg px-2 py-0.5 border border-green-200 rounded-sm">{t('dashboard.ok')}</span>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors">
+                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors rounded-sm">
                   <div className="flex items-center gap-3">
-                    <span className="text-status-blue font-bold">[*]</span>
+                    <Server size={18} className="text-status-blue" />
                     <span className="text-sm font-bold text-heading">{t('dashboard.database')}</span>
                   </div>
-                  <span className="text-sm font-bold text-status-blue bg-status-blue-bg px-2 border border-blue-200">[ {t('dashboard.connected')} ]</span>
+                  <span className="text-sm font-bold text-status-blue bg-status-blue-bg px-2 py-0.5 border border-blue-200 rounded-sm">{t('dashboard.connected')}</span>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors">
+                <div className="flex items-center justify-between p-3 bg-th-card border border-bd group hover:border-bd-strong transition-colors rounded-sm">
                   <div className="flex items-center gap-3">
-                    <span className="text-orange-500 font-bold">[*]</span>
+                    <KeySquare size={18} className="text-orange-500" />
                     <span className="text-sm font-bold text-heading">{t('dashboard.aiModels')}</span>
                   </div>
-                  <span className="text-sm font-bold text-orange-700 bg-orange-50 px-2 border border-orange-200">[{apiKeyCount} {t('dashboard.configured')}]</span>
+                  <span className="text-sm font-bold text-orange-700 bg-orange-50 px-2 py-0.5 border border-orange-200 rounded-sm">{apiKeyCount} {t('dashboard.configured')}</span>
                 </div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-bd">
                 <div className="flex items-center gap-2 text-sm text-label font-bold">
-                  <span className="text-status-green">{'>>>'}</span>
+                  <ChevronRight size={16} className="text-status-green" />
                   <span>{t('dashboard.allSystemsOperational')}</span>
                 </div>
               </div>

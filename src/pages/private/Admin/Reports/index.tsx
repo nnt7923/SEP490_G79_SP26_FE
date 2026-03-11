@@ -28,21 +28,20 @@ const AdminReportsPage: React.FC = () => {
            <div className="mb-6 border-b border-bd pb-4">
              <div className="flex items-center justify-between gap-4">
                <div>
-                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
-                   <span className="text-status-blue mr-2">{'>_'}</span>
+                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center gap-2">
+                   <FileText className="text-status-blue flex-shrink-0" size={28} />
                    {t('reports.title')}
                  </h1>
                  <p className="text-muted mt-2">
-                   <span className="text-placeholder mr-2">{'//'}</span>
                    {t('reports.subtitle')}
                  </p>
                </div>
                <button
-                 className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue font-bold hover:bg-status-blue-bg transition-colors cursor-pointer"
+                 className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
                  title="Generat New Report"
                >
                  <FileText className="w-4 h-4" />
-                  [ {t('reports.generateNew')} ]
+                  {t('reports.generateNew')}
                </button>
              </div>
            </div>
@@ -56,9 +55,9 @@ const AdminReportsPage: React.FC = () => {
                  className="w-full px-4 py-3 bg-th-card border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors text-sm"
                />
              </div>
-             <button className="px-6 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors inline-flex items-center gap-2 cursor-pointer">
+             <button className="px-6 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors inline-flex items-center gap-2 cursor-pointer rounded-sm">
                <Filter className="w-4 h-4" />
-                [ {t('reports.filterAll')} ]
+                {t('reports.filterAll')}
              </button>
            </div>
 
@@ -74,15 +73,15 @@ const AdminReportsPage: React.FC = () => {
              <div className="divide-y divide-gray-200">
                {mockReports.map((report) => (
                  <div key={report.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-th-page transition-colors text-sm">
-                   <div className="col-span-6 font-bold text-heading">
-                     <span className="text-status-blue mr-2">[*]</span>
+                   <div className="col-span-6 font-bold text-heading flex items-center gap-2">
+                     <FileText size={16} className="text-status-blue flex-shrink-0" />
                      {report.name}
                    </div>
                    <div className="col-span-2 text-muted">{report.size}</div>
                    <div className="col-span-3 text-muted">{report.date}</div>
                    <div className="col-span-1 flex justify-end">
                      <button
-                       className="p-2 text-status-blue hover:text-status-blue-dark hover:bg-status-blue-bg rounded transition-colors cursor-pointer"
+                       className="p-2 text-status-blue hover:text-status-blue-dark hover:bg-status-blue-bg rounded-sm transition-colors cursor-pointer"
                        title="Download"
                      >
                        <Download className="w-4 h-4" />
@@ -92,7 +91,7 @@ const AdminReportsPage: React.FC = () => {
                ))}
                {mockReports.length === 0 && (
                  <div className="p-8 text-center text-muted font-bold">
-                    {'//'} {t('reports.noReportsFound')}
+                    {t('reports.noReportsFound')}
                  </div>
                )}
              </div>

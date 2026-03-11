@@ -50,11 +50,10 @@ const GoalsPage: React.FC = () => {
         {/* Search */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-secondary)' }}>$</span>
             <input
               placeholder={t('goals.searchPlaceholder')} value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px 8px 32px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' as const }}
+              style={{ width: '100%', padding: '8px 12px 8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' as const }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
               onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
             />
@@ -68,7 +67,7 @@ const GoalsPage: React.FC = () => {
             {loading ? (
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{t('goals.loading')}</div>
             ) : error ? (
-              <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
+              <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>ERROR: {error}</div>
             ) : filteredGoals.length === 0 ? (
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
                 <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('goals.noGoalsFound')}</p>
@@ -95,7 +94,7 @@ const GoalsPage: React.FC = () => {
                           <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.description || t('goals.noDescription')}</p>
                           <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)' }}>
                             <span>{t('goals.days', { count: goal.durationDays || 0 })}</span>
-                            <span>{goal.isCompleted ? `[${tc('status.done')}]` : `[${tc('status.active')}]`}</span>
+                            <span>{goal.isCompleted ? tc('status.done') : tc('status.active')}</span>
                             {goal.createdAt && <span>{new Date(goal.createdAt).toLocaleDateString()}</span>}
                           </div>
                         </div>
@@ -112,7 +111,7 @@ const GoalsPage: React.FC = () => {
           <div>
             {selectedGoal ? (
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 20, position: 'sticky', top: 24 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>{'>'} {selectedGoal.title || t('goals.goalDetails')}</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>{selectedGoal.title || t('goals.goalDetails')}</h2>
 
                 <div style={{ marginBottom: 16 }}>
                   <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('goals.description')}</h3>

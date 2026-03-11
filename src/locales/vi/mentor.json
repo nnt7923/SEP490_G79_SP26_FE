@@ -47,11 +47,11 @@
   },
   "subjects": {
     "title": "quản lý môn học",
-    "createSubject": "+ tạo_môn_học",
+    "createSubject": "tạo_môn_học",
     "searchPlaceholder": "tìm kiếm môn học...",
     "gridView": "Hiện dạng lưới",
     "listView": "Hiện dạng danh sách",
-    "showing": "hiển thị: [{{filtered}}/{{total}}] môn học",
+    "showing": "hiển thị: {{filtered}}/{{total}} môn học",
     "loading": "Đang tải môn học...",
     "error": "LỖI",
     "retry": "thử lại",

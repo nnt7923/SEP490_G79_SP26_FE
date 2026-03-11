@@ -39,8 +39,7 @@ import {
   Blocks,
   Box,
   Puzzle,
-  Sparkles,
-  ChevronDown,
+  Sparkles
 } from 'lucide-react'
 
 interface CreateSubjectModalProps {
@@ -276,11 +275,10 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         <div className="sticky top-0 bg-th-input border-b-2 border-bd-dark px-6 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-xl font-bold text-heading">
-              <span className="text-status-blue">{'>_ '}</span>
-              {isEditMode ? 'edit_subject' : 'create_new_subject'}
+              {isEditMode ? 'Edit Subject' : 'Create New Subject'}
             </h2>
             <p className="text-xs text-label mt-1">
-              {'//'} {isEditMode ? 'update subject parameters' : 'initialize a new subject instance'}
+              {isEditMode ? 'Update subject parameters' : 'Initialize a new subject instance'}
             </p>
           </div>
           <button
@@ -295,7 +293,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-bold text-heading mb-2">
-              subject_name <span className="text-status-red-muted">*</span>
+              Subject Name <span className="text-status-red-muted">*</span>
             </label>
             <input
               type="text"
@@ -313,7 +311,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-heading mb-2">description</label>
+            <label className="block text-sm font-bold text-heading mb-2">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -333,7 +331,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-heading mb-3">color_theme</label>
+            <label className="block text-sm font-bold text-heading mb-3">Color Theme</label>
 
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -346,17 +344,17 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                 />
               </div>
               <div className="flex-1">
-                <p className="text-xs font-bold text-body mb-1">selected_color:</p>
+                <p className="text-xs font-bold text-body mb-1">Selected Color:</p>
                 <input
                   type="text"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                   placeholder="var(--blue-500)"
-                  className="w-full px-3 py-2 border-2 border-bd-strong focus:outline-none focus:border-blue-600 uppercase text-heading"
+                  className="w-full px-3 py-2 border-2 border-bd-strong focus:outline-none focus:border-blue-600 uppercase text-heading rounded-sm"
                   disabled={loading}
                 />
                 <p className="text-xs text-muted mt-1">
-                  {'//'} click the color box or enter a hex code
+                  Click the color box or enter a CSS color value
                 </p>
               </div>
             </div>
@@ -380,7 +378,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-heading mb-3">icon_select</label>
+            <label className="block text-sm font-bold text-heading mb-3">Icon Selection</label>
 
             <div className="relative" ref={iconPickerRef}>
               <button
@@ -450,7 +448,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
                       return (
                         <div key={category} className="mb-3">
-                          <p className="text-xs font-bold text-status-blue mb-1.5">{'// '} {category}</p>
+                          <p className="text-xs font-bold text-status-blue mb-1.5">{category}</p>
                           <div className="grid grid-cols-6 gap-2">
                             {categoryIcons.map((iconItem) => {
                               const IconComponent = iconItem.icon
@@ -483,8 +481,8 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-heading mb-3">preview</label>
-            <div className="border border-bd-strong p-4 bg-th-page">
+            <label className="block text-sm font-bold text-heading mb-3">Preview</label>
+            <div className="border border-bd-strong p-4 bg-th-page rounded-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="w-12 h-12 bg-th-card border border-bd flex items-center justify-center flex-shrink-0">
                   {(() => {
@@ -495,10 +493,10 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                 </div>
                 <div className="flex-1 min-w-0 w-full">
                   <h3 className="text-sm font-bold text-heading mb-1 truncate uppercase">
-                    {formData.name || 'SUBJECT_NAME'}
+                    {formData.name || 'SUBJECT NAME'}
                   </h3>
                   <p className="text-xs text-label line-clamp-1">
-                    {'// '} {formData.description || 'no_description( )'}
+                    {formData.description || 'No description provided'}
                   </p>
                 </div>
               </div>
@@ -506,8 +504,8 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           {errors.submit && (
-            <div className="border border-red-500 bg-status-red-bg p-4">
-              <p className="text-sm font-bold text-status-red">{'// '} {errors.submit}</p>
+            <div className="border border-red-500 bg-status-red-bg p-4 rounded-md">
+              <p className="text-sm font-bold text-status-red">{errors.submit}</p>
             </div>
           )}
 
@@ -516,22 +514,22 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-6 py-2 border border-bd-strong text-body hover:bg-th-input transition-colors disabled:opacity-50 font-bold uppercase"
+              className="flex-1 px-6 py-2 border border-bd-strong text-body hover:bg-th-input transition-colors disabled:opacity-50 font-bold uppercase rounded-sm"
             >
-              [ cancel ]
+              Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white hover:bg-status-blue-solid-hover transition-colors disabled:opacity-50 font-bold flex items-center justify-center gap-2 uppercase"
+              className="flex-1 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white hover:bg-status-blue-solid-hover transition-colors disabled:opacity-50 font-bold flex items-center justify-center gap-2 uppercase rounded-sm"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  [ wait ]
+                  Saving...
                 </>
               ) : (
-                isEditMode ? '[ update ]' : '[ create ]'
+                isEditMode ? 'Update' : 'Create'
               )}
             </button>
           </div>

@@ -47,11 +47,11 @@
   },
   "subjects": {
     "title": "subject_management",
-    "createSubject": "+ create_subject",
+    "createSubject": "create_subject",
     "searchPlaceholder": "search subjects...",
     "gridView": "Grid view",
     "listView": "List view",
-    "showing": "showing: [{{filtered}}/{{total}}] subjects",
+    "showing": "showing: {{filtered}}/{{total}} subjects",
     "loading": "Loading subjects...",
     "error": "ERROR",
     "retry": "retry",

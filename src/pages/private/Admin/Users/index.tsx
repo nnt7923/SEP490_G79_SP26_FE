@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { UserService } from '../../../../services'
-import { Search, RefreshCw, Ban, CheckCircle } from 'lucide-react'
+import { Search, RefreshCw, Ban, CheckCircle, Users as UsersIcon, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { formatDateTimeVN } from '../../../../utils/dateUtils'
 import { useTranslation } from 'react-i18next'
 
@@ -122,23 +122,22 @@ const AdminUsersPage: React.FC = () => {
           <div className="mb-6 border-b border-bd pb-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
-                  <span className="text-status-blue mr-2">{'>_'}</span>
+                <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center gap-2">
+                  <UsersIcon className="text-status-blue flex-shrink-0" size={28} />
                    {t('users.title')}
                 </h1>
                 <p className="text-muted mt-2">
-                  <span className="text-placeholder mr-2">{'//'}</span>
                    {t('users.subtitle')}
                 </p>
               </div>
               <button
                 onClick={fetchUsers}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
                 title="Reload"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                [ {t('users.reload')} ]
+                {t('users.reload')}
               </button>
             </div>
           </div>
@@ -162,13 +161,13 @@ const AdminUsersPage: React.FC = () => {
                <button
                  key={role}
                  onClick={() => setRoleFilter(role)}
-                 className={`px-3 py-1 text-sm font-bold transition-colors border cursor-pointer ${
+                 className={`px-3 py-1 text-sm font-bold transition-colors border cursor-pointer rounded-sm ${
                    roleFilter === role
                      ? 'bg-status-blue-solid text-white border-blue-600'
                      : 'bg-th-card text-label border-bd-strong hover:border-bd-input'
                  }`}
                >
-                 {role === 'all' ? '[ * ]' : `[ ${role.toLowerCase()} ]`}
+                 {role === 'all' ? t('users.all', 'All') : role}
                </button>
              ))}
            </div>
@@ -218,7 +217,7 @@ const AdminUsersPage: React.FC = () => {
                   >
                    {/* Avatar */}
                    <div className="flex-shrink-0">
-                     <span className="text-heading font-bold text-sm">[{getInitials(name)}]</span>
+                     <span className="text-heading font-bold text-sm">{getInitials(name)}</span>
                    </div>
 
                    {/* Info */}
@@ -229,25 +228,25 @@ const AdminUsersPage: React.FC = () => {
 
                    {/* Role Badge */}
                    <div
-                     className="px-2 py-0.5 text-xs font-bold flex-shrink-0"
+                     className="px-2 py-0.5 text-xs font-bold flex-shrink-0 rounded-sm"
                      style={{
                        color: roleColor.text,
                        border: `1px solid ${roleColor.border}`,
                      }}
                    >
-                     [{role.toLowerCase()}]
+                     {role}
                    </div>
 
                    {/* Banned Badge */}
                    {u?.status?.toLowerCase() === 'banned' && (
-                     <div className="px-2 py-0.5 text-xs font-bold flex-shrink-0 bg-status-red-bg text-status-red-dark border border-red-300">
-                       [banned]
+                     <div className="px-2 py-0.5 text-xs font-bold flex-shrink-0 bg-status-red-bg text-status-red-dark border border-red-300 rounded-sm">
+                       {t('users.banned', 'Banned')}
                      </div>
                    )}
 
                    {/* Expand Icon */}
-                   <div className="text-muted font-bold text-sm w-12 text-right flex-shrink-0">
-                     {isExpanded ? '[-]' : '[+]'}
+                   <div className="text-muted font-bold text-sm w-12 text-right flex-shrink-0 flex justify-end">
+                     {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                    </div>
                  </button>
 
@@ -288,7 +287,7 @@ const AdminUsersPage: React.FC = () => {
                          <p className="text-xs font-bold text-muted lowercase">status:</p>
                          <div className="flex items-center gap-2">
                            <span className="text-sm font-bold text-heading">
-                             [{u?.status?.toLowerCase() || 'active'}]
+                             {u?.status || 'Active'}
                            </span>
                          </div>
                        </div>
@@ -312,17 +311,17 @@ const AdminUsersPage: React.FC = () => {
                          <button
                            onClick={() => handleBanUser(uid, true)}
                            disabled={actionLoading === uid}
-                           className="flex items-center gap-2 px-3 py-1.5 border border-green-600 text-status-green-dark bg-th-card hover:bg-status-green-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
+                           className="flex items-center gap-2 px-3 py-1.5 border border-green-600 text-status-green-dark bg-th-card hover:bg-status-green-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer rounded-sm"
                          >
-                            {actionLoading === uid ? `[ ${t('users.unbanning')} ]` : `[ ${t('users.unban')} ]`}
+                            {actionLoading === uid ? t('users.unbanning') : t('users.unban')}
                          </button>
                        ) : (
                          <button
                            onClick={() => handleBanUser(uid, false)}
                            disabled={actionLoading === uid}
-                           className="flex items-center gap-2 px-3 py-1.5 border border-red-600 text-status-red-dark bg-th-card hover:bg-status-red-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer"
+                           className="flex items-center gap-2 px-3 py-1.5 border border-red-600 text-status-red-dark bg-th-card hover:bg-status-red-bg text-sm font-bold transition-colors disabled:opacity-60 cursor-pointer rounded-sm"
                          >
-                            {actionLoading === uid ? `[ ${t('users.banning')} ]` : `[ ${t('users.ban')} ]`}
+                            {actionLoading === uid ? t('users.banning') : t('users.ban')}
                          </button>
                        )}
                      </div>
@@ -336,7 +335,7 @@ const AdminUsersPage: React.FC = () => {
           {/* Summary */}
           {!loading && filtered.length > 0 && (
             <div className="mt-6 text-sm text-muted font-bold">
-              [showing: {filtered.length}/{users.length}]
+              Showing: {filtered.length}/{users.length}
             </div>
           )}
 
@@ -358,7 +357,7 @@ const AdminUsersPage: React.FC = () => {
                   onClick={() => setToast(null)}
                   className="text-muted hover:text-heading transition-colors cursor-pointer"
                 >
-                  <span className="font-bold">[x]</span>
+                  <X size={16} />
                 </button>
               </div>
             </div>

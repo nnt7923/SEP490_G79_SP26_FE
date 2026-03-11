@@ -4,6 +4,7 @@ import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from './components/StudentSideBar'
+import { Target, Map, Plus } from 'lucide-react'
 
 import { getMyGoals } from '../../../services/GoalService'
 import type { Goal } from '../../../services/GoalService'
@@ -59,8 +60,8 @@ const StudentIndex: React.FC = () => {
               {getInitials(displayName)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {displayName}</h1>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>// {user?.email ?? '—'}</p>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{displayName}</h1>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>{user?.email ?? '—'}</p>
             </div>
           </div>
         </div>
@@ -69,30 +70,30 @@ const StudentIndex: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <span style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>[gol]</span>
+              <span style={{ color: 'var(--accent-primary)', display: 'flex' }}><Target size={20} /></span>
               <div>
                 <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', margin: 0 }}>{t('dashboard.goals')}</p>
                 <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{loading ? '—' : goals.length}</p>
               </div>
             </div>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>// {t('dashboard.learningObjectives')}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{t('dashboard.learningObjectives')}</p>
           </div>
           <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <span style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>[pln]</span>
+              <span style={{ color: 'var(--accent-primary)', display: 'flex' }}><Map size={20} /></span>
               <div>
                 <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', margin: 0 }}>{t('dashboard.plans')}</p>
                 <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{loading ? '—' : plans.length}</p>
               </div>
             </div>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>// {t('dashboard.learningPaths')}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{t('dashboard.learningPaths')}</p>
           </div>
         </div>
 
         {/* Recent Goals */}
         <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('dashboard.recentGoals')}</h2>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{t('dashboard.recentGoals')}</h2>
             <button type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ fontSize: 12, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{t('dashboard.viewAll')}</button>
           </div>
           {loading ? (
@@ -106,8 +107,8 @@ const StudentIndex: React.FC = () => {
             </div>
           ) : goals.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>// {t('dashboard.noGoalsYet')}</p>
-              <button type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, cursor: 'pointer' }}>{'>'} {t('dashboard.createGoal')}</button>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>{t('dashboard.noGoalsYet')}</p>
+              <button type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}><Plus size={16} /> {t('dashboard.createGoal')}</button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -130,7 +131,7 @@ const StudentIndex: React.FC = () => {
         {/* Recent Plans */}
         <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('dashboard.recentPlans')}</h2>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{t('dashboard.recentPlans')}</h2>
             <button type="button" onClick={() => navigate(ROUTER.MY_PLANS)} style={{ fontSize: 12, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{t('dashboard.viewAll')}</button>
           </div>
           {loading ? (
@@ -148,8 +149,8 @@ const StudentIndex: React.FC = () => {
             </div>
           ) : plans.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>// {t('dashboard.noPlansYet')}</p>
-              <button type="button" onClick={() => navigate(ROUTER.PLANS)} style={{ padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, cursor: 'pointer' }}>{'>'} {t('dashboard.createPlan')}</button>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>{t('dashboard.noPlansYet')}</p>
+              <button type="button" onClick={() => navigate(ROUTER.PLANS)} style={{ padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}><Plus size={16} /> {t('dashboard.createPlan')}</button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -174,15 +175,15 @@ const StudentIndex: React.FC = () => {
 
         {/* Quick Actions */}
         <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 12px' }}>// {t('dashboard.quickActions')}</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 12px' }}>{t('dashboard.quickActions')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <button type="button" onClick={() => navigate(ROUTER.PLANS)} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, textAlign: 'left', cursor: 'pointer', background: 'var(--bg-surface-short)', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{'>'} {t('dashboard.newPath')}</span>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>// {t('dashboard.generateLearningPath')}</p>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}><Map size={16} /> {t('dashboard.newPath')}</span>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{t('dashboard.generateLearningPath')}</p>
             </button>
             <button type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, textAlign: 'left', cursor: 'pointer', background: 'var(--bg-surface-short)', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{'>'} {t('dashboard.newGoal')}</span>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>// {t('dashboard.setLearningObjective')}</p>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}><Target size={16} /> {t('dashboard.newGoal')}</span>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{t('dashboard.setLearningObjective')}</p>
             </button>
           </div>
         </div>

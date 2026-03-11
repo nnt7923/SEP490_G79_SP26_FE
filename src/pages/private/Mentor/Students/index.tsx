@@ -81,11 +81,10 @@ const MentorStudents: React.FC = () => {
               <Users className="w-6 h-6 text-pink-600" />
               <div>
                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
-                  <span className="text-pink-600 mr-2">{'>_'}</span>
                   {t('students.title')}
                 </h1>
                 <p className="text-xs text-label mt-1 font-mono">
-                  {'//'} {t('students.subtitle')}
+                  {t('students.subtitle')}
                 </p>
               </div>
             </div>
@@ -98,7 +97,7 @@ const MentorStudents: React.FC = () => {
                 <Users className="w-5 h-5 text-status-blue" />
                 <div>
                   <p className="text-xs font-bold text-muted uppercase">{t('students.totalStudents')}</p>
-                  <p className="text-xl font-bold text-heading">[{students.length}]</p>
+                  <p className="text-xl font-bold text-heading">{students.length}</p>
                 </div>
               </div>
             </div>
@@ -109,7 +108,7 @@ const MentorStudents: React.FC = () => {
                 <div>
                   <p className="text-xs font-bold text-muted uppercase">{t('students.avgProgress')}</p>
                   <p className="text-xl font-bold text-heading">
-                    [{Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)}%]
+                    {Math.round(students.reduce((acc, s) => acc + s.progress, 0) / students.length)}%
                   </p>
                 </div>
               </div>
@@ -121,7 +120,7 @@ const MentorStudents: React.FC = () => {
                 <div>
                   <p className="text-xs font-bold text-muted uppercase">{t('students.activeStudents')}</p>
                   <p className="text-xl font-bold text-heading">
-                    [{students.filter(s => s.status === 'active').length}]
+                    {students.filter(s => s.status === 'active').length}
                   </p>
                 </div>
               </div>
@@ -144,11 +143,11 @@ const MentorStudents: React.FC = () => {
 
           {/* Students List */}
           {filteredStudents.length === 0 ? (
-            <div className="bg-th-card border border-bd-strong p-12 text-center">
+            <div className="bg-th-card border border-bd-strong p-12 text-center rounded-md">
               <Users className="w-12 h-12 text-disabled mx-auto mb-4" />
               <h3 className="text-lg font-bold text-heading mb-2">{t('students.noStudentsFound')}</h3>
               <p className="text-sm text-muted font-mono">
-                {'//'} {searchQuery ? t('students.adjustSearch') : t('students.noStudentsEnrolled')}
+                {searchQuery ? t('students.adjustSearch') : t('students.noStudentsEnrolled')}
               </p>
             </div>
           ) : (
@@ -184,7 +183,7 @@ const MentorStudents: React.FC = () => {
                             </div>
                             <div>
                               <p className="font-bold text-heading uppercase">{student.name}</p>
-                              <p className="text-xs text-muted">[{student.status}]</p>
+                              <p className="text-xs text-muted">{student.status}</p>
                             </div>
                           </div>
                         </td>
@@ -196,7 +195,7 @@ const MentorStudents: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm font-bold text-heading">
-                            [{student.enrolledClasses}] {t('students.classes')}
+                            {student.enrolledClasses} {t('students.classes')}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -205,8 +204,8 @@ const MentorStudents: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button className="text-sm font-bold text-pink-600 hover:text-pink-800 transition-colors uppercase">
-                            [ {t('students.view')} ]
+                          <button className="text-sm font-bold text-pink-600 hover:text-pink-800 transition-colors uppercase rounded-sm px-2 py-1 hover:bg-pink-50">
+                            {t('students.view')}
                           </button>
                         </td>
                       </tr>

@@ -4,6 +4,7 @@ import Layout from '../../../components/Layout'
 import { useMentorSidebarConfig } from './components/MentorSideBar'
 import { SubjectService, UserService } from '../../../services'
 import { useTranslation } from 'react-i18next'
+import { Settings, Users, BookOpen, TrendingUp, Star, LayoutDashboard, PlaySquare, Folder, PieChart, Zap, User as UserIcon } from 'lucide-react'
 
 const MentorDashboard: React.FC = () => {
   const { user } = useAuthStore()
@@ -117,29 +118,27 @@ const MentorDashboard: React.FC = () => {
           <div className="mb-6 border-b border-bd pb-4">
             <div className="flex flex-col md:flex-row items-center gap-6">
               <div className="w-24 h-24 bg-th-card border border-bd-strong flex items-center justify-center flex-shrink-0">
-                <span className="text-heading font-bold text-3xl">[{getInitials(name)}]</span>
+                <span className="text-heading font-bold text-3xl">{getInitials(name)}</span>
               </div>
 
               <div className="flex-1 text-center md:text-left">
                 <h1 className="text-2xl font-bold text-heading mb-2 border-none bg-transparent flex items-center justify-center md:justify-start">
-                  <span className="text-status-blue mr-2">{'>_'}</span>
+                  <span className="text-status-blue mr-2"><UserIcon size={24} /></span>
                   {slugify(name)}
                 </h1>
                 <p className="text-muted mb-1">
-                  <span className="text-placeholder mr-2">{'//'}</span>
                   email: {user?.email ?? '—'}
                 </p>
                 <p className="text-muted text-sm">
-                  <span className="text-placeholder mr-2">{'//'}</span>
                   role: {role.toLowerCase()}
                 </p>
               </div>
 
               <button
-                className="hidden md:inline-flex px-4 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors cursor-pointer"
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors cursor-pointer rounded-sm"
                 title={t('dashboard.settings')}
               >
-                [ {t('dashboard.settings').toLowerCase()} ]
+                <Settings size={18} /> {t('dashboard.settings').toLowerCase()}
               </button>
             </div>
           </div>
@@ -149,50 +148,50 @@ const MentorDashboard: React.FC = () => {
           {/* MY STUDENTS */}
           <div className="bg-th-card border border-bd-strong p-4">
             <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-status-blue font-bold">{'>>>'}</span>
+              <span className="text-status-blue font-bold flex"><Users size={18} /></span>
               <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.totalStudents')}</h3>
             </div>
             <div>
               <div className="text-3xl font-bold text-heading mb-1">
-                {loadingStudents ? '...' : `[${students.length}]`}
+                {loadingStudents ? '...' : students.length}
               </div>
-              <div className="text-xs text-muted">{'//'} {t('dashboard.activeLearners')}</div>
+              <div className="text-xs text-muted">{t('dashboard.activeLearners')}</div>
             </div>
           </div>
 
           {/* MY COURSES */}
           <div className="bg-th-card border border-bd-strong p-4">
             <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-status-blue font-bold">{'>>>'}</span>
+              <span className="text-status-blue font-bold flex"><BookOpen size={18} /></span>
               <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.myCourses')}</h3>
             </div>
             <div>
-              <div className="text-3xl font-bold text-heading mb-1">[0]</div>
-              <div className="text-xs text-muted">{'//'} {t('dashboard.coursesTaught')}</div>
+              <div className="text-3xl font-bold text-heading mb-1">0</div>
+              <div className="text-xs text-muted">{t('dashboard.coursesTaught')}</div>
             </div>
           </div>
 
           {/* STUDENT PROGRESS */}
           <div className="bg-th-card border border-bd-strong p-4">
             <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-status-green font-bold">{'>>>'}</span>
+              <span className="text-status-green font-bold flex"><TrendingUp size={18} /></span>
               <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.progress')}</h3>
             </div>
             <div>
-              <div className="text-3xl font-bold text-heading mb-1">[0%]</div>
-              <div className="text-xs text-muted">{'//'} {t('dashboard.avgCompletion')}</div>
+              <div className="text-3xl font-bold text-heading mb-1">0%</div>
+              <div className="text-xs text-muted">{t('dashboard.avgCompletion')}</div>
             </div>
           </div>
 
           {/* FEEDBACK RATING */}
           <div className="bg-th-card border border-bd-strong p-4">
             <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-amber-500 font-bold">{'>>>'}</span>
+              <span className="text-amber-500 font-bold flex"><Star size={18} /></span>
               <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.rating')}</h3>
             </div>
             <div>
-              <div className="text-3xl font-bold text-heading mb-1">[—]</div>
-              <div className="text-xs text-muted">{'//'} {t('dashboard.studentFeedback')}</div>
+              <div className="text-3xl font-bold text-heading mb-1">—</div>
+              <div className="text-xs text-muted">{t('dashboard.studentFeedback')}</div>
             </div>
           </div>
         </div>
@@ -202,10 +201,10 @@ const MentorDashboard: React.FC = () => {
           {/* STUDENT LIST */}
           <div className="bg-th-card border border-bd-strong">
             <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold">[*]</span>
+              <span className="text-status-blue font-bold flex"><LayoutDashboard size={18} /></span>
               <div>
                 <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.myStudents')}</h2>
-                <p className="text-xs text-muted">{'//'} {t('dashboard.activeStudentList')}</p>
+                <p className="text-xs text-muted">{t('dashboard.activeStudentList')}</p>
               </div>
             </div>
             
@@ -217,7 +216,7 @@ const MentorDashboard: React.FC = () => {
               ) : students.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noStudentsFound')}</p>
-                  <p className="text-xs text-muted">{'//'} {t('dashboard.studentsWillAppear')}</p>
+                  <p className="text-xs text-muted">{t('dashboard.studentsWillAppear')}</p>
                 </div>
               ) : (
                 <div className="space-y-0 divide-y divide-gray-200 max-h-[400px] overflow-y-auto">
@@ -237,14 +236,14 @@ const MentorDashboard: React.FC = () => {
                         className="flex items-center gap-4 py-3 hover:bg-th-page transition-colors"
                       >
                         <div className="w-10 h-10 bg-th-card border border-bd-strong flex items-center justify-center flex-shrink-0">
-                          <span className="text-heading font-bold text-sm">[{initials}]</span>
+                          <span className="text-heading font-bold text-sm">{initials}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-heading text-sm truncate">{studentName}</p>
                           <p className="text-xs text-muted truncate">email: {studentEmail}</p>
                         </div>
-                        <button className="px-3 py-1 border border-bd-strong text-xs font-bold hover:bg-th-input transition-colors">
-                          [ {t('dashboard.view')} ]
+                        <button className="px-3 py-1 border border-bd-strong text-xs font-bold hover:bg-th-input transition-colors rounded-sm">
+                          {t('dashboard.view')}
                         </button>
                       </div>
                     )
@@ -257,16 +256,16 @@ const MentorDashboard: React.FC = () => {
           {/* MY LESSONS */}
           <div className="bg-th-card border border-bd-strong">
             <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold">[*]</span>
+              <span className="text-status-blue font-bold flex"><PlaySquare size={18} /></span>
               <div>
                 <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.myLessons')}</h2>
-                <p className="text-xs text-muted">{'//'} {t('dashboard.trackFeedback')}</p>
+                <p className="text-xs text-muted">{t('dashboard.trackFeedback')}</p>
               </div>
             </div>
             
             <div className="p-8 text-center">
               <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noLessonsScheduled')}</p>
-              <p className="text-xs text-muted">{'//'} {t('dashboard.createCoursesStart')}</p>
+              <p className="text-xs text-muted">{t('dashboard.createCoursesStart')}</p>
             </div>
           </div>
         </div>
@@ -275,16 +274,16 @@ const MentorDashboard: React.FC = () => {
         <div className="grid grid-cols-1 gap-6 mb-6">
           <div className="bg-th-card border border-bd-strong">
             <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold">[*]</span>
+              <span className="text-status-blue font-bold flex"><Folder size={18} /></span>
               <div>
                 <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.resources')}</h2>
-                <p className="text-xs text-muted">{'//'} {t('dashboard.manageMaterials')}</p>
+                <p className="text-xs text-muted">{t('dashboard.manageMaterials')}</p>
               </div>
             </div>
             
             <div className="p-8 text-center">
               <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noResourcesYet')}</p>
-              <p className="text-xs text-muted">{'//'} {t('dashboard.uploadMaterials')}</p>
+              <p className="text-xs text-muted">{t('dashboard.uploadMaterials')}</p>
             </div>
           </div>
         </div>
@@ -294,23 +293,23 @@ const MentorDashboard: React.FC = () => {
           {/* STUDENT REVIEWS */}
           <div className="bg-th-card border border-bd-strong">
             <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold">[*]</span>
+              <span className="text-status-blue font-bold flex"><Star size={18} /></span>
               <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.studentReviews')}</h2>
             </div>
             
             <div className="p-8 text-center">
               <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noReviewsYet')}</p>
-              <p className="text-xs text-muted">{'//'} {t('dashboard.studentsWillRate')}</p>
+              <p className="text-xs text-muted">{t('dashboard.studentsWillRate')}</p>
             </div>
           </div>
 
           {/* ANALYTICS */}
           <div className="lg:col-span-2 bg-th-card border border-bd-strong">
             <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold">[*]</span>
+              <span className="text-status-blue font-bold flex"><PieChart size={18} /></span>
               <div>
                 <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.analytics')}</h2>
-                <p className="text-xs text-muted">{'//'} {t('dashboard.performanceOverview')}</p>
+                <p className="text-xs text-muted">{t('dashboard.performanceOverview')}</p>
               </div>
             </div>
             
@@ -336,20 +335,20 @@ const MentorDashboard: React.FC = () => {
         {/* ========== QUICK ACTIONS ========== */}
         <div className="bg-th-card border border-bd-strong">
           <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-            <span className="text-status-blue font-bold">[*]</span>
+            <span className="text-status-blue font-bold flex"><Zap size={18} /></span>
             <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.quickActions')}</h2>
           </div>
           
           <div className="p-4">
             <div className="flex flex-wrap gap-4">
-              <button className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors">
-                [ {t('dashboard.buildCourse')} ]
+              <button className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors rounded-sm shadow-sm flex items-center gap-2">
+                {t('dashboard.buildCourse')}
               </button>
-              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors">
-                [ {t('dashboard.viewStudents')} ]
+              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors rounded-sm shadow-sm flex items-center gap-2">
+                {t('dashboard.viewStudents')}
               </button>
-              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors" onClick={openSubjectModal}>
-                [ {t('dashboard.addSubject')} ]
+              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors rounded-sm shadow-sm flex items-center gap-2" onClick={openSubjectModal}>
+                {t('dashboard.addSubject')}
               </button>
             </div>
           </div>
@@ -359,8 +358,8 @@ const MentorDashboard: React.FC = () => {
         {showSubjectModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="bg-th-card border-2 border-bd-dark w-full max-w-md mx-4 p-6 shadow-2xl font-mono">
-              <h3 className="text-xl font-bold text-heading mb-4 border-b border-bd pb-2">
-                <span className="text-status-blue mr-2">{'>_'}</span>
+              <h3 className="text-xl font-bold text-heading mb-4 border-b border-bd pb-2 flex items-center gap-2">
+                <BookOpen size={20} className="text-status-blue" />
                 {t('dashboard.createNewSubject')}
               </h3>
               <form onSubmit={handleCreateSubject} className="space-y-4">
@@ -391,31 +390,31 @@ const MentorDashboard: React.FC = () => {
                 </div>
 
                 {subjectError && (
-                  <div className="text-sm font-bold text-status-red border border-red-500 bg-status-red-bg px-3 py-2 text-center">
-                    {'//'} {subjectError}
+                  <div className="text-sm font-bold text-status-red border border-red-500 bg-status-red-bg px-3 py-2 text-center rounded-sm">
+                    {subjectError}
                   </div>
                 )}
                 {subjectSuccess && (
-                  <div className="text-sm font-bold text-status-green-dark border border-green-500 bg-status-green-bg px-3 py-2 text-center">
-                    {'//'} {subjectSuccess}
+                  <div className="text-sm font-bold text-status-green-dark border border-green-500 bg-status-green-bg px-3 py-2 text-center rounded-sm">
+                    {subjectSuccess}
                   </div>
                 )}
 
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-bd">
                   <button
                     type="button"
-                    className="px-6 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-input transition-colors"
+                    className="px-6 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-input transition-colors rounded-sm"
                     onClick={() => setShowSubjectModal(false)}
                     disabled={creatingSubject}
                   >
-                    [ {t('dashboard.cancel')} ]
+                    {t('dashboard.cancel')}
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors disabled:opacity-60"
+                    className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors rounded-sm disabled:opacity-60"
                     disabled={creatingSubject}
                   >
-                    {creatingSubject ? `[ ${t('dashboard.creating')} ]` : `[ ${t('dashboard.create')} ]`}
+                    {creatingSubject ? t('dashboard.creating') : t('dashboard.create')}
                   </button>
                 </div>
               </form>

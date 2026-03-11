@@ -25,13 +25,13 @@ const SubjectListItem: React.FC<SubjectListItemProps> = ({ subject, onEdit, onDe
           <div className="flex-1 min-w-0 w-full">
             <h3 className="text-sm font-bold text-heading mb-1 truncate uppercase">{subject.name}</h3>
             <p className="text-xs text-label line-clamp-1 mb-2">
-              {'//'} {subject.description || 'no_description( )'}
+              {subject.description || 'no_description( )'}
             </p>
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
               <div className="flex items-center gap-1">
                 <User className="w-3.5 h-3.5" />
                 <span className={subject.createdBy === 'Me' ? 'font-bold text-status-blue' : ''}>
-                  {subject.createdBy === 'Me' ? '[me]' : `[${subject.createdBy || 'unknown'}]`}
+                  {subject.createdBy === 'Me' ? 'me' : subject.createdBy || 'unknown'}
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -46,15 +46,15 @@ const SubjectListItem: React.FC<SubjectListItemProps> = ({ subject, onEdit, onDe
             <div className="flex items-center gap-2 flex-shrink-0 mt-4 sm:mt-0 w-full sm:w-auto justify-end border-t sm:border-t-0 border-bd-muted pt-3 sm:pt-0">
               <button 
                 onClick={() => onEdit?.(subject)}
-                className="px-3 py-1 border border-blue-600 text-status-blue text-xs font-bold hover:bg-status-blue-bg transition-colors uppercase"
+                className="px-3 py-1 border border-blue-600 text-status-blue text-xs font-bold hover:bg-status-blue-bg transition-colors uppercase rounded-sm"
               >
-                [ edit ]
+                edit
               </button>
               <button 
                 onClick={() => onDelete?.(subject)}
-                className="px-3 py-1 border border-red-600 text-status-red text-xs font-bold hover:bg-status-red-bg transition-colors uppercase"
+                className="px-3 py-1 border border-red-600 text-status-red text-xs font-bold hover:bg-status-red-bg transition-colors uppercase rounded-sm"
               >
-                [ del ]
+                del
               </button>
             </div>
           )}

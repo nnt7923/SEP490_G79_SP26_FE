@@ -244,7 +244,7 @@ const sidebarConfig = {
 import React from 'react'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
-import { LogOut } from 'lucide-react'
+import { LogOut, Save } from 'lucide-react'
 import useAuthStore from '../../../../store/useAuthStore'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../router/ROUTER'
@@ -279,7 +279,7 @@ const MyNewPage: React.FC = () => {
           {t('myNewFeature.title')}
         </h1>
         <p style={{ color: 'var(--text-secondary)' }}>
-          // {t('myNewFeature.description')}
+          {t('myNewFeature.description')}
         </p>
         <button style={{
           background: 'var(--accent-primary)',  /* ✅ CSS variable */
@@ -287,8 +287,12 @@ const MyNewPage: React.FC = () => {
           border: 'none',
           padding: '8px 16px',
           cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
         }}>
-          {'>'} {t('myNewFeature.save')}
+          <Save size={16} />
+          {t('myNewFeature.save')}
         </button>
       </div>
     </Layout>
@@ -304,6 +308,8 @@ export default MyNewPage
 
 - [ ] Dùng `var(--css-variable)` cho tất cả màu sắc (không hardcode `#fff`, `blue`, v.v.)
 - [ ] Import `useTranslation` và dùng `t('key')` cho tất cả text hiển thị
+- [ ] **Giao diện sạch sẽ**: Tránh lạm dụng các ký tự dạng terminal (`//`, `>_`, `{...}`, `/*`, `*/`, `$`, `./`) trong code hoặc text hiển thị.
+- [ ] Dùng icon (`lucide-react`) cho các menu phức tạp như Sidebar, nhưng giữ sự tối giản cho Header/Footer (không thêm icon thừa, và ẩn các menu điều hướng nếu user chưa đăng nhập).
 - [ ] Thêm translation keys vào **cả** `vi/*.json` và `en/*.json`
 - [ ] Sidebar dùng `useXSidebarConfig()` hook (không dùng `getXSidebarConfig()`)
 - [ ] Hook gọi ở **top level** component (không gọi trong `useMemo`, `useCallback`, `if`, `for`)

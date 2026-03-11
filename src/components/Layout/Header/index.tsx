@@ -152,33 +152,21 @@ const Header: React.FC = () => {
           </div>
 
           {/* Center: Navigation */}
-          <nav
-            className="hidden md:flex"
-            style={{
-              alignItems: 'center',
-              gap: 24,
-            }}
-            aria-label="Primary"
-          >
-            <Link
-              to="/"
-              className="nav-terminal-link"
+          {token && (
+            <nav
+              className="hidden md:flex"
               style={{
-                fontSize: 13,
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                transition: 'color 0.2s ease',
-                fontWeight: 500,
+                alignItems: 'center',
+                gap: 24,
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+              aria-label="Primary"
             >
-              {t('nav.home')}
-            </Link>
-            {showPlansLink && (
               <Link
-                to="/plans"
+                to="/"
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
                   fontSize: 13,
                   color: 'var(--text-secondary)',
                   textDecoration: 'none',
@@ -188,24 +176,46 @@ const Header: React.FC = () => {
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
               >
-                {t('nav.plans')}
+                {t('nav.home')}
               </Link>
-            )}
-            <Link
-              to="/about"
-              style={{
-                fontSize: 13,
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                transition: 'color 0.2s ease',
-                fontWeight: 500,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
-            >
-              {t('nav.about')}
-            </Link>
-          </nav>
+              {showPlansLink && (
+                <Link
+                  to="/plans"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 13,
+                    color: 'var(--text-secondary)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease',
+                    fontWeight: 500,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+                >
+                  {t('nav.plans')}
+                </Link>
+              )}
+              <Link
+                to="/about"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  transition: 'color 0.2s ease',
+                  fontWeight: 500,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+              >
+                {t('nav.about')}
+              </Link>
+            </nav>
+          )}
 
           {/* Right: Theme toggle + User menu */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -236,26 +246,28 @@ const Header: React.FC = () => {
             {/* Language Switcher */}
             <LanguageSwitcher />
 
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="md:hidden"
-              style={{
-                padding: 6,
-                border: '1px solid var(--border-base)',
-                borderRadius: 2,
-                background: 'transparent',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                alignItems: 'center',
-              }}
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-            >
-              <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+            {/* Mobile menu button (only when logged in) */}
+            {token && (
+              <button
+                type="button"
+                className="md:hidden"
+                style={{
+                  padding: 6,
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 2,
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  alignItems: 'center',
+                }}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle mobile menu"
+              >
+                <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
 
             {!token ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -401,7 +413,7 @@ const Header: React.FC = () => {
         </div>
 
         {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
+        {(mobileMenuOpen && token) && (
           <div
             style={{
               borderTop: '1px solid var(--border-base)',

@@ -52,10 +52,7 @@ const MyPlansPage: React.FC = () => {
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '8px 12px 8px 32px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2,
-    background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box',
-  }
+
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -63,11 +60,10 @@ const MyPlansPage: React.FC = () => {
         {/* Search */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-secondary)' }}>$</span>
             <input
               type="text" placeholder={t('myPlans.searchPlaceholder')} value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPageNumber(1) }}
-              style={inputStyle}
+              style={{ width: '100%', padding: '8px 12px 8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box', }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
               onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
             />
@@ -78,7 +74,7 @@ const MyPlansPage: React.FC = () => {
         {loading ? (
           <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{t('myPlans.loading')}</div>
         ) : error ? (
-          <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
+          <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, color: 'var(--danger-primary)', fontSize: 13 }}>ERROR: {error}</div>
         ) : filteredPlans.length === 0 ? (
           <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
             <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('myPlans.noPlansFound')}</p>

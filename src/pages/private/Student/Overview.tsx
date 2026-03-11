@@ -7,6 +7,7 @@ import Footer from '../../../components/Layout/Footer'
 import { getMyGoals } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
+import { FileText, Target, BookOpen, GraduationCap } from 'lucide-react'
 
 const StudentOverview: React.FC = () => {
   const { user } = useAuthStore()
@@ -106,10 +107,10 @@ const StudentOverview: React.FC = () => {
               {/* Stats Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                 {[
-                  { label: t('overview.stats.plans'), value: plansCount, icon: '[pln]' },
-                  { label: t('overview.stats.goals'), value: stats.activeGoals, icon: '[gol]' },
-                  { label: t('overview.stats.chapters'), value: stats.totalChapters, icon: '[chp]' },
-                  { label: t('overview.stats.lessons'), value: stats.totalLessons, icon: '[lsn]' },
+                  { label: t('overview.stats.plans'), value: plansCount, icon: <FileText size={16} /> },
+                  { label: t('overview.stats.goals'), value: stats.activeGoals, icon: <Target size={16} /> },
+                  { label: t('overview.stats.chapters'), value: stats.totalChapters, icon: <BookOpen size={16} /> },
+                  { label: t('overview.stats.lessons'), value: stats.totalLessons, icon: <GraduationCap size={16} /> },
                 ].map((stat) => (
                   <div key={stat.label} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '12px 16px', background: 'var(--bg-surface-short)', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

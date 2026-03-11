@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import ROUTER from '../../../../router/ROUTER'
+import { LayoutDashboard, BookOpen, Users, GraduationCap, MessageSquare, User } from 'lucide-react'
 
 export type MentorNavItem = {
   label: string
@@ -10,12 +11,12 @@ export type MentorNavItem = {
 
 export const getMentorSidebarConfig = (): MentorNavItem[] => {
   return [
-    { label: '[ovw] Overview', path: ROUTER.MENTOR_DASHBOARD },
-    { label: '[sub] Subjects', path: '/mentor/subjects' },
-    { label: '[cls] Classes', path: '/mentor/classes' },
-    { label: '[std] Students', path: '/mentor/students' },
-    { label: '[msg] Messages', path: '/mentor/messages' },
-    { label: '[prf] Profile', path: ROUTER.MENTOR_PROFILE },
+    { label: 'Overview', path: ROUTER.MENTOR_DASHBOARD, icon: <LayoutDashboard size={18} /> },
+    { label: 'Subjects', path: '/mentor/subjects', icon: <BookOpen size={18} /> },
+    { label: 'Classes', path: '/mentor/classes', icon: <Users size={18} /> },
+    { label: 'Students', path: '/mentor/students', icon: <GraduationCap size={18} /> },
+    { label: 'Messages', path: '/mentor/messages', icon: <MessageSquare size={18} /> },
+    { label: 'Profile', path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }
 
@@ -23,11 +24,11 @@ export const getMentorSidebarConfig = (): MentorNavItem[] => {
 export const useMentorSidebarConfig = (): MentorNavItem[] => {
   const { t } = useTranslation('common')
   return [
-    { label: `[ovw] ${t('sidebar.overview')}`, path: ROUTER.MENTOR_DASHBOARD },
-    { label: `[sub] ${t('sidebar.subjects')}`, path: '/mentor/subjects' },
-    { label: `[cls] ${t('sidebar.classes')}`, path: '/mentor/classes' },
-    { label: `[std] ${t('sidebar.students')}`, path: '/mentor/students' },
-    { label: `[msg] ${t('sidebar.messages')}`, path: '/mentor/messages' },
-    { label: `[prf] ${t('sidebar.profile')}`, path: ROUTER.MENTOR_PROFILE },
+    { label: t('sidebar.overview'), path: ROUTER.MENTOR_DASHBOARD, icon: <LayoutDashboard size={18} /> },
+    { label: t('sidebar.subjects'), path: '/mentor/subjects', icon: <BookOpen size={18} /> },
+    { label: t('sidebar.classes'), path: '/mentor/classes', icon: <Users size={18} /> },
+    { label: t('sidebar.students'), path: '/mentor/students', icon: <GraduationCap size={18} /> },
+    { label: t('sidebar.messages'), path: '/mentor/messages', icon: <MessageSquare size={18} /> },
+    { label: t('sidebar.profile'), path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }
