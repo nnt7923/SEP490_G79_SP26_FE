@@ -5,8 +5,11 @@ import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar
 import ROUTER from '../../../../router/ROUTER'
 import { requestLessonContent } from '../../../../services/SignalR'
 import { generateAllContent } from '../../../../services/ContentGenerator'
+import { FocusSessionService, SessionType } from '../../../../services'
 import LessonContent from '../components/LessonContent'
 import ChapterTasks from '../components/ChapterTasks'
+import FocusSessionDialog from '../../../../components/FocusSessionDialog'
+import Toast from '../../../../components/Toast'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 
@@ -155,17 +158,52 @@ const ResultPage: React.FC = () => {
     }
   }, [activeChapterId])
 
-  // Track chapter completion status based on tasks
-  const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
+  // Handle focus session creation
+  const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
+    if (!selectedTask) return
 
-  const handleChapterTasksCompleted = (chapterId: string, completed: boolean) => {
-    setChapterCompletionStatus(prev => ({
-      ...prev,
-      [chapterId]: completed
-    }))
+    setCreatingSession(true)
+    try {
+      const session = await FocusSessionService.startSession({
+        taskId: selectedTask.id,
+        sessionType,
+        plannedDurationMinutes: duration,
+        title: title || selectedTask.title
+      })
+
+      setToast({ message: 'Phiên học tập đã được tạo thành công!', type: 'success' })
+      setShowFocusDialog(false)
+      setSelectedTask(null)
+
+      // Navigate to focus session page
+      navigate(ROUTER.FOCUS_SESSION, { state: { session } })
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'Không thể tạo phiên học tập'
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setCreatingSession(false)
+    }
+  }
+
+  const handleCancelFocusSession = () => {
+    setShowFocusDialog(false)
+    setSelectedTask(null)
+  }
+
+  // Handle lesson click - show focus session dialog
+  const handleLessonClick = (lessonId: string, lessonTitle: string) => {
+    console.log('handleLessonClick called:', { lessonId, lessonTitle })
+    setSelectedTask({ id: lessonId, title: lessonTitle })
+    setShowFocusDialog(true)
   }
 
   const [showLessonContent, setShowLessonContent] = useState(false)
+
+  // Focus session dialog states
+  const [showFocusDialog, setShowFocusDialog] = useState<boolean>(false)
+  const [selectedTask, setSelectedTask] = useState<{ id: string; title: string } | null>(null)
+  const [creatingSession, setCreatingSession] = useState<boolean>(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
   const navItems = useStudentSidebarConfig()
   const sidebarConfig = {
@@ -265,7 +303,6 @@ const ResultPage: React.FC = () => {
 
                 {chapters.map((chapter: any, chapterIdx: number) => {
                   const isActive = activeChapterId === chapter.id
-                  const isCompleted = chapterCompletionStatus[chapter.id] === true
 
                   return (
                     <button
@@ -282,12 +319,12 @@ const ResultPage: React.FC = () => {
                     >
                       <div style={{
                         width: 28, height: 28, borderRadius: 2, flexShrink: 0,
-                        background: isCompleted ? 'var(--success-primary)' : 'var(--bg-main)',
-                        border: `1px solid ${isCompleted ? 'transparent' : 'var(--border-base)'}`,
-                        color: isCompleted ? 'var(--bg-surface)' : 'var(--text-primary)',
+                        background: 'var(--bg-main)',
+                        border: '1px solid var(--border-base)',
+                        color: 'var(--text-primary)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12
                       }}>
-                        {isCompleted ? '✓' : (chapterIdx + 1)}
+                        {chapterIdx + 1}
                       </div>
                       <div style={{ flex: 1, overflow: 'hidden' }}>
                         <h3 style={{ margin: 0, fontSize: 14, fontWeight: isActive ? 700 : 600, color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -346,7 +383,7 @@ const ResultPage: React.FC = () => {
                                 <div style={{ flex: 1 }}>
                                   <button
                                     className="lesson-link"
-                                    onClick={() => navigate(`/lesson/${lesson.id}`, { state: { skeleton } })}
+                                    onClick={() => handleLessonClick(lesson.id, lesson.title)}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
                                       fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
@@ -399,10 +436,7 @@ const ResultPage: React.FC = () => {
 
                       {/* Chapter Tasks */}
                       <div style={{ marginTop: 'auto' }}>
-                        <ChapterTasks
-                          chapterId={chapter.id}
-                          onAllTasksCompleted={handleChapterTasksCompleted}
-                        />
+                        <ChapterTasks chapterId={chapter.id} />
                       </div>
                     </>
                   )
@@ -460,6 +494,26 @@ const ResultPage: React.FC = () => {
 
         </div>
       </div>
+
+      {/* Focus Session Dialog */}
+      {showFocusDialog && selectedTask && (
+        <FocusSessionDialog
+          isOpen={showFocusDialog}
+          taskTitle={selectedTask.title}
+          onConfirm={handleCreateFocusSession}
+          onCancel={handleCancelFocusSession}
+          loading={creatingSession}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </Layout>
   )
 }

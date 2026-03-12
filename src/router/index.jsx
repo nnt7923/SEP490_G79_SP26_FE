@@ -40,6 +40,7 @@ const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetai
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
 const TaskPage = React.lazy(() => import('../pages/private/Task'))
 const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
+const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 
 const Fallback = () => <PageSkeleton />
 
@@ -84,6 +85,7 @@ const router = createBrowserRouter([
           { path: '/lesson/:lessonId', element: <LessonDetail /> },
           { path: '/quiz/:quizId', element: <Quiz /> },
           { path: '/task/:taskId', element: <TaskPage /> },
+          { path: ROUTER.FOCUS_SESSION, element: <FocusSession /> },
         ],
       },
       // Shared routes (Student & Mentor)

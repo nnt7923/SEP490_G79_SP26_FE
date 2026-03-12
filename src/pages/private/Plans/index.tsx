@@ -1,18 +1,18 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
-import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory } from '../../../services'
+import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory, FocusSessionService, SessionType } from '../../../services'
 import type { Subject, SubjectCategoryType } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import ConfirmDialog from '../../../components/ConfirmDialog'
 import Toast from '../../../components/Toast'
+import FocusSessionDialog from '../../../components/FocusSessionDialog'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
 import StepHeader from './components/StepHeader'
 import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
-import { Plus, Globe, Code2, Target, BarChart3, Languages, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 // Palette classes used for subject icon blocks (defined in global.css)
@@ -83,7 +83,6 @@ const PlansPage: React.FC = () => {
   const [goalsLoading, setGoalsLoading] = useState<boolean>(true)
   const [myGoalsLoading, setMyGoalsLoading] = useState<boolean>(true)
   // Enable Live auto-update for goals
-  const [goalsLive, setGoalsLive] = useState<boolean>(true)
   const [goalsError, setGoalsError] = useState<string | null>(null)
   const [myGoalsError, setMyGoalsError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<boolean>(false)
@@ -94,10 +93,6 @@ const PlansPage: React.FC = () => {
   // Chapter skeleton generation states
   const [generatingChapters, setGeneratingChapters] = useState<Set<string>>(new Set())
   const [chapterErrors, setChapterErrors] = useState<Map<string, string>>(new Map())
-  
-  // Lesson content and quiz generation states
-  const [generatingLessons, setGeneratingLessons] = useState<Set<string>>(new Set())
-  const [lessonErrors, setLessonErrors] = useState<Map<string, string>>(new Map())
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
@@ -112,7 +107,6 @@ const PlansPage: React.FC = () => {
   const [editingTitle, setEditingTitle] = useState<string>('')
   const [savingGoal, setSavingGoal] = useState<boolean>(false)
   const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null)
-  const [goalNotice, setGoalNotice] = useState<string | null>(null)
   const [goalActionError, setGoalActionError] = useState<string | null>(null)
 
   // Confirm dialog states
@@ -121,6 +115,11 @@ const PlansPage: React.FC = () => {
 
   // Toast states
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
+
+  // Focus session dialog states
+  const [showFocusDialog, setShowFocusDialog] = useState<boolean>(false)
+  const [selectedTask, setSelectedTask] = useState<{ id: string; title: string } | null>(null)
+  const [creatingSession, setCreatingSession] = useState<boolean>(false)
 
   const startEditGoal = (id: string, currTitle: string) => {
     setEditingGoalId(id)
@@ -186,6 +185,38 @@ const PlansPage: React.FC = () => {
       setDeletingGoalId(null)
       setGoalToDelete(null)
     }
+  }
+
+  // Handle focus session creation
+  const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
+    if (!selectedTask) return
+
+    setCreatingSession(true)
+    try {
+      const session = await FocusSessionService.startSession({
+        taskId: selectedTask.id,
+        sessionType,
+        plannedDurationMinutes: duration,
+        title: title || selectedTask.title
+      })
+
+      setToast({ message: 'Phiên học tập đã được tạo thành công!', type: 'success' })
+      setShowFocusDialog(false)
+      setSelectedTask(null)
+
+      // Navigate to focus session page
+      navigate(ROUTER.FOCUS_SESSION, { state: { session } })
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'Không thể tạo phiên học tập'
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setCreatingSession(false)
+    }
+  }
+
+  const handleCancelFocusSession = () => {
+    setShowFocusDialog(false)
+    setSelectedTask(null)
   }
 
   // IMPORTANT: initialize navigate for routing
@@ -277,126 +308,13 @@ const PlansPage: React.FC = () => {
     }
   }
 
-  // Handle lesson click - generate lesson content then quiz skeleton
+  // Handle lesson click - show focus session dialog
   const handleLessonClick = async (lessonId: string, lessonTitle: string) => {
     console.log('Lesson clicked:', { lessonId, lessonTitle })
     
-    // Don't generate if already generating
-    if (generatingLessons.has(lessonId)) {
-      console.log('Lesson already generating, skipping')
-      return
-    }
-    
-    console.log('Starting lesson content and quiz generation...')
-    
-    // Clear any previous error for this lesson
-    setLessonErrors(prev => {
-      const newErrors = new Map(prev)
-      newErrors.delete(lessonId)
-      return newErrors
-    })
-    
-    // Add to generating set
-    setGeneratingLessons(prev => new Set(prev).add(lessonId))
-    console.log('Added lesson to generating set:', lessonId)
-    
-    try {
-      // Generate lesson content and quiz skeleton together via SignalR
-      console.log(`Generating content and quiz for lesson ${lessonId}`)
-      
-      const result = await LearningPathService.generateLessonContent(
-        lessonId,
-        undefined,
-        // Quiz skeleton callback - called when quiz skeleton is received
-        (quizSkeleton: any) => {
-          console.log(`Quiz skeleton received for lesson ${lessonId}:`, quizSkeleton)
-          // Update skeleton immediately when quiz skeleton is received
-          setSkeleton((prevSkeleton: any) => {
-            if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
-            
-            const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
-            const updatedChapters = chaptersArray.map((ch: any) => {
-              if (Array.isArray(ch.lessons)) {
-                const updatedLessons = ch.lessons.map((ls: any) => {
-                  const currentLessonId = ls.lessonId || ls.id
-                  if (currentLessonId === lessonId) {
-                    return {
-                      ...ls,
-                      quizzes: quizSkeleton?.Quizzes || quizSkeleton?.quizzes || [],
-                      quizCount: (quizSkeleton?.Quizzes || quizSkeleton?.quizzes || []).length
-                    }
-                  }
-                  return ls
-                })
-                return { ...ch, lessons: updatedLessons }
-              }
-              return ch
-            })
-            
-            return {
-              ...prevSkeleton,
-              chapters: prevSkeleton.chapters ? updatedChapters : undefined,
-              chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
-            }
-          })
-        }
-      )
-      
-      console.log(`Lesson content generated:`, result)
-      
-      // Update skeleton with lesson content
-      setSkeleton((prevSkeleton: any) => {
-        console.log('Updating skeleton with lesson content:', prevSkeleton)
-        if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
-        
-        // Handle both chapters and chapterDtos
-        const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
-        const updatedChapters = chaptersArray.map((ch: any) => {
-          if (Array.isArray(ch.lessons)) {
-            const updatedLessons = ch.lessons.map((ls: any) => {
-              const currentLessonId = ls.lessonId || ls.id
-              if (currentLessonId === lessonId) {
-                return {
-                  ...ls,
-                  content: result.content,
-                  hasContent: true,
-                  // Include quiz skeleton if it was in the initial result
-                  quizzes: result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || ls.quizzes || [],
-                  quizCount: (result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || ls.quizzes || []).length
-                }
-              }
-              return ls
-            })
-            return { ...ch, lessons: updatedLessons }
-          }
-          return ch
-        })
-        
-        const updated = {
-          ...prevSkeleton,
-          chapters: prevSkeleton.chapters ? updatedChapters : undefined,
-          chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
-        }
-        console.log('Updated skeleton with lesson content:', updated)
-        return updated
-      })
-      
-    } catch (error: any) {
-      console.error(`Failed to generate lesson ${lessonId} content/quiz:`, error)
-      setLessonErrors(prev => {
-        const newErrors = new Map(prev)
-        newErrors.set(lessonId, error.message || 'Failed to generate lesson content and quiz')
-        return newErrors
-      })
-    } finally {
-      // Remove from generating set
-      setGeneratingLessons(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(lessonId)
-        return newSet
-      })
-      console.log('Removed lesson from generating set:', lessonId)
-    }
+    // Show focus session dialog instead of generating content
+    setSelectedTask({ id: lessonId, title: lessonTitle })
+    setShowFocusDialog(true)
   }
 
   // Persist selections
@@ -550,7 +468,7 @@ const PlansPage: React.FC = () => {
 
   // Background polling to keep goals in sync (realtime-like)
   useEffect(() => {
-    if (!goalsLive || step !== 2) return
+    if (step !== 2) return
     let disposed = false
 
     const fetchGoals = async () => {
@@ -575,7 +493,7 @@ const PlansPage: React.FC = () => {
       disposed = true
       clearInterval(id)
     }
-  }, [goalsLive, step])
+  }, [step])
 
   const canNext = useMemo(() => {
     if (step === 1) return !!language
@@ -771,10 +689,9 @@ const PlansPage: React.FC = () => {
               />
 
               {/* Thông báo hành động goal */}
-              {(goalNotice || goalActionError) && (
+              {goalActionError && (
                 <div style={{ marginBottom: 24 }}>
-                  {goalNotice && <div style={{ padding: 12, border: '1px solid var(--success-primary)', borderRadius: 2, color: 'var(--success-primary)', fontSize: 13, background: 'var(--bg-leaf-tint)' }}>// {goalNotice}</div>}
-                  {goalActionError && <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)', marginTop: 12 }}>// {goalActionError}</div>}
+                  <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {goalActionError}</div>
                 </div>
               )}
 
@@ -1197,29 +1114,16 @@ const PlansPage: React.FC = () => {
                                        <ul className="ml-4 space-y-2">
                                          {ch.lessons.map((ls: any) => {
                                            const lessonId = ls.lessonId || ls.id
-                                           const isLessonGenerating = generatingLessons.has(lessonId)
-                                           const lessonError = lessonErrors.get(lessonId)
                                            
                                            return (
                                              <li key={lessonId} className="relative">
                                                <button
                                                  type="button"
                                                  onClick={() => handleLessonClick(lessonId, ls.title)}
-                                                 disabled={isLessonGenerating}
-                                                 className={`w-full text-left p-2 rounded-lg border transition-all text-sm ${
-                                                   isLessonGenerating 
-                                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
-                                                     : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
-                                                 }`}
+                                                 className="w-full text-left p-2 rounded-lg border transition-all text-sm bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
                                                >
                                                  <div className="flex items-center gap-2">
                                                    <span className="text-body">• {ls.title ?? 'Lesson'}</span>
-                                                   {isLessonGenerating && (
-                                                     <div className="flex items-center gap-1 text-xs text-muted">
-                                                       <div className="animate-spin w-2 h-2 border border-gray-400 border-t-transparent rounded-full"></div>
-                                                       <span>Generating...</span>
-                                                     </div>
-                                                   )}
                                                    {ls.hasContent && (
                                                      <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
                                                        Content ready
@@ -1231,11 +1135,6 @@ const PlansPage: React.FC = () => {
                                                      </span>
                                                    )}
                                                  </div>
-                                                 {lessonError && (
-                                                   <div className="text-xs text-red-600 mt-1 bg-red-50 p-1 rounded">
-                                                     Error: {lessonError}
-                                                   </div>
-                                                 )}
                                                </button>
                                              </li>
                                            )
@@ -1337,6 +1236,17 @@ const PlansPage: React.FC = () => {
            message={toast.message}
            type={toast.type}
            onClose={() => setToast(null)}
+         />
+       )}
+
+       {/* Focus Session Dialog */}
+       {showFocusDialog && selectedTask && (
+         <FocusSessionDialog
+           isOpen={showFocusDialog}
+           taskTitle={selectedTask.title}
+           onConfirm={handleCreateFocusSession}
+           onCancel={handleCancelFocusSession}
+           loading={creatingSession}
          />
        )}
      </div>

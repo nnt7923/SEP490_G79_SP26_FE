@@ -32,6 +32,8 @@ const ROUTER = {
   QUIZ: "/quiz/:quizId",
   // Task (Chapter Tasks)
   TASK: "/task/:chapterId",
+  // Focus Session
+  FOCUS_SESSION: "/focus-session",
 };
 
 export default ROUTER;

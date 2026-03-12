@@ -1,61 +1,141 @@
 import React, { useState } from 'react'
 import { requestChapterTasks } from '../../../../../services/SignalR'
+import { FocusSessionService, SessionType } from '../../../../../services'
+import { useNavigate } from 'react-router-dom'
+import ROUTER from '../../../../../router/ROUTER'
+import FocusSessionDialog from '../../../../../components/FocusSessionDialog'
+import Toast from '../../../../../components/Toast'
 import { useTranslation } from 'react-i18next'
 
 interface ChapterTasksProps {
   chapterId: string
-  onAllTasksCompleted?: (chapterId: string, completed: boolean) => void
 }
 
 interface Task {
   id?: string
+  taskId?: string  // API uses TaskId
+  TaskId?: string  // C# property name
   title?: string
+  Title?: string   // C# property name
   description?: string
+  Description?: string // C# property name
   difficulty?: 'Easy' | 'Medium' | 'Hard'
-  completed?: boolean
+  taskType?: number | string // 0: practice, 1: theory, 2: quiz OR "Practice", "Theory", "Quizz"
+  TaskType?: number | string // C# property name
+  type?: number | string // Alternative field name for taskType
+  kind?: number | string // Alternative field name for taskType
+  category?: number | string // Alternative field name for taskType
+  Priority?: number
+  TaskStatus?: number | string
+  QuizQuestionsJson?: string
+  quizQuestionsJson?: string // lowercase version
 }
 
-const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksCompleted }) => {
+const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   const { t } = useTranslation('student')
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
-  const [showCelebration, setShowCelebration] = useState(false)
   const loadingRef = React.useRef(false)
+  const [showFocusDialog, setShowFocusDialog] = useState<boolean>(false)
+  const [selectedTask, setSelectedTask] = useState<{ id: string; title: string; fullTask?: Task } | null>(null)
+  const [creatingSession, setCreatingSession] = useState<boolean>(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
-  const toggleTaskCompletion = (taskId: string | undefined, taskIdx: number) => {
-    setTasks(prevTasks => {
-      const newTasks = prevTasks.map((task, idx) => 
-        (task.id === taskId || idx === taskIdx)
-          ? { ...task, completed: !task.completed }
-          : task
-      )
-      
-      const allCompleted = newTasks.length > 0 && newTasks.every(t => t.completed === true)
-      const wasAllCompleted = prevTasks.length > 0 && prevTasks.every(t => t.completed === true)
-      
-      if (allCompleted && !wasAllCompleted) {
-        setShowCelebration(true)
-        setTimeout(() => setShowCelebration(false), 3000)
-      }
-      
-      if (allCompleted !== wasAllCompleted) {
-        onAllTasksCompleted?.(chapterId, allCompleted)
-      }
-      
-      return newTasks
+  // Handle focus session creation
+  const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
+    if (!selectedTask) return
+
+    console.log('Creating focus session with:', {
+      taskId: selectedTask.id,
+      sessionType,
+      plannedDurationMinutes: duration,
+      title: title || selectedTask.title
     })
+
+    setCreatingSession(true)
+    try {
+      const session = await FocusSessionService.startSession({
+        taskId: selectedTask.id,
+        sessionType,
+        plannedDurationMinutes: duration,
+        title: title || selectedTask.title
+      })
+
+      console.log('Focus session created successfully:', session)
+      setToast({ message: 'Phiên học tập đã được tạo thành công!', type: 'success' })
+      setShowFocusDialog(false)
+      setSelectedTask(null)
+
+      // Navigate to focus session page with both session and task data
+      const taskType = selectedTask.fullTask?.taskType
+      const quizData = selectedTask.fullTask?.QuizQuestionsJson || selectedTask.fullTask?.quizQuestionsJson
+      
+      console.log('Navigating to focus session with task data:', {
+        taskType,
+        quizData,
+        fullTask: selectedTask.fullTask
+      })
+      
+      navigate(ROUTER.FOCUS_SESSION, { 
+        state: { 
+          session,
+          task: {
+            id: selectedTask.id,
+            title: selectedTask.title,
+            description: selectedTask.fullTask?.description || selectedTask.fullTask?.Description,
+            taskType: taskType, // Pass original value (number or string)
+            quizQuestionsJson: quizData
+          }
+        } 
+      })
+    } catch (error: any) {
+      console.error('Failed to create focus session:', error)
+      console.error('Error response:', error?.response?.data)
+      const msg = error?.response?.data?.message || error?.message || 'Không thể tạo phiên học tập'
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setCreatingSession(false)
+    }
   }
 
-  const loadTasks = async (retryCount = 0) => {
-    if (loaded || loadingRef.current) return
+  const handleCancelFocusSession = () => {
+    setShowFocusDialog(false)
+    setSelectedTask(null)
+  }
+
+  // Handle task click - show focus session dialog
+  const handleTaskClick = (task: Task, taskIdx: number) => {
+    // Try both id and taskId fields from API
+    const taskId = task.id || task.taskId || task.TaskId
+    if (!taskId) {
+      console.error('Task missing ID:', task)
+      setToast({ message: 'Task không có ID hợp lệ', type: 'error' })
+      return
+    }
+    
+    const taskTitle = task.title || task.Title || task.description || task.Description || `Task ${taskIdx + 1}`
+    
+    // Store the full task data for later use
+    setSelectedTask({ 
+      id: taskId, 
+      title: taskTitle,
+      fullTask: task // Store full task object
+    })
+    setShowFocusDialog(true)
+  }
+
+  const loadTasks = async (retryCount = 0, forceReload = false) => {
+    if (!forceReload && (loaded || loadingRef.current)) return
 
     loadingRef.current = true
     setLoading(true)
     setError(null)
 
     try {
+      console.log('Loading tasks for chapter:', chapterId)
       const result = await requestChapterTasks(chapterId, () => setLoading(true))
       let taskArray: Task[] = []
       
@@ -69,17 +149,18 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
       }
       
       taskArray = taskArray.map(task => ({
-        ...task,
-        completed: false
+        ...task
       }))
       
+      console.log('Loaded tasks for chapter', chapterId, ':', taskArray.length, 'tasks')
       setTasks(taskArray)
       setLoaded(true)
     } catch (e: any) {
+      console.error('Error loading tasks for chapter', chapterId, ':', e)
       loadingRef.current = false
       if (retryCount < 1) {
         await new Promise(r => setTimeout(r, 1000))
-        return loadTasks(retryCount + 1)
+        return loadTasks(retryCount + 1, forceReload)
       }
       setError(e?.message || t('task.notFound'))
     } finally {
@@ -88,12 +169,23 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
   }
 
   React.useEffect(() => {
-    loadTasks()
+    // Reset state when chapterId changes
+    setLoaded(false)
+    loadingRef.current = false
+    setTasks([])
+    setError(null)
+    
+    // Automatically load tasks for the new chapter (force reload)
+    loadTasks(0, true)
   }, [chapterId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const completedCount = tasks.filter(t => t.completed).length
-  const totalCount = tasks.length
-  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+  // Initial load when component mounts
+  React.useEffect(() => {
+    if (chapterId && !loaded && !loading) {
+      console.log('Initial load for chapter:', chapterId)
+      loadTasks(0, true)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{
@@ -103,47 +195,17 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
       position: 'relative',
       borderTop: '1px dashed var(--border-base)'
     }}>
-      {/* Celebration Message */}
-      {showCelebration && (
-        <div style={{
-          position: 'absolute',
-          top: -20, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 10, animation: 'bounce 1s infinite'
-        }}>
-          <div style={{
-            background: 'var(--success-primary)', color: 'var(--bg-main)',
-            padding: '8px 16px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 8,
-            fontWeight: 700, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-          }}>
-            <span>[{t('task.success')}]</span>
-            <span>{t('task.allCompleted')}</span>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
           {'>'} {t('task.title')}
         </h4>
         <div style={{ display: 'flex', gap: 12 }}>
-          {!loaded && !loading && (
-            <button
-              onClick={() => loadTasks()}
-              style={{
-                background: 'var(--bg-surface)', border: '1px solid var(--border-base)', color: 'var(--text-primary)',
-                padding: '4px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 2
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-100)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}
-            >
-              [ {t('task.execute')} ]
-            </button>
-          )}
           {loaded && (
             <button
               onClick={() => {
                 setLoaded(false); loadingRef.current = false; setTasks([]); setError(null);
+                loadTasks(0, true);
               }}
               style={{
                 background: 'transparent', border: '1px dashed var(--border-base)', color: 'var(--text-disabled)',
@@ -160,7 +222,13 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
 
       {loading && (
         <div style={{ fontSize: 13, color: 'var(--accent-primary)', marginBottom: 16 }}>
-          {'>'} {t('task.processing')} _
+          {'>'} Đang tự động tải tasks cho chapter này... _
+        </div>
+      )}
+
+      {!loading && !loaded && !error && (
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+          {'>'} Đang chuẩn bị tải tasks...
         </div>
       )}
 
@@ -175,75 +243,108 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
 
       {loaded && tasks.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Progress Bar */}
-          <div style={{
-            background: 'var(--bg-surface)', padding: 16, border: '1px solid var(--border-base)', borderRadius: 2
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
-              <span style={{ color: 'var(--text-secondary)' }}>// {t('task.progress')}</span>
-              <span style={{ color: progressPercent === 100 ? 'var(--success-primary)' : 'var(--accent-primary)', fontWeight: 600 }}>
-                [{completedCount}/{totalCount}]
-              </span>
-            </div>
-            <div style={{ width: '100%', height: 4, background: 'var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${progressPercent}%`,
-                background: progressPercent === 100 ? 'var(--success-primary)' : 'var(--accent-primary)',
-                transition: 'width 0.3s ease'
-              }} />
-            </div>
-          </div>
-
           {/* Task List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tasks.map((task, taskIdx) => {
-              const difficultyKey = task.difficulty ? task.difficulty.toLowerCase() as 'easy' | 'medium' | 'hard' : undefined;
               return (
                 <div
-                  key={task.id || taskIdx}
+                  key={task.id || task.taskId || taskIdx}
                   style={{
-                    background: 'var(--bg-surface)', border: `1px solid ${task.completed ? 'var(--success-primary)' : 'var(--border-base)'}`,
-                    padding: 16, borderRadius: 2, display: 'flex', gap: 16, alignItems: 'flex-start',
-                    opacity: task.completed ? 0.7 : 1, transition: 'all 0.2s ease', cursor: 'pointer'
+                    background: 'var(--bg-surface)', 
+                    border: '1px solid var(--border-base)',
+                    padding: 16, 
+                    borderRadius: 2, 
+                    display: 'flex', 
+                    gap: 16, 
+                    alignItems: 'flex-start',
+                    transition: 'all 0.2s ease'
                   }}
-                  onClick={() => toggleTaskCompletion(task.id, taskIdx)}
-                  onMouseEnter={e => { if(!task.completed) e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
-                  onMouseLeave={e => { if(!task.completed) e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                 >
-                  <div
-                    style={{
-                      width: 20, height: 20, flexShrink: 0, marginTop: 2,
-                      background: task.completed ? 'var(--success-primary)' : 'transparent',
-                      border: `1px solid ${task.completed ? 'var(--success-primary)' : 'var(--border-base)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg-main)', borderRadius: 2
-                    }}
-                  >
-                    {task.completed && '✓'}
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', 
+                    background: 'var(--text-disabled)', 
+                    color: 'var(--bg-surface)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                    fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2
+                  }}>
+                    {taskIdx + 1}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{
-                      margin: 0, fontSize: 14, fontWeight: 600,
-                      color: task.completed ? 'var(--success-primary)' : 'var(--text-primary)',
-                      textDecoration: task.completed ? 'line-through' : 'none'
-                    }}>
-                      {task.title || task.description || `Task ${taskIdx + 1}`}
-                    </p>
-                    {task.description && task.title && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <p style={{
+                        margin: 0, fontSize: 14, fontWeight: 600,
+                        color: 'var(--text-primary)'
+                      }}>
+                        {task.title || task.Title || task.description || task.Description || `Task ${taskIdx + 1}`}
+                      </p>
+                      <button
+                        onClick={() => handleTaskClick(task, taskIdx)}
+                        style={{
+                          background: 'var(--accent-primary)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.background = 'var(--accent-secondary)'
+                          e.currentTarget.style.transform = 'translateY(-1px)'
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.background = 'var(--accent-primary)'
+                          e.currentTarget.style.transform = 'translateY(0)'
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/>
+                          <polygon points="10,8 16,12 10,16 10,8"/>
+                        </svg>
+                        Focus
+                      </button>
+                    </div>
+                    {(task.description || task.Description) && (task.title || task.Title) && (
                       <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-                        {task.description}
+                        {task.description || task.Description}
                       </p>
                     )}
-                    {task.difficulty && difficultyKey && (
-                      <span style={{
-                        display: 'inline-block', marginTop: 12, padding: '2px 8px', fontSize: 11, fontWeight: 600,
-                        textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
-                        color: difficultyKey === 'easy' ? 'var(--success-primary)' :
-                               difficultyKey === 'medium' ? 'var(--warning-primary)' :
-                               'var(--error-primary)'
-                      }}>
-                        {t(`task.${difficultyKey}`)}
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                      {task.difficulty && (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: task.difficulty.toLowerCase() === 'easy' ? 'var(--success-primary)' :
+                                 task.difficulty.toLowerCase() === 'medium' ? 'var(--warning-primary)' :
+                                 'var(--error-primary)'
+                        }}>
+                          {t(`task.${task.difficulty.toLowerCase()}`)}
+                        </span>
+                      )}
+                      {task.taskType !== undefined && (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: task.taskType === 0 || task.taskType === 'Practice' ? '#4CAF50' :
+                                 task.taskType === 1 || task.taskType === 'Theory' ? '#2196F3' :
+                                 task.taskType === 2 || task.taskType === 'Quizz' ? '#FF9800' : 'var(--text-secondary)',
+                          background: task.taskType === 0 || task.taskType === 'Practice' ? '#4CAF5020' :
+                                     task.taskType === 1 || task.taskType === 'Theory' ? '#2196F320' :
+                                     task.taskType === 2 || task.taskType === 'Quizz' ? '#FF980020' : 'transparent'
+                        }}>
+                          {task.taskType === 0 || task.taskType === 'Practice' ? '💻 Practice' :
+                           task.taskType === 1 || task.taskType === 'Theory' ? '📚 Theory' :
+                           task.taskType === 2 || task.taskType === 'Quizz' ? '🎯 Quiz' : `Type ${task.taskType}`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -256,6 +357,26 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
         <div style={{ fontSize: 13, color: 'var(--text-disabled)', padding: 16, textAlign: 'center', border: '1px dashed var(--border-base)', borderRadius: 2 }}>
           {t('task.noTasks')}
         </div>
+      )}
+
+      {/* Focus Session Dialog */}
+      {showFocusDialog && selectedTask && (
+        <FocusSessionDialog
+          isOpen={showFocusDialog}
+          taskTitle={selectedTask.title}
+          onConfirm={handleCreateFocusSession}
+          onCancel={handleCancelFocusSession}
+          loading={creatingSession}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   )

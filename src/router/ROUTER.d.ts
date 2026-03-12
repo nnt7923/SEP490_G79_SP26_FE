@@ -23,6 +23,8 @@ declare const ROUTER: {
   ADMIN_REPORTS: string
   MENTOR_PROFILE: string
   QUIZ: string
+  TASK: string
+  FOCUS_SESSION: string
 }
 
 export default ROUTER
