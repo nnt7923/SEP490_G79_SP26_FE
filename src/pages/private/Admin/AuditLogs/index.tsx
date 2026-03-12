@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
-import { Activity, RefreshCw, X, Search, ChevronRight, ChevronLeft, Database, User, Clock, Info } from 'lucide-react'
+import { Activity, RefreshCw, X, Search, ChevronRight, ChevronLeft, Database, User, Clock, Info, FilterX } from 'lucide-react'
 import useAuthStore from '../../../../store/useAuthStore'
 import { useTranslation } from 'react-i18next'
 import * as signalR from '@microsoft/signalr'
@@ -45,7 +45,7 @@ interface PaginatedResult<T> {
 const AuditLogs: React.FC = () => {
   const { t } = useTranslation('admin')
   const { token } = useAuthStore()
-  
+
   const navItems = useAdminSidebarConfig()
   const sidebarConfig = {
     navItems,
@@ -56,7 +56,7 @@ const AuditLogs: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogResponse[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Pagination & Filters
   const [page, setPage] = useState<number>(1)
   const [pageSize] = useState<number>(15)
@@ -65,6 +65,11 @@ const AuditLogs: React.FC = () => {
   const [actionFilter, setActionFilter] = useState<string>('')
   const [tableFilter, setTableFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState<string>('') // Can be used to filter locally or send as parameter if supported
+
+  const [fromDate, setFromDate] = useState<string>('')
+  const [toDate, setToDate] = useState<string>('')
+  const [sortBy, setSortBy] = useState<number>(0)
+  const [sortDescending, setSortDescending] = useState<boolean>(true)
 
   // SignalR Connection Ref
   const connectionRef = useRef<signalR.HubConnection | null>(null)
@@ -75,16 +80,16 @@ const AuditLogs: React.FC = () => {
         setLoading(true)
         // param signature: pageNumber, pageSize, action, tableName, userId, fromDate, toDate, sortBy, sortDescending
         await connectionRef.current.invoke(
-          "RequestAuditLogs", 
-          page, 
-          pageSize, 
-          actionFilter || null, 
-          tableFilter || null, 
+          "RequestAuditLogs",
+          page,
+          pageSize,
+          actionFilter || null,
+          tableFilter || null,
           null, // userId
-          null, // fromDate
-          null, // toDate
-          0, // sortBy Timestamp
-          true // sortDescending
+          fromDate ? new Date(fromDate).toISOString() : null, // fromDate
+          toDate ? new Date(toDate).toISOString() : null, // toDate
+          sortBy, // sortBy Timestamp
+          sortDescending // sortDescending
         )
       } catch (err) {
         console.error("Failed to invoke RequestAuditLogs:", err)
@@ -92,7 +97,7 @@ const AuditLogs: React.FC = () => {
         setLoading(false)
       }
     }
-  }, [page, pageSize, actionFilter, tableFilter, t])
+  }, [page, pageSize, actionFilter, tableFilter, fromDate, toDate, sortBy, sortDescending, t])
 
   useEffect(() => {
     if (!token) return
@@ -130,7 +135,7 @@ const AuditLogs: React.FC = () => {
         // If filters are active, conditionally add only if matching
         if (actionFilter && newLog.action !== actionFilter) return prev
         if (tableFilter && newLog.tableName !== tableFilter) return prev
-        
+
         const newLogs = [newLog, ...prev]
         if (newLogs.length > pageSize) newLogs.pop() // keep pageSize limit
         return newLogs
@@ -168,6 +173,17 @@ const AuditLogs: React.FC = () => {
     fetchLogs()
   }
 
+  const resetFilters = () => {
+    setSearchQuery('')
+    setTableFilter('')
+    setActionFilter('')
+    setFromDate('')
+    setToDate('')
+    setSortBy(0)
+    setSortDescending(true)
+    setPage(1)
+  }
+
   // For Detail Modal
   const [selectedLog, setSelectedLog] = useState<AuditLogResponse | null>(null)
 
@@ -184,7 +200,7 @@ const AuditLogs: React.FC = () => {
   return (
     <Layout sidebar={sidebarConfig}>
       <div className="p-4 md:p-8 bg-th-page min-h-screen">
-        
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
@@ -194,8 +210,8 @@ const AuditLogs: React.FC = () => {
             </h1>
             <p className="text-muted mt-1">{t('auditLogs.subtitle')}</p>
           </div>
-          
-          <button 
+
+          <button
             onClick={handleRefresh}
             className="flex items-center gap-2 px-4 py-2 bg-th-card text-heading border border-bd hover:bg-th-input transition-colors disabled:opacity-50"
             disabled={loading}
@@ -206,40 +222,99 @@ const AuditLogs: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-th-card border border-bd p-4 mb-6 flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
-            <input 
-              type="text" 
-              placeholder={t('auditLogs.searchPlaceholder')}
-              className="w-full pl-10 pr-4 py-2 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className="bg-th-card border border-bd p-4 mb-6 flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
+              <input
+                type="text"
+                placeholder={t('auditLogs.searchPlaceholder')}
+                className="w-full pl-10 pr-4 py-2 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <select
+                className="px-4 py-2 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary"
+                value={tableFilter}
+                onChange={(e) => { setTableFilter(e.target.value); setPage(1); }}
+              >
+                <option value="">{t('auditLogs.allTables')}</option>
+                {[
+                  'AIProviderConfigs', 'AISummaries', 'Chapters',
+                  'Classes', 'Conversations', 'DailyCheckins', 'FocusSessions',
+                  'Goals', 'LearningPaths', 'Lessons', 'Messages', 'Notes',
+                  'NoteTags', 'Notifications', 'Plans', 'Questions', 'QuizAttempts',
+                  'Quizzes', 'RefreshTokens', 'ResourcePages', 'Resources',
+                  'Roles', 'Subjects', 'Tags', 'Tasks', 'TokenBlacklist',
+                  'UserProfiles', 'Users'
+                ].map(table => (
+                  <option key={table} value={table}>{table}</option>
+                ))}
+              </select>
+              <select
+                className="px-4 py-2 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary"
+                value={actionFilter}
+                onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+              >
+                <option value="">{t('auditLogs.allActions')}</option>
+                <option value="Added">{t('auditLogs.added')}</option>
+                <option value="Modified">{t('auditLogs.modified')}</option>
+                <option value="Deleted">{t('auditLogs.deleted')}</option>
+              </select>
+            </div>
           </div>
-          <div className="flex gap-4">
-            <select 
-              className="px-4 py-2 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary"
-              value={tableFilter}
-              onChange={(e) => { setTableFilter(e.target.value); setPage(1); }}
+
+          <div className="flex flex-wrap items-center gap-4 border-t border-bd pt-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-body font-medium whitespace-nowrap">{t('auditLogs.fromDate', { defaultValue: 'From Date' })}:</label>
+              <input
+                type="datetime-local"
+                className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
+                value={fromDate}
+                onChange={e => { setFromDate(e.target.value); setPage(1); }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-body font-medium whitespace-nowrap">{t('auditLogs.toDate', { defaultValue: 'To Date' })}:</label>
+              <input
+                type="datetime-local"
+                className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
+                value={toDate}
+                onChange={e => { setToDate(e.target.value); setPage(1); }}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 md:ml-auto">
+              <label className="text-sm text-body font-medium whitespace-nowrap">{t('auditLogs.sortBy', { defaultValue: 'Sort By' })}:</label>
+              <select
+                className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
+                value={sortBy}
+                onChange={e => { setSortBy(Number(e.target.value)); setPage(1); }}
+              >
+                <option value={0}>Timestamp</option>
+                <option value={1}>Action</option>
+                <option value={2}>Table Name</option>
+              </select>
+              <select
+                className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
+                value={sortDescending ? 'desc' : 'asc'}
+                onChange={e => { setSortDescending(e.target.value === 'desc'); setPage(1); }}
+              >
+                <option value="desc">{t('auditLogs.descending', { defaultValue: 'Newest First' })}</option>
+                <option value="asc">{t('auditLogs.ascending', { defaultValue: 'Oldest First' })}</option>
+              </select>
+            </div>
+
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-2 px-3 py-1.5 bg-th-card text-muted hover:text-heading border border-bd hover:bg-th-input transition-colors rounded-sm text-sm"
+              title={t('auditLogs.resetFilters', { defaultValue: 'Reset Filters' })}
             >
-              <option value="">{t('auditLogs.allTables')}</option>
-              <option value="Users">Users</option>
-              <option value="Subjects">Subjects</option>
-              <option value="Classes">Classes</option>
-              <option value="Plans">Plans</option>
-              <option value="Goals">Goals</option>
-            </select>
-            <select 
-              className="px-4 py-2 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary"
-              value={actionFilter}
-              onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
-            >
-              <option value="">{t('auditLogs.allActions')}</option>
-              <option value="Added">{t('auditLogs.added')}</option>
-              <option value="Modified">{t('auditLogs.modified')}</option>
-              <option value="Deleted">{t('auditLogs.deleted')}</option>
-            </select>
+              <FilterX size={16} />
+              <span className="hidden md:inline">{t('auditLogs.reset', { defaultValue: 'Reset' })}</span>
+            </button>
           </div>
         </div>
 
@@ -301,23 +376,23 @@ const AuditLogs: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span 
+                        <span
                           className="px-2 py-1 text-xs font-semibold border inline-block"
                           style={{
-                            backgroundColor: log.action === 'Added' ? 'var(--tw-green-bg)' : 
-                                            log.action === 'Deleted' ? 'var(--tw-red-bg)' : 
-                                            'var(--tw-blue-bg)',
-                            color: log.action === 'Added' ? 'var(--tw-green-text)' : 
-                                  log.action === 'Deleted' ? 'var(--tw-red-text)' : 
-                                  'var(--tw-blue-text)',
-                            borderColor: log.action === 'Added' ? 'var(--tw-green-bg-strong)' : 
-                                        log.action === 'Deleted' ? 'var(--tw-red-bg-strong)' : 
-                                        'var(--tw-blue-bg-strong)'
+                            backgroundColor: log.action === 'Added' ? 'var(--tw-green-bg)' :
+                              log.action === 'Deleted' ? 'var(--tw-red-bg)' :
+                                'var(--tw-blue-bg)',
+                            color: log.action === 'Added' ? 'var(--tw-green-text)' :
+                              log.action === 'Deleted' ? 'var(--tw-red-text)' :
+                                'var(--tw-blue-text)',
+                            borderColor: log.action === 'Added' ? 'var(--tw-green-bg-strong)' :
+                              log.action === 'Deleted' ? 'var(--tw-red-bg-strong)' :
+                                'var(--tw-blue-bg-strong)'
                           }}
                         >
-                          {log.action === 'Added' ? t('auditLogs.added') : 
-                           log.action === 'Deleted' ? t('auditLogs.deleted') : 
-                           t('auditLogs.modified')}
+                          {log.action === 'Added' ? t('auditLogs.added') :
+                            log.action === 'Deleted' ? t('auditLogs.deleted') :
+                              t('auditLogs.modified')}
                         </span>
                       </td>
                       <td className="p-4">
@@ -333,7 +408,7 @@ const AuditLogs: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-4 text-center">
-                        <button 
+                        <button
                           onClick={() => setSelectedLog(log)}
                           className="text-accent-primary hover:underline font-medium"
                         >
@@ -346,7 +421,7 @@ const AuditLogs: React.FC = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination */}
           {!loading && totalItems > 0 && (
             <div className="p-4 border-t border-bd flex flex-col md:flex-row items-center justify-between gap-4 bg-th-input/30">
@@ -358,7 +433,7 @@ const AuditLogs: React.FC = () => {
                 })}
               </span>
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
                   className="p-1 text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent transition-all"
@@ -368,7 +443,7 @@ const AuditLogs: React.FC = () => {
                 <span className="text-sm font-medium text-heading min-w-[3rem] text-center">
                   {page} / {totalPages}
                 </span>
-                <button 
+                <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                   className="p-1 text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent transition-all"
@@ -386,14 +461,14 @@ const AuditLogs: React.FC = () => {
       {selectedLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-th-card border border-bd shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(0,0,0,0.4)] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-bd bg-th-card">
               <h3 className="text-lg font-bold text-heading flex items-center gap-2">
                 <Activity size={20} className="text-accent-primary" />
                 {t('auditLogs.viewDetails')}
               </h3>
-              <button 
+              <button
                 onClick={() => setSelectedLog(null)}
                 className="p-1 hover:bg-th-input text-muted transition-colors"
                 title="Close"
@@ -401,30 +476,30 @@ const AuditLogs: React.FC = () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex-1 text-body bg-th-card">
               <div className="grid grid-cols-2 gap-y-5 gap-x-8 mb-8 bg-th-card p-5 border border-bd">
                 <div><span className="text-muted text-sm">{t('auditLogs.timestamp')}</span><p className="font-semibold text-heading mt-1">{new Date(selectedLog.timestamp).toLocaleString()}</p></div>
                 <div><span className="text-muted text-sm">{t('auditLogs.action')}</span>
                   <p className="mt-1">
-                    <span 
+                    <span
                       className="px-2 py-0.5 text-xs font-semibold border inline-block"
                       style={{
-                        backgroundColor: selectedLog.action === 'Added' ? 'var(--tw-green-bg)' : 
-                                        selectedLog.action === 'Deleted' ? 'var(--tw-red-bg)' : 
-                                        'var(--tw-blue-bg)',
-                        color: selectedLog.action === 'Added' ? 'var(--tw-green-text)' : 
-                              selectedLog.action === 'Deleted' ? 'var(--tw-red-text)' : 
-                              'var(--tw-blue-text)',
-                        borderColor: selectedLog.action === 'Added' ? 'var(--tw-green-bg-strong)' : 
-                                    selectedLog.action === 'Deleted' ? 'var(--tw-red-bg-strong)' : 
-                                    'var(--tw-blue-bg-strong)'
+                        backgroundColor: selectedLog.action === 'Added' ? 'var(--tw-green-bg)' :
+                          selectedLog.action === 'Deleted' ? 'var(--tw-red-bg)' :
+                            'var(--tw-blue-bg)',
+                        color: selectedLog.action === 'Added' ? 'var(--tw-green-text)' :
+                          selectedLog.action === 'Deleted' ? 'var(--tw-red-text)' :
+                            'var(--tw-blue-text)',
+                        borderColor: selectedLog.action === 'Added' ? 'var(--tw-green-bg-strong)' :
+                          selectedLog.action === 'Deleted' ? 'var(--tw-red-bg-strong)' :
+                            'var(--tw-blue-bg-strong)'
                       }}
                     >
-                        {selectedLog.action === 'Added' ? t('auditLogs.added') : 
-                         selectedLog.action === 'Deleted' ? t('auditLogs.deleted') : 
-                         t('auditLogs.modified')}
+                      {selectedLog.action === 'Added' ? t('auditLogs.added') :
+                        selectedLog.action === 'Deleted' ? t('auditLogs.deleted') :
+                          t('auditLogs.modified')}
                     </span>
                   </p>
                 </div>
@@ -463,7 +538,7 @@ const AuditLogs: React.FC = () => {
 
             {/* Modal Footer */}
             <div className="p-4 border-t border-bd flex justify-end bg-th-card">
-              <button 
+              <button
                 onClick={() => setSelectedLog(null)}
                 className="px-5 py-2 bg-th-card text-heading font-medium border border-bd hover:bg-th-input transition-colors"
               >

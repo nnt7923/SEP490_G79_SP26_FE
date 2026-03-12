@@ -363,7 +363,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
         {isMobile && onToggle && (
           <button
             onClick={onToggle}
-            className="p-1 rounded-md hover:bg-sl-100 transition-colors"
+            className="p-1 hover:bg-sl-100 transition-colors"
             title="Close summary panel"
             aria-label="Close summary panel"
           >
