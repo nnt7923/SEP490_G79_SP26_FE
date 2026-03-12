@@ -21,7 +21,6 @@ const QuizStatusBadge: React.FC<QuizStatusBadgeProps> = ({ quizId }) => {
                 }
             })
             .catch((err) => {
-                console.error('Failed to fetch quiz status', err)
                 if (isMounted) {
                     setStatus('NotStarted')
                     setLoading(false)

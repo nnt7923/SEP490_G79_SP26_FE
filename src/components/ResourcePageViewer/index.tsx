@@ -62,7 +62,6 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
         setError('No pages found. The document may not have been processed yet.')
       }
     } catch (err: any) {
-      console.error('Error fetching pages:', err)
       
       if (err?.response?.status === 404) {
         setError('Page extraction not available yet. Backend needs to implement the /api/resources/{id}/pages endpoint.')
@@ -106,7 +105,6 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
       const summary = await onSummaryRequest(currentPage, pageText)
       setPageSummaries((prev) => ({ ...prev, [currentPage]: summary }))
     } catch (error) {
-      console.error('Failed to generate summary:', error)
     } finally {
       setLoadingSummary(false)
     }

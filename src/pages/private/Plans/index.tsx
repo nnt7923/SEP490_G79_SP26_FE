@@ -193,16 +193,12 @@ const PlansPage: React.FC = () => {
 
   // Handle chapter skeleton generation
   const handleChapterClick = async (pathId: string, chapterIndex: number, chapterId: string) => {
-    console.log('Chapter clicked:', { pathId, chapterIndex, chapterId })
     const chapterKey = `${pathId}-${chapterIndex}`
 
     // Don't generate if already generating
     if (generatingChapters.has(chapterKey)) {
-      console.log('Chapter already generating, skipping')
       return
     }
-
-    console.log('Starting chapter skeleton generation...')
 
     // Clear any previous error for this chapter
     setChapterErrors(prev => {
@@ -213,27 +209,19 @@ const PlansPage: React.FC = () => {
 
     // Add to generating set
     setGeneratingChapters(prev => new Set(prev).add(chapterKey))
-    console.log('Added to generating set:', chapterKey)
 
     try {
-      console.log(`Generating skeleton for chapter ${chapterIndex} of path ${pathId}`)
-
       const chapterSkeleton = await LearningPathService.generateChapterSkeleton(
         pathId,
         chapterIndex,
         {
           useSignalR: true,
-          onLoading: () => {
-            console.log(`Chapter ${chapterIndex} skeleton generation started`)
-          }
+          onLoading: () => {}
         }
       )
 
-      console.log(`Chapter ${chapterIndex} skeleton generated:`, chapterSkeleton)
-
       // Update skeleton with lesson info
       setSkeleton((prevSkeleton: any) => {
-        console.log('Updating skeleton with chapter info:', prevSkeleton)
         if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
 
         // Handle both chapters and chapterDtos
@@ -255,12 +243,10 @@ const PlansPage: React.FC = () => {
           chapters: prevSkeleton.chapters ? updatedChapters : undefined,
           chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
         }
-        console.log('Updated skeleton:', updated)
         return updated
       })
 
     } catch (error: any) {
-      console.error(`Failed to generate chapter ${chapterIndex} skeleton:`, error)
       setChapterErrors(prev => {
         const newErrors = new Map(prev)
         newErrors.set(chapterKey, error.message || 'Failed to generate chapter skeleton')
@@ -273,21 +259,15 @@ const PlansPage: React.FC = () => {
         newSet.delete(chapterKey)
         return newSet
       })
-      console.log('Removed from generating set:', chapterKey)
     }
   }
 
   // Handle lesson click - generate lesson content then quiz skeleton
   const handleLessonClick = async (lessonId: string, lessonTitle: string) => {
-    console.log('Lesson clicked:', { lessonId, lessonTitle })
-
     // Don't generate if already generating
     if (generatingLessons.has(lessonId)) {
-      console.log('Lesson already generating, skipping')
       return
     }
-
-    console.log('Starting lesson content and quiz generation...')
 
     // Clear any previous error for this lesson
     setLessonErrors(prev => {
@@ -298,18 +278,14 @@ const PlansPage: React.FC = () => {
 
     // Add to generating set
     setGeneratingLessons(prev => new Set(prev).add(lessonId))
-    console.log('Added lesson to generating set:', lessonId)
 
     try {
       // Generate lesson content and quiz skeleton together via SignalR
-      console.log(`Generating content and quiz for lesson ${lessonId}`)
-
       const result = await LearningPathService.generateLessonContent(
         lessonId,
         undefined,
         // Quiz skeleton callback - called when quiz skeleton is received
         (quizSkeleton: any) => {
-          console.log(`Quiz skeleton received for lesson ${lessonId}:`, quizSkeleton)
           // Update skeleton immediately when quiz skeleton is received
           setSkeleton((prevSkeleton: any) => {
             if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
@@ -342,11 +318,8 @@ const PlansPage: React.FC = () => {
         }
       )
 
-      console.log(`Lesson content generated:`, result)
-
       // Update skeleton with lesson content
       setSkeleton((prevSkeleton: any) => {
-        console.log('Updating skeleton with lesson content:', prevSkeleton)
         if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
 
         // Handle both chapters and chapterDtos
@@ -377,12 +350,10 @@ const PlansPage: React.FC = () => {
           chapters: prevSkeleton.chapters ? updatedChapters : undefined,
           chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
         }
-        console.log('Updated skeleton with lesson content:', updated)
         return updated
       })
 
     } catch (error: any) {
-      console.error(`Failed to generate lesson ${lessonId} content/quiz:`, error)
       setLessonErrors(prev => {
         const newErrors = new Map(prev)
         newErrors.set(lessonId, error.message || 'Failed to generate lesson content and quiz')
@@ -395,7 +366,6 @@ const PlansPage: React.FC = () => {
         newSet.delete(lessonId)
         return newSet
       })
-      console.log('Removed lesson from generating set:', lessonId)
     }
   }
 
@@ -1097,7 +1067,6 @@ const PlansPage: React.FC = () => {
                       setSkeleton(sk)
                       setPlanGenerated(true)
                       setGenerationProgress(100)
-                      console.log('Final skeleton set in state:', sk)
                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
                       navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
                     } catch (e: any) {

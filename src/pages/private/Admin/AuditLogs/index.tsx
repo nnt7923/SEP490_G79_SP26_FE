@@ -92,7 +92,6 @@ const AuditLogs: React.FC = () => {
           sortDescending // sortDescending
         )
       } catch (err) {
-        console.error("Failed to invoke RequestAuditLogs:", err)
         setError(t('auditLogs.error'))
         setLoading(false)
       }
@@ -107,6 +106,7 @@ const AuditLogs: React.FC = () => {
         accessTokenFactory: () => token,
       })
       .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.None)
       .build()
 
     connectionRef.current = newConnection
@@ -126,7 +126,6 @@ const AuditLogs: React.FC = () => {
     newConnection.on("AuditLogsError", (err: { errorCode: string; errorMessage: string }) => {
       setLoading(false)
       setError(err.errorMessage)
-      console.error("AuditLogsError:", err)
     })
 
     newConnection.on("ReceiveNewAuditLog", (newLog: AuditLogResponse) => {
@@ -146,10 +145,8 @@ const AuditLogs: React.FC = () => {
     const startConnection = async () => {
       try {
         await newConnection.start()
-        console.log("SignalR Connected.")
         fetchLogs()
       } catch (err) {
-        console.error("SignalR Connection Error: ", err)
         setError(t('auditLogs.error'))
         setLoading(false)
       }

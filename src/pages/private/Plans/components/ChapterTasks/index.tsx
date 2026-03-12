@@ -23,6 +23,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
   const [loaded, setLoaded] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const loadingRef = React.useRef(false)
+  const prevAllCompletedRef = React.useRef(false)
 
   const toggleTaskCompletion = (taskId: string | undefined, taskIdx: number) => {
     setTasks(prevTasks => {
@@ -40,13 +41,18 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
         setTimeout(() => setShowCelebration(false), 3000)
       }
       
-      if (allCompleted !== wasAllCompleted) {
-        onAllTasksCompleted?.(chapterId, allCompleted)
-      }
-      
       return newTasks
     })
   }
+
+  // Handle onAllTasksCompleted callback in useEffect to avoid setState during render
+  React.useEffect(() => {
+    const allCompleted = tasks.length > 0 && tasks.every(t => t.completed === true)
+    if (allCompleted !== prevAllCompletedRef.current) {
+      prevAllCompletedRef.current = allCompleted
+      onAllTasksCompleted?.(chapterId, allCompleted)
+    }
+  }, [tasks, chapterId, onAllTasksCompleted])
 
   const loadTasks = async (retryCount = 0) => {
     if (loaded || loadingRef.current) return

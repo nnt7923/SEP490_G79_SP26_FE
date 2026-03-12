@@ -78,7 +78,6 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
       setEndPage(totalPages.toString())
     } catch (err) {
       // Error handling is done by parent component
-      console.error('Error submitting summary request:', err)
     } finally {
       setIsSubmitting(false)
     }
