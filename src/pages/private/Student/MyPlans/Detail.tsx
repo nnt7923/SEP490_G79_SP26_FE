@@ -8,6 +8,10 @@ import { ArrowLeft, Loader, AlertCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 import ChapterTasks from '../../Plans/components/ChapterTasks'
+import { motion } from 'framer-motion'
+import Tilt from 'react-parallax-tilt'
+import Particles, { initParticlesEngine } from '@tsparticles/react'
+import { loadSlim } from '@tsparticles/slim'
 
 const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
@@ -21,6 +25,7 @@ const MyPlansDetailPage: React.FC = () => {
 
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
+  const [particlesInit, setParticlesInit] = useState(false)
 
   // Track chapter completion status
   const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
@@ -30,6 +35,14 @@ const MyPlansDetailPage: React.FC = () => {
     actions: [],
     brand: { name: t('dashboard.learningPaths'), subtitle: t('plansResult.brandSubtitle') },
   }
+
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine)
+    }).then(() => {
+      setParticlesInit(true)
+    })
+  }, [])
 
   useEffect(() => {
     fetchPlanDetail()
@@ -123,98 +136,152 @@ const MyPlansDetailPage: React.FC = () => {
         padding: 32,
         background: 'var(--bg-main)',
         minHeight: '100vh',
-        fontFamily: 'monospace'
+        fontFamily: 'monospace',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        {/* Particles Background */}
+        {particlesInit && (
+          <Particles
+            id="tsparticles-detail"
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
+            options={{
+              background: { color: { value: 'transparent' } },
+              fpsLimit: 120,
+              interactivity: {
+                events: {
+                  onHover: { enable: true, mode: 'bubble' },
+                  resize: { enable: true }
+                },
+                modes: {
+                  bubble: { distance: 200, duration: 2, opacity: 0.4, size: 40 }
+                }
+              },
+              particles: {
+                color: { value: '#3B82F6' },
+                links: { color: '#3B82F6', distance: 150, enable: true, opacity: 0.1, width: 1 },
+                move: { direction: 'none', enable: true, outModes: { default: 'bounce' }, random: false, speed: 0.8, straight: false },
+                number: { density: { enable: true, width: 800 }, value: 40 },
+                opacity: { value: 0.2 },
+                shape: { type: 'circle' },
+                size: { value: { min: 1, max: 2 } }
+              },
+              detectRetina: true
+            }}
+          />
+        )}
+
+        <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
           {/* Back Button */}
-          <button
+          <motion.button
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
             onClick={() => navigate(-1)}
             style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', marginBottom: 24, fontSize: 14, fontWeight: 700 }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+            whileHover={{ x: -2 }}
           >
             <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
-          </button>
+          </motion.button>
 
           {/* Hero frame */}
-          <section style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-base)',
-            borderRadius: 4,
-            padding: 32,
-            marginBottom: 32,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {/* Terminal decorative top bar */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 4,
-              background: 'linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%)'
-            }} />
+          <Tilt tiltMaxAngleX={2} tiltMaxAngleY={2} scale={1.01} transitionSpeed={400}>
+            <motion.section 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-base)',
+                borderRadius: 4,
+                padding: 32,
+                marginBottom: 32,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Terminal decorative top bar */}
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+                background: 'linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%)'
+              }} />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h1 style={{
-                  color: 'var(--text-primary)', fontSize: 24, fontWeight: 700, margin: '0 0 16px 0',
-                  display: 'flex', alignItems: 'center', gap: 12
-                }}>
-                  {plan.title || t('myPlans.untitled')}
-                </h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px 0', lineHeight: 1.6 }}>
-                  {plan.description || t('myPlans.noDescription')}
-                </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h1 style={{
+                    color: 'var(--text-primary)', fontSize: 24, fontWeight: 700, margin: '0 0 16px 0',
+                    display: 'flex', alignItems: 'center', gap: 12
+                  }}>
+                    {plan.title || t('myPlans.untitled')}
+                  </h1>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px 0', lineHeight: 1.6 }}>
+                    {plan.description || t('myPlans.noDescription')}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div style={{
-              display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-primary)',
-              fontWeight: 600, flexWrap: 'wrap'
-            }}>
-              <span style={{
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
+              <div style={{
+                display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-primary)',
+                fontWeight: 600, flexWrap: 'wrap'
               }}>
-                {t('plansResult.chaptersFormat', { count: plan.chapterCount || plan.chapters?.length || 0 })}
-              </span>
-              <span style={{
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
-              }}>
-                {t('plansResult.lessonsFormat', { count: plan.lessons?.length || 0 })}
-              </span>
-              <span style={{
-                background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)', color: 'var(--success-primary)'
-              }}>
-                0% PROGRESS
-              </span>
-              {plan.createdAt && (
                 <span style={{
                   background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
                 }}>
-                  {new Date(plan.createdAt).toLocaleDateString()}
+                  {t('plansResult.chaptersFormat', { count: plan.chapterCount || plan.chapters?.length || 0 })}
                 </span>
-              )}
-            </div>
-          </section>
+                <span style={{
+                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
+                }}>
+                  {t('plansResult.lessonsFormat', { count: plan.lessons?.length || 0 })}
+                </span>
+                <span style={{
+                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)', color: 'var(--success-primary)'
+                }}>
+                  0% PROGRESS
+                </span>
+                {plan.createdAt && (
+                  <span style={{
+                    background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
+                  }}>
+                    {new Date(plan.createdAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </motion.section>
+          </Tilt>
 
           {/* Chapters & Lessons Display (Master-Detail Grid) */}
           {plan.chapters && plan.chapters.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 30%) 1fr', gap: 24, marginBottom: 32, alignItems: 'start' }}>
+            <motion.div 
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.1 }
+                }
+              }}
+              style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 30%) 1fr', gap: 24, marginBottom: 32, alignItems: 'start' }}
+            >
               <style>
                 {`
-@keyframes blink { 50 % { opacity: 0; } }
-                  .chapter - btn { transition: all 0.2s ease; border - left: 2px solid transparent; }
-                  .chapter - btn:hover { background: var(--gray - 100); }
-                  .chapter - btn.active { background: var(--bg - surface); border - left - color: var(--accent - primary); border - top: 1px solid var(--border - base); border - right: 1px solid var(--border - base); border - bottom: 1px solid var(--border - base); }
-                  .lesson - link { transition: all 0.2s ease; }
-                  .lesson - link:hover { padding - left: 8px; color: var(--accent - primary)!important; text - decoration: underline; }
+                  @keyframes blink { 50% { opacity: 0; } }
+                  .chapter-btn { transition: all 0.2s ease; border-left: 2px solid transparent; }
+                  .chapter-btn:hover { background: var(--gray-100); }
+                  .chapter-btn.active { background: var(--bg-surface); border-left-color: var(--accent-primary); border-top: 1px solid var(--border-base); border-right: 1px solid var(--border-base); border-bottom: 1px solid var(--border-base); }
+                  .lesson-link { transition: all 0.2s ease; }
+                  .lesson-link:hover { padding-left: 8px; color: var(--accent-primary)!important; text-decoration: underline; }
                   
-                  .term - scroll:: -webkit - scrollbar { width: 6px; }
-                  .term - scroll:: -webkit - scrollbar - track { background: transparent; }
-                  .term - scroll:: -webkit - scrollbar - thumb { background: var(--border - base); border - radius: 3px; }
-                  .term - scroll:: -webkit - scrollbar - thumb:hover { background: var(--text - disabled); }
-                  .term - scroll { scrollbar - width: thin; scrollbar - color: var(--border - base) transparent; }
-`}
+                  .term-scroll::-webkit-scrollbar { width: 6px; }
+                  .term-scroll::-webkit-scrollbar-track { background: transparent; }
+                  .term-scroll::-webkit-scrollbar-thumb { background: var(--border-base); border-radius: 3px; }
+                  .term-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-disabled); }
+                  .term-scroll { scrollbar-width: thin; scrollbar-color: var(--border-base) transparent; }
+                `}
               </style>
 
               {/* Left Column: Chapters List */}
@@ -228,48 +295,62 @@ const MyPlansDetailPage: React.FC = () => {
                   const isCompleted = chapterCompletionStatus[chapter.id] === true
 
                   return (
-                    <button
+                    <motion.div
                       key={chapter.id || chapterIdx}
-                      className={`chapter - btn ${isActive ? 'active' : ''} `}
-                      onClick={() => setActiveChapterId(chapter.id)}
-                      style={{
-                        width: '100%', padding: '16px', display: 'flex', alignItems: 'center', gap: 12,
-                        background: isActive ? 'var(--bg-surface)' : 'transparent',
-                        border: isActive ? '1px solid var(--border-base)' : '1px solid transparent',
-                        borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
-                        borderRadius: 4, cursor: 'pointer', textAlign: 'left'
+                      variants={{
+                        hidden: { opacity: 0, x: -20 },
+                        visible: { opacity: 1, x: 0 }
                       }}
                     >
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 2, flexShrink: 0,
-                        background: isCompleted ? 'var(--success-primary)' : 'var(--bg-main)',
-                        border: `1px solid ${isCompleted ? 'transparent' : 'var(--border-base)'} `,
-                        color: isCompleted ? 'var(--bg-surface)' : 'var(--text-primary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12
-                      }}>
-                        {isCompleted ? '✓' : (chapterIdx + 1)}
-                      </div>
-                      <div style={{ flex: 1, overflow: 'hidden' }}>
-                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: isActive ? 700 : 600, color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {chapter.title}
-                        </h3>
-                      </div>
-                    </button>
+                      <button
+                        className={`chapter-btn ${isActive ? 'active' : ''}`}
+                        onClick={() => setActiveChapterId(chapter.id)}
+                        style={{
+                          width: '100%', padding: '16px', display: 'flex', alignItems: 'center', gap: 12,
+                          background: isActive ? 'var(--bg-surface)' : 'transparent',
+                          border: isActive ? '1px solid var(--border-base)' : '1px solid transparent',
+                          borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                          borderRadius: 4, cursor: 'pointer', textAlign: 'left'
+                        }}
+                      >
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 2, flexShrink: 0,
+                          background: isCompleted ? 'var(--success-primary)' : 'var(--bg-main)',
+                          border: `1px solid ${isCompleted ? 'transparent' : 'var(--border-base)'}`,
+                          color: isCompleted ? 'var(--bg-surface)' : 'var(--text-primary)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12
+                        }}>
+                          {isCompleted ? '✓' : (chapterIdx + 1)}
+                        </div>
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                          <h3 style={{ margin: 0, fontSize: 14, fontWeight: isActive ? 700 : 600, color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {chapter.title}
+                          </h3>
+                        </div>
+                      </button>
+                    </motion.div>
                   )
                 })}
               </div>
 
               {/* Right Column: Selected Chapter Detail */}
-              <div ref={detailScrollRef} className="term-scroll" style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-base)',
-                borderRadius: 4,
-                height: '600px',
-                display: 'flex',
-                flexDirection: 'column',
-                overflowY: 'auto',
-                overflowX: 'hidden'
-              }}>
+              <motion.div 
+                ref={detailScrollRef} 
+                className="term-scroll"
+                key={activeChapterId}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 4,
+                  height: '600px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflowY: 'auto',
+                  overflowX: 'hidden'
+                }}
+              >
                 {(() => {
                   const chapter = plan.chapters?.find(c => c.id === activeChapterId)
                   if (!chapter) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-disabled)' }}>SELECT CHAPTER</div>
@@ -294,9 +375,35 @@ const MyPlansDetailPage: React.FC = () => {
                           <h4 style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>
                             {t('plansResult.lessonsCount', { count: chapter.lessons.length })}
                           </h4>
-                          <div style={{ display: 'grid', gap: 16 }}>
+                          <motion.div 
+                            initial="hidden"
+                            animate="visible"
+                            variants={{
+                              hidden: { opacity: 0 },
+                              visible: {
+                                opacity: 1,
+                                transition: { staggerChildren: 0.05 }
+                              }
+                            }}
+                            style={{ display: 'grid', gap: 16 }}
+                          >
                             {chapter.lessons.map((lesson, lessonIdx) => (
-                              <div key={lesson.id || lessonIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+                              <motion.div 
+                                key={lesson.id || lessonIdx} 
+                                variants={{
+                                  hidden: { opacity: 0, scale: 0.95 },
+                                  visible: { opacity: 1, scale: 1 }
+                                }}
+                                style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'flex-start', 
+                                  gap: 16, 
+                                  padding: '16px', 
+                                  background: 'var(--bg-main)', 
+                                  border: '1px solid var(--border-base)', 
+                                  borderRadius: 4 
+                                }}
+                              >
                                 <div style={{
                                   width: 24, height: 24, borderRadius: '50%', background: 'var(--text-disabled)', color: 'var(--bg-surface)',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
@@ -304,12 +411,13 @@ const MyPlansDetailPage: React.FC = () => {
                                   {lessonIdx + 1}
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                  <button
+                                  <motion.button
                                     className="lesson-link"
                                     onClick={() => {
                                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch { }
                                       navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
                                     }}
+                                    whileHover={{ x: 4 }}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
                                       fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
@@ -317,7 +425,7 @@ const MyPlansDetailPage: React.FC = () => {
                                     }}
                                   >
                                     {lesson.title}
-                                  </button>
+                                  </motion.button>
                                   {lesson.description && (
                                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                                       {lesson.description}
@@ -332,8 +440,9 @@ const MyPlansDetailPage: React.FC = () => {
                                       </span>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                                         {lesson.quizzes.map((quiz, quizIdx) => (
-                                          <button
+                                          <motion.button
                                             key={quiz.id || quizIdx}
+                                            whileHover={{ x: 2 }}
                                             onClick={() => {
                                               if (!quiz.id) {
                                                 alert('Quiz ID is missing! Cannot navigate to quiz.')
@@ -355,15 +464,15 @@ const MyPlansDetailPage: React.FC = () => {
                                               {quiz.title}
                                               {quiz.id && <QuizStatusBadge quizId={quiz.id} />}
                                             </span>
-                                          </button>
+                                          </motion.button>
                                         ))}
                                       </div>
                                     </div>
                                   )}
                                 </div>
-                              </div>
+                              </motion.div>
                             ))}
-                          </div>
+                          </motion.div>
                         </div>
                       )}
 
@@ -377,8 +486,8 @@ const MyPlansDetailPage: React.FC = () => {
                     </>
                   )
                 })()}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           ) : (
             <div style={{
               padding: 40, textAlign: 'center', color: 'var(--text-disabled)', fontFamily: 'monospace',

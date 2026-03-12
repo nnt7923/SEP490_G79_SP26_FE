@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import Tilt from 'react-parallax-tilt'
 
 interface SingleGoalCardProps {
   id: string
@@ -47,6 +48,7 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
   }, [menuOpen])
 
   return (
+    <Tilt tiltMaxAngleX={5} tiltMaxAngleY={5} scale={1.01} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
     <div
       style={{
         position: 'relative', display: 'flex', flexDirection: 'column',
@@ -117,6 +119,7 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
         </div>
       )}
     </div>
+    </Tilt>
   )
 }
 

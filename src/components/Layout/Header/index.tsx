@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import ReactMarkdown from 'react-markdown'
@@ -103,7 +104,10 @@ const Header: React.FC = () => {
   )
 
   return (
-    <header
+    <motion.header
+      initial={{ y: -48, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
       style={{
         position: 'sticky',
         top: 0,
@@ -357,8 +361,14 @@ const Header: React.FC = () => {
                   </button>
                 </div>
 
+                <AnimatePresence>
                 {open && (
-                  <div
+                  <motion.div
+                    key="dropdown"
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
                     role="menu"
                     aria-label="User menu"
                     style={{
@@ -405,8 +415,9 @@ const Header: React.FC = () => {
                         }}
                       >{md}</ReactMarkdown>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </div>
             )}
           </div>
@@ -475,7 +486,7 @@ const Header: React.FC = () => {
           </div>
         )}
       </div>
-    </header>
+    </motion.header>
   )
 }
 

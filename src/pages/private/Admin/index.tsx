@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
 import { useAdminSidebarConfig } from './components/AdminSideBar'
@@ -89,7 +90,13 @@ const AdminDashboard: React.FC = () => {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {/* Students Card */}
-            <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+              whileHover={{ y: -3, scale: 1.01 }}
+              className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors"
+            >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-muted text-sm font-bold uppercase">{t('dashboard.totalStudents')}</span>
                 <span className="text-xs font-bold text-status-green-dark bg-status-green-bg-strong px-2 py-0.5 border border-green-300 rounded-sm">
@@ -103,10 +110,16 @@ const AdminDashboard: React.FC = () => {
                 <Users size={16} className="text-status-blue-muted flex-shrink-0" />
                 {t('dashboard.activeStudentAccounts')}
               </div>
-            </div>
+            </motion.div>
 
             {/* API Keys Card */}
-            <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+              whileHover={{ y: -3, scale: 1.01 }}
+              className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors"
+            >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-muted text-sm font-bold uppercase">{t('dashboard.apiKeys')}</span>
                 <span className="text-xs font-bold text-status-blue bg-status-blue-bg-strong px-2 py-0.5 border border-blue-300 rounded-sm">
@@ -120,7 +133,7 @@ const AdminDashboard: React.FC = () => {
                 <Key size={16} className="text-purple-500 flex-shrink-0" />
                 {t('dashboard.aiModelConfigurations')}
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Charts & Status Section */}

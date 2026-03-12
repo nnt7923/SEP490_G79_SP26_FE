@@ -1,5 +1,6 @@
 import React from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import Header from './Header'
 import Footer from './Footer'
 import Sidebar from '../Sidebar'
@@ -19,6 +20,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
+  const location = useLocation()
+
   return (
     <div className="layout">
       <Header />
@@ -30,13 +33,22 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
             brand={sidebar.brand}
           />
         )}
-        <main className="layout__main flex-1">
-          {children ?? <Outlet />}
-        </main>
+        <AnimatePresence mode="wait">
+          <motion.main
+            key={location.pathname}
+            className="layout__main flex-1"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            {children ?? <Outlet />}
+          </motion.main>
+        </AnimatePresence>
       </div>
       <Footer />
     </div>
   )
 }
 
-export default Layout
+export default Layout

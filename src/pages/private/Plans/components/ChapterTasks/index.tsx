@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 
 interface ChapterTasksProps {
   chapterId: string
+  onAllTasksCompleted?: (chapterId: string, completed: boolean) => void
 }
 
 interface Task {

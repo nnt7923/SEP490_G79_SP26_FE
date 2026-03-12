@@ -1,5 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import Tilt from 'react-parallax-tilt'
 import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory } from '../../../services'
 import type { Subject, SubjectCategoryType } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
@@ -9,6 +11,7 @@ import Toast from '../../../components/Toast'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
 import StepHeader from './components/StepHeader'
+import { MagneticButton } from '../../../components/ui/MagneticButton'
 import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
@@ -554,6 +557,31 @@ const PlansPage: React.FC = () => {
 
   const canGenerate = useMemo(() => !!language && selectedGoals.length > 0 && !!level && !!languageSelection, [language, selectedGoals, level, languageSelection])
 
+  const isStepValid = (s: number) => {
+    if (s === 1) return !!language
+    if (s === 2) return selectedGoals.length > 0
+    if (s === 3) return !!level
+    if (s === 4) return !!languageSelection
+    return true
+  }
+
+  const handleStepChange = (targetStep: number) => {
+    if (targetStep === step) return
+    if (targetStep < step) {
+      setStep(targetStep as any)
+      return
+    }
+    // Trying to jump forward
+    let valid = true
+    for (let i = step; i < targetStep; i++) {
+      if (!isStepValid(i)) {
+        valid = false
+        break
+      }
+    }
+    if (valid) setStep(targetStep as any)
+  }
+
   const toggleGoal = (key: string) => {
     setSelectedGoals((prev) => {
       // Single-select: toggle same id off, otherwise replace with the new id
@@ -606,11 +634,12 @@ const PlansPage: React.FC = () => {
       <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
         <div style={{ width: '100%' }}>
           {/* Stepper */}
-          <Stepper currentStep={step} totalSteps={5} />
+          <Stepper currentStep={step} totalSteps={5} onChangeStep={handleStepChange} />
 
           {/* Content */}
+          <AnimatePresence mode="wait">
           {step === 1 && (
-            <>
+            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step1Title')}
                 subtitle={t('plans.step1Subtitle')}
@@ -675,7 +704,7 @@ const PlansPage: React.FC = () => {
                         }
                       }}
                     >
-                      {name}
+                      {name.replace(/([a-z])([A-Z])/g, '$1 $2')}
                     </button>
                   ))}
                 </div>
@@ -724,11 +753,11 @@ const PlansPage: React.FC = () => {
                 </div>
 
               </div>
-            </>
+            </motion.div>
           )}
 
           {step === 2 && (
-            <>
+            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step2Title')}
                 subtitle={t('plans.step2Subtitle')}
@@ -911,11 +940,11 @@ const PlansPage: React.FC = () => {
                   </div>
                 )}
               </div>
-            </>
+            </motion.div>
           )}
 
           {step === 3 && (
-            <>
+            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step3Title')}
                 subtitle={t('plans.step3Subtitle')}
@@ -924,13 +953,14 @@ const PlansPage: React.FC = () => {
               />
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, maxWidth: 900, margin: '0 auto' }} aria-label="level-list">
                 {(['Beginner', 'Intermediate', 'Advanced'] as Level[]).map((lv) => (
+                  <Tilt key={lv} tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
                   <button
-                    key={lv}
                     type="button"
                     onClick={() => setLevel(lv)}
                     style={{
                       padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: level === lv ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
                       borderColor: level === lv ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                      height: '100%'
                     }}
                     onMouseEnter={(e) => { if (level !== lv) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
                     onMouseLeave={(e) => { if (level !== lv) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
@@ -938,12 +968,13 @@ const PlansPage: React.FC = () => {
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{level === lv ? '> ' : '$ '}{lv}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>// {lv === 'Beginner' ? t('plans.beginnerDesc') : lv === 'Intermediate' ? t('plans.intermediateDesc') : t('plans.advancedDesc')}</div>
                   </button>
+                  </Tilt>
                 ))}
               </section>
-            </>
+            </motion.div>
           )}
           {step === 4 && (
-            <>
+            <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step4Title')}
                 subtitle={t('plans.step4Subtitle')}
@@ -952,12 +983,14 @@ const PlansPage: React.FC = () => {
               />
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, maxWidth: 700, margin: '0 auto' }} aria-label="language-selection">
                 {/* Vietnamese Option */}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
                 <button
                   type="button"
                   onClick={() => setLanguageSelection(LanguageSelection.Vietnamese)}
                   style={{
                     padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.Vietnamese ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
                     borderColor: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%'
                   }}
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
@@ -968,14 +1001,17 @@ const PlansPage: React.FC = () => {
                     {languageSelection === LanguageSelection.Vietnamese ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
                   </div>
                 </button>
+                </Tilt>
 
                 {/* English Option */}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
                 <button
                   type="button"
                   onClick={() => setLanguageSelection(LanguageSelection.English)}
                   style={{
                     padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: languageSelection === LanguageSelection.English ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
                     borderColor: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%'
                   }}
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
@@ -986,12 +1022,13 @@ const PlansPage: React.FC = () => {
                     {languageSelection === LanguageSelection.English ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
                   </div>
                 </button>
+                </Tilt>
               </section>
-            </>
+            </motion.div>
           )}
 
           {step === 5 && (
-            <>
+            <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step5Title')}
                 subtitle={t('plans.step5Subtitle')}
@@ -1022,7 +1059,7 @@ const PlansPage: React.FC = () => {
 
               {/* Generate Button */}
               <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
-                <button
+                <MagneticButton
                   type="button"
                   style={{
                     padding: '12px 32px', background: (!canGenerate || generating) ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)',
@@ -1098,7 +1135,7 @@ const PlansPage: React.FC = () => {
                       <span>{t('plans.generateLearningPath')}</span>
                     </>
                   )}
-                </button>
+                </MagneticButton>
               </div>
 
               {planError && (
@@ -1235,167 +1272,11 @@ const PlansPage: React.FC = () => {
                        </div>
                      </div>
                    )}
-                 </section>
-               )}
-             </>
-           )}
-
-           {step === 5 && (
-             <>
-               <StepHeader
-                 title={t('plans.step5Title')}
-                 subtitle={t('plans.step5Subtitle')}
-                 icon="✓"
-               />
-
-               {planGenerated && skeleton && (
-                 <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
-                   <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
-                   
-                   {/* Display chapters if available */}
-                   {(Array.isArray(skeleton?.chapters) && skeleton.chapters.length > 0) || (Array.isArray(skeleton?.chapterDtos) && skeleton.chapterDtos.length > 0) ? (
-                     <div>
-                       <h3 className="text-lg font-semibold text-heading mb-3">Chapters</h3>
-                       <p className="text-sm text-muted mb-4">Click on a chapter to generate lesson titles</p>
-                       <ul className="space-y-4">
-                         {(skeleton.chapters || skeleton.chapterDtos || []).map((ch: any, idx: number) => {
-                           const chapterKey = `${skeleton.pathId}-${idx}`
-                           const isGenerating = generatingChapters.has(chapterKey)
-                           const error = chapterErrors.get(chapterKey)
-                           const chapterId = ch.chapterId || ch.id
-
-                           return (
-                             <li key={chapterId ?? ch.title} className="relative">
-                               <button
-                                 type="button"
-                                 onClick={() => handleChapterClick(skeleton.pathId, idx, chapterId)}
-                                 disabled={isGenerating}
-                                 className={`w-full text-left flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${isGenerating
-                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
-                                     : 'bg-status-blue-bg border-blue-200 hover:border-blue-300 hover:bg-blue-100'
-                                   }`}
-                               >
-                                 <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
-                                 <div className="flex-1">
-                                   <div className="flex items-center gap-2">
-                                     <div className="font-semibold text-heading">{ch.title ?? `Chapter ${idx + 1}`}</div>
-                                     {isGenerating && (
-                                       <div className="flex items-center gap-1 text-xs text-muted">
-                                         <div className="animate-spin w-3 h-3 border border-gray-400 border-t-transparent rounded-full"></div>
-                                         <span>Generating...</span>
-                                       </div>
-                                     )}
-                                     {ch.lessonCount && (
-                                       <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
-                                         {ch.lessonCount} lessons
-                                       </span>
-                                     )}
-                                     {ch.quizCount && ch.quizCount > 0 && (
-                                       <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                                         {ch.quizCount} quizzes
-                                       </span>
-                                     )}
-                                   </div>
-                                   {ch.content && <div className="text-sm text-label mt-1">{ch.content}</div>}
-                                   {error && (
-                                     <div className="text-sm text-red-600 mt-1 bg-red-50 p-2 rounded">
-                                       Error: {error}
-                                     </div>
-                                   )}
-                                   {Array.isArray(ch.lessons) && ch.lessons.length > 0 && (
-                                     <div className="mt-3">
-                                       <h4 className="text-sm font-semibold text-heading mb-2">Lessons:</h4>
-                                       <ul className="ml-4 space-y-2">
-                                         {ch.lessons.map((ls: any) => {
-                                           const lessonId = ls.lessonId || ls.id
-                                           const isLessonGenerating = generatingLessons.has(lessonId)
-                                           const lessonError = lessonErrors.get(lessonId)
-
-                                           return (
-                                             <li key={lessonId} className="relative">
-                                               <button
-                                                 type="button"
-                                                 onClick={() => handleLessonClick(lessonId, ls.title)}
-                                                 disabled={isLessonGenerating}
-                                                 className={`w-full text-left p-2 rounded-lg border transition-all text-sm ${isLessonGenerating
-                                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
-                                                     : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
-                                                   }`}
-                                               >
-                                                 <div className="flex items-center gap-2">
-                                                   <span className="text-body">• {ls.title ?? 'Lesson'}</span>
-                                                   {isLessonGenerating && (
-                                                     <div className="flex items-center gap-1 text-xs text-muted">
-                                                       <div className="animate-spin w-2 h-2 border border-gray-400 border-t-transparent rounded-full"></div>
-                                                       <span>Generating...</span>
-                                                     </div>
-                                                   )}
-                                                   {ls.hasContent && (
-                                                     <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
-                                                       Content ready
-                                                     </span>
-                                                   )}
-                                                   {ls.quizCount && ls.quizCount > 0 && (
-                                                     <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
-                                                       {ls.quizCount} quiz{ls.quizCount > 1 ? 'zes' : ''}
-                                                     </span>
-                                                   )}
-                                                 </div>
-                                                 {lessonError && (
-                                                   <div className="text-xs text-red-600 mt-1 bg-red-50 p-1 rounded">
-                                                     Error: {lessonError}
-                                                   </div>
-                                                 )}
-                                               </button>
-                                             </li>
-                                           )
-                                         })}
-                                       </ul>
-                                     </div>
-                                   )}
-                                 </div>
-                               </button>
-                             </li>
-                           )
-                         })}
-                       </ul>
-                     </div>
-                   ) : Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
-                     <div>
-                       <h3 className="text-lg font-semibold text-heading mb-3">Lessons</h3>
-                       <ul className="space-y-4">
-                         {skeleton.lessons.map((ls: any) => (
-                           <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
-                             <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
-                             <div className="flex-1">
-                               <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
-                               {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
-                               {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
-                                 <ul className="mt-2 ml-4 space-y-1">
-                                   {ls.chapters.map((ch: any) => (
-                                     <li key={ch.id ?? ch.title} className="text-sm text-body">
-                                       • {ch.title ?? 'Chapter'}
-                                     </li>
-                                   ))}
-                                 </ul>
-                               )}
-                             </div>
-                           </li>
-                         ))}
-                       </ul>
-                     </div>
-                   ) : (
-                     <div>
-                       <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
-                       <div className="text-xs text-muted text-center mt-2">
-                         Debug: {JSON.stringify(skeleton, null, 2)}
-                       </div>
-                     </div>
-                   )}
-                 </section>
-               )}
-             </>
-           )}
+                  </section>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Footer actions */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 40, paddingTop: 32, borderTop: '1px solid var(--border-base)' }}>

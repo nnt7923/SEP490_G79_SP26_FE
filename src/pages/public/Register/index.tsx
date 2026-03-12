@@ -5,6 +5,12 @@ import useAuthStore from '../../../store/useAuthStore'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
 import { useResponsive } from '../../../hook/useResponsive'
 import { useTranslation } from 'react-i18next'
+import { TypeAnimation } from 'react-type-animation'
+import Particles, { initParticlesEngine } from '@tsparticles/react'
+import { loadSlim } from '@tsparticles/slim'
+import Tilt from 'react-parallax-tilt'
+import { motion } from 'framer-motion'
+
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
@@ -19,6 +25,15 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [init, setInit] = useState(false)
+
+  React.useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine)
+    }).then(() => {
+      setInit(true)
+    })
+  }, [])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,7 +121,41 @@ const Register: React.FC = () => {
   }
 
   return (
-    <div className="page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      
+      {/* Particles Background */}
+      {init && (
+        <Particles
+          id="tsparticles-register"
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
+          options={{
+            background: { color: { value: 'transparent' } },
+            fpsLimit: 120,
+            interactivity: {
+              events: {
+                onClick: { enable: true, mode: 'push' },
+                onHover: { enable: true, mode: 'repulse' },
+                resize: { enable: true }
+              },
+              modes: {
+                push: { quantity: 4 },
+                repulse: { distance: 100, duration: 0.4 }
+              }
+            },
+            particles: {
+              color: { value: '#3B82F6' },
+              links: { color: '#3B82F6', distance: 150, enable: true, opacity: 0.2, width: 1 },
+              move: { direction: 'none', enable: true, outModes: { default: 'bounce' }, random: false, speed: 1.2, straight: false },
+              number: { density: { enable: true, width: 800 }, value: 60 },
+              opacity: { value: 0.3 },
+              shape: { type: 'circle' },
+              size: { value: { min: 1, max: 3 } }
+            },
+            detectRetina: true
+          }}
+        />
+      )}
+
       <section
         style={{
           maxWidth: 960,
@@ -121,7 +170,11 @@ const Register: React.FC = () => {
       >
         {/* Visual Panel - Terminal/Code (LEFT) */}
         {!isSmallScreen && (
-          <div
+          <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.02} transitionSpeed={400} style={{ position: 'relative', zIndex: 1, height: '100%' }}>
+            <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
             style={{
               border: '1px solid var(--border-base)',
               borderRadius: 2,
@@ -148,36 +201,38 @@ const Register: React.FC = () => {
                 register.js — CodeNexus
               </span>
             </div>
-            {/* Code content */}
-            <div style={{ padding: '20px 0' }}>
-              {codeLines.map((line) => (
-                <div
-                  key={line.num}
-                  style={{
-                    display: 'flex',
-                    padding: '1px 14px',
-                    lineHeight: '22px',
-                    fontSize: 13,
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 32,
-                      textAlign: 'right',
-                      color: 'var(--terminal-comment)',
-                      userSelect: 'none',
-                      paddingRight: 16,
-                      flexShrink: 0,
-                    }}
-                  >
+            {/* Code content - React Type Animation */}
+            <div style={{ padding: '20px 0', minHeight: 400, position: 'relative' }}>
+              {/* Line numbers tĩnh */}
+              <div style={{ position: 'absolute', left: 0, top: 20, bottom: 20, width: 46, display: 'flex', flexDirection: 'column' }}>
+                {codeLines.map(line => (
+                  <div key={`num-${line.num}`} style={{ textAlign: 'right', paddingRight: 16, color: 'var(--terminal-comment)', fontSize: 13, lineHeight: '24px', userSelect: 'none', fontFamily: 'inherit' }}>
                     {line.num}
-                  </span>
-                  <span style={{ color: line.color || 'transparent' }}>
-                    {line.content || '\u00A0'}
-                  </span>
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Typewriter text */}
+              <div style={{ paddingLeft: 46, paddingRight: 14 }}>
+                <TypeAnimation
+                  sequence={[
+                    500,
+                    codeLines.map(l => l.content).join('\n'),
+                  ]}
+                  wrapper="div"
+                  cursor={false}
+                  speed={75}
+                  style={{
+                    margin: 0,
+                    fontFamily: 'inherit',
+                    fontSize: 13,
+                    lineHeight: '24px',
+                    color: '#e6edf3',
+                    whiteSpace: 'pre-wrap',
+                    display: 'block'
+                  }}
+                />
+              </div>
             </div>
             {/* Terminal prompt */}
             <div
@@ -203,11 +258,16 @@ const Register: React.FC = () => {
                 }}
               />
             </div>
-          </div>
+          </motion.div>
+          </Tilt>
         )}
 
         {/* Form Card (RIGHT) */}
-        <div
+        <Tilt tiltMaxAngleX={2} tiltMaxAngleY={2} transitionSpeed={600} style={{ position: 'relative', zIndex: 1 }}>
+          <motion.div
+          initial={{ opacity: 0, x: 30, scale: 0.98 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          transition={{ duration: 0.45, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
           style={{
             border: '1px solid var(--border-base)',
             borderRadius: 2,
@@ -429,7 +489,8 @@ const Register: React.FC = () => {
               </Link>
             </div>
           </form>
-        </div>
+        </motion.div>
+        </Tilt>
 
       </section>
     </div>

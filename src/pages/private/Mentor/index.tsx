@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
 import { useMentorSidebarConfig } from './components/MentorSideBar'
@@ -145,55 +146,30 @@ const MentorDashboard: React.FC = () => {
 
         {/* ========== OVERVIEW GRID ========== */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* MY STUDENTS */}
-          <div className="bg-th-card border border-bd-strong p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-status-blue font-bold flex"><Users size={18} /></span>
-              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.totalStudents')}</h3>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-heading mb-1">
-                {loadingStudents ? '...' : students.length}
+          {[
+            { icon: <Users size={18} />, label: t('dashboard.totalStudents'), value: loadingStudents ? '...' : students.length, sub: t('dashboard.activeLearners'), iconColor: 'text-status-blue' },
+            { icon: <BookOpen size={18} />, label: t('dashboard.myCourses'), value: 0, sub: t('dashboard.coursesTaught'), iconColor: 'text-status-blue' },
+            { icon: <TrendingUp size={18} />, label: t('dashboard.progress'), value: '0%', sub: t('dashboard.avgCompletion'), iconColor: 'text-status-green' },
+            { icon: <Star size={18} />, label: t('dashboard.rating'), value: '—', sub: t('dashboard.studentFeedback'), iconColor: 'text-amber-500' },
+          ].map((card, i) => (
+            <motion.div
+              key={card.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.09, ease: [0.25, 0.46, 0.45, 0.94] }}
+              whileHover={{ y: -4, scale: 1.01 }}
+              className="bg-th-card border border-bd-strong p-4"
+            >
+              <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
+                <span className={`${card.iconColor} font-bold flex`}>{card.icon}</span>
+                <h3 className="text-sm font-bold text-heading uppercase">{card.label}</h3>
               </div>
-              <div className="text-xs text-muted">{t('dashboard.activeLearners')}</div>
-            </div>
-          </div>
-
-          {/* MY COURSES */}
-          <div className="bg-th-card border border-bd-strong p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-status-blue font-bold flex"><BookOpen size={18} /></span>
-              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.myCourses')}</h3>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-heading mb-1">0</div>
-              <div className="text-xs text-muted">{t('dashboard.coursesTaught')}</div>
-            </div>
-          </div>
-
-          {/* STUDENT PROGRESS */}
-          <div className="bg-th-card border border-bd-strong p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-status-green font-bold flex"><TrendingUp size={18} /></span>
-              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.progress')}</h3>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-heading mb-1">0%</div>
-              <div className="text-xs text-muted">{t('dashboard.avgCompletion')}</div>
-            </div>
-          </div>
-
-          {/* FEEDBACK RATING */}
-          <div className="bg-th-card border border-bd-strong p-4">
-            <div className="flex items-center gap-3 mb-4 border-b border-bd-muted pb-2">
-              <span className="text-amber-500 font-bold flex"><Star size={18} /></span>
-              <h3 className="text-sm font-bold text-heading uppercase">{t('dashboard.rating')}</h3>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-heading mb-1">—</div>
-              <div className="text-xs text-muted">{t('dashboard.studentFeedback')}</div>
-            </div>
-          </div>
+              <div>
+                <div className="text-3xl font-bold text-heading mb-1">{card.value}</div>
+                <div className="text-xs text-muted">{card.sub}</div>
+              </div>
+            </motion.div>
+          ))}
         </div>
 
         {/* ========== MAIN CONTENT SECTIONS ========== */}
@@ -220,7 +196,7 @@ const MentorDashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-0 divide-y divide-gray-200 max-h-[400px] overflow-y-auto">
-                  {students.map((student) => {
+                  {students.map((student, i) => {
                     const studentName = student?.name || [student?.firstName, student?.lastName].filter(Boolean).join(' ') || 'Student'
                     const studentEmail = student?.email || '—'
                     const initials = studentName
@@ -231,8 +207,11 @@ const MentorDashboard: React.FC = () => {
                       .slice(0, 2)
                     
                     return (
-                      <div
+                      <motion.div
                         key={student?.id || student?.userId || studentEmail}
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: i * 0.05 }}
                         className="flex items-center gap-4 py-3 hover:bg-th-page transition-colors"
                       >
                         <div className="w-10 h-10 bg-th-card border border-bd-strong flex items-center justify-center flex-shrink-0">
@@ -245,7 +224,7 @@ const MentorDashboard: React.FC = () => {
                         <button className="px-3 py-1 border border-bd-strong text-xs font-bold hover:bg-th-input transition-colors rounded-sm">
                           {t('dashboard.view')}
                         </button>
-                      </div>
+                      </motion.div>
                     )
                   })}
                 </div>
@@ -355,9 +334,20 @@ const MentorDashboard: React.FC = () => {
         </div>
 
         {/* ========== SUBJECT CREATE MODAL ========== */}
+        <AnimatePresence>
         {showSubjectModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-th-card border-2 border-bd-dark w-full max-w-md mx-4 p-6 shadow-2xl font-mono">
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.div
+              className="bg-th-card border-2 border-bd-dark w-full max-w-md mx-4 p-6 shadow-2xl font-mono"
+              initial={{ scale: 0.93, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.93, opacity: 0, y: 12 }}
+              transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+            >
               <h3 className="text-xl font-bold text-heading mb-4 border-b border-bd pb-2 flex items-center gap-2">
                 <BookOpen size={20} className="text-status-blue" />
                 {t('dashboard.createNewSubject')}
@@ -418,9 +408,10 @@ const MentorDashboard: React.FC = () => {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
+        </AnimatePresence>
         </div>
       </div>
     </Layout>

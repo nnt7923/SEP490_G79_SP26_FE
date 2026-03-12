@@ -83,7 +83,7 @@
   "plans": {
     "step1Title": "choose programming language",
     "step1Subtitle": "select the language you want to learn",
-    "filterByCategory": "filter by category",
+    "filterByCategory": "filter",
     "failedLoadSubjects": "Failed to load subjects",
     "noSubjectsAvailable": "No subjects available.",
     "explorePathFor": "Explore the learning path for {{name}}",
