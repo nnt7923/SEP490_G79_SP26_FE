@@ -76,7 +76,7 @@ const PlansPage: React.FC = () => {
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(true)
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
   // Subject category filter
-  const [selectedCategory, setSelectedCategory] = useState<SubjectCategoryType | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<SubjectCategoryType>(SubjectCategory.ProgrammingLanguage)
   // Load goals from API + generation states
   const [systemGoals, setSystemGoals] = useState<any[]>([])
   const [myGoals, setMyGoals] = useState<any[]>([])
@@ -89,10 +89,14 @@ const PlansPage: React.FC = () => {
   const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
-  
+
   // Chapter skeleton generation states
   const [generatingChapters, setGeneratingChapters] = useState<Set<string>>(new Set())
   const [chapterErrors, setChapterErrors] = useState<Map<string, string>>(new Map())
+
+  // Lesson content and quiz generation states
+  const [generatingLessons, setGeneratingLessons] = useState<Set<string>>(new Set())
+  const [lessonErrors, setLessonErrors] = useState<Map<string, string>>(new Map())
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
@@ -160,19 +164,19 @@ const PlansPage: React.FC = () => {
   const handleDeleteGoal = async (id: string) => {
     const goal = myGoals.find((g: any) => String(g?.id ?? g?.goalId ?? g?.key) === String(id))
     const title = goal?.title ?? goal?.name ?? goal?.label ?? 'this goal'
-    
+
     setGoalToDelete({ id, title })
     setShowDeleteConfirm(true)
   }
 
   const confirmDeleteGoal = async () => {
     if (!goalToDelete) return
-    
+
     const { id } = goalToDelete
     setDeletingGoalId(id)
     setGoalActionError(null)
     setShowDeleteConfirm(false)
-    
+
     try {
       await GoalService.deleteGoal(id)
       setMyGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
@@ -224,49 +228,37 @@ const PlansPage: React.FC = () => {
 
   // Handle chapter skeleton generation
   const handleChapterClick = async (pathId: string, chapterIndex: number, chapterId: string) => {
-    console.log('Chapter clicked:', { pathId, chapterIndex, chapterId })
     const chapterKey = `${pathId}-${chapterIndex}`
-    
+
     // Don't generate if already generating
     if (generatingChapters.has(chapterKey)) {
-      console.log('Chapter already generating, skipping')
       return
     }
-    
-    console.log('Starting chapter skeleton generation...')
-    
+
     // Clear any previous error for this chapter
     setChapterErrors(prev => {
       const newErrors = new Map(prev)
       newErrors.delete(chapterKey)
       return newErrors
     })
-    
+
     // Add to generating set
     setGeneratingChapters(prev => new Set(prev).add(chapterKey))
-    console.log('Added to generating set:', chapterKey)
-    
+
     try {
-      console.log(`Generating skeleton for chapter ${chapterIndex} of path ${pathId}`)
-      
       const chapterSkeleton = await LearningPathService.generateChapterSkeleton(
         pathId,
         chapterIndex,
         {
           useSignalR: true,
-          onLoading: () => {
-            console.log(`Chapter ${chapterIndex} skeleton generation started`)
-          }
+          onLoading: () => {}
         }
       )
-      
-      console.log(`Chapter ${chapterIndex} skeleton generated:`, chapterSkeleton)
-      
+
       // Update skeleton with lesson info
       setSkeleton((prevSkeleton: any) => {
-        console.log('Updating skeleton with chapter info:', prevSkeleton)
         if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
-        
+
         // Handle both chapters and chapterDtos
         const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
         const updatedChapters = chaptersArray.map((ch: any, idx: number) => {
@@ -280,18 +272,16 @@ const PlansPage: React.FC = () => {
           }
           return ch
         })
-        
+
         const updated = {
           ...prevSkeleton,
           chapters: prevSkeleton.chapters ? updatedChapters : undefined,
           chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
         }
-        console.log('Updated skeleton:', updated)
         return updated
       })
-      
+
     } catch (error: any) {
-      console.error(`Failed to generate chapter ${chapterIndex} skeleton:`, error)
       setChapterErrors(prev => {
         const newErrors = new Map(prev)
         newErrors.set(chapterKey, error.message || 'Failed to generate chapter skeleton')
@@ -304,12 +294,114 @@ const PlansPage: React.FC = () => {
         newSet.delete(chapterKey)
         return newSet
       })
-      console.log('Removed from generating set:', chapterKey)
     }
   }
 
   // Handle lesson click - show focus session dialog
   const handleLessonClick = async (lessonId: string, lessonTitle: string) => {
+    // Don't generate if already generating
+    if (generatingLessons.has(lessonId)) {
+      return
+    }
+
+    // Clear any previous error for this lesson
+    setLessonErrors(prev => {
+      const newErrors = new Map(prev)
+      newErrors.delete(lessonId)
+      return newErrors
+    })
+
+    // Add to generating set
+    setGeneratingLessons(prev => new Set(prev).add(lessonId))
+
+    try {
+      // Generate lesson content and quiz skeleton together via SignalR
+      const result = await LearningPathService.generateLessonContent(
+        lessonId,
+        undefined,
+        // Quiz skeleton callback - called when quiz skeleton is received
+        (quizSkeleton: any) => {
+          // Update skeleton immediately when quiz skeleton is received
+          setSkeleton((prevSkeleton: any) => {
+            if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
+
+            const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
+            const updatedChapters = chaptersArray.map((ch: any) => {
+              if (Array.isArray(ch.lessons)) {
+                const updatedLessons = ch.lessons.map((ls: any) => {
+                  const currentLessonId = ls.lessonId || ls.id
+                  if (currentLessonId === lessonId) {
+                    return {
+                      ...ls,
+                      quizzes: quizSkeleton?.Quizzes || quizSkeleton?.quizzes || [],
+                      quizCount: (quizSkeleton?.Quizzes || quizSkeleton?.quizzes || []).length
+                    }
+                  }
+                  return ls
+                })
+                return { ...ch, lessons: updatedLessons }
+              }
+              return ch
+            })
+
+            return {
+              ...prevSkeleton,
+              chapters: prevSkeleton.chapters ? updatedChapters : undefined,
+              chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
+            }
+          })
+        }
+      )
+
+      // Update skeleton with lesson content
+      setSkeleton((prevSkeleton: any) => {
+        if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
+
+        // Handle both chapters and chapterDtos
+        const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
+        const updatedChapters = chaptersArray.map((ch: any) => {
+          if (Array.isArray(ch.lessons)) {
+            const updatedLessons = ch.lessons.map((ls: any) => {
+              const currentLessonId = ls.lessonId || ls.id
+              if (currentLessonId === lessonId) {
+                return {
+                  ...ls,
+                  content: result.content,
+                  hasContent: true,
+                  // Include quiz skeleton if it was in the initial result
+                  quizzes: result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || ls.quizzes || [],
+                  quizCount: (result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || ls.quizzes || []).length
+                }
+              }
+              return ls
+            })
+            return { ...ch, lessons: updatedLessons }
+          }
+          return ch
+        })
+
+        const updated = {
+          ...prevSkeleton,
+          chapters: prevSkeleton.chapters ? updatedChapters : undefined,
+          chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
+        }
+        return updated
+      })
+
+    } catch (error: any) {
+      setLessonErrors(prev => {
+        const newErrors = new Map(prev)
+        newErrors.set(lessonId, error.message || 'Failed to generate lesson content and quiz')
+        return newErrors
+      })
+    } finally {
+      // Remove from generating set
+      setGeneratingLessons(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(lessonId)
+        return newSet
+      })
+    }
     console.log('Lesson clicked:', { lessonId, lessonTitle })
     
     // Show focus session dialog instead of generating content
@@ -325,27 +417,27 @@ const PlansPage: React.FC = () => {
       } else {
         sessionStorage.removeItem('plans.language')
       }
-    } catch {}
+    } catch { }
   }, [language])
 
   useEffect(() => {
     try {
       sessionStorage.setItem('plans.goals', JSON.stringify(selectedGoals))
-    } catch {}
+    } catch { }
   }, [selectedGoals])
 
   useEffect(() => {
     try {
       if (level) sessionStorage.setItem('plans.level', level)
       else sessionStorage.removeItem('plans.level')
-    } catch {}
+    } catch { }
   }, [level])
 
   useEffect(() => {
     try {
       if (languageSelection) sessionStorage.setItem('plans.languageSelection', String(languageSelection))
       else sessionStorage.removeItem('plans.languageSelection')
-    } catch {}
+    } catch { }
   }, [languageSelection])
 
   // SEO: title, meta description, canonical & JSON-LD
@@ -402,27 +494,27 @@ const PlansPage: React.FC = () => {
     script.type = 'application/ld+json'
     script.text = JSON.stringify(ld)
     document.head.appendChild(script)
-    return () => { try { document.head.removeChild(script) } catch {} }
+    return () => { try { document.head.removeChild(script) } catch { } }
   }, [])
 
   useEffect(() => {
     let active = true
-    ;(async () => {
-      try {
-        const params = selectedCategory !== null ? { category: selectedCategory } : undefined
-        const data = await SubjectService.listSubjects(params)
-        if (active) {
-          const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
-          setSubjects(normalized as any)
+      ; (async () => {
+        try {
+          const params = { category: selectedCategory }
+          const data = await SubjectService.listSubjects(params)
+          if (active) {
+            const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
+            setSubjects(normalized as any)
+          }
+        } catch (e: any) {
+          const d = e?.response?.data
+          const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSubjects')
+          if (active) setSubjectsError(msg)
+        } finally {
+          if (active) setSubjectsLoading(false)
         }
-      } catch (e: any) {
-        const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSubjects')
-        if (active) setSubjectsError(msg)
-      } finally {
-        if (active) setSubjectsLoading(false)
-      }
-    })()
+      })()
     return () => {
       active = false
     }
@@ -430,39 +522,39 @@ const PlansPage: React.FC = () => {
   // Load system goals from backend (isSystemDefined = true)
   useEffect(() => {
     let active = true
-    ;(async () => {
-      try {
-        const data = await GoalService.listGoals()
-        if (active) {
-          const filtered = (Array.isArray(data) ? data : []).filter((g: any) => g.isSystemDefined === true)
-          setSystemGoals(filtered)
+      ; (async () => {
+        try {
+          const data = await GoalService.listGoals()
+          if (active) {
+            const filtered = (Array.isArray(data) ? data : []).filter((g: any) => g.isSystemDefined === true)
+            setSystemGoals(filtered)
+          }
+        } catch (e: any) {
+          const d = e?.response?.data
+          const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSystemGoals')
+          if (active) setGoalsError(msg)
+        } finally {
+          if (active) setGoalsLoading(false)
         }
-      } catch (e: any) {
-        const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSystemGoals')
-        if (active) setGoalsError(msg)
-      } finally {
-        if (active) setGoalsLoading(false)
-      }
-    })()
+      })()
     return () => { active = false }
   }, [])
 
   // Load my goals from backend
   useEffect(() => {
     let active = true
-    ;(async () => {
-      try {
-        const data = await GoalService.getMyGoals()
-        if (active) setMyGoals(Array.isArray(data) ? data : [])
-      } catch (e: any) {
-        const d = e?.response?.data
-        const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadYourGoals')
-        if (active) setMyGoalsError(msg)
-      } finally {
-        if (active) setMyGoalsLoading(false)
-      }
-    })()
+      ; (async () => {
+        try {
+          const data = await GoalService.getMyGoals()
+          if (active) setMyGoals(Array.isArray(data) ? data : [])
+        } catch (e: any) {
+          const d = e?.response?.data
+          const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadYourGoals')
+          if (active) setMyGoalsError(msg)
+        } finally {
+          if (active) setMyGoalsLoading(false)
+        }
+      })()
     return () => { active = false }
   }, [])
 
@@ -482,7 +574,7 @@ const PlansPage: React.FC = () => {
           setSystemGoals(filtered)
           setMyGoals(Array.isArray(myData) ? myData : [])
         }
-      } catch {}
+      } catch { }
     }
 
     // initial fetch then interval
@@ -540,26 +632,26 @@ const PlansPage: React.FC = () => {
     }
   }
 
-   // Map API goals to GoalCard items
-   const allGoals = [...systemGoals, ...myGoals]
-   const goalItems: GoalItem[] = Array.isArray(allGoals)
-     ? allGoals
-         .map((g: any) => ({
-           key: g?.id ?? g?.goalId ?? g?.key,
-           label: g?.title ?? g?.name ?? g?.label ?? 'Goal',
-         }))
-         .filter((it) => !!it.key)
-     : []
+  // Map API goals to GoalCard items
+  const allGoals = [...systemGoals, ...myGoals]
+  const goalItems: GoalItem[] = Array.isArray(allGoals)
+    ? allGoals
+      .map((g: any) => ({
+        key: g?.id ?? g?.goalId ?? g?.key,
+        label: g?.title ?? g?.name ?? g?.label ?? 'Goal',
+      }))
+      .filter((it) => !!it.key)
+    : []
 
-   return (
-     <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+  return (
+    <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
       <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
         <div style={{ width: '100%' }}>
           {/* Stepper */}
           <Stepper currentStep={step} totalSteps={5} />
 
-           {/* Content */}
+          {/* Content */}
           {step === 1 && (
             <>
               <StepHeader
@@ -568,66 +660,61 @@ const PlansPage: React.FC = () => {
                 icon="$"
                 selectedValue={language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined}
               />
-              
-              {/* Category Filter */}
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>// {t('plans.filterByCategory')}</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory(null)}
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      border: '1px solid var(--border-base)',
-                      borderRadius: 2,
-                      background: selectedCategory === null ? '#3B82F6' : 'var(--bg-surface)',
-                      color: selectedCategory === null ? 'white' : 'var(--text-primary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedCategory !== null) {
-                        e.currentTarget.style.borderColor = '#3B82F6'
-                        e.currentTarget.style.background = '#EFF6FF'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedCategory !== null) {
-                        e.currentTarget.style.borderColor = 'var(--border-base)'
-                        e.currentTarget.style.background = 'var(--bg-surface)'
-                      }
-                    }}
-                  >
-                    All Categories
-                  </button>
+
+              {/* Two-column: Category filter sidebar | Subject cards */}
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+
+                {/* Left: Category filter */}
+                <div style={{
+                  width: 180,
+                  flexShrink: 0,
+                  border: '1px solid var(--border-base)',
+                  background: 'var(--bg-surface)',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    padding: '10px 14px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    color: 'var(--text-secondary)',
+                    borderBottom: '1px solid var(--border-base)',
+                    textTransform: 'uppercase',
+                  }}>
+                    {t('plans.filterByCategory')}
+                  </div>
                   {Object.entries(SubjectCategory).map(([name, value]) => (
                     <button
                       key={name}
                       type="button"
-                      onClick={() => setSelectedCategory(value)}
+                      onClick={() => setSelectedCategory(value as SubjectCategoryType)}
                       style={{
-                        padding: '8px 16px',
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '9px 14px',
                         fontSize: 12,
-                        fontWeight: 600,
-                        border: '1px solid var(--border-base)',
-                        borderRadius: 2,
-                        background: selectedCategory === value ? '#3B82F6' : 'var(--bg-surface)',
-                        color: selectedCategory === value ? 'white' : 'var(--text-primary)',
+                        fontWeight: selectedCategory === value ? 700 : 500,
+                        border: 'none',
+                        borderLeft: selectedCategory === value ? '3px solid #3B82F6' : '3px solid transparent',
+                        borderBottom: '1px solid var(--border-base)',
+                        background: selectedCategory === value ? 'rgba(59,130,246,0.08)' : 'transparent',
+                        color: selectedCategory === value ? '#3B82F6' : 'var(--text-primary)',
                         cursor: 'pointer',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.15s',
+                        boxSizing: 'border-box',
                       }}
                       onMouseEnter={(e) => {
                         if (selectedCategory !== value) {
-                          e.currentTarget.style.borderColor = '#3B82F6'
-                          e.currentTarget.style.background = '#EFF6FF'
+                          e.currentTarget.style.background = 'var(--bg-main)'
+                          e.currentTarget.style.color = '#3B82F6'
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (selectedCategory !== value) {
-                          e.currentTarget.style.borderColor = 'var(--border-base)'
-                          e.currentTarget.style.background = 'var(--bg-surface)'
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.color = 'var(--text-primary)'
                         }
                       }}
                     >
@@ -635,51 +722,55 @@ const PlansPage: React.FC = () => {
                     </button>
                   ))}
                 </div>
+
+                {/* Right: Subject cards */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }} aria-label="subject-list">
+                    {subjectsLoading ? (
+                      Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="animate-pulse rounded-xl border border-bd-muted bg-th-card p-5">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-th-hover rounded-lg" />
+                              <div className="flex-1">
+                                <div className="w-24 h-4 bg-th-hover rounded" />
+                                <div className="w-20 h-3 bg-th-input rounded mt-2" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : subjectsError ? (
+                      <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
+                        {t('plans.failedLoadSubjects')}: {subjectsError}
+                      </div>
+                    ) : subjects.length > 0 ? (
+                      subjects.map((s, idx) => (
+                        <LanguageCard
+                          key={s.slug ?? idx}
+                          name={s.name}
+                          tag={s.slug ?? undefined}
+                          icon={s.icon}
+                          desc={t('plans.explorePathFor', { name: s.name })}
+                          active={language === String((s as any).id ?? (s as any).subjectId)}
+                          onClick={() => {
+                            setLanguage(String((s as any).id ?? (s as any).subjectId))
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <div className="col-span-full text-center py-8 text-muted">
+                        {t('plans.noSubjectsAvailable')}
+                      </div>
+                    )}
+                  </section>
+                </div>
+
               </div>
+            </>
+          )}
 
-              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="subject-list">
-                 {subjectsLoading ? (
-                   Array.from({ length: 8 }).map((_, i) => (
-                     <div key={i} className="animate-pulse rounded-xl border border-bd-muted bg-th-card p-5">
-                       <div className="flex flex-col gap-3">
-                         <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-th-hover rounded-lg" />
-                           <div className="flex-1">
-                             <div className="w-24 h-4 bg-th-hover rounded" />
-                             <div className="w-20 h-3 bg-th-input rounded mt-2" />
-                           </div>
-                         </div>
-                       </div>
-                     </div>
-                   ))
-                 ) : subjectsError ? (
-                   <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
-                     {t('plans.failedLoadSubjects')}: {subjectsError}
-                   </div>
-                 ) : subjects.length > 0 ? (
-                   subjects.map((s, idx) => (
-                     <LanguageCard
-                       key={s.slug ?? idx}
-                       name={s.name}
-                       tag={s.slug ?? undefined}
-                       icon={s.icon}
-                       desc={t('plans.explorePathFor', { name: s.name })}
-                       active={language === String((s as any).id ?? (s as any).subjectId)}
-                       onClick={() => {
-                         setLanguage(String((s as any).id ?? (s as any).subjectId))
-                       }}
-                     />
-                   ))
-                 ) : (
-                   <div className="col-span-full text-center py-8 text-muted">
-                     {t('plans.noSubjectsAvailable')}
-                   </div>
-                 )}
-               </section>
-             </>
-           )}
-
-           {step === 2 && (
+          {step === 2 && (
             <>
               <StepHeader
                 title={t('plans.step2Title')}
@@ -701,54 +792,54 @@ const PlansPage: React.FC = () => {
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('plans.suggestGoals')}</h3>
                 </div>
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
-                   {goalsLoading ? (
-                     Array.from({ length: 3 }).map((_, i) => (
-                       <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                         <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                           <div className="flex-1">
-                             <div className="w-32 h-5 bg-th-hover rounded" />
-                           </div>
-                         </div>
-                       </div>
-                     ))
-                   ) : goalsError ? (
-                     <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                       {t('plans.failedLoadSystemGoals')}: {goalsError}
-                     </div>
-                   ) : systemGoals.length > 0 ? (
-                     systemGoals.map((g: any, idx: number) => {
-                       const id = g?.id ?? g?.goalId ?? g?.key
-                       const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                       return (
-                         <SingleGoalCard
-                           key={String(id)}
-                           id={String(id)}
-                           title={title}
-                           colorClass={palette[idx % palette.length]}
-                           icon='🔖'
-                           active={selectedGoals.includes(String(id))}
-                           onToggle={toggleGoal}
-                           onStartEdit={() => {}}
-                           onDelete={() => {}}
-                           isEditing={false}
-                           editingTitle=""
-                           setEditingTitle={() => {}}
-                           onSaveEdit={() => {}}
-                           onCancelEdit={() => {}}
-                           saving={false}
-                           deleting={false}
-                           isSystemGoal={true}
-                         />
-                       )
-                     })
-                   ) : (
-                     <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                       {t('plans.noSystemGoals')}
-                     </div>
-                   )}
-                 </section>
-               </div>
+                  {goalsLoading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-th-hover rounded-xl" />
+                          <div className="flex-1">
+                            <div className="w-32 h-5 bg-th-hover rounded" />
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : goalsError ? (
+                    <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                      {t('plans.failedLoadSystemGoals')}: {goalsError}
+                    </div>
+                  ) : systemGoals.length > 0 ? (
+                    systemGoals.map((g: any, idx: number) => {
+                      const id = g?.id ?? g?.goalId ?? g?.key
+                      const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                      return (
+                        <SingleGoalCard
+                          key={String(id)}
+                          id={String(id)}
+                          title={title}
+                          colorClass={palette[idx % palette.length]}
+                          icon='🔖'
+                          active={selectedGoals.includes(String(id))}
+                          onToggle={toggleGoal}
+                          onStartEdit={() => { }}
+                          onDelete={() => { }}
+                          isEditing={false}
+                          editingTitle=""
+                          setEditingTitle={() => { }}
+                          onSaveEdit={() => { }}
+                          onCancelEdit={() => { }}
+                          saving={false}
+                          deleting={false}
+                          isSystemGoal={true}
+                        />
+                      )
+                    })
+                  ) : (
+                    <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                      {t('plans.noSystemGoals')}
+                    </div>
+                  )}
+                </section>
+              </div>
 
               {/* My Goals Section */}
               <div>
@@ -764,109 +855,109 @@ const PlansPage: React.FC = () => {
                   </button>
                 </div>
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
-                   {myGoalsLoading ? (
-                     Array.from({ length: 3 }).map((_, i) => (
-                       <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                         <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                           <div className="flex-1">
-                             <div className="w-32 h-5 bg-th-hover rounded" />
-                           </div>
-                         </div>
-                       </div>
-                     ))
-                   ) : myGoalsError ? (
-                     <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                       {t('plans.failedLoadYourGoals')}: {myGoalsError}
-                     </div>
-                   ) : myGoals.length > 0 ? (
-                     myGoals.map((g: any, idx: number) => {
-                       const id = g?.id ?? g?.goalId ?? g?.key
-                       const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                       return (
-                         <SingleGoalCard
-                           key={String(id)}
-                           id={String(id)}
-                           title={title}
-                           colorClass={palette[idx % palette.length]}
-                           icon='🔖'
-                           active={selectedGoals.includes(String(id))}
-                           onToggle={toggleGoal}
-                           onStartEdit={startEditGoal}
-                           onDelete={handleDeleteGoal}
-                           isEditing={String(editingGoalId) === String(id)}
-                           editingTitle={editingTitle}
-                           setEditingTitle={setEditingTitle}
-                           onSaveEdit={saveEditGoal}
-                           onCancelEdit={cancelEditGoal}
-                           saving={savingGoal}
-                           deleting={String(deletingGoalId) === String(id)}
-                         />
-                       )
-                     })
-                   ) : (
-                     <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                       {t('plans.noPersonalGoals')}
-                     </div>
-                   )}
-                 </section>
-                        {/* Add Goal Modal */}
-             {showAddGoal && (
-               <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
-                 <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', display: 'flex', flexDirection: 'column' }}>
-                   <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
-                     <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {t('plans.addNewGoal')}</h3>
-                   </div>
-                   <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                     {createGoalError && (
-                       <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {createGoalError}</div>
-                     )}
-                     <div>
-                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.titleLabel')}</label>
-                       <input
-                         type="text"
-                         value={newGoalTitle}
-                         onChange={(e) => setNewGoalTitle(e.target.value)}
-                         placeholder={t('plans.titlePlaceholder')}
-                         style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
-                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
-                       />
-                     </div>
-                     <div>
-                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.descriptionLabel')}</label>
-                       <textarea
-                         value={newGoalDesc}
-                         onChange={(e) => setNewGoalDesc(e.target.value)}
-                         rows={3}
-                         placeholder={t('plans.descriptionPlaceholder')}
-                         style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
-                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
-                       />
-                     </div>
-                     <div style={{ display: 'flex', gap: 12, paddingTop: 16 }}>
-                       <button
-                         type="button"
-                         onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); setNewGoalDesc(''); setCreateGoalError(null) }}
-                         style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
-                       >{t('plans.cancel')}</button>
-                       <button
-                         type="button"
-                         disabled={creatingGoal}
-                         onClick={handleCreateGoalModal}
-                         style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
-                         onMouseEnter={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if(!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
-                       >{creatingGoal ? t('plans.savingGoal') : t('plans.saveGoal')}</button>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             )}
-            </div>
+                  {myGoalsLoading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-th-hover rounded-xl" />
+                          <div className="flex-1">
+                            <div className="w-32 h-5 bg-th-hover rounded" />
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : myGoalsError ? (
+                    <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                      {t('plans.failedLoadYourGoals')}: {myGoalsError}
+                    </div>
+                  ) : myGoals.length > 0 ? (
+                    myGoals.map((g: any, idx: number) => {
+                      const id = g?.id ?? g?.goalId ?? g?.key
+                      const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                      return (
+                        <SingleGoalCard
+                          key={String(id)}
+                          id={String(id)}
+                          title={title}
+                          colorClass={palette[idx % palette.length]}
+                          icon='🔖'
+                          active={selectedGoals.includes(String(id))}
+                          onToggle={toggleGoal}
+                          onStartEdit={startEditGoal}
+                          onDelete={handleDeleteGoal}
+                          isEditing={String(editingGoalId) === String(id)}
+                          editingTitle={editingTitle}
+                          setEditingTitle={setEditingTitle}
+                          onSaveEdit={saveEditGoal}
+                          onCancelEdit={cancelEditGoal}
+                          saving={savingGoal}
+                          deleting={String(deletingGoalId) === String(id)}
+                        />
+                      )
+                    })
+                  ) : (
+                    <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                      {t('plans.noPersonalGoals')}
+                    </div>
+                  )}
+                </section>
+                {/* Add Goal Modal */}
+                {showAddGoal && (
+                  <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+                    <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {t('plans.addNewGoal')}</h3>
+                      </div>
+                      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {createGoalError && (
+                          <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {createGoalError}</div>
+                        )}
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.titleLabel')}</label>
+                          <input
+                            type="text"
+                            value={newGoalTitle}
+                            onChange={(e) => setNewGoalTitle(e.target.value)}
+                            placeholder={t('plans.titlePlaceholder')}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.descriptionLabel')}</label>
+                          <textarea
+                            value={newGoalDesc}
+                            onChange={(e) => setNewGoalDesc(e.target.value)}
+                            rows={3}
+                            placeholder={t('plans.descriptionPlaceholder')}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: 12, paddingTop: 16 }}>
+                          <button
+                            type="button"
+                            onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); setNewGoalDesc(''); setCreateGoalError(null) }}
+                            style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
+                          >{t('plans.cancel')}</button>
+                          <button
+                            type="button"
+                            disabled={creatingGoal}
+                            onClick={handleCreateGoalModal}
+                            style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
+                            onMouseEnter={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
+                          >{creatingGoal ? t('plans.savingGoal') : t('plans.saveGoal')}</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
-           {step === 3 && (
+          {step === 3 && (
             <>
               <StepHeader
                 title={t('plans.step3Title')}
@@ -875,7 +966,7 @@ const PlansPage: React.FC = () => {
                 selectedValue={level || undefined}
               />
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, maxWidth: 900, margin: '0 auto' }} aria-label="level-list">
-                {(['Beginner','Intermediate','Advanced'] as Level[]).map((lv) => (
+                {(['Beginner', 'Intermediate', 'Advanced'] as Level[]).map((lv) => (
                   <button
                     key={lv}
                     type="button"
@@ -894,7 +985,7 @@ const PlansPage: React.FC = () => {
               </section>
             </>
           )}
-           {step === 4 && (
+          {step === 4 && (
             <>
               <StepHeader
                 title={t('plans.step4Title')}
@@ -942,7 +1033,7 @@ const PlansPage: React.FC = () => {
             </>
           )}
 
-           {step === 5 && (
+          {step === 5 && (
             <>
               <StepHeader
                 title={t('plans.step5Title')}
@@ -950,7 +1041,7 @@ const PlansPage: React.FC = () => {
                 icon="$"
                 selectedValue={t('plans.readyToGenerate')}
               />
-              
+
               {/* Summary Cards */}
               <section aria-label="summary" style={{ maxWidth: 800, margin: '0 auto 40px auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
@@ -963,9 +1054,9 @@ const PlansPage: React.FC = () => {
                     <div key={i} style={{ padding: 16, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)' }}>
                       <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px 0' }}>{sum.label}</h3>
                       {sum.val ? (
-                         <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{sum.val}</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{sum.val}</p>
                       ) : (
-                         <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--text-disabled)', margin: 0 }}>// {t('plans.notSelected')}</p>
+                        <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--text-disabled)', margin: 0 }}>// {t('plans.notSelected')}</p>
                       )}
                     </div>
                   ))}
@@ -974,7 +1065,7 @@ const PlansPage: React.FC = () => {
 
               {/* Generate Button */}
               <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
-                 <button
+                <button
                   type="button"
                   style={{
                     padding: '12px 32px', background: (!canGenerate || generating) ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)',
@@ -994,13 +1085,13 @@ const PlansPage: React.FC = () => {
                     setGenerating(true)
                     setGenerationProgress(0)
                     try {
-                      const payload: any = { 
-                        subjectId: language, 
-                        goalId: selectedGoals[0], 
-                        complexityLevel: level, 
-                        languageSelection: languageSelection 
+                      const payload: any = {
+                        subjectId: language,
+                        goalId: selectedGoals[0],
+                        complexityLevel: level,
+                        languageSelection: languageSelection
                       }
-                      
+
                       // Use SignalR for real-time progress updates
                       const sk = await LearningPathService.generateSkeleton(payload, {
                         useSignalR: true,
@@ -1011,12 +1102,11 @@ const PlansPage: React.FC = () => {
                           setGenerationProgress(progress)
                         }
                       })
-                      
+
                       setSkeleton(sk)
                       setPlanGenerated(true)
                       setGenerationProgress(100)
-                      console.log('Final skeleton set in state:', sk)
-                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch {}
+                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
                       navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
                     } catch (e: any) {
                       const d = e?.response?.data
@@ -1048,6 +1138,10 @@ const PlansPage: React.FC = () => {
                 </button>
               </div>
 
+              {planError && (
+                <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-status-red-bg border-2 border-red-200 rounded-2xl text-status-red-dark font-medium text-center shadow-sm">
+                  {planError}
+                </div>
                {planError && (
                  <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-status-red-bg border-2 border-red-200 rounded-2xl text-status-red-dark font-medium text-center shadow-sm">
                    {planError}
@@ -1199,22 +1293,212 @@ const PlansPage: React.FC = () => {
                   {'<'} {t('plans.back')}
                 </button>
               )}
-              {step < 5 && (
-                <button
-                  type="button"
-                  style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
-                  onMouseEnter={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-primary)' }}
-                  disabled={!canNext}
-                  onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
-                >
-                  {t('plans.continue')} {'>'}
-                </button>
+              {planGenerated && skeleton && (
+                <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
+                  <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
+
+                  {/* Display chapters if available */}
+                  {(Array.isArray(skeleton?.chapters) && skeleton.chapters.length > 0) || (Array.isArray(skeleton?.chapterDtos) && skeleton.chapterDtos.length > 0) ? (
+                    <div>
+                      <h3 className="text-lg font-semibold text-heading mb-3">Chapters</h3>
+                      <p className="text-sm text-muted mb-4">Click on a chapter to generate lesson titles</p>
+                      <ul className="space-y-4">
+                        {(skeleton.chapters || skeleton.chapterDtos || []).map((ch: any, idx: number) => {
+                          const chapterKey = `${skeleton.pathId}-${idx}`
+                          const isGenerating = generatingChapters.has(chapterKey)
+                          const error = chapterErrors.get(chapterKey)
+                          const chapterId = ch.chapterId || ch.id
+
+                          return (
+                            <li key={chapterId ?? ch.title} className="relative">
+                              <button
+                                type="button"
+                                onClick={() => handleChapterClick(skeleton.pathId, idx, chapterId)}
+                                disabled={isGenerating}
+                                className={`w-full text-left flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${isGenerating
+                                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                                    : 'bg-status-blue-bg border-blue-200 hover:border-blue-300 hover:bg-blue-100'
+                                  }`}
+                              >
+                                <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="font-semibold text-heading">{ch.title ?? `Chapter ${idx + 1}`}</div>
+                                    {isGenerating && (
+                                      <div className="flex items-center gap-1 text-xs text-muted">
+                                        <div className="animate-spin w-3 h-3 border border-gray-400 border-t-transparent rounded-full"></div>
+                                        <span>Generating...</span>
+                                      </div>
+                                    )}
+                                    {ch.lessonCount && (
+                                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                                        {ch.lessonCount} lessons
+                                      </span>
+                                    )}
+                                    {ch.quizCount && ch.quizCount > 0 && (
+                                      <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                                        {ch.quizCount} quizzes
+                                      </span>
+                                    )}
+                                  </div>
+                                  {ch.content && <div className="text-sm text-label mt-1">{ch.content}</div>}
+                                  {error && (
+                                    <div className="text-sm text-red-600 mt-1 bg-red-50 p-2 rounded">
+                                      Error: {error}
+                                    </div>
+                                  )}
+                                  {Array.isArray(ch.lessons) && ch.lessons.length > 0 && (
+                                    <div className="mt-3">
+                                      <h4 className="text-sm font-semibold text-heading mb-2">Lessons:</h4>
+                                      <ul className="ml-4 space-y-2">
+                                        {ch.lessons.map((ls: any) => {
+                                          const lessonId = ls.lessonId || ls.id
+                                          const isLessonGenerating = generatingLessons.has(lessonId)
+                                          const lessonError = lessonErrors.get(lessonId)
+
+                                          return (
+                                            <li key={lessonId} className="relative">
+                                              <button
+                                                type="button"
+                                                onClick={() => handleLessonClick(lessonId, ls.title)}
+                                                disabled={isLessonGenerating}
+                                                className={`w-full text-left p-2 rounded-lg border transition-all text-sm ${isLessonGenerating
+                                                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                                                    : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
+                                                  }`}
+                                              >
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-body">• {ls.title ?? 'Lesson'}</span>
+                                                  {isLessonGenerating && (
+                                                    <div className="flex items-center gap-1 text-xs text-muted">
+                                                      <div className="animate-spin w-2 h-2 border border-gray-400 border-t-transparent rounded-full"></div>
+                                                      <span>Generating...</span>
+                                                    </div>
+                                                  )}
+                                                  {ls.hasContent && (
+                                                    <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                                                      Content ready
+                                                    </span>
+                                                  )}
+                                                  {ls.quizCount && ls.quizCount > 0 && (
+                                                    <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                                                      {ls.quizCount} quiz{ls.quizCount > 1 ? 'zes' : ''}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                {lessonError && (
+                                                  <div className="text-xs text-red-600 mt-1 bg-red-50 p-1 rounded">
+                                                    Error: {lessonError}
+                                                  </div>
+                                                )}
+                                              </button>
+                                            </li>
+                                          )
+                                        })}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  ) : Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
+                    <div>
+                      <h3 className="text-lg font-semibold text-heading mb-3">Lessons</h3>
+                      <ul className="space-y-4">
+                        {skeleton.lessons.map((ls: any) => (
+                          <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
+                            <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
+                            <div className="flex-1">
+                              <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
+                              {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
+                              {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
+                                <ul className="mt-2 ml-4 space-y-1">
+                                  {ls.chapters.map((ch: any) => (
+                                    <li key={ch.id ?? ch.title} className="text-sm text-body">
+                                      • {ch.title ?? 'Chapter'}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
+                      <div className="text-xs text-muted text-center mt-2">
+                        Debug: {JSON.stringify(skeleton, null, 2)}
+                      </div>
+                    </div>
+                  )}
+                </section>
               )}
-            </div>
+            </>
+          )}
+
+          {/* Footer actions */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 40, paddingTop: 32, borderTop: '1px solid var(--border-base)' }}>
+            {step > 1 && (
+              <button
+                type="button"
+                style={{ padding: '8px 24px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
+                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
+              >
+                {/* eslint-disable-next-line react/jsx-no-comment-textnodes */}
+                {'<'} {t('plans.back')}
+              </button>
+            )}
+            {step < 5 && (
+              <button
+                type="button"
+                style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-primary)' }}
+                disabled={!canNext}
+                onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
+              >
+                {t('plans.continue')} {'>'}
+              </button>
+            )}
           </div>
+        </div>
       </main>
       <Footer />
 
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title={t('plans.deleteGoal')}
+        message={t('plans.deleteGoalConfirm', { title: goalToDelete?.title })}
+        confirmText={t('plans.delete')}
+        cancelText={t('plans.cancel')}
+        variant="danger"
+        onConfirm={confirmDeleteGoal}
+        onCancel={() => {
+          setShowDeleteConfirm(false)
+          setGoalToDelete(null)
+        }}
+      />
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+export default PlansPage
        {/* Confirm Delete Dialog */}
        <ConfirmDialog
          isOpen={showDeleteConfirm}

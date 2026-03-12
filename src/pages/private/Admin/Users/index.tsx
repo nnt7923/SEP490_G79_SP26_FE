@@ -12,7 +12,7 @@ const AdminUsersPage: React.FC = () => {
   const sidebarConfig = {
     navItems: adminNavItems as any,
     actions: [],
-    brand: { name: 'Users', subtitle: 'Admin' },
+    brand: { name: 'Admin', subtitle: 'Users' },
   }
   const { t } = useTranslation('admin')
 

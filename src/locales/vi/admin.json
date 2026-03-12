@@ -134,7 +134,30 @@
     "cancelBtn": "Hủy",
     "deleteSuccess": "Đã xóa tài nguyên thành công!",
     "deleteFailed": "Không thể xóa tài nguyên",
-    "loadFailed": "Không thể tải tài nguyên",
     "logout": "Đăng xuất"
+  },
+  "auditLogs": {
+    "title": "Nhật ký hệ thống",
+    "subtitle": "Theo dõi các sự kiện và thay đổi hệ thống theo thời gian thực.",
+    "loading": "Đang kết nối luồng nhật ký...",
+    "error": "Mất kết nối luồng nhật ký. Đang thử lại...",
+    "searchPlaceholder": "Lọc theo bảng, hành động, hoặc người dùng...",
+    "noLogs": "Không tìm thấy nhật ký",
+    "timestamp": "Thời gian",
+    "action": "Thao tác",
+    "tableName": "Bảng",
+    "user": "Người dùng",
+    "details": "Thay đổi",
+    "added": "Thêm mới",
+    "modified": "Sửa đổi",
+    "deleted": "Xóa",
+    "oldValue": "Giá trị cũ",
+    "newValue": "Giá trị mới",
+    "viewDetails": "Xem chi tiết",
+    "close": "Đóng",
+    "allTables": "Tất cả các bảng",
+    "allActions": "Tất cả thao tác",
+    "refresh": "Làm mới",
+    "showing": "Hiển thị {{start}} - {{end}} / {{total}}"
   }
 }

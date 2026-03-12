@@ -69,7 +69,7 @@ const SummarySessionItem: React.FC<SummarySessionItemProps> = ({
       </div>
       <button
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-status-red-solid hover:bg-status-red-solid-dark rounded-md transition-colors"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-status-red-solid hover:bg-status-red-solid-dark transition-colors"
         title="Retry summary generation"
         aria-label={`Retry generating summary for pages ${startPage} to ${endPage}`}
       >
@@ -82,7 +82,7 @@ const SummarySessionItem: React.FC<SummarySessionItemProps> = ({
   return (
     <div
       data-testid="summary-session"
-      className="bg-th-card border border-sl-200 rounded-lg overflow-hidden"
+      className="bg-th-card border border-sl-200 overflow-hidden"
     >
       {/* Compact header with page range */}
       <div className="px-3 py-2 bg-sl-50 border-b border-sl-200 flex items-center justify-between">

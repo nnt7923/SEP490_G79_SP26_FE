@@ -167,11 +167,10 @@ const SubjectsPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 border transition-colors ${
-                    viewMode === 'grid'
+                  className={`p-2 border transition-colors ${viewMode === 'grid'
                       ? 'bg-status-blue-solid text-white border-blue-600'
                       : 'bg-th-card text-muted border-bd-strong hover:bg-th-page'
-                  }`}
+                    }`}
                   aria-label="Grid view"
                   aria-pressed={viewMode === 'grid'}
                 >
@@ -179,11 +178,10 @@ const SubjectsPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 border transition-colors ${
-                    viewMode === 'list'
+                  className={`p-2 border transition-colors ${viewMode === 'list'
                       ? 'bg-status-blue-solid text-white border-blue-600'
                       : 'bg-th-card text-muted border-bd-strong hover:bg-th-page'
-                  }`}
+                    }`}
                   aria-label="List view"
                   aria-pressed={viewMode === 'list'}
                 >
@@ -195,7 +193,7 @@ const SubjectsPage: React.FC = () => {
             {/* Results Count */}
             <div className="mt-4 pt-4 border-t border-bd">
               <p className="text-sm font-bold text-muted">
-               {t('subjects.showing', { filtered: filteredSubjects.length, total: subjects.length })}
+                {t('subjects.showing', { filtered: filteredSubjects.length, total: subjects.length })}
               </p>
             </div>
           </div>
@@ -237,9 +235,9 @@ const SubjectsPage: React.FC = () => {
           {!loading && !error && viewMode === 'grid' && filteredSubjects.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSubjects.map((subject) => (
-                <SubjectCard 
-                  key={subject.subjectId} 
-                  subject={subject} 
+                <SubjectCard
+                  key={subject.subjectId}
+                  subject={subject}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                 />
@@ -251,9 +249,9 @@ const SubjectsPage: React.FC = () => {
           {!loading && !error && viewMode === 'list' && filteredSubjects.length > 0 && (
             <div className="space-y-3">
               {filteredSubjects.map((subject) => (
-                <SubjectListItem 
-                  key={subject.subjectId} 
-                  subject={subject} 
+                <SubjectListItem
+                  key={subject.subjectId}
+                  subject={subject}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                 />

@@ -200,8 +200,6 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
           if (!mounted) return
           
           // Log error code for debugging
-          console.error('Summary error:', error.errorCode, error.errorMessage)
-
           setSessions((prev) =>
             prev.map((session) =>
               session.resourceId === error.resourceId &&
@@ -223,7 +221,6 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
           setConnectionState('connected')
         }
       } catch (error) {
-        console.error('Failed to initialize SignalR connection:', error)
         if (mounted) {
           setConnectionState('disconnected')
         }
@@ -267,7 +264,6 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
       const hub = await getSummaryHub()
       await hub.invoke('RequestResourceSummary', resourceId, startPage, endPage)
     } catch (error) {
-      console.error('Failed to request summary:', error)
       
       // Update the session to error state
       setSessions((prev) =>
@@ -363,7 +359,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
         {isMobile && onToggle && (
           <button
             onClick={onToggle}
-            className="p-1 rounded-md hover:bg-sl-100 transition-colors"
+            className="p-1 hover:bg-sl-100 transition-colors"
             title="Close summary panel"
             aria-label="Close summary panel"
           >

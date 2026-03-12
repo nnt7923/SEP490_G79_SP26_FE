@@ -3,7 +3,7 @@ import useAuthStore from '../../store/useAuthStore'
 import { AuthProvider } from '../../hook/useAuth'
 
 const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { loading, init } = useAuthStore()
+  const { init } = useAuthStore()
   const [starting, setStarting] = React.useState(true)
 
   React.useEffect(() => {
@@ -14,7 +14,7 @@ const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     boot()
   }, [init])
 
-  if (starting || loading) {
+  if (starting) {
     return (
       <div className="app-loader">
         <div className="app-loader__content">

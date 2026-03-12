@@ -272,7 +272,6 @@ const MyNewPage: React.FC = () => {
         padding: 32,
         background: 'var(--bg-main)',       /* ✅ CSS variable */
         minHeight: '100vh',
-        fontFamily: 'monospace',
       }}>
         {/* ✅ Dùng t() cho text */}
         <h1 style={{ color: 'var(--text-primary)' }}>

@@ -165,7 +165,7 @@ export async function generateSkeleton(
     if (!subjectId || !goalId || !complexityLevel || languageSelection === undefined) {
       throw new Error('Missing required parameters for SignalR learning path generation')
     }
-    
+
     const raw = await requestLearningPathGeneration(
       {
         subjectId,
@@ -176,9 +176,7 @@ export async function generateSkeleton(
       options.onLoading,
       options.onProgress
     )
-    console.log('SignalR raw response:', raw)
     const normalized = normalizeSkeleton(raw)
-    console.log('Normalized skeleton:', normalized)
     return normalized
   }
 
@@ -189,7 +187,7 @@ export async function generateSkeleton(
 }
 
 export async function generateLessonContent(
-  lessonId: string, 
+  lessonId: string,
   payload?: any,
   onQuizSkeleton?: (quizSkeleton: any) => void
 ): Promise<Lesson> {
@@ -197,7 +195,7 @@ export async function generateLessonContent(
   if (!payload || payload.useSignalR !== false) {
     return await requestLessonContent(lessonId, payload?.onLoading, onQuizSkeleton)
   }
-  
+
   // Fallback to REST API
   const body = payload && typeof payload === 'object' ? payload : {}
   const res: any = await api.post(lessonContentUrl(lessonId), body)

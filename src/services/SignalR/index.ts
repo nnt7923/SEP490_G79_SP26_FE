@@ -21,13 +21,6 @@ const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
-// Debug URLs
-console.log('SignalR Hub URLs:', {
-  HUB_BASE,
-  LEARNING_PATH_HUB_URL,
-  CHAPTER_HUB_URL,
-  LESSON_HUB_URL
-})
 
 // ==== State ====
 let lessonHub: signalR.HubConnection | null = null
@@ -113,12 +106,9 @@ export async function getLessonHub(): Promise<signalR.HubConnection> {
 
 export async function getChapterHub(): Promise<signalR.HubConnection> {
   if (!chapterHub) {
-    console.log('Creating chapter hub connection to:', CHAPTER_HUB_URL)
     chapterHub = buildConnection(CHAPTER_HUB_URL)
   }
-  console.log('Chapter hub state:', chapterHub.state)
   await ensureStarted(chapterHub, 'chapter')
-  console.log('Chapter hub connected successfully')
   return chapterHub
 }
 
@@ -148,18 +138,15 @@ export async function getSummaryHub(): Promise<signalR.HubConnection> {
 
 export async function getLearningPathHub(): Promise<signalR.HubConnection> {
   if (!learningPathHub) {
-    console.log('Creating learning path hub connection to:', LEARNING_PATH_HUB_URL)
     learningPathHub = buildConnection(LEARNING_PATH_HUB_URL)
   }
-  console.log('Learning path hub state:', learningPathHub.state)
   await ensureStarted(learningPathHub, 'learningpath')
-  console.log('Learning path hub connected successfully')
   return learningPathHub
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
 export async function requestLessonContent(
-  lessonId: string, 
+  lessonId: string,
   onLoading?: () => void,
   onQuizSkeleton?: (quizSkeleton: any) => void
 ): Promise<any> {
@@ -180,7 +167,7 @@ export async function requestLessonContent(
       let done = false
       let lessonContent: any = null
       let quizSkeleton: any = null
-      
+
       const cleanup = () => {
         hub.off('LessonContentLoading', handleLoading)
         hub.off('ReceiveLessonContent', handleContent)
@@ -210,7 +197,6 @@ export async function requestLessonContent(
       }
 
       const handleContent = (content: any) => {
-        console.log('ReceiveLessonContent event received:', content)
         if (content?.LessonId === lessonId || content?.lessonId === lessonId) {
           lessonContent = content
           checkComplete()
@@ -218,14 +204,11 @@ export async function requestLessonContent(
       }
 
       const handleQuizLoading = (data: any) => {
-        console.log('QuizSkeletonLoading event received:', data)
         // Quiz skeleton loading started
       }
 
       const handleQuizSkeleton = (quizData: any) => {
-        console.log('ReceiveQuizSkeleton event received:', quizData)
         if (quizData?.LessonId === lessonId || quizData?.lessonId === lessonId) {
-          console.log('Quiz skeleton matches our lesson:', lessonId)
           quizSkeleton = quizData
           // Call the callback if provided, even if we already resolved
           onQuizSkeleton?.(quizData)
@@ -233,22 +216,17 @@ export async function requestLessonContent(
           if (!done) {
             checkComplete()
           }
-        } else {
-          console.log('Quiz skeleton does not match our lesson:', { expected: lessonId, received: quizData })
         }
       }
 
       const handleQuizError = (err: any) => {
-        console.log('QuizSkeletonError event received:', err)
         if (err?.LessonId === lessonId || err?.lessonId === lessonId) {
-          console.warn('Quiz skeleton generation failed:', err)
           quizSkeleton = false // Mark as failed but don't fail the whole request
           checkComplete()
         }
       }
 
       const handleCompleted = (result: any) => {
-        console.log('LessonGenerationCompleted event received:', result)
         if (result?.LessonId === lessonId || result?.lessonId === lessonId) {
           // If we haven't resolved yet, resolve with whatever we have
           if (!done) {
@@ -297,11 +275,8 @@ export async function requestLessonContent(
       hub.on('LessonGenerationCompleted', handleCompletedWrap)
 
       try {
-        console.log('Invoking RequestLessonContent with lessonId:', lessonId)
-        console.log('Expected events: LessonContentLoading, ReceiveLessonContent, QuizSkeletonLoading, ReceiveQuizSkeleton, LessonGenerationCompleted')
         hub.invoke('RequestLessonContent', lessonId).catch(handleErrorWrap)
       } catch (e) {
-        console.error('Error invoking RequestLessonContent:', e)
         handleErrorWrap(e)
       }
     })
@@ -685,13 +660,10 @@ export async function requestLearningPathGeneration(
       }
 
       const handleLearningPath = (learningPath: any) => {
-        console.log('LearningPathCreated event received:', learningPath)
-        console.log('LearningPathCreated full object:', JSON.stringify(learningPath, null, 2))
         onProgress?.(80) // Progress when learning path is created
-        
+
         // LearningPathCreated should have the complete data
         if (learningPath && (learningPath.pathId || learningPath.chapterDtos || learningPath.title)) {
-          console.log('LearningPathCreated has data, resolving immediately')
           if (done) return
           done = true
           cleanup()
@@ -701,12 +673,10 @@ export async function requestLearningPathGeneration(
       }
 
       const handleCompleted = (result: any) => {
-        console.log('LearningPathGenerationCompleted event received:', result)
         if (done) return
         done = true
         cleanup()
         onProgress?.(100) // Complete
-        console.log('Learning path generation completed, result:', result)
         resolve(result)
       }
 
@@ -739,20 +709,13 @@ export async function requestLearningPathGeneration(
 
       try {
         // Backend expects 4 separate parameters, not an object
-        console.log('Invoking RequestLearningPathGeneration with params:', {
-          subjectId: payload.subjectId,
-          goalId: payload.goalId,
-          complexityLevel: payload.complexityLevel,
-          languageSelection: languageSelectionString
-        })
-        hub.invoke('RequestLearningPathGeneration', 
-          payload.subjectId, 
-          payload.goalId, 
-          payload.complexityLevel, 
+        hub.invoke('RequestLearningPathGeneration',
+          payload.subjectId,
+          payload.goalId,
+          payload.complexityLevel,
           languageSelectionString
         ).catch(handleErrorWrap)
       } catch (e) {
-        console.error('Error invoking RequestLearningPathGeneration:', e)
         handleErrorWrap(e)
       }
     })
@@ -792,42 +755,30 @@ export async function requestChapterSkeleton(
       }
 
       const handleLoading = (data: any) => {
-        console.log('ChapterSkeletonGenerationStarted event received:', data)
         // Check if this event is for our request
         if (data?.pathId === pathId && data?.orderIndex === orderIndex) {
-          console.log('Loading event matches our request')
           onLoading?.()
-        } else {
-          console.log('Loading event does not match our request:', { expected: { pathId, orderIndex }, received: data })
         }
       }
 
       const handleChapterSkeleton = (chapterSkeleton: any) => {
-        console.log('ChapterSkeletonGenerated event received:', chapterSkeleton)
         // Check if this event is for our request - be more flexible with matching
-        if (chapterSkeleton?.orderIndex === orderIndex || 
-            (chapterSkeleton?.pathId === pathId && chapterSkeleton?.orderIndex === orderIndex)) {
-          console.log('Chapter skeleton event matches our request')
+        if (chapterSkeleton?.orderIndex === orderIndex ||
+          (chapterSkeleton?.pathId === pathId && chapterSkeleton?.orderIndex === orderIndex)) {
           if (done) return
           done = true
           cleanup()
           resolve(chapterSkeleton)
-        } else {
-          console.log('Chapter skeleton event does not match our request:', { expected: { pathId, orderIndex }, received: chapterSkeleton })
         }
       }
 
       const handleError = (err: any) => {
-        console.log('ChapterSkeletonError event received:', err)
         // Check if this error is for our request
         if (err?.pathId === pathId && err?.orderIndex === orderIndex) {
-          console.log('Error event matches our request')
           if (done) return
           done = true
           cleanup()
           reject(new Error(err?.errorMessage || err?.message || 'Failed to generate chapter skeleton'))
-        } else {
-          console.log('Error event does not match our request:', { expected: { pathId, orderIndex }, received: err })
         }
       }
 
@@ -851,10 +802,8 @@ export async function requestChapterSkeleton(
       hub.on('ChapterSkeletonError', handleErrorWrap)
 
       try {
-        console.log('Invoking RequestChapterSkeleton with params:', { pathId, orderIndex })
         hub.invoke('RequestChapterSkeleton', pathId, orderIndex).catch(handleErrorWrap)
       } catch (e) {
-        console.error('Error invoking RequestChapterSkeleton:', e)
         handleErrorWrap(e)
       }
     })
@@ -884,7 +833,7 @@ export async function disconnectHubs(): Promise<void> {
     if (learningPathHub && learningPathHub.state !== signalR.HubConnectionState.Disconnected) {
       await learningPathHub.stop()
     }
-    
+
     // Clear all inflight requests
     inflightLesson.clear()
     inflightChapter.clear()

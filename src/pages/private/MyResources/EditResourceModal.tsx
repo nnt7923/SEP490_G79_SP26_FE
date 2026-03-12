@@ -99,7 +99,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
-      <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 0, maxWidth: 448, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottom: '1px solid var(--border-base)', flexShrink: 0 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} Edit Resource</h2>
@@ -112,7 +112,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           <div style={{ padding: 20, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {error && (
-              <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 12, color: 'var(--danger-primary)', fontSize: 13 }}>
+              <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 0, padding: 12, color: 'var(--danger-primary)', fontSize: 13 }}>
                 // error: {error}
               </div>
             )}
@@ -123,7 +123,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
                 $ title <span style={{ color: 'var(--danger-primary)' }}>*</span>
               </label>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} disabled={loading} placeholder="resource title"
-                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s', opacity: loading ? 0.5 : 1 }}
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s', opacity: loading ? 0.5 : 1 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
             </div>
 
@@ -147,7 +147,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
                 $ description
               </label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} disabled={loading} placeholder="resource description (optional)" rows={3}
-                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s', resize: 'none', opacity: loading ? 0.5 : 1 }}
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s', resize: 'none', opacity: loading ? 0.5 : 1 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
             </div>
           </div>
@@ -155,12 +155,12 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
           {/* Actions */}
           <div style={{ display: 'flex', gap: 12, padding: 20, borderTop: '1px solid var(--border-base)', flexShrink: 0, background: 'var(--bg-main)' }}>
             <button type="button" onClick={handleClose} disabled={loading}
-              style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+              style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
               onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = 'var(--bg-surface-short)' }}>
               cancel
             </button>
             <button type="submit" disabled={loading}
-              style={{ flex: 1, padding: '8px 16px', background: loading ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 0.2s' }}
+              style={{ flex: 1, padding: '8px 16px', background: loading ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 0, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 0.2s' }}
               onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = 'var(--text-primary)' }}>
               {loading && <Loader2 size={14} className="animate-spin" />}
               {'>'} {loading ? 'updating...' : 'update resource'}

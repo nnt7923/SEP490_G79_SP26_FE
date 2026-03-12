@@ -127,7 +127,6 @@ const Login: React.FC = () => {
         // Login failed, show error message from backend
         const errorMsg = result.msg || t('login.invalidCredentials')
         setError(errorMsg)
-        navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true })
         return false
       }
       
@@ -141,7 +140,6 @@ const Login: React.FC = () => {
       // Unexpected error (network error, etc.)
       const errorMsg = t('login.networkError')
       setError(errorMsg)
-      navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true })
       return false
     }
   }

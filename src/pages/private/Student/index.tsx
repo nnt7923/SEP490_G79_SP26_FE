@@ -32,7 +32,6 @@ const StudentIndex: React.FC = () => {
         setGoals(goalsData.slice(0, 3))
         setPlans(plansData.items.slice(0, 3))
       } catch (error) {
-        console.error('Failed to fetch data:', error)
       } finally {
         setLoading(false)
       }

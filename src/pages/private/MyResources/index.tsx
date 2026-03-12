@@ -113,36 +113,36 @@ const MyResourcesPage: React.FC = () => {
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{t('resources.subtitle')}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setIsModalOpen(true)} style={{ padding: '6px 14px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => setIsModalOpen(true)} style={{ padding: '6px 14px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 0, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               {t('resources.create')}
             </button>
-            <button onClick={() => navigate(ROUTER.STUDENT_DASHBOARD)} style={{ padding: '6px 14px', background: 'var(--bg-surface-short)', color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, cursor: 'pointer' }}>
+            <button onClick={() => navigate(ROUTER.STUDENT_DASHBOARD)} style={{ padding: '6px 14px', background: 'var(--bg-surface-short)', color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 0, fontSize: 12, cursor: 'pointer' }}>
               {t('resources.back')}
             </button>
           </div>
         </div>
 
         {/* Search & Sort */}
-        <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, marginBottom: 20 }}>
+        <div style={{ border: '1px solid var(--border-base)', borderRadius: 0, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>search</label>
               <input type="text" placeholder="search by title or description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }}
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
               />
             </div>
             <div style={{ minWidth: 140 }}>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>sort by</label>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', cursor: 'pointer' }}>
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', cursor: 'pointer' }}>
                 <option value="UploadedAt">{t('resources.uploadedDate')}</option>
                 <option value="Title">{t('resources.titleSort')}</option>
               </select>
             </div>
             <div style={{ minWidth: 100 }}>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>order</label>
-              <div style={{ display: 'flex', border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', border: '1px solid var(--border-base)', borderRadius: 0, overflow: 'hidden' }}>
                 <button onClick={() => setSortDescending(false)}
                   style={{ flex: 1, padding: '8px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: !sortDescending ? 'var(--text-primary)' : 'var(--bg-main)', color: !sortDescending ? 'var(--bg-surface-short)' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
                   {t('resources.asc')}
@@ -168,10 +168,10 @@ const MyResourcesPage: React.FC = () => {
           <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)', fontSize: 13 }}>{t('resources.loading')}</div>
         )}
         {error && (
-          <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, marginBottom: 20, color: 'var(--danger-primary)', fontSize: 13 }}>ERROR: {error}</div>
+          <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 0, padding: 16, marginBottom: 20, color: 'var(--danger-primary)', fontSize: 13 }}>ERROR: {error}</div>
         )}
         {!loading && !error && resources.length === 0 && (
-          <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
+          <div style={{ border: '1px solid var(--border-base)', borderRadius: 0, padding: 48, textAlign: 'center' }}>
             <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('resources.noResources')}</p>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t('resources.resourcesWillAppear')}</p>
           </div>
@@ -180,7 +180,7 @@ const MyResourcesPage: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {resources.map((resource, index) => (
               <div key={resource.resourceId || resource.id || `resource-${index}`}
-                style={{ border: `1px solid ${resource.uploading ? 'var(--accent-primary)' : 'var(--border-base)'}`, borderRadius: 2, padding: 16, transition: 'border-color 0.2s', background: resource.uploading ? 'var(--bg-blue-hover)' : 'var(--bg-surface-short)' }}
+                style={{ border: `1px solid ${resource.uploading ? 'var(--accent-primary)' : 'var(--border-base)'}`, borderRadius: 0, padding: 16, transition: 'border-color 0.2s', background: resource.uploading ? 'var(--bg-blue-hover)' : 'var(--bg-surface-short)' }}
                 onMouseEnter={(e) => { if (!resource.uploading) e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
                 onMouseLeave={(e) => { if (!resource.uploading) e.currentTarget.style.borderColor = 'var(--border-base)' }}
               >
@@ -189,8 +189,8 @@ const MyResourcesPage: React.FC = () => {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{resource.title}</h3>
-                      {resource.type && <span style={{ fontSize: 11, padding: '1px 6px', border: '1px solid var(--border-base)', borderRadius: 2, color: 'var(--text-secondary)' }}>{resource.type}</span>}
-                      {resource.subjectName && <span style={{ fontSize: 11, padding: '1px 6px', border: '1px solid var(--border-base)', borderRadius: 2, color: 'var(--text-secondary)' }}>{resource.subjectName}</span>}
+                      {resource.type && <span style={{ fontSize: 11, padding: '1px 6px', border: '1px solid var(--border-base)', borderRadius: 0, color: 'var(--text-secondary)' }}>{resource.type}</span>}
+                      {resource.subjectName && <span style={{ fontSize: 11, padding: '1px 6px', border: '1px solid var(--border-base)', borderRadius: 0, color: 'var(--text-secondary)' }}>{resource.subjectName}</span>}
                       {resource.uploading && <span style={{ fontSize: 11, color: 'var(--accent-primary)' }}>uploading...</span>}
                     </div>
                     {resource.description && <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 4px' }}>{resource.description}</p>}
@@ -199,18 +199,18 @@ const MyResourcesPage: React.FC = () => {
                   {!resource.uploading && (
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       {(resource.filePath || resource.url) && (
-                        <button onClick={() => handleDownload(resource)} title="View" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
+                        <button onClick={() => handleDownload(resource)} title="View" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
                           onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
                           {t('resources.view')}
                         </button>
                       )}
-                      <button onClick={() => handleEdit(resource)} title="Edit" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
+                      <button onClick={() => handleEdit(resource)} title="Edit" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
                         onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
                         {t('resources.edit')}
                       </button>
-                      <button onClick={() => handleDelete(resource)} title="Delete" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
+                      <button onClick={() => handleDelete(resource)} title="Delete" style={{ padding: '4px 8px', border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-surface-short)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer', transition: 'border-color 0.2s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--danger-primary)'; e.currentTarget.style.color = 'var(--danger-primary)' }}
                         onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
                         {t('resources.del')}

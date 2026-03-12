@@ -256,7 +256,7 @@ const AdminApiKeyPage: React.FC = () => {
 
   const sidebarConfig = {
     navItems: useAdminSidebarConfig() as any,
-    brand: { name: 'API Key', subtitle: 'Admin' },
+    brand: { name: 'Admin', subtitle: 'API Key' },
   }
 
   return (
