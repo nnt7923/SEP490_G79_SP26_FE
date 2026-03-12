@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
-import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, Book } from 'lucide-react'
+import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, Book, Maximize2, Minimize2 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { FocusSessionService, SessionType } from '../../../services'
 import type { FocusSession } from '../../../services/FocusSessionService'
@@ -24,11 +24,11 @@ const FocusSessionPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { t } = useTranslation('student')
-  
+
   // Get session data from navigation state
   const sessionData = location.state?.session as FocusSession | undefined
   const taskData = location.state?.task as TaskData | undefined
-  
+
   const [session] = useState<FocusSession | null>(sessionData || null)
   const [task] = useState<TaskData | null>(taskData || null)
   const [timeRemaining, setTimeRemaining] = useState<number>(0)
@@ -37,15 +37,16 @@ const FocusSessionPage: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
   const [showCompleteDialog, setShowCompleteDialog] = useState<boolean>(false)
   const [aiReviewLoading, setAiReviewLoading] = useState<boolean>(false)
-  const [aiReview, setAiReview] = useState<{feedback: string, score?: number} | null>(null)
+  const [aiReview, setAiReview] = useState<{ feedback: string, score?: number } | null>(null)
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false)
 
   // Code editor state for practice tasks
   const [code, setCode] = useState<string>('')
   const [editorLanguage, setEditorLanguage] = useState<string>('javascript')
-  
+
   // Theory form state
   const [theoryAnswers, setTheoryAnswers] = useState<Record<string, string>>({})
-  
+
   // Quiz state
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
 
@@ -55,20 +56,20 @@ const FocusSessionPage: React.FC = () => {
       // Convert quizAnswers object to simple array of answer indices
       // Example: {q0: 1, q1: 0, q2: 1} -> "[1, 0, 1]"
       const answersArray: number[] = []
-      
+
       // Get all question indices and sort them to ensure correct order
       const questionKeys = Object.keys(quizAnswers).sort((a, b) => {
         const aIndex = parseInt(a.replace('q', ''))
         const bIndex = parseInt(b.replace('q', ''))
         return aIndex - bIndex
       })
-      
+
       // Build array with answer indices in correct order
       questionKeys.forEach(questionKey => {
         const answerIndex = quizAnswers[questionKey]
         answersArray.push(answerIndex)
       })
-      
+
       const result = JSON.stringify(answersArray)
       return result
     } catch (error) {
@@ -79,7 +80,7 @@ const FocusSessionPage: React.FC = () => {
   // AI Review Component
   const renderAiReview = () => {
     if (!aiReview) return null
-    
+
     return (
       <div style={{
         marginTop: 16,
@@ -124,6 +125,32 @@ const FocusSessionPage: React.FC = () => {
       </div>
     )
   }
+
+  // Focus mode toggle
+  const toggleFocusMode = async () => {
+    if (!isFocusMode) {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen().catch(() => { })
+      }
+      setIsFocusMode(true)
+    } else {
+      if (document.exitFullscreen && document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => { })
+      }
+      setIsFocusMode(false)
+    }
+  }
+
+  // Handle ESC key or exiting fullscreen manually
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFocusMode) {
+        setIsFocusMode(false)
+      }
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [isFocusMode])
 
   // Calculate initial time remaining
   useEffect(() => {
@@ -201,7 +228,7 @@ const FocusSessionPage: React.FC = () => {
     setLoading(true)
     try {
       const taskTypeNum = (window as any).currentTaskTypeNum || 0
-      
+
       // Prepare payload based on submitType and taskType
       const payload: any = {
         submissionType: submitType === 'save_progress' ? 'Progress' : 'Final',
@@ -222,17 +249,17 @@ const FocusSessionPage: React.FC = () => {
 
       // Call complete session API
       await FocusSessionService.completeSession(session.id, payload)
-      
+
       setIsRunning(false)
       setTimeRemaining(0)
       setShowCompleteDialog(false)
-      
-      const message = submitType === 'save_progress' 
-        ? t('focusSession.progressSaved') 
+
+      const message = submitType === 'save_progress'
+        ? t('focusSession.progressSaved')
         : t('focusSession.completed')
-      
+
       setToast({ message, type: 'success' })
-      
+
       // Navigate back to my plans after a short delay
       setTimeout(() => {
         navigate(ROUTER.MY_PLANS)
@@ -253,7 +280,7 @@ const FocusSessionPage: React.FC = () => {
     if (!session) return
 
     const taskTypeNum = (window as any).currentTaskTypeNum || 0
-    
+
     // Validate that we have content to review
     let hasContent = false
     if (taskTypeNum === 0 && code.trim()) {
@@ -263,19 +290,19 @@ const FocusSessionPage: React.FC = () => {
     } else if (taskTypeNum === 2 && Object.keys(quizAnswers).length > 0) {
       hasContent = true
     }
-    
+
     if (!hasContent) {
-      setToast({ 
-        message: t('focusSession.emptyContentWarning'), 
-        type: 'warning' 
+      setToast({
+        message: t('focusSession.emptyContentWarning'),
+        type: 'warning'
       })
       return
     }
-    
+
     setAiReviewLoading(true)
     try {
       const payload: any = {}
-      
+
       if (taskTypeNum === 0) {
         // Practice - send code
         payload.submittedCode = code
@@ -289,17 +316,17 @@ const FocusSessionPage: React.FC = () => {
 
       // Use FocusSessionService to call AI review API
       const reviewData = await FocusSessionService.getAiReview(session.id, payload)
-      
+
       // Extract feedback from response structure based on backend response
       const feedback = reviewData?.aiFeedback || reviewData?.value?.aiFeedback || reviewData?.feedback || reviewData?.message || 'AI đã xem xét bài làm của bạn.'
       const score = reviewData?.verificationScore || reviewData?.value?.verificationScore
-      
+
       setAiReview({ feedback, score })
       setToast({ message: t('focusSession.reviewReceived'), type: 'success' })
     } catch (error: any) {
       // More detailed error handling
       let errorMsg = t('focusSession.reviewError')
-      
+
       if (error?.response?.data?.message) {
         errorMsg = error.response.data.message
       } else if (error?.response?.data?.error) {
@@ -307,13 +334,13 @@ const FocusSessionPage: React.FC = () => {
       } else if (error?.message) {
         errorMsg = error.message
       }
-      
+
       // Show error in AI review section for debugging
-      setAiReview({ 
+      setAiReview({
         feedback: `❌ ${t('focusSession.errorPrefix')}: ${errorMsg}\n\n${t('focusSession.errorDetail')}:\n${JSON.stringify(error?.response?.data || error?.message || 'Unknown error', null, 2)}`,
-        score: undefined 
+        score: undefined
       })
-      
+
       setToast({ message: errorMsg, type: 'error' })
     } finally {
       setAiReviewLoading(false)
@@ -326,7 +353,7 @@ const FocusSessionPage: React.FC = () => {
 
   const renderWorkspace = () => {
     const taskType = task?.taskType
-    
+
     // Convert to number for easier comparison
     let taskTypeNum = 0
     if (typeof taskType === 'number') {
@@ -338,16 +365,16 @@ const FocusSessionPage: React.FC = () => {
     }
 
     // Store taskTypeNum for use in other functions
-    ;(window as any).currentTaskTypeNum = taskTypeNum
+    ; (window as any).currentTaskTypeNum = taskTypeNum
 
     switch (taskTypeNum) {
       case 0: // Practice - Code Editor (Monaco)
         return (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Toolbar */}
-            <div style={{ 
-              padding: '8px 16px', 
-              background: 'var(--bg-surface)', 
+            <div style={{
+              padding: '8px 16px',
+              background: 'var(--bg-surface)',
               borderBottom: '1px solid var(--border-base)',
               display: 'flex',
               alignItems: 'center',
@@ -400,7 +427,7 @@ const FocusSessionPage: React.FC = () => {
             <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#1e1e1e' }}>
               {/* Floating Placeholder */}
               {!code && (
-                <div style={{ 
+                <div style={{
                   position: 'absolute',
                   top: 12,
                   left: 68, // Offset for line numbers
@@ -414,7 +441,7 @@ const FocusSessionPage: React.FC = () => {
                   {t('focusSession.codePlaceholder')}
                 </div>
               )}
-              
+
               <Editor
                 height="100%"
                 language={editorLanguage}
@@ -448,9 +475,9 @@ const FocusSessionPage: React.FC = () => {
       case 1: // Theory - Text Input
         return (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ 
-              padding: '12px 16px', 
-              background: 'var(--bg-surface)', 
+            <div style={{
+              padding: '12px 16px',
+              background: 'var(--bg-surface)',
               borderBottom: '1px solid var(--border-base)',
               fontSize: 13,
               fontWeight: 600,
@@ -463,12 +490,12 @@ const FocusSessionPage: React.FC = () => {
             </div>
             <div style={{ flex: 1, padding: 16, overflow: 'auto' }}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: 12, 
-                  fontWeight: 600, 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: 6 
+                <label style={{
+                  display: 'block',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  marginBottom: 6
                 }}>
                   {t('focusSession.theoryInputLabel')}
                 </label>
@@ -498,9 +525,9 @@ const FocusSessionPage: React.FC = () => {
       case 2: // Quiz - Display questions from QuizQuestionsJson
         return (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ 
-              padding: '12px 16px', 
-              background: 'var(--bg-surface)', 
+            <div style={{
+              padding: '12px 16px',
+              background: 'var(--bg-surface)',
               borderBottom: '1px solid var(--border-base)',
               fontSize: 13,
               fontWeight: 600,
@@ -515,7 +542,7 @@ const FocusSessionPage: React.FC = () => {
               {(() => {
                 try {
                   const quizData = task?.quizQuestionsJson ? JSON.parse(task.quizQuestionsJson) : null
-                  
+
                   if (!quizData) {
                     return (
                       <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>
@@ -526,7 +553,7 @@ const FocusSessionPage: React.FC = () => {
                       </div>
                     )
                   }
-                  
+
                   if (!Array.isArray(quizData)) {
                     return (
                       <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>
@@ -545,10 +572,10 @@ const FocusSessionPage: React.FC = () => {
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {(question.options || question.answers || question.Options || question.Answers || []).map((option: any, optIdx: number) => (
-                          <label key={optIdx} style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 8, 
+                          <label key={optIdx} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
                             cursor: 'pointer',
                             padding: 8,
                             borderRadius: 2,
@@ -586,7 +613,7 @@ const FocusSessionPage: React.FC = () => {
               })()}
 
               {renderAiReview()}
-              
+
               {/* Debug: Show current quiz answers */}
               {Object.keys(quizAnswers).length > 0 && (
                 <div style={{
@@ -629,10 +656,10 @@ const FocusSessionPage: React.FC = () => {
 
       default:
         return (
-          <div style={{ 
-            height: '100%', 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             flexDirection: 'column',
             color: 'var(--text-secondary)',
@@ -680,24 +707,44 @@ const FocusSessionPage: React.FC = () => {
     )
   }
 
-  const progressPercentage = session.plannedDurationMinutes > 0 
+  const progressPercentage = session.plannedDurationMinutes > 0
     ? Math.max(0, Math.min(100, ((session.plannedDurationMinutes * 60 - timeRemaining) / (session.plannedDurationMinutes * 60)) * 100))
     : 0
 
   return (
     <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header />
+      {!isFocusMode && <Header />}
+
+      {/* Floating Exit Focus Button */}
+      {isFocusMode && (
+        <button
+          type="button"
+          onClick={toggleFocusMode}
+          style={{
+            position: 'fixed', top: 16, right: 16, zIndex: 100000,
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'var(--bg-main)', border: '1px dashed var(--border-base)',
+            color: 'var(--text-primary)', padding: '8px 16px', borderRadius: 4,
+            cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+        >
+          <Minimize2 size={16} /> [ {t('lessonDetail.exitFocus')} ]
+        </button>
+      )}
+
       <main style={{ flex: 1, display: 'flex', gap: 0 }}>
         {/* Left Panel - Task Info */}
-        <div style={{ 
-          width: 300, 
-          background: 'var(--bg-main)', 
+        <div style={{
+          width: 300,
+          background: 'var(--bg-main)',
           borderRight: '1px solid var(--border-base)',
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ 
-            padding: 16, 
+          <div style={{
+            padding: 16,
             borderBottom: '1px solid var(--border-base)',
             background: 'var(--bg-surface)',
             display: 'flex',
@@ -723,12 +770,12 @@ const FocusSessionPage: React.FC = () => {
                 gap: 8,
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => { 
+              onMouseEnter={(e) => {
                 e.currentTarget.style.color = 'var(--text-primary)'
                 e.currentTarget.style.borderColor = 'var(--text-primary)'
                 e.currentTarget.style.background = 'var(--bg-surface-hover)'
               }}
-              onMouseLeave={(e) => { 
+              onMouseLeave={(e) => {
                 e.currentTarget.style.color = 'var(--text-secondary)'
                 e.currentTarget.style.borderColor = 'var(--border-base)'
                 e.currentTarget.style.background = 'transparent'
@@ -737,6 +784,35 @@ const FocusSessionPage: React.FC = () => {
               <ArrowLeft size={16} />
               {t('focusSession.backToPlans')}
             </button>
+
+            {/* Enable Focus Mode button */}
+            <button
+              type="button"
+              onClick={toggleFocusMode}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'var(--bg-main)',
+                color: 'var(--accent-primary)',
+                border: '1px dashed var(--border-base)',
+                borderRadius: 2,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              title="Toggle Distraction-Free Mode"
+            >
+              <Maximize2 size={14} />
+              [ {t('lessonDetail.enableFocus')} ]
+            </button>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Info size={18} className="text-th-muted" />
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
@@ -744,7 +820,7 @@ const FocusSessionPage: React.FC = () => {
               </h3>
             </div>
           </div>
-          
+
           <div style={{ flex: 1, padding: 16 }}>
             <div style={{ marginBottom: 16 }}>
               <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
@@ -758,9 +834,9 @@ const FocusSessionPage: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <div style={{ 
-                fontSize: 24, 
-                fontWeight: 700, 
+              <div style={{
+                fontSize: 24,
+                fontWeight: 700,
                 color: 'var(--text-primary)',
                 fontFamily: 'monospace',
                 textAlign: 'center',
@@ -783,9 +859,9 @@ const FocusSessionPage: React.FC = () => {
                   transition: 'width 0.3s ease'
                 }} />
               </div>
-              <div style={{ 
-                fontSize: 11, 
-                color: 'var(--text-secondary)', 
+              <div style={{
+                fontSize: 11,
+                color: 'var(--text-secondary)',
                 textAlign: 'center'
               }}>
                 {Math.round(progressPercentage)}% {t('focusSession.percentageComplete')}
@@ -845,8 +921,8 @@ const FocusSessionPage: React.FC = () => {
         </div>
 
         {/* Center Panel - Workspace */}
-        <div style={{ 
-          flex: 1, 
+        <div style={{
+          flex: 1,
           background: 'var(--bg-main)',
           display: 'flex',
           flexDirection: 'column'
@@ -855,15 +931,15 @@ const FocusSessionPage: React.FC = () => {
         </div>
 
         {/* Right Panel - Session Info */}
-        <div style={{ 
-          width: 280, 
-          background: 'var(--bg-main)', 
+        <div style={{
+          width: 280,
+          background: 'var(--bg-main)',
           borderLeft: '1px solid var(--border-base)',
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ 
-            padding: 16, 
+          <div style={{
+            padding: 16,
             borderBottom: '1px solid var(--border-base)',
             background: 'var(--bg-surface)',
             display: 'flex',
@@ -875,15 +951,15 @@ const FocusSessionPage: React.FC = () => {
               {t('focusSession.sessionDetails')}
             </h3>
           </div>
-          
+
           <div style={{ flex: 1, padding: 16 }}>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                gap: 6, 
-                padding: '6px 12px', 
-                background: 'transparent', 
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                background: 'transparent',
                 border: '1px solid currentColor',
                 color: getSessionTypeColor(session.sessionType),
                 borderRadius: 4,
@@ -928,8 +1004,8 @@ const FocusSessionPage: React.FC = () => {
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                   {t('focusSession.status')}
                 </div>
-                <div style={{ 
-                  fontSize: 13, 
+                <div style={{
+                  fontSize: 13,
                   fontWeight: 600,
                   color: timeRemaining > 0 ? (isRunning ? 'var(--success-primary)' : 'var(--warning-primary)') : 'var(--accent-primary)',
                   display: 'flex',
@@ -966,6 +1042,7 @@ const FocusSessionPage: React.FC = () => {
           onClose={() => setToast(null)}
         />
       )}
+      {!isFocusMode && <Footer />}
     </div>
   )
 }
