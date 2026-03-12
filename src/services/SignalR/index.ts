@@ -21,6 +21,14 @@ const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
+// Debug URLs
+console.log('SignalR Hub URLs:', {
+  HUB_BASE,
+  LEARNING_PATH_HUB_URL,
+  CHAPTER_HUB_URL,
+  LESSON_HUB_URL
+})
+
 // ==== State ====
 let lessonHub: signalR.HubConnection | null = null
 let chapterHub: signalR.HubConnection | null = null
@@ -37,6 +45,7 @@ const inflightQuiz = new Map<string, Promise<any>>()
 const inflightSummary = new Map<string, Promise<any>>()
 const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
+const inflightQuizSkeleton = new Map<string, Promise<any>>()
 
 // ==== Utils ====
 function getToken(): string | undefined {
@@ -54,11 +63,19 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
   }
 
   // If connecting or reconnecting, wait for it to complete
-  if (conn.state === signalR.HubConnectionState.Connecting || conn.state === signalR.HubConnectionState.Reconnecting) {
+  const isConnectingOrReconnecting = conn.state === signalR.HubConnectionState.Connecting || conn.state === signalR.HubConnectionState.Reconnecting
+  if (isConnectingOrReconnecting) {
     // Wait up to 10 seconds for connection to be established
     const maxWait = 10000
     const startTime = Date.now()
-    while (conn.state !== signalR.HubConnectionState.Connected && Date.now() - startTime < maxWait) {
+    while (Date.now() - startTime < maxWait) {
+      const currentState = conn.state
+      if (currentState === signalR.HubConnectionState.Connected) {
+        return
+      }
+      if (currentState === signalR.HubConnectionState.Disconnected) {
+        break
+      }
       await new Promise(resolve => setTimeout(resolve, 100))
     }
     if (conn.state !== signalR.HubConnectionState.Connected) {
@@ -141,7 +158,11 @@ export async function getLearningPathHub(): Promise<signalR.HubConnection> {
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
-export async function requestLessonContent(lessonId: string, onLoading?: () => void): Promise<any> {
+export async function requestLessonContent(
+  lessonId: string, 
+  onLoading?: () => void,
+  onQuizSkeleton?: (quizSkeleton: any) => void
+): Promise<any> {
   if (!isGuid(lessonId)) {
     return Promise.reject(new Error('lessonId phải là GUID hợp lệ'))
   }
@@ -157,11 +178,31 @@ export async function requestLessonContent(lessonId: string, onLoading?: () => v
 
     return new Promise<any>((resolve, reject) => {
       let done = false
+      let lessonContent: any = null
+      let quizSkeleton: any = null
+      
       const cleanup = () => {
         hub.off('LessonContentLoading', handleLoading)
         hub.off('ReceiveLessonContent', handleContent)
         hub.off('LessonContentError', handleError)
+        hub.off('QuizSkeletonLoading', handleQuizLoading)
+        hub.off('ReceiveQuizSkeleton', handleQuizSkeleton)
+        hub.off('QuizSkeletonError', handleQuizError)
+        hub.off('LessonGenerationCompleted', handleCompleted)
         inflightLesson.delete(lessonId)
+      }
+
+      const checkComplete = () => {
+        // Complete when we have lesson content (quiz skeleton is optional)
+        if (lessonContent) {
+          if (done) return
+          done = true
+          cleanup()
+          resolve({
+            ...lessonContent,
+            quizSkeleton: quizSkeleton === false ? null : quizSkeleton
+          })
+        }
       }
 
       const handleLoading = () => {
@@ -169,10 +210,58 @@ export async function requestLessonContent(lessonId: string, onLoading?: () => v
       }
 
       const handleContent = (content: any) => {
-        if (done) return
-        done = true
-        cleanup()
-        resolve(content)
+        console.log('ReceiveLessonContent event received:', content)
+        if (content?.LessonId === lessonId || content?.lessonId === lessonId) {
+          lessonContent = content
+          checkComplete()
+        }
+      }
+
+      const handleQuizLoading = (data: any) => {
+        console.log('QuizSkeletonLoading event received:', data)
+        // Quiz skeleton loading started
+      }
+
+      const handleQuizSkeleton = (quizData: any) => {
+        console.log('ReceiveQuizSkeleton event received:', quizData)
+        if (quizData?.LessonId === lessonId || quizData?.lessonId === lessonId) {
+          console.log('Quiz skeleton matches our lesson:', lessonId)
+          quizSkeleton = quizData
+          // Call the callback if provided, even if we already resolved
+          onQuizSkeleton?.(quizData)
+          // If we haven't resolved yet, check if we can complete
+          if (!done) {
+            checkComplete()
+          }
+        } else {
+          console.log('Quiz skeleton does not match our lesson:', { expected: lessonId, received: quizData })
+        }
+      }
+
+      const handleQuizError = (err: any) => {
+        console.log('QuizSkeletonError event received:', err)
+        if (err?.LessonId === lessonId || err?.lessonId === lessonId) {
+          console.warn('Quiz skeleton generation failed:', err)
+          quizSkeleton = false // Mark as failed but don't fail the whole request
+          checkComplete()
+        }
+      }
+
+      const handleCompleted = (result: any) => {
+        console.log('LessonGenerationCompleted event received:', result)
+        if (result?.LessonId === lessonId || result?.lessonId === lessonId) {
+          // If we haven't resolved yet, resolve with whatever we have
+          if (!done) {
+            done = true
+            cleanup()
+            resolve({
+              lessonId,
+              content: lessonContent?.content || result?.content,
+              quizSkeleton: quizSkeleton === false ? null : (quizSkeleton || result?.quizSkeleton),
+              ...result
+            })
+          }
+        }
       }
 
       const handleError = (err: any) => {
@@ -195,15 +284,24 @@ export async function requestLessonContent(lessonId: string, onLoading?: () => v
 
       // rewrap to clear timeout then delegate
       const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+      const handleQuizSkeletonWrap = (qs: any) => { clearTo(); handleQuizSkeleton(qs) }
+      const handleCompletedWrap = (r: any) => { clearTo(); handleCompleted(r) }
       const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
 
       hub.on('LessonContentLoading', handleLoading)
       hub.on('ReceiveLessonContent', handleContentWrap)
       hub.on('LessonContentError', handleErrorWrap)
+      hub.on('QuizSkeletonLoading', handleQuizLoading)
+      hub.on('ReceiveQuizSkeleton', handleQuizSkeletonWrap)
+      hub.on('QuizSkeletonError', handleQuizError)
+      hub.on('LessonGenerationCompleted', handleCompletedWrap)
 
       try {
+        console.log('Invoking RequestLessonContent with lessonId:', lessonId)
+        console.log('Expected events: LessonContentLoading, ReceiveLessonContent, QuizSkeletonLoading, ReceiveQuizSkeleton, LessonGenerationCompleted')
         hub.invoke('RequestLessonContent', lessonId).catch(handleErrorWrap)
       } catch (e) {
+        console.error('Error invoking RequestLessonContent:', e)
         handleErrorWrap(e)
       }
     })
@@ -795,6 +893,7 @@ export async function disconnectHubs(): Promise<void> {
     inflightSummary.clear()
     inflightLearningPath.clear()
     inflightChapterSkeleton.clear()
+    inflightQuizSkeleton.clear()
   } catch {
     // ignore
   }

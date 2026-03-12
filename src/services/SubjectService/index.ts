@@ -1,6 +1,22 @@
 import api from '../Axios'
 import { listSubjectsUrl, createSubjectUrl, basePath } from './url'
 
+// Subject Category enum matching backend
+export const SubjectCategory = {
+  Frontend: 0,
+  Backend: 1,
+  Database: 2,
+  Mobile: 3,
+  DataScience: 4,
+  MachineLearning: 5,
+  CloudComputing: 6,
+  GameDevelopment: 8,
+  Algorithms: 9,
+  Other: 10
+} as const
+
+export type SubjectCategoryType = typeof SubjectCategory[keyof typeof SubjectCategory]
+
 export type Subject = {
   id: string
   subjectId?: string
@@ -9,13 +25,25 @@ export type Subject = {
   description?: string
   color?: string
   icon?: string
+  category?: SubjectCategoryType
   createdBy?: string
   createdByUserId?: string
   createdAt?: string
 }
 
-export async function listSubjects(): Promise<Subject[]> {
-  const res: any = await api.get(listSubjectsUrl)
+export interface ListSubjectsParams {
+  category?: SubjectCategoryType
+}
+
+export async function listSubjects(params?: ListSubjectsParams): Promise<Subject[]> {
+  const queryParams = new URLSearchParams()
+  
+  if (params?.category !== undefined) {
+    queryParams.append('category', String(params.category))
+  }
+  
+  const url = `${listSubjectsUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
   
   let subjects: any[] = []
   
@@ -34,6 +62,7 @@ export async function listSubjects(): Promise<Subject[]> {
     description: s.description,
     color: s.color,
     icon: s.icon,
+    category: s.category,
     createdBy: s.createdBy,
     createdByUserId: s.createdByUserId,
     createdAt: s.createdAt,
@@ -69,4 +98,4 @@ export async function deleteSubject(subjectId: string): Promise<void> {
   await api.delete(`${basePath}/${subjectId}`)
 }
 
-export default { listSubjects, createSubject, updateSubject, deleteSubject }
+export default { listSubjects, createSubject, updateSubject, deleteSubject, SubjectCategory }

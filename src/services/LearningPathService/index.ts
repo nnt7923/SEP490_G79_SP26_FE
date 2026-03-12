@@ -1,6 +1,6 @@
 import api from '../Axios'
 import { skeletonUrl, lessonContentUrl, userLearningPathsUrl } from './url'
-import { requestLearningPathGeneration, requestChapterSkeleton } from '../SignalR'
+import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent } from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -15,6 +15,7 @@ export type Lesson = {
   content?: string | null
   quizzes?: Quiz[]
   chapters?: Chapter[]
+  quizSkeleton?: any
 }
 
 export type Task = {
@@ -187,7 +188,17 @@ export async function generateSkeleton(
   return normalizeSkeleton(raw)
 }
 
-export async function generateLessonContent(lessonId: string, payload?: any): Promise<Lesson> {
+export async function generateLessonContent(
+  lessonId: string, 
+  payload?: any,
+  onQuizSkeleton?: (quizSkeleton: any) => void
+): Promise<Lesson> {
+  // Use SignalR by default for lesson content generation (includes quiz skeleton)
+  if (!payload || payload.useSignalR !== false) {
+    return await requestLessonContent(lessonId, payload?.onLoading, onQuizSkeleton)
+  }
+  
+  // Fallback to REST API
   const body = payload && typeof payload === 'object' ? payload : {}
   const res: any = await api.post(lessonContentUrl(lessonId), body)
   return unwrap<Lesson>(res)

@@ -83,6 +83,7 @@
   "plans": {
     "step1Title": "chọn ngôn ngữ lập trình",
     "step1Subtitle": "chọn ngôn ngữ bạn muốn học",
+    "filterByCategory": "lọc theo danh mục",
     "failedLoadSubjects": "Không thể tải môn học",
     "noSubjectsAvailable": "Không có môn học nào.",
     "explorePathFor": "Khám phá lộ trình học cho {{name}}",

@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
-import { SubjectService, GoalService, LearningPathService, LanguageSelection } from '../../../services'
-import type { Subject } from '../../../services/SubjectService'
+import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory } from '../../../services'
+import type { Subject, SubjectCategoryType } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import ConfirmDialog from '../../../components/ConfirmDialog'
@@ -12,7 +12,6 @@ import StepHeader from './components/StepHeader'
 import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
-import PlanIcon from '../../../assets/plan.png'
 import { Plus, Globe, Code2, Target, BarChart3, Languages, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -76,6 +75,8 @@ const PlansPage: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(true)
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
+  // Subject category filter
+  const [selectedCategory, setSelectedCategory] = useState<SubjectCategoryType | null>(null)
   // Load goals from API + generation states
   const [systemGoals, setSystemGoals] = useState<any[]>([])
   const [myGoals, setMyGoals] = useState<any[]>([])
@@ -93,6 +94,10 @@ const PlansPage: React.FC = () => {
   // Chapter skeleton generation states
   const [generatingChapters, setGeneratingChapters] = useState<Set<string>>(new Set())
   const [chapterErrors, setChapterErrors] = useState<Map<string, string>>(new Map())
+  
+  // Lesson content and quiz generation states
+  const [generatingLessons, setGeneratingLessons] = useState<Set<string>>(new Set())
+  const [lessonErrors, setLessonErrors] = useState<Map<string, string>>(new Map())
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
@@ -272,6 +277,128 @@ const PlansPage: React.FC = () => {
     }
   }
 
+  // Handle lesson click - generate lesson content then quiz skeleton
+  const handleLessonClick = async (lessonId: string, lessonTitle: string) => {
+    console.log('Lesson clicked:', { lessonId, lessonTitle })
+    
+    // Don't generate if already generating
+    if (generatingLessons.has(lessonId)) {
+      console.log('Lesson already generating, skipping')
+      return
+    }
+    
+    console.log('Starting lesson content and quiz generation...')
+    
+    // Clear any previous error for this lesson
+    setLessonErrors(prev => {
+      const newErrors = new Map(prev)
+      newErrors.delete(lessonId)
+      return newErrors
+    })
+    
+    // Add to generating set
+    setGeneratingLessons(prev => new Set(prev).add(lessonId))
+    console.log('Added lesson to generating set:', lessonId)
+    
+    try {
+      // Generate lesson content and quiz skeleton together via SignalR
+      console.log(`Generating content and quiz for lesson ${lessonId}`)
+      
+      const result = await LearningPathService.generateLessonContent(
+        lessonId,
+        undefined,
+        // Quiz skeleton callback - called when quiz skeleton is received
+        (quizSkeleton: any) => {
+          console.log(`Quiz skeleton received for lesson ${lessonId}:`, quizSkeleton)
+          // Update skeleton immediately when quiz skeleton is received
+          setSkeleton((prevSkeleton: any) => {
+            if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
+            
+            const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
+            const updatedChapters = chaptersArray.map((ch: any) => {
+              if (Array.isArray(ch.lessons)) {
+                const updatedLessons = ch.lessons.map((ls: any) => {
+                  const currentLessonId = ls.lessonId || ls.id
+                  if (currentLessonId === lessonId) {
+                    return {
+                      ...ls,
+                      quizzes: quizSkeleton?.Quizzes || quizSkeleton?.quizzes || [],
+                      quizCount: (quizSkeleton?.Quizzes || quizSkeleton?.quizzes || []).length
+                    }
+                  }
+                  return ls
+                })
+                return { ...ch, lessons: updatedLessons }
+              }
+              return ch
+            })
+            
+            return {
+              ...prevSkeleton,
+              chapters: prevSkeleton.chapters ? updatedChapters : undefined,
+              chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
+            }
+          })
+        }
+      )
+      
+      console.log(`Lesson content generated:`, result)
+      
+      // Update skeleton with lesson content
+      setSkeleton((prevSkeleton: any) => {
+        console.log('Updating skeleton with lesson content:', prevSkeleton)
+        if (!prevSkeleton?.chapters && !prevSkeleton?.chapterDtos) return prevSkeleton
+        
+        // Handle both chapters and chapterDtos
+        const chaptersArray = prevSkeleton.chapters || prevSkeleton.chapterDtos || []
+        const updatedChapters = chaptersArray.map((ch: any) => {
+          if (Array.isArray(ch.lessons)) {
+            const updatedLessons = ch.lessons.map((ls: any) => {
+              const currentLessonId = ls.lessonId || ls.id
+              if (currentLessonId === lessonId) {
+                return {
+                  ...ls,
+                  content: result.content,
+                  hasContent: true,
+                  // Include quiz skeleton if it was in the initial result
+                  quizzes: result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || ls.quizzes || [],
+                  quizCount: (result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || ls.quizzes || []).length
+                }
+              }
+              return ls
+            })
+            return { ...ch, lessons: updatedLessons }
+          }
+          return ch
+        })
+        
+        const updated = {
+          ...prevSkeleton,
+          chapters: prevSkeleton.chapters ? updatedChapters : undefined,
+          chapterDtos: prevSkeleton.chapterDtos ? updatedChapters : undefined
+        }
+        console.log('Updated skeleton with lesson content:', updated)
+        return updated
+      })
+      
+    } catch (error: any) {
+      console.error(`Failed to generate lesson ${lessonId} content/quiz:`, error)
+      setLessonErrors(prev => {
+        const newErrors = new Map(prev)
+        newErrors.set(lessonId, error.message || 'Failed to generate lesson content and quiz')
+        return newErrors
+      })
+    } finally {
+      // Remove from generating set
+      setGeneratingLessons(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(lessonId)
+        return newSet
+      })
+      console.log('Removed lesson from generating set:', lessonId)
+    }
+  }
+
   // Persist selections
   useEffect(() => {
     try {
@@ -364,7 +491,8 @@ const PlansPage: React.FC = () => {
     let active = true
     ;(async () => {
       try {
-        const data = await SubjectService.listSubjects()
+        const params = selectedCategory !== null ? { category: selectedCategory } : undefined
+        const data = await SubjectService.listSubjects(params)
         if (active) {
           const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
           setSubjects(normalized as any)
@@ -380,7 +508,7 @@ const PlansPage: React.FC = () => {
     return () => {
       active = false
     }
-  }, [])
+  }, [selectedCategory])
   // Load system goals from backend (isSystemDefined = true)
   useEffect(() => {
     let active = true
@@ -522,6 +650,75 @@ const PlansPage: React.FC = () => {
                 icon="$"
                 selectedValue={language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined}
               />
+              
+              {/* Category Filter */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>// {t('plans.filterByCategory')}</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory(null)}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      border: '1px solid var(--border-base)',
+                      borderRadius: 2,
+                      background: selectedCategory === null ? '#3B82F6' : 'var(--bg-surface)',
+                      color: selectedCategory === null ? 'white' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedCategory !== null) {
+                        e.currentTarget.style.borderColor = '#3B82F6'
+                        e.currentTarget.style.background = '#EFF6FF'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedCategory !== null) {
+                        e.currentTarget.style.borderColor = 'var(--border-base)'
+                        e.currentTarget.style.background = 'var(--bg-surface)'
+                      }
+                    }}
+                  >
+                    All Categories
+                  </button>
+                  {Object.entries(SubjectCategory).map(([name, value]) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setSelectedCategory(value)}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 2,
+                        background: selectedCategory === value ? '#3B82F6' : 'var(--bg-surface)',
+                        color: selectedCategory === value ? 'white' : 'var(--text-primary)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (selectedCategory !== value) {
+                          e.currentTarget.style.borderColor = '#3B82F6'
+                          e.currentTarget.style.background = '#EFF6FF'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedCategory !== value) {
+                          e.currentTarget.style.borderColor = 'var(--border-base)'
+                          e.currentTarget.style.background = 'var(--bg-surface)'
+                        }
+                      }}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="subject-list">
                  {subjectsLoading ? (
                    Array.from({ length: 8 }).map((_, i) => (
@@ -995,13 +1192,56 @@ const PlansPage: React.FC = () => {
                                      </div>
                                    )}
                                    {Array.isArray(ch.lessons) && ch.lessons.length > 0 && (
-                                     <ul className="mt-2 ml-4 space-y-1">
-                                       {ch.lessons.map((ls: any) => (
-                                         <li key={ls.id ?? ls.title} className="text-sm text-body">
-                                           • {ls.title ?? 'Lesson'}
-                                         </li>
-                                       ))}
-                                     </ul>
+                                     <div className="mt-3">
+                                       <h4 className="text-sm font-semibold text-heading mb-2">Lessons:</h4>
+                                       <ul className="ml-4 space-y-2">
+                                         {ch.lessons.map((ls: any) => {
+                                           const lessonId = ls.lessonId || ls.id
+                                           const isLessonGenerating = generatingLessons.has(lessonId)
+                                           const lessonError = lessonErrors.get(lessonId)
+                                           
+                                           return (
+                                             <li key={lessonId} className="relative">
+                                               <button
+                                                 type="button"
+                                                 onClick={() => handleLessonClick(lessonId, ls.title)}
+                                                 disabled={isLessonGenerating}
+                                                 className={`w-full text-left p-2 rounded-lg border transition-all text-sm ${
+                                                   isLessonGenerating 
+                                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
+                                                     : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
+                                                 }`}
+                                               >
+                                                 <div className="flex items-center gap-2">
+                                                   <span className="text-body">• {ls.title ?? 'Lesson'}</span>
+                                                   {isLessonGenerating && (
+                                                     <div className="flex items-center gap-1 text-xs text-muted">
+                                                       <div className="animate-spin w-2 h-2 border border-gray-400 border-t-transparent rounded-full"></div>
+                                                       <span>Generating...</span>
+                                                     </div>
+                                                   )}
+                                                   {ls.hasContent && (
+                                                     <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                                                       Content ready
+                                                     </span>
+                                                   )}
+                                                   {ls.quizCount && ls.quizCount > 0 && (
+                                                     <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                                                       {ls.quizCount} quiz{ls.quizCount > 1 ? 'zes' : ''}
+                                                     </span>
+                                                   )}
+                                                 </div>
+                                                 {lessonError && (
+                                                   <div className="text-xs text-red-600 mt-1 bg-red-50 p-1 rounded">
+                                                     Error: {lessonError}
+                                                   </div>
+                                                 )}
+                                               </button>
+                                             </li>
+                                           )
+                                         })}
+                                       </ul>
+                                     </div>
                                    )}
                                  </div>
                                </button>
