@@ -134,7 +134,30 @@
     "cancelBtn": "Cancel",
     "deleteSuccess": "Resource deleted successfully!",
     "deleteFailed": "Failed to delete resource",
-    "loadFailed": "Failed to load resources",
     "logout": "Logout"
+  },
+  "auditLogs": {
+    "title": "Audit Logs",
+    "subtitle": "Track system events and modifications in real-time.",
+    "loading": "Connecting to audit stream...",
+    "error": "Audit stream disconnected. Retrying...",
+    "searchPlaceholder": "Filter table name, action, or user...",
+    "noLogs": "No audit logs found",
+    "timestamp": "Timestamp",
+    "action": "Action",
+    "tableName": "Table",
+    "user": "User",
+    "details": "Changes",
+    "added": "Added",
+    "modified": "Modified",
+    "deleted": "Deleted",
+    "oldValue": "Old Value",
+    "newValue": "New Value",
+    "viewDetails": "View Details",
+    "close": "Close",
+    "allTables": "All Tables",
+    "allActions": "All Actions",
+    "refresh": "Refresh",
+    "showing": "Showing {{start}} - {{end}} of {{total}}"
   }
 }

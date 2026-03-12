@@ -9,7 +9,7 @@ const AdminReportsPage: React.FC = () => {
   const sidebarConfig = {
     navItems: adminNavItems as any,
     actions: [],
-    brand: { name: 'Reports', subtitle: 'Admin' },
+    brand: { name: 'Admin', subtitle: 'Reports' },
   }
   const { t } = useTranslation('admin')
 

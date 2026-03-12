@@ -328,12 +328,9 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
             <div className="flex items-center gap-4">
               <div className="relative">
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="w-16 h-16 border-2 border-bd-strong cursor-pointer"
-                  disabled={loading}
+                <div
+                  className="w-16 h-16 border-2 border-bd-strong"
+                  style={{ backgroundColor: formData.color }}
                 />
               </div>
               <div className="flex-1">
@@ -343,11 +340,11 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                   placeholder="var(--blue-500)"
-                  className="w-full px-3 py-2 border-2 border-bd-strong focus:outline-none focus:border-blue-600 uppercase text-heading rounded-sm"
+                  className="w-full px-3 py-2 border-2 border-bd-strong focus:outline-none focus:border-blue-600 text-heading rounded-sm"
                   disabled={loading}
                 />
                 <p className="text-xs text-muted mt-1">
-                  Click the color box or enter a CSS color value
+                  Enter a CSS variable or hex color value
                 </p>
               </div>
             </div>
@@ -388,9 +385,9 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                       <>
                         <div className="w-8 h-8 bg-th-input border border-bd flex items-center justify-center">
                           {selectedIcon.emoji.startsWith('devicon-') ? (
-                            <i className={`${selectedIcon.emoji} text-lg text-status-blue`}></i>
+                            <i className={`${selectedIcon.emoji} text-lg`} style={{ color: formData.color }}></i>
                           ) : (
-                            <IconComponent className="w-5 h-5 text-status-blue" strokeWidth={2} />
+                            <IconComponent className="w-5 h-5" style={{ color: formData.color }} strokeWidth={2} />
                           )}
                         </div>
                         <span className="text-sm font-bold text-heading">{selectedIcon.name}</span>
@@ -422,9 +419,9 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                             title={iconItem.name}
                           >
                             {iconItem.emoji.startsWith('devicon-') ? (
-                              <i className={`${iconItem.emoji} text-lg ${isSelected ? 'text-white' : 'text-status-blue'}`}></i>
+                              <i className={`${iconItem.emoji} text-lg`} style={{ color: isSelected ? 'white' : formData.color }}></i>
                             ) : (
-                              <IconComponent className="w-5 h-5" strokeWidth={2} />
+                              <IconComponent className="w-5 h-5" style={{ color: isSelected ? 'white' : formData.color }} strokeWidth={2} />
                             )}
                           </button>
                         )
@@ -466,9 +463,9 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                                   title={iconItem.name}
                                 >
                                   {iconItem.emoji.startsWith('devicon-') ? (
-                                    <i className={`${iconItem.emoji} text-lg ${isSelected ? 'text-white' : 'text-status-blue'}`}></i>
+                                    <i className={`${iconItem.emoji} text-lg`} style={{ color: isSelected ? 'white' : formData.color }}></i>
                                   ) : (
-                                    <IconComponent className="w-5 h-5" strokeWidth={2} />
+                                    <IconComponent className="w-5 h-5" style={{ color: isSelected ? 'white' : formData.color }} strokeWidth={2} />
                                   )}
                                 </button>
                               )
@@ -492,9 +489,9 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                     const selectedIcon = getSelectedIcon()
                     const IconComponent = selectedIcon.icon
                     return selectedIcon.emoji.startsWith('devicon-') ? (
-                      <i className={`${selectedIcon.emoji} text-2xl text-status-blue`}></i>
+                      <i className={`${selectedIcon.emoji} text-2xl`} style={{ color: formData.color }}></i>
                     ) : (
-                      <IconComponent className="w-6 h-6 text-status-blue" strokeWidth={2} />
+                      <IconComponent className="w-6 h-6" style={{ color: formData.color }} strokeWidth={2} />
                     )
                   })()}
                 </div>

@@ -84,6 +84,7 @@
     "users": "Người dùng",
     "reports": "Báo cáo",
     "apiKey": "API Key",
+    "auditLogs": "Nhật ký hệ thống",
     "logout": "Đăng xuất"
   },
   "footer": {

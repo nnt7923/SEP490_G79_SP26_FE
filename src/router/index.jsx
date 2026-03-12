@@ -31,6 +31,7 @@ const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
+const AdminAuditLogs = React.lazy(() => import('../pages/private/Admin/AuditLogs'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
@@ -104,6 +105,7 @@ const router = createBrowserRouter([
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
       { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },
+      { path: ROUTER.ADMIN_AUDIT_LOGS, element: <AdminAuditLogs /> },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },

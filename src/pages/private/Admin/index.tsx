@@ -59,7 +59,7 @@ const AdminDashboard: React.FC = () => {
   const sidebarConfig = {
     navItems: useAdminSidebarConfig() as any,
     actions: [],
-    brand: { name: 'Overview', subtitle: 'Admin' },
+    brand: { name: 'Admin', subtitle: 'Overview' },
   }
 
   // Simple pie chart for user distribution (mock data)

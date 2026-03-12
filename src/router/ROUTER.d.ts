@@ -21,6 +21,7 @@ declare const ROUTER: {
   ADMIN_API_KEY: string
   ADMIN_USERS: string
   ADMIN_REPORTS: string
+  ADMIN_AUDIT_LOGS: string
   MENTOR_PROFILE: string
   QUIZ: string
 }

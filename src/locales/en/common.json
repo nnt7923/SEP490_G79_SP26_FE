@@ -84,6 +84,7 @@
     "users": "Users",
     "reports": "Reports",
     "apiKey": "API Key",
+    "auditLogs": "Audit Logs",
     "logout": "Logout"
   },
   "footer": {

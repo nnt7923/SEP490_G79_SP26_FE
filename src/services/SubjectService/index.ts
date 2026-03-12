@@ -3,16 +3,18 @@ import { listSubjectsUrl, createSubjectUrl, basePath } from './url'
 
 // Subject Category enum matching backend
 export const SubjectCategory = {
-  Frontend: 0,
-  Backend: 1,
-  Database: 2,
-  Mobile: 3,
-  DataScience: 4,
-  MachineLearning: 5,
-  CloudComputing: 6,
-  GameDevelopment: 8,
-  Algorithms: 9,
-  Other: 10
+  ProgrammingLanguage: 0,
+  Frontend: 1,
+  Backend: 2,
+  Database: 3,
+  DevOps: 4,
+  Cloud: 5,
+  DataScience: 6,
+  MachineLearning: 7,
+  Algorithms: 8,
+  GameDevelopment: 9,
+  Mobile: 10,
+  Other: 11,
 } as const
 
 export type SubjectCategoryType = typeof SubjectCategory[keyof typeof SubjectCategory]

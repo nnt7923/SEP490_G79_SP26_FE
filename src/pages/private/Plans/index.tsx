@@ -76,7 +76,7 @@ const PlansPage: React.FC = () => {
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(true)
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
   // Subject category filter
-  const [selectedCategory, setSelectedCategory] = useState<SubjectCategoryType | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<SubjectCategoryType>(SubjectCategory.ProgrammingLanguage)
   // Load goals from API + generation states
   const [systemGoals, setSystemGoals] = useState<any[]>([])
   const [myGoals, setMyGoals] = useState<any[]>([])
@@ -491,7 +491,7 @@ const PlansPage: React.FC = () => {
     let active = true
       ; (async () => {
         try {
-          const params = selectedCategory !== null ? { category: selectedCategory } : undefined
+          const params = { category: selectedCategory }
           const data = await SubjectService.listSubjects(params)
           if (active) {
             const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
@@ -651,65 +651,60 @@ const PlansPage: React.FC = () => {
                 selectedValue={language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined}
               />
 
-              {/* Category Filter */}
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>// {t('plans.filterByCategory')}</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory(null)}
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      border: '1px solid var(--border-base)',
-                      borderRadius: 2,
-                      background: selectedCategory === null ? '#3B82F6' : 'var(--bg-surface)',
-                      color: selectedCategory === null ? 'white' : 'var(--text-primary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedCategory !== null) {
-                        e.currentTarget.style.borderColor = '#3B82F6'
-                        e.currentTarget.style.background = '#EFF6FF'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedCategory !== null) {
-                        e.currentTarget.style.borderColor = 'var(--border-base)'
-                        e.currentTarget.style.background = 'var(--bg-surface)'
-                      }
-                    }}
-                  >
-                    All Categories
-                  </button>
+              {/* Two-column: Category filter sidebar | Subject cards */}
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+
+                {/* Left: Category filter */}
+                <div style={{
+                  width: 180,
+                  flexShrink: 0,
+                  border: '1px solid var(--border-base)',
+                  background: 'var(--bg-surface)',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    padding: '10px 14px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    color: 'var(--text-secondary)',
+                    borderBottom: '1px solid var(--border-base)',
+                    textTransform: 'uppercase',
+                  }}>
+                    {t('plans.filterByCategory')}
+                  </div>
                   {Object.entries(SubjectCategory).map(([name, value]) => (
                     <button
                       key={name}
                       type="button"
-                      onClick={() => setSelectedCategory(value)}
+                      onClick={() => setSelectedCategory(value as SubjectCategoryType)}
                       style={{
-                        padding: '8px 16px',
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '9px 14px',
                         fontSize: 12,
-                        fontWeight: 600,
-                        border: '1px solid var(--border-base)',
-                        borderRadius: 2,
-                        background: selectedCategory === value ? '#3B82F6' : 'var(--bg-surface)',
-                        color: selectedCategory === value ? 'white' : 'var(--text-primary)',
+                        fontWeight: selectedCategory === value ? 700 : 500,
+                        border: 'none',
+                        borderLeft: selectedCategory === value ? '3px solid #3B82F6' : '3px solid transparent',
+                        borderBottom: '1px solid var(--border-base)',
+                        background: selectedCategory === value ? 'rgba(59,130,246,0.08)' : 'transparent',
+                        color: selectedCategory === value ? '#3B82F6' : 'var(--text-primary)',
                         cursor: 'pointer',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.15s',
+                        boxSizing: 'border-box',
                       }}
                       onMouseEnter={(e) => {
                         if (selectedCategory !== value) {
-                          e.currentTarget.style.borderColor = '#3B82F6'
-                          e.currentTarget.style.background = '#EFF6FF'
+                          e.currentTarget.style.background = 'var(--bg-main)'
+                          e.currentTarget.style.color = '#3B82F6'
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (selectedCategory !== value) {
-                          e.currentTarget.style.borderColor = 'var(--border-base)'
-                          e.currentTarget.style.background = 'var(--bg-surface)'
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.color = 'var(--text-primary)'
                         }
                       }}
                     >
@@ -717,47 +712,51 @@ const PlansPage: React.FC = () => {
                     </button>
                   ))}
                 </div>
-              </div>
 
-              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="subject-list">
-                {subjectsLoading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="animate-pulse rounded-xl border border-bd-muted bg-th-card p-5">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-th-hover rounded-lg" />
-                          <div className="flex-1">
-                            <div className="w-24 h-4 bg-th-hover rounded" />
-                            <div className="w-20 h-3 bg-th-input rounded mt-2" />
+                {/* Right: Subject cards */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }} aria-label="subject-list">
+                    {subjectsLoading ? (
+                      Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="animate-pulse rounded-xl border border-bd-muted bg-th-card p-5">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-th-hover rounded-lg" />
+                              <div className="flex-1">
+                                <div className="w-24 h-4 bg-th-hover rounded" />
+                                <div className="w-20 h-3 bg-th-input rounded mt-2" />
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      ))
+                    ) : subjectsError ? (
+                      <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
+                        {t('plans.failedLoadSubjects')}: {subjectsError}
                       </div>
-                    </div>
-                  ))
-                ) : subjectsError ? (
-                  <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
-                    {t('plans.failedLoadSubjects')}: {subjectsError}
-                  </div>
-                ) : subjects.length > 0 ? (
-                  subjects.map((s, idx) => (
-                    <LanguageCard
-                      key={s.slug ?? idx}
-                      name={s.name}
-                      tag={s.slug ?? undefined}
-                      icon={s.icon}
-                      desc={t('plans.explorePathFor', { name: s.name })}
-                      active={language === String((s as any).id ?? (s as any).subjectId)}
-                      onClick={() => {
-                        setLanguage(String((s as any).id ?? (s as any).subjectId))
-                      }}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-8 text-muted">
-                    {t('plans.noSubjectsAvailable')}
-                  </div>
-                )}
-              </section>
+                    ) : subjects.length > 0 ? (
+                      subjects.map((s, idx) => (
+                        <LanguageCard
+                          key={s.slug ?? idx}
+                          name={s.name}
+                          tag={s.slug ?? undefined}
+                          icon={s.icon}
+                          desc={t('plans.explorePathFor', { name: s.name })}
+                          active={language === String((s as any).id ?? (s as any).subjectId)}
+                          onClick={() => {
+                            setLanguage(String((s as any).id ?? (s as any).subjectId))
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <div className="col-span-full text-center py-8 text-muted">
+                        {t('plans.noSubjectsAvailable')}
+                      </div>
+                    )}
+                  </section>
+                </div>
+
+              </div>
             </>
           )}
 

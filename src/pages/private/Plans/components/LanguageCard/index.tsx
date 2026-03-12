@@ -52,7 +52,7 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
           {active ? `> ${name}` : `$ ${name}`}
         </div>
-        {desc && <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {desc}</div>}
+        {desc && <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{desc}</div>}
       </div>
     </div>
     {tag && (
