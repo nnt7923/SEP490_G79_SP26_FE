@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import Editor from '@monaco-editor/react'
+import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, Book } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { FocusSessionService, SessionType } from '../../../services'
 import type { FocusSession } from '../../../services/FocusSessionService'
@@ -7,6 +9,7 @@ import Footer from '../../../components/Layout/Footer'
 import Toast from '../../../components/Toast'
 import CompleteSessionDialog from '../../../components/CompleteSessionDialog'
 import ROUTER from '../../../router/ROUTER'
+import { useTranslation } from 'react-i18next'
 
 interface TaskData {
   id?: string
@@ -20,6 +23,7 @@ interface TaskData {
 const FocusSessionPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useTranslation('student')
   
   // Get session data from navigation state
   const sessionData = location.state?.session as FocusSession | undefined
@@ -37,6 +41,7 @@ const FocusSessionPage: React.FC = () => {
 
   // Code editor state for practice tasks
   const [code, setCode] = useState<string>('')
+  const [editorLanguage, setEditorLanguage] = useState<string>('javascript')
   
   // Theory form state
   const [theoryAnswers, setTheoryAnswers] = useState<Record<string, string>>({})
@@ -93,12 +98,12 @@ const FocusSessionPage: React.FC = () => {
           justifyContent: 'space-between'
         }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            🤖 AI Feedback
+            <Bot size={16} /> {t('focusSession.aiFeedback')}
           </span>
           {aiReview.score !== undefined && (
             <span style={{
               padding: '2px 8px',
-              background: aiReview.score >= 80 ? '#4CAF50' : aiReview.score >= 60 ? '#FF9800' : '#F44336',
+              background: aiReview.score >= 80 ? 'var(--success-primary)' : aiReview.score >= 60 ? 'var(--warning-primary)' : 'var(--danger-primary)',
               color: 'white',
               borderRadius: 12,
               fontSize: 11,
@@ -139,7 +144,7 @@ const FocusSessionPage: React.FC = () => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
           setIsRunning(false)
-          setToast({ message: 'Phiên học tập đã hoàn thành!', type: 'success' })
+          setToast({ message: t('focusSession.completed'), type: 'success' })
           return 0
         }
         return prev - 1
@@ -161,11 +166,15 @@ const FocusSessionPage: React.FC = () => {
   }
 
   const getSessionTypeLabel = (type: SessionType): string => {
-    return type === SessionType.Pomodoro ? '🍅 Pomodoro' : '📚 Study'
+    return type === SessionType.Pomodoro ? t('focusSession.pomodoro') : t('focusSession.study')
+  }
+
+  const getSessionTypeIcon = (type: SessionType) => {
+    return type === SessionType.Pomodoro ? <Timer size={14} /> : <Book size={14} />
   }
 
   const getSessionTypeColor = (type: SessionType): string => {
-    return type === SessionType.Pomodoro ? '#FF6B6B' : '#4ECDC4'
+    return type === SessionType.Pomodoro ? 'var(--danger-primary)' : 'var(--accent-primary)'
   }
 
   const formatDateTime = (dateString: string): string => {
@@ -219,8 +228,8 @@ const FocusSessionPage: React.FC = () => {
       setShowCompleteDialog(false)
       
       const message = submitType === 'save_progress' 
-        ? 'Tiến độ đã được lưu thành công!' 
-        : 'Phiên học tập đã hoàn thành!'
+        ? t('focusSession.progressSaved') 
+        : t('focusSession.completed')
       
       setToast({ message, type: 'success' })
       
@@ -229,7 +238,7 @@ const FocusSessionPage: React.FC = () => {
         navigate(ROUTER.MY_PLANS)
       }, 2000)
     } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Không thể hoàn thành phiên học tập'
+      const msg = error?.response?.data?.message || error?.message || t('focusSession.completeError')
       setToast({ message: msg, type: 'error' })
     } finally {
       setLoading(false)
@@ -257,7 +266,7 @@ const FocusSessionPage: React.FC = () => {
     
     if (!hasContent) {
       setToast({ 
-        message: 'Vui lòng nhập nội dung trước khi yêu cầu AI review', 
+        message: t('focusSession.emptyContentWarning'), 
         type: 'warning' 
       })
       return
@@ -286,10 +295,10 @@ const FocusSessionPage: React.FC = () => {
       const score = reviewData?.verificationScore || reviewData?.value?.verificationScore
       
       setAiReview({ feedback, score })
-      setToast({ message: 'Đã nhận được review từ AI!', type: 'success' })
+      setToast({ message: t('focusSession.reviewReceived'), type: 'success' })
     } catch (error: any) {
       // More detailed error handling
-      let errorMsg = 'Không thể lấy review từ AI'
+      let errorMsg = t('focusSession.reviewError')
       
       if (error?.response?.data?.message) {
         errorMsg = error.response.data.message
@@ -301,7 +310,7 @@ const FocusSessionPage: React.FC = () => {
       
       // Show error in AI review section for debugging
       setAiReview({ 
-        feedback: `❌ Lỗi: ${errorMsg}\n\nChi tiết lỗi:\n${JSON.stringify(error?.response?.data || error?.message || 'Unknown error', null, 2)}`,
+        feedback: `❌ ${t('focusSession.errorPrefix')}: ${errorMsg}\n\n${t('focusSession.errorDetail')}:\n${JSON.stringify(error?.response?.data || error?.message || 'Unknown error', null, 2)}`,
         score: undefined 
       })
       
@@ -332,35 +341,106 @@ const FocusSessionPage: React.FC = () => {
     ;(window as any).currentTaskTypeNum = taskTypeNum
 
     switch (taskTypeNum) {
-      case 0: // Practice - Code Editor
+      case 0: // Practice - Code Editor (Monaco)
         return (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Toolbar */}
             <div style={{ 
-              padding: '12px 16px', 
+              padding: '8px 16px', 
               background: 'var(--bg-surface)', 
               borderBottom: '1px solid var(--border-base)',
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--text-primary)'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8
             }}>
-              💻 Code Editor - Practice Mode
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Code size={16} color='var(--accent-primary)' />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {t('focusSession.practiceMode')}
+                </span>
+              </div>
+              {/* Language selector */}
+              <select
+                value={editorLanguage}
+                onChange={(e) => setEditorLanguage(e.target.value)}
+                style={{
+                  padding: '4px 10px',
+                  background: 'var(--bg-main)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="csharp">C#</option>
+                <option value="cpp">C++</option>
+                <option value="c">C</option>
+                <option value="go">Go</option>
+                <option value="rust">Rust</option>
+                <option value="sql">SQL</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="php">PHP</option>
+                <option value="ruby">Ruby</option>
+                <option value="kotlin">Kotlin</option>
+                <option value="swift">Swift</option>
+                <option value="plaintext">Plain Text</option>
+              </select>
             </div>
-            <textarea
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="// Nhập code của bạn tại đây..."
-              style={{
-                flex: 1,
-                padding: 16,
-                border: 'none',
-                outline: 'none',
-                background: 'var(--bg-main)',
-                color: 'var(--text-primary)',
-                fontFamily: 'monospace',
-                fontSize: 14,
-                resize: 'none'
-              }}
-            />
+
+            {/* Monaco Editor Container */}
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#1e1e1e' }}>
+              {/* Floating Placeholder */}
+              {!code && (
+                <div style={{ 
+                  position: 'absolute',
+                  top: 12,
+                  left: 68, // Offset for line numbers
+                  zIndex: 1,
+                  color: 'rgba(255, 255, 255, 0.3)',
+                  fontSize: 14,
+                  fontFamily: 'monospace',
+                  pointerEvents: 'none',
+                  userSelect: 'none'
+                }}>
+                  {t('focusSession.codePlaceholder')}
+                </div>
+              )}
+              
+              <Editor
+                height="100%"
+                language={editorLanguage}
+                value={code}
+                onChange={(val) => setCode(val ?? '')}
+                theme="vs-dark"
+                options={{
+                  fontSize: 14,
+                  fontFamily: "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  wordWrap: 'on',
+                  lineNumbers: 'on',
+                  renderLineHighlight: 'all',
+                  automaticLayout: true,
+                  tabSize: 2,
+                  padding: { top: 12 },
+                  suggest: { showKeywords: true },
+                  quickSuggestions: true,
+                  formatOnPaste: true,
+                  formatOnType: false,
+                  bracketPairColorization: { enabled: true },
+                }}
+              />
+            </div>
+
             {renderAiReview()}
           </div>
         )
@@ -374,9 +454,12 @@ const FocusSessionPage: React.FC = () => {
               borderBottom: '1px solid var(--border-base)',
               fontSize: 13,
               fontWeight: 600,
-              color: 'var(--text-primary)'
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
             }}>
-              📚 Theory Mode - Text Input
+              <BookOpen size={16} /> {t('focusSession.theoryMode')}
             </div>
             <div style={{ flex: 1, padding: 16, overflow: 'auto' }}>
               <div style={{ marginBottom: 16 }}>
@@ -387,12 +470,12 @@ const FocusSessionPage: React.FC = () => {
                   color: 'var(--text-secondary)', 
                   marginBottom: 6 
                 }}>
-                  Nhập câu trả lời của bạn:
+                  {t('focusSession.theoryInputLabel')}
                 </label>
                 <textarea
                   value={theoryAnswers['answer'] || ''}
                   onChange={(e) => setTheoryAnswers(prev => ({ ...prev, answer: e.target.value }))}
-                  placeholder="Nhập câu trả lời hoặc giải thích của bạn..."
+                  placeholder={t('focusSession.theoryInputPlaceholder')}
                   style={{
                     width: '100%',
                     height: 200,
@@ -421,9 +504,12 @@ const FocusSessionPage: React.FC = () => {
               borderBottom: '1px solid var(--border-base)',
               fontSize: 13,
               fontWeight: 600,
-              color: 'var(--text-primary)'
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
             }}>
-              🎯 Quiz Mode - Multiple Choice
+              <HelpCircle size={16} /> {t('focusSession.quizMode')}
             </div>
             <div style={{ flex: 1, padding: 16, overflow: 'auto' }}>
               {(() => {
@@ -433,7 +519,7 @@ const FocusSessionPage: React.FC = () => {
                   if (!quizData) {
                     return (
                       <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>
-                        <div>Không có dữ liệu quiz</div>
+                        <div>{t('focusSession.noQuizData')}</div>
                         <div style={{ fontSize: 11, marginTop: 8, color: 'var(--text-disabled)' }}>
                           QuizQuestionsJson: {task?.quizQuestionsJson || 'null'}
                         </div>
@@ -444,7 +530,7 @@ const FocusSessionPage: React.FC = () => {
                   if (!Array.isArray(quizData)) {
                     return (
                       <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>
-                        <div>Dữ liệu quiz không đúng định dạng</div>
+                        <div>{t('focusSession.invalidQuizData')}</div>
                         <div style={{ fontSize: 11, marginTop: 8, color: 'var(--text-disabled)' }}>
                           Type: {typeof quizData}, Data: {JSON.stringify(quizData)}
                         </div>
@@ -455,7 +541,7 @@ const FocusSessionPage: React.FC = () => {
                   return quizData.map((question: any, qIdx: number) => (
                     <div key={qIdx} style={{ marginBottom: 24 }}>
                       <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
-                        Câu {qIdx + 1}: {question.question || question.text || question.title || question.Question || question.Text || question.Title}
+                        {t('focusSession.question', { number: qIdx + 1 })}: {question.question || question.text || question.title || question.Question || question.Text || question.Title}
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {(question.options || question.answers || question.Options || question.Answers || []).map((option: any, optIdx: number) => (
@@ -487,7 +573,7 @@ const FocusSessionPage: React.FC = () => {
                 } catch (error) {
                   return (
                     <div style={{ textAlign: 'center', color: 'var(--error-primary)', padding: 40 }}>
-                      <div>Lỗi khi tải câu hỏi quiz</div>
+                      <div>{t('focusSession.quizLoadError')}</div>
                       <div style={{ fontSize: 11, marginTop: 8, color: 'var(--text-disabled)' }}>
                         Error: {(error as any)?.message || 'Unknown error'}
                       </div>
@@ -510,8 +596,8 @@ const FocusSessionPage: React.FC = () => {
                   border: '1px solid var(--border-base)',
                   borderRadius: 4
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                    📝 Câu trả lời hiện tại:
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle size={14} /> {t('focusSession.debugCurrentAnswers')}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-primary)' }}>
                     {Object.entries(quizAnswers)
@@ -524,7 +610,7 @@ const FocusSessionPage: React.FC = () => {
                         const questionNum = parseInt(questionKey.replace('q', '')) + 1
                         return (
                           <div key={questionKey} style={{ marginBottom: 4 }}>
-                            Câu {questionNum}: Đáp án {answerIndex + 1} (index: {answerIndex})
+                            {t('focusSession.question', { number: questionNum })}: {answerIndex + 1} (index: {answerIndex})
                           </div>
                         )
                       })}
@@ -553,7 +639,7 @@ const FocusSessionPage: React.FC = () => {
             fontSize: 14,
             gap: 8
           }}>
-            <div style={{ fontSize: 12 }}>Chọn loại task để bắt đầu thực hành</div>
+            <div style={{ fontSize: 12 }}>{t('focusSession.selectTaskTypeMsg')}</div>
           </div>
         )
     }
@@ -566,10 +652,10 @@ const FocusSessionPage: React.FC = () => {
         <main style={{ flex: 1, padding: '40px 24px', maxWidth: 800, margin: '0 auto', width: '100%', textAlign: 'center' }}>
           <div style={{ padding: 40 }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
-              Không tìm thấy phiên học tập
+              {t('focusSession.sessionNotFound')}
             </h1>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
-              Phiên học tập không tồn tại hoặc đã hết hạn.
+              {t('focusSession.sessionExpired')}
             </p>
             <button
               type="button"
@@ -585,7 +671,7 @@ const FocusSessionPage: React.FC = () => {
                 cursor: 'pointer'
               }}
             >
-              Quay lại Lộ trình của tôi
+              {t('focusSession.backToPlans')}
             </button>
           </div>
         </main>
@@ -613,17 +699,56 @@ const FocusSessionPage: React.FC = () => {
           <div style={{ 
             padding: 16, 
             borderBottom: '1px solid var(--border-base)',
-            background: 'var(--bg-surface)'
+            background: 'var(--bg-surface)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16
           }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              📋 Task Information
-            </h3>
+            <button
+              type="button"
+              onClick={handleBackToPlans}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-base)',
+                borderRadius: 4,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => { 
+                e.currentTarget.style.color = 'var(--text-primary)'
+                e.currentTarget.style.borderColor = 'var(--text-primary)'
+                e.currentTarget.style.background = 'var(--bg-surface-hover)'
+              }}
+              onMouseLeave={(e) => { 
+                e.currentTarget.style.color = 'var(--text-secondary)'
+                e.currentTarget.style.borderColor = 'var(--border-base)'
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <ArrowLeft size={16} />
+              {t('focusSession.backToPlans')}
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Info size={18} className="text-th-muted" />
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                {t('focusSession.taskInfo')}
+              </h3>
+            </div>
           </div>
           
           <div style={{ flex: 1, padding: 16 }}>
             <div style={{ marginBottom: 16 }}>
               <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
-                {task?.title || session.title || 'Untitled Task'}
+                {task?.title || session.title || t('focusSession.untitledTask')}
               </h4>
               {task?.description && (
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
@@ -663,7 +788,7 @@ const FocusSessionPage: React.FC = () => {
                 color: 'var(--text-secondary)', 
                 textAlign: 'center'
               }}>
-                {Math.round(progressPercentage)}% hoàn thành
+                {Math.round(progressPercentage)}% {t('focusSession.percentageComplete')}
               </div>
             </div>
 
@@ -674,8 +799,8 @@ const FocusSessionPage: React.FC = () => {
                 disabled={aiReviewLoading}
                 style={{
                   padding: '10px 16px',
-                  background: aiReviewLoading ? 'var(--text-secondary)' : '#2196F3',
-                  color: 'white',
+                  background: aiReviewLoading ? 'var(--text-secondary)' : 'var(--accent-primary)',
+                  color: 'var(--bg-surface)',
                   border: 'none',
                   borderRadius: 2,
                   fontSize: 13,
@@ -687,16 +812,8 @@ const FocusSessionPage: React.FC = () => {
                   gap: 6
                 }}
               >
-                {aiReviewLoading && (
-                  <div className="animate-spin" style={{ 
-                    width: 12, 
-                    height: 12, 
-                    border: '2px solid white', 
-                    borderTopColor: 'transparent', 
-                    borderRadius: '50%' 
-                  }} />
-                )}
-                🤖 {aiReviewLoading ? 'Đang phân tích...' : 'AI Review'}
+                {aiReviewLoading ? <Loader2 className="animate-spin" size={16} /> : <Bot size={16} />}
+                {aiReviewLoading ? t('focusSession.aiAnalyzing') : t('focusSession.aiReviewBtn')}
               </button>
 
               <button
@@ -705,8 +822,8 @@ const FocusSessionPage: React.FC = () => {
                 disabled={loading}
                 style={{
                   padding: '12px 16px',
-                  background: loading ? 'var(--text-secondary)' : '#4CAF50',
-                  color: 'white',
+                  background: loading ? 'var(--text-secondary)' : 'var(--success-primary)',
+                  color: 'var(--bg-surface)',
                   border: 'none',
                   borderRadius: 2,
                   fontSize: 14,
@@ -718,18 +835,12 @@ const FocusSessionPage: React.FC = () => {
                   gap: 8
                 }}
               >
-                {loading && (
-                  <div className="animate-spin" style={{ 
-                    width: 14, 
-                    height: 14, 
-                    border: '2px solid white', 
-                    borderTopColor: 'transparent', 
-                    borderRadius: '50%' 
-                  }} />
-                )}
-                🏁 {loading ? 'Đang hoàn thành...' : 'Hoàn thành phiên'}
+                {loading ? <Loader2 className="animate-spin" size={16} /> : <Flag size={16} />}
+                {loading ? t('focusSession.completingBtn') : t('focusSession.completeBtn')}
               </button>
             </div>
+
+
           </div>
         </div>
 
@@ -754,10 +865,14 @@ const FocusSessionPage: React.FC = () => {
           <div style={{ 
             padding: 16, 
             borderBottom: '1px solid var(--border-base)',
-            background: 'var(--bg-surface)'
+            background: 'var(--bg-surface)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
           }}>
+            <Timer size={18} className="text-th-muted" />
             <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              ⏱️ Session Details
+              {t('focusSession.sessionDetails')}
             </h3>
           </div>
           
@@ -768,79 +883,66 @@ const FocusSessionPage: React.FC = () => {
                 alignItems: 'center', 
                 gap: 6, 
                 padding: '6px 12px', 
-                background: getSessionTypeColor(session.sessionType) + '20', 
-                border: `1px solid ${getSessionTypeColor(session.sessionType)}40`,
-                borderRadius: 12,
+                background: 'transparent', 
+                border: '1px solid currentColor',
+                color: getSessionTypeColor(session.sessionType),
+                borderRadius: 4,
                 marginBottom: 12
               }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: getSessionTypeColor(session.sessionType) }}>
+                <span style={{ fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {getSessionTypeIcon(session.sessionType)}
                   {getSessionTypeLabel(session.sessionType)}
                 </span>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  Tên phiên
+              <div style={{ padding: 12, background: 'var(--bg-surface)', borderRadius: 6, border: '1px solid var(--border-base)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  {t('focusSession.sessionName')}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {session.title || 'Phiên học tập'}
+                <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, wordBreak: 'break-word', lineHeight: 1.4 }}>
+                  {session.title || t('focusSession.defaultSessionName')}
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  Thời gian bắt đầu (UTC+7)
+              <div style={{ padding: 12, background: 'var(--bg-surface)', borderRadius: 6, border: '1px solid var(--border-base)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  {t('focusSession.startTime')}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
                   {formatDateTime(session.startTime)}
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  Thời gian dự kiến
+              <div style={{ padding: 12, background: 'var(--bg-surface)', borderRadius: 6, border: '1px solid var(--border-base)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  {t('focusSession.plannedDuration')}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {session.plannedDurationMinutes} phút
+                  {session.plannedDurationMinutes} {t('focusSession.minutes')}
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  Trạng thái
+              <div style={{ padding: 12, background: 'var(--bg-surface)', borderRadius: 6, border: '1px solid var(--border-base)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  {t('focusSession.status')}
                 </div>
                 <div style={{ 
                   fontSize: 13, 
                   fontWeight: 600,
-                  color: timeRemaining > 0 ? (isRunning ? '#4CAF50' : '#FFA500') : '#2196F3'
+                  color: timeRemaining > 0 ? (isRunning ? 'var(--success-primary)' : 'var(--warning-primary)') : 'var(--accent-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
                 }}>
-                  {timeRemaining > 0 ? (isRunning ? '🟢 Đang chạy' : '🟡 Tạm dừng') : '🔵 Hoàn thành'}
+                  {timeRemaining > 0 ? (
+                    isRunning ? <><PlayCircle size={14} /> {t('focusSession.statusRunning')}</> : <><Info size={14} /> {t('focusSession.statusPaused')}</>
+                  ) : (
+                    <><CheckCircle size={14} /> {t('focusSession.statusCompleted')}</>
+                  )}
                 </div>
               </div>
-            </div>
-
-            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-base)' }}>
-              <button
-                type="button"
-                onClick={handleBackToPlans}
-                style={{
-                  width: '100%',
-                  padding: '10px 16px',
-                  background: 'var(--bg-surface-short)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-base)',
-                  borderRadius: 2,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
-              >
-                📋 Quay lại Lộ trình của tôi
-              </button>
             </div>
           </div>
         </div>

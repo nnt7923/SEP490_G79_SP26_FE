@@ -3,6 +3,7 @@ import { requestChapterTasks } from '../../../../../services/SignalR'
 import { FocusSessionService, SessionType } from '../../../../../services'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../../router/ROUTER'
+import { BookOpen, Code, HelpCircle, Play } from 'lucide-react'
 import FocusSessionDialog from '../../../../../components/FocusSessionDialog'
 import Toast from '../../../../../components/Toast'
 import { useTranslation } from 'react-i18next'
@@ -57,17 +58,13 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
         title: title || selectedTask.title
       })
 
-      setToast({ message: 'Phiên học tập đã được tạo thành công!', type: 'success' })
+      setToast({ message: t('task.sessionCreated'), type: 'success' })
       setShowFocusDialog(false)
       setSelectedTask(null)
 
       // Navigate to focus session page with both session and task data
       const taskType = selectedTask.fullTask?.taskType
       const quizData = selectedTask.fullTask?.QuizQuestionsJson || selectedTask.fullTask?.quizQuestionsJson
-      
-      navigate(ROUTER.FOCUS_SESSION, {
-        fullTask: selectedTask.fullTask
-      })
       
       navigate(ROUTER.FOCUS_SESSION, { 
         state: { 
@@ -82,7 +79,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
         } 
       })
     } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Không thể tạo phiên học tập'
+      const msg = error?.response?.data?.message || error?.message || t('task.createSessionError')
       setToast({ message: msg, type: 'error' })
     } finally {
       setCreatingSession(false)
@@ -99,7 +96,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     // Try both id and taskId fields from API
     const taskId = task.id || task.taskId || task.TaskId
     if (!taskId) {
-      setToast({ message: 'Task không có ID hợp lệ', type: 'error' })
+      setToast({ message: t('task.invalidId'), type: 'error' })
       return
     }
     
@@ -181,7 +178,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-          {'>'} {t('task.title')}
+          {t('task.title')}
         </h4>
         <div style={{ display: 'flex', gap: 12 }}>
           {loaded && (
@@ -197,7 +194,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-disabled)'}
             >
-              [ {t('task.reload')} ]
+              {t('task.reload')}
             </button>
           )}
         </div>
@@ -205,13 +202,13 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
 
       {loading && (
         <div style={{ fontSize: 13, color: 'var(--accent-primary)', marginBottom: 16 }}>
-          {'>'} Đang tự động tải tasks cho chapter này... _
+          {t('task.loadingAuto')}
         </div>
       )}
 
       {!loading && !loaded && !error && (
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-          {'>'} Đang chuẩn bị tải tasks...
+          {t('task.loadingPrep')}
         </div>
       )}
 
@@ -287,11 +284,8 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                           e.currentTarget.style.transform = 'translateY(0)'
                         }}
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10"/>
-                          <polygon points="10,8 16,12 10,16 10,8"/>
-                        </svg>
-                        Focus
+                        <Play size={14} />
+                        {t('task.focus')}
                       </button>
                     </div>
                     {(task.description || task.Description) && (task.title || task.Title) && (
@@ -306,25 +300,26 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                           textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
                           color: task.difficulty.toLowerCase() === 'easy' ? 'var(--success-primary)' :
                                  task.difficulty.toLowerCase() === 'medium' ? 'var(--warning-primary)' :
-                                 'var(--error-primary)'
+                                 'var(--danger-primary)'
                         }}>
                           {t(`task.${task.difficulty.toLowerCase()}`)}
                         </span>
                       )}
                       {task.taskType !== undefined && (
                         <span style={{
-                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '2px 8px', fontSize: 11, fontWeight: 600,
                           textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
-                          color: task.taskType === 0 || task.taskType === 'Practice' ? '#4CAF50' :
-                                 task.taskType === 1 || task.taskType === 'Theory' ? '#2196F3' :
-                                 task.taskType === 2 || task.taskType === 'Quizz' ? '#FF9800' : 'var(--text-secondary)',
-                          background: task.taskType === 0 || task.taskType === 'Practice' ? '#4CAF5020' :
-                                     task.taskType === 1 || task.taskType === 'Theory' ? '#2196F320' :
-                                     task.taskType === 2 || task.taskType === 'Quizz' ? '#FF980020' : 'transparent'
+                          color: task.taskType === 0 || task.taskType === 'Practice' ? 'var(--success-primary)' :
+                                 task.taskType === 1 || task.taskType === 'Theory' ? 'var(--accent-primary)' :
+                                 task.taskType === 2 || task.taskType === 'Quizz' ? 'var(--warning-primary)' : 'var(--text-secondary)',
+                          background: 'transparent'
                         }}>
-                          {task.taskType === 0 || task.taskType === 'Practice' ? '💻 Practice' :
-                           task.taskType === 1 || task.taskType === 'Theory' ? '📚 Theory' :
-                           task.taskType === 2 || task.taskType === 'Quizz' ? '🎯 Quiz' : `Type ${task.taskType}`}
+                          {task.taskType === 0 || task.taskType === 'Practice' ? <><Code size={12} /> {t('task.practice')}</> :
+                           task.taskType === 1 || task.taskType === 'Theory' ? <><BookOpen size={12} /> {t('task.theory')}</> :
+                           task.taskType === 2 || task.taskType === 'Quizz' ? <><HelpCircle size={12} /> {t('task.quiz')}</> : `Type ${task.taskType}`}
                         </span>
                       )}
                     </div>

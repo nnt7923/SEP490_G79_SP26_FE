@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Book, Timer } from 'lucide-react'
 import { SessionType } from '../../services/FocusSessionService'
 
 interface FocusSessionDialogProps {
@@ -68,10 +69,10 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
       }}>
         <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            {'>'} Tạo phiên học tập
+            {t('focusSession.createSession')}
           </h3>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '8px 0 0 0' }}>
-            Bạn có muốn tạo phiên học tập cho task: <strong>{taskTitle}</strong>?
+            {t('focusSession.createSessionPrompt')} <strong>{taskTitle}</strong>?
           </p>
         </div>
         
@@ -87,7 +88,7 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
               letterSpacing: '0.5px', 
               marginBottom: 8 
             }}>
-              $ Loại phiên
+              {t('focusSession.sessionType')}
             </label>
             <div style={{ display: 'flex', gap: 12 }}>
               <button
@@ -98,18 +99,24 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
                   padding: '12px 16px',
                   border: '1px solid var(--border-base)',
                   borderRadius: 2,
-                  background: sessionType === SessionType.Pomodoro ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
-                  borderColor: sessionType === SessionType.Pomodoro ? 'var(--accent-primary)' : 'var(--border-base)',
-                  color: 'var(--text-primary)',
+                  background: sessionType === SessionType.Pomodoro ? 'var(--bg-surface-short)' : 'var(--bg-surface)',
+                  borderColor: sessionType === SessionType.Pomodoro ? 'var(--danger-primary)' : 'var(--border-base)',
+                  color: sessionType === SessionType.Pomodoro ? 'var(--danger-primary)' : 'var(--text-primary)',
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4
                 }}
               >
-                🍅 Pomodoro
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  1-120 phút
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Timer size={14} /> {t('focusSession.pomodoro')}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  {t('focusSession.durationRange', { min: 1, max: 120 })}
                 </div>
               </button>
               <button
@@ -120,18 +127,24 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
                   padding: '12px 16px',
                   border: '1px solid var(--border-base)',
                   borderRadius: 2,
-                  background: sessionType === SessionType.Study ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+                  background: sessionType === SessionType.Study ? 'var(--bg-surface-short)' : 'var(--bg-surface)',
                   borderColor: sessionType === SessionType.Study ? 'var(--accent-primary)' : 'var(--border-base)',
-                  color: 'var(--text-primary)',
+                  color: sessionType === SessionType.Study ? 'var(--accent-primary)' : 'var(--text-primary)',
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4
                 }}
               >
-                📚 Study
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  1-480 phút
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Book size={14} /> {t('focusSession.study')}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  {t('focusSession.durationRange', { min: 1, max: 480 })}
                 </div>
               </button>
             </div>
@@ -148,7 +161,7 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
               letterSpacing: '0.5px', 
               marginBottom: 6 
             }}>
-              $ Thời gian (phút)
+              {t('focusSession.duration')}
             </label>
             <input
               type="number"
@@ -171,7 +184,7 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
               onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
             />
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-              Từ {getMinDuration()} đến {getMaxDuration()} phút
+              {t('focusSession.durationRange', { min: getMinDuration(), max: getMaxDuration() })}
             </div>
           </div>
 
@@ -186,13 +199,13 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
               letterSpacing: '0.5px', 
               marginBottom: 6 
             }}>
-              $ Tiêu đề (tùy chọn)
+              {t('focusSession.titleOptional')}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Nhập tiêu đề cho phiên học tập..."
+              placeholder={t('focusSession.titlePlaceholder')}
               style={{ 
                 width: '100%', 
                 padding: '8px 12px', 
@@ -238,7 +251,7 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
                 }
               }}
             >
-              Hủy
+              {t('focusSession.cancel')}
             </button>
             <button
               type="button"
@@ -279,7 +292,7 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
                   borderRadius: '50%' 
                 }} />
               )}
-              {loading ? 'Đang tạo...' : 'Tạo phiên'}
+              {loading ? t('focusSession.creating') : t('focusSession.create')}
             </button>
           </div>
         </div>
