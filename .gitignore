@@ -53,15 +53,15 @@ dist-ssr
 .gemini
 .kiro
 .opencode
-.kiro
 .qoder
 .roo
 .trae
 .windsurf
 .shared
 
-# Shared resources (UI/UX Pro Max)
-.shared/
+# Documentation
+*.md
+!GUIDE_I18N_THEME.md
 
 # config files
 .package-lock.local.json

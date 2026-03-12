@@ -1,0 +1,104 @@
+{
+  "appName": "CodeNexus",
+  "nav": {
+    "home": "Home",
+    "plans": "Plans",
+    "about": "About"
+  },
+  "auth": {
+    "login": "login",
+    "register": "register",
+    "logout": "Logout"
+  },
+  "userMenu": {
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "myPlans": "My Plans",
+    "changePassword": "Change Password",
+    "logout": "Logout"
+  },
+  "theme": {
+    "switchToDark": "Switch to dark mode",
+    "switchToLight": "Switch to light mode"
+  },
+  "language": {
+    "vi": "VI",
+    "en": "EN"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "close": "Close",
+    "view": "View",
+    "download": "Download",
+    "upload": "Upload",
+    "update": "Update",
+    "viewAll": "view all →",
+    "viewDetails": "view details"
+  },
+  "status": {
+    "loading": "loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "noData": "No data available",
+    "notFound": "Not found",
+    "active": "active",
+    "completed": "completed",
+    "inProgress": "in progress",
+    "done": "done",
+    "notUpdated": "Not updated"
+  },
+  "pagination": {
+    "page": "page",
+    "of": "/",
+    "prev": "< prev",
+    "next": "next >",
+    "rowsPerPage": "Rows per page",
+    "total": "Total"
+  },
+  "table": {
+    "actions": "Actions",
+    "noResults": "No results found"
+  },
+  "sidebar": {
+    "overview": "Overview",
+    "myPlans": "My Plans",
+    "goals": "Goals",
+    "progress": "Progress",
+    "resources": "Resources",
+    "profile": "Profile",
+    "subjects": "Subjects",
+    "classes": "Classes",
+    "students": "Students",
+    "messages": "Messages",
+    "users": "Users",
+    "reports": "Reports",
+    "apiKey": "API Key",
+    "auditLogs": "Audit Logs",
+    "logout": "Logout"
+  },
+  "footer": {
+    "tagline1": "Personalized learning paths",
+    "tagline2": "powered by AI",
+    "product": "Product",
+    "company": "Company",
+    "plans": "plans",
+    "overview": "overview",
+    "resources": "resources",
+    "about": "about",
+    "home": "home",
+    "copyright": "© {{year}} CodeNexus - All rights reserved.",
+    "terms": "terms",
+    "privacy": "privacy"
+  }
+}

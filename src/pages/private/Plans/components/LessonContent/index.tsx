@@ -5,13 +5,16 @@ import rehypeRaw from 'rehype-raw'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
+import { AlertTriangle, Info, Lightbulb, AlertCircle } from 'lucide-react'
+
 interface LessonContentProps {
   content: string
   loading?: boolean
   error?: string | null
+  isFocusMode?: boolean
 }
 
-const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }) => {
+const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, isFocusMode = false }) => {
   const [processedContent, setProcessedContent] = React.useState<string>(content)
 
   React.useEffect(() => {
@@ -73,7 +76,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 </tr>`)
         }
 
-        const tableHtml = `## Common Mistakes\n\n<table>\n  <thead>\n    <tr>\n      <th>❌ Wrong Approach</th>\n      <th>✅ Correct Approach</th>\n      <th>📝 Notes</th>\n    </tr>\n  </thead>\n  <tbody>\n    ${rowsHtml.join('\n')}\n  </tbody>\n</table>`
+        const tableHtml = `## Common Mistakes\n\n<div class="table-breakout">\n<table>\n  <thead>\n    <tr>\n      <th>❌ Wrong Approach</th>\n      <th>✅ Correct Approach</th>\n      <th>📝 Notes</th>\n    </tr>\n  </thead>\n  <tbody>\n    ${rowsHtml.join('\n')}\n  </tbody>\n</table>\n</div>`
 
         processed = content.replace(commonMistakesRegex, tableHtml)
       }
@@ -84,40 +87,22 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
   if (loading) {
     return (
-      <div className="flex items-center gap-3 text-gray-600 bg-blue-50 px-4 py-3 rounded-xl border-2 border-blue-200">
-        <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24">
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-            fill="none"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-        <span className="font-medium">Loading content…</span>
+      <div className="flex items-center gap-3 text-heading bg-[var(--gray-100)] px-4 py-3 border border-bd font-mono text-sm">
+        <span className="font-bold text-status-blue">{'>_'}</span>
+        <span className="font-medium inline-block relative pr-3">
+          loading_lesson_content()
+          <span className="absolute right-0 top-0 bottom-0 w-2 bg-status-blue-solid animate-[blink_1s_step-end_infinite]"></span>
+        </span>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-red-700 bg-red-50 px-4 py-3 rounded-xl border-2 border-red-200">
+      <div className="text-status-red-dark bg-[var(--gray-100)] px-4 py-3 border border-red-300 font-mono text-sm">
         <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <span className="font-medium">{error}</span>
+          <span className="font-bold">{'>_'}</span>
+          <span className="font-medium">[ERROR]: {error}</span>
         </div>
       </div>
     )
@@ -125,16 +110,8 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
   if (!content || content.trim().length === 0) {
     return (
-      <div className="text-gray-500 text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-        <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <p className="font-medium">No content for the selected lesson/chapter.</p>
+      <div className="text-muted text-center py-8 bg-[var(--gray-100)] border border-dashed border-bd-strong font-mono text-sm">
+        <p className="font-medium">// no_content_found_for_selected_lesson</p>
       </div>
     )
   }
@@ -147,51 +124,57 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
         components={{
           // Headings
           h1: ({ children }) => (
-            <h1 className="text-4xl font-bold font-heading text-gray-900 mb-6 mt-8 pb-4 border-b-2 border-gray-200">
+            <h1 className="text-3xl font-bold font-mono text-heading mb-6 mt-8 pb-4 border-b border-bd">
               {children}
             </h1>
           ),
-          h2: ({ children }) => (
-            <h2 className="text-3xl font-bold font-heading text-gray-900 mb-4 mt-8 pb-3 border-b-2 border-gray-100">
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="text-2xl font-bold font-heading text-gray-900 mb-3 mt-6 pb-2 border-b border-gray-200">
-              {children}
-            </h3>
-          ),
+          h2: ({ children }) => {
+            const id = children?.toString().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')
+            return (
+              <h2 id={id} className="lesson-h2 text-2xl font-bold font-mono text-heading mb-4 mt-8 pb-3 border-b border-bd-muted flex items-center gap-2">
+                {children}
+              </h2>
+            )
+          },
+          h3: ({ children }) => {
+            const id = children?.toString().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')
+            return (
+              <h3 id={id} className="lesson-h3 text-xl font-bold font-mono text-heading mb-3 mt-6 pb-2 border-b border-bd-subtle flex items-center gap-2">
+                {children}
+              </h3>
+            )
+          },
           h4: ({ children }) => (
-            <h4 className="text-xl font-semibold font-heading text-gray-800 mb-3 mt-5">
+            <h4 className="text-lg font-semibold font-mono text-heading mb-3 mt-5 flex items-center gap-2">
               {children}
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="text-lg font-semibold font-heading text-gray-800 mb-2 mt-4">
+            <h5 className="text-base font-semibold font-mono text-heading mb-2 mt-4">
               {children}
             </h5>
           ),
           h6: ({ children }) => (
-            <h6 className="text-base font-semibold font-heading text-gray-700 mb-2 mt-3">
+            <h6 className="text-sm font-semibold font-mono text-body mb-2 mt-3 uppercase tracking-wide">
               {children}
             </h6>
           ),
 
           // Paragraphs
           p: ({ children }) => (
-            <p className="text-gray-800 leading-relaxed mb-5 text-base">
+            <p className="text-heading leading-relaxed mb-5 text-base font-mono">
               {children}
             </p>
           ),
 
           // Lists
           ul: ({ children }) => (
-            <ul className="space-y-3 mb-5 ml-6 text-gray-800">
+            <ul className="space-y-2 mb-5 ml-2 text-heading font-mono">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="space-y-3 mb-5 ml-6 text-gray-800">
+            <ol className="space-y-2 mb-5 ml-6 text-heading font-mono list-decimal">
               {children}
             </ol>
           ),
@@ -207,9 +190,9 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             }
             
             return (
-              <li className="leading-relaxed relative pl-2 text-base" {...props}>
-                <span className="absolute left-0 top-2 w-2 h-2 rounded-full bg-gray-400" />
-                <span className="ml-3">{children}</span>
+              <li className="leading-relaxed relative pl-5 text-base" {...props}>
+                <span className="absolute left-0 top-0 text-status-blue-muted">{'*'}</span>
+                <span>{children}</span>
               </li>
             )
           },
@@ -220,23 +203,84 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-700 underline"
+              className="text-status-blue hover:text-status-blue-dark hover:underline"
             >
               {children}
             </a>
           ),
 
           // Blockquotes
-          blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-gray-300 bg-gray-50 pl-5 pr-4 py-4 my-6 italic text-gray-700 rounded-r">
-              <div className="flex gap-3">
-                <svg className="w-6 h-6 text-gray-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                </svg>
-                <div className="flex-1">{children}</div>
-              </div>
-            </blockquote>
-          ),
+          blockquote: ({ children }) => {
+            const textContent = React.Children.toArray(children).map((child: any) => 
+               child?.props?.children || ''
+            ).join(' ')
+            
+            // Github Alert Syntax matching
+            let type = 'info'
+            let title = 'NOTE'
+            let icon = <Info className="w-4 h-4" />
+            
+            if (textContent.includes('[!WARNING]')) { type = 'warning'; title = 'WARNING'; icon = <AlertTriangle className="w-4 h-4" /> }
+            else if (textContent.includes('[!IMPORTANT]')) { type = 'important'; title = 'IMPORTANT'; icon = <Lightbulb className="w-4 h-4" /> }
+            else if (textContent.includes('[!CAUTION]')) { type = 'error'; title = 'CAUTION'; icon = <AlertCircle className="w-4 h-4" /> }
+
+            const colorVar = 
+              type === 'warning' ? 'var(--warning-primary)' :
+              type === 'important' ? 'var(--accent-purple)' :
+              type === 'error' ? 'var(--error-primary)' :
+              'var(--accent-primary)'
+
+            const bgVar = 
+              type === 'warning' ? 'var(--warning-primary-muted)' :
+              type === 'important' ? 'var(--accent-purple-muted)' :
+              type === 'error' ? 'var(--error-primary-muted)' :
+              'var(--bg-active)'
+
+            // Only style as an alert if it MATCHES a known format
+            const hasAlert = ['[!NOTE]', '[!WARNING]', '[!IMPORTANT]', '[!CAUTION]', '[!TIP]'].some(a => textContent.includes(a))
+
+            if (hasAlert) {
+              return (
+                <div style={{
+                  background: bgVar, border: `1px solid ${colorVar}`, borderLeft: `4px solid ${colorVar}`,
+                  padding: '16px', margin: '24px 0', borderRadius: '4px', fontFamily: 'monospace'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colorVar, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>
+                    {icon} [{title}]
+                  </div>
+                  <div style={{ color: 'var(--text-primary)', fontSize: 14, lineHeight: 1.6 }}>
+                    {React.Children.map(children, (child: any) => {
+                       // filter out the literal [!NOTE] strings from rendering
+                       if (typeof child?.props?.children === 'string') {
+                          return React.cloneElement(child, { 
+                            children: child.props.children.replace(/\[!(NOTE|WARNING|IMPORTANT|CAUTION|TIP)\]/g, '') 
+                          })
+                       }
+                       if (Array.isArray(child?.props?.children)) {
+                         return React.cloneElement(child, {
+                            children: child.props.children.map((c: any) => 
+                              typeof c === 'string' ? c.replace(/\[!(NOTE|WARNING|IMPORTANT|CAUTION|TIP)\]/g, '') : c
+                            )
+                         })
+                       }
+                       return child
+                    })}
+                  </div>
+                </div>
+              )
+            }
+
+            // Default blockquote
+            return (
+              <blockquote className="border border-bd bg-[var(--gray-100)] pl-4 pr-4 py-3 my-6 text-body font-mono relative">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-th-skeleton"></div>
+                <div className="flex gap-3">
+                  <span className="text-placeholder select-none">|</span>
+                  <div className="flex-1 text-heading">{children}</div>
+                </div>
+              </blockquote>
+            )
+          },
 
           // Code blocks
           code: ({ inline, className, children, ...props }: any) => {
@@ -245,9 +289,9 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
             if (!inline && language) {
               return (
-                <div className="my-3 rounded border border-gray-200">
-                  <div className="flex items-center justify-between bg-gray-800 px-3 py-1.5 border-b border-gray-700">
-                    <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                <div className="my-4 border border-bd font-mono text-sm">
+                  <div className="flex items-center justify-between bg-[var(--gray-100)] px-3 py-1.5 border-b border-bd">
+                    <span className="text-xs font-bold text-label lowercase">
                       {language}
                     </span>
                     <button
@@ -255,10 +299,10 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
                       onClick={() => {
                         navigator.clipboard.writeText(String(children).replace(/\n$/, ''))
                       }}
-                      className="text-xs text-gray-300 hover:text-white transition-colors px-2 py-0.5 rounded hover:bg-gray-700"
+                      className="text-xs text-muted hover:text-black hover:bg-th-hover transition-colors px-2 py-0.5"
                       title="Copy code"
                     >
-                      Copy
+                      [copy]
                     </button>
                   </div>
                   <SyntaxHighlighter
@@ -271,13 +315,14 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
                       borderRadius: 0,
                       fontSize: '0.875rem',
                       lineHeight: '1.6',
-                      padding: '0.75rem',
-                      background: '#1e1e1e',
+                      padding: '1rem',
+                      background: 'var(--code-block-bg)',
                     }}
                     lineNumberStyle={{
-                      minWidth: '3em',
+                      minWidth: '2.5em',
                       paddingRight: '1em',
-                      color: '#858585',
+                      color: 'var(--text-muted-mid)',
+                      opacity: 0.5,
                       userSelect: 'none',
                     }}
                     {...props}
@@ -291,7 +336,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             // Inline code (neutral)
             return (
               <code
-                className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded text-sm font-mono border border-gray-200"
+                className="bg-[var(--gray-100)] text-heading px-1.5 py-0.5 text-sm font-mono border border-bd mx-1"
                 {...props}
               >
                 {children}
@@ -301,35 +346,37 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
 
           // Tables (neutral styles)
           table: ({ children }) => (
-            <table className="min-w-full text-sm border border-gray-200 my-4">
-              {children}
-            </table>
+            <div className="table-breakout overflow-x-auto my-6">
+              <table className="min-w-full text-sm font-mono border border-bd-strong">
+                {children}
+              </table>
+            </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-gray-50">
+            <thead className="bg-[var(--code-block-bg)] text-white">
               {children}
             </thead>
           ),
           tbody: ({ children }) => (
-            <tbody>
+            <tbody className="bg-th-card">
               {children}
             </tbody>
           ),
           tr: ({ children }) => (
-            <tr>{children}</tr>
+            <tr className="border-b border-bd">{children}</tr>
           ),
           th: ({ children }) => (
-            <th className="px-3 py-2 text-left font-semibold text-gray-800 border-b border-gray-200">
+            <th className="px-4 py-3 text-left font-semibold border-r border-bd-input last:border-r-0">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-3 py-2 align-top text-gray-800 border-b border-gray-200">{children}</td>
+            <td className="px-4 py-3 align-top border-r border-bd last:border-r-0 text-heading">{children}</td>
           ),
 
           // Horizontal rule
           hr: () => (
-            <hr className="my-6 border-t border-gray-200" />
+            <hr className="my-8 border-t-2 border-dashed border-bd" />
           ),
 
           // Images
@@ -337,21 +384,22 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
             <img
               src={src}
               alt={alt || ''}
-              className="max-w-full h-auto my-4 border border-gray-200 rounded"
+              className="max-w-full h-auto my-6 border-2 border-bd"
             />
           ),
 
           // Strong/Bold
           strong: ({ children }) => (
-            <strong className="font-bold text-gray-900">{children}</strong>
+            <strong className="font-bold text-heading">{children}</strong>
           ),
 
           // Emphasis/Italic
           em: ({ children }) => (
-            <em className="italic text-gray-800">{children}</em>
+            <em className="italic text-heading">{children}</em>
           ),
 
           // Handle unknown HTML tags (like <subject>) - render as span
+          // @ts-expect-error Custom element not in basic typings
           subject: ({ children }: any) => (
             <span className="inline">{children}</span>
           ),
@@ -359,6 +407,44 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error }
       >
         {processedContent}
       </ReactMarkdown>
+      
+      <style>{`
+        .lesson-content {
+          counter-reset: h2-counter;
+        }
+
+        ${isFocusMode ? `
+        .lesson-content > *:not(.table-breakout) {
+          max-width: 800px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .lesson-content .table-breakout {
+          width: 100%;
+          max-width: 100%;
+        }
+        ` : `
+        .lesson-content .table-breakout {
+          width: 100%;
+        }
+        `}
+
+        .lesson-h2 {
+          counter-increment: h2-counter;
+          counter-reset: h3-counter;
+        }
+        .lesson-h2::before {
+          content: counter(h2-counter) ". ";
+          color: var(--accent-primary);
+        }
+        .lesson-h3 {
+          counter-increment: h3-counter;
+        }
+        .lesson-h3::before {
+          content: counter(h2-counter) "." counter(h3-counter) " ";
+          color: var(--accent-primary);
+        }
+      `}</style>
     </div>
   )
 }

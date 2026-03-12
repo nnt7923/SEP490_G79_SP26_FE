@@ -1,0 +1,104 @@
+{
+  "appName": "CodeNexus",
+  "nav": {
+    "home": "Trang Chủ",
+    "plans": "Kế Hoạch",
+    "about": "Thông Tin"
+  },
+  "auth": {
+    "login": "login",
+    "register": "register",
+    "logout": "Đăng xuất"
+  },
+  "userMenu": {
+    "dashboard": "Bảng điều khiển",
+    "profile": "Hồ sơ",
+    "myPlans": "Kế hoạch của tôi",
+    "changePassword": "Đổi mật khẩu",
+    "logout": "Đăng xuất"
+  },
+  "theme": {
+    "switchToDark": "Chuyển sang chế độ tối",
+    "switchToLight": "Chuyển sang chế độ sáng"
+  },
+  "language": {
+    "vi": "VI",
+    "en": "EN"
+  },
+  "actions": {
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "create": "Tạo mới",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "previous": "Trước đó",
+    "submit": "Gửi",
+    "confirm": "Xác nhận",
+    "close": "Đóng",
+    "view": "Xem",
+    "download": "Tải xuống",
+    "upload": "Tải lên",
+    "update": "Cập nhật",
+    "viewAll": "xem tất cả →",
+    "viewDetails": "xem chi tiết"
+  },
+  "status": {
+    "loading": "đang tải...",
+    "error": "Đã xảy ra lỗi",
+    "success": "Thành công",
+    "noData": "Không có dữ liệu",
+    "notFound": "Không tìm thấy",
+    "active": "đang hoạt động",
+    "completed": "hoàn thành",
+    "inProgress": "đang thực hiện",
+    "done": "xong",
+    "notUpdated": "Chưa cập nhật"
+  },
+  "pagination": {
+    "page": "trang",
+    "of": "/",
+    "prev": "< trước",
+    "next": "tiếp >",
+    "rowsPerPage": "Số hàng mỗi trang",
+    "total": "Tổng"
+  },
+  "table": {
+    "actions": "Hành động",
+    "noResults": "Không có kết quả"
+  },
+  "sidebar": {
+    "overview": "Tổng quan",
+    "myPlans": "Kế hoạch của tôi",
+    "goals": "Mục tiêu",
+    "progress": "Tiến độ",
+    "resources": "Tài nguyên",
+    "profile": "Hồ sơ",
+    "subjects": "Môn học",
+    "classes": "Lớp học",
+    "students": "Sinh viên",
+    "messages": "Tin nhắn",
+    "users": "Người dùng",
+    "reports": "Báo cáo",
+    "apiKey": "API Key",
+    "auditLogs": "Nhật ký hệ thống",
+    "logout": "Đăng xuất"
+  },
+  "footer": {
+    "tagline1": "Lộ trình học tập cá nhân hóa",
+    "tagline2": "được hỗ trợ bởi AI",
+    "product": "Sản phẩm",
+    "company": "Công ty",
+    "plans": "kế hoạch",
+    "overview": "tổng quan",
+    "resources": "tài nguyên",
+    "about": "giới thiệu",
+    "home": "trang chủ",
+    "copyright": "© {{year}} CodeNexus - Bản quyền thuộc về.",
+    "terms": "điều khoản",
+    "privacy": "bảo mật"
+  }
+}

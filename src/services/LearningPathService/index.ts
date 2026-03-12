@@ -1,5 +1,6 @@
 import api from '../Axios'
 import { skeletonUrl, lessonContentUrl, userLearningPathsUrl } from './url'
+import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent } from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -14,6 +15,7 @@ export type Lesson = {
   content?: string | null
   quizzes?: Quiz[]
   chapters?: Chapter[]
+  quizSkeleton?: any
 }
 
 export type Task = {
@@ -125,7 +127,14 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
   } as SkeletonResponse
 }
 
-export async function generateSkeleton(payload: any): Promise<SkeletonResponse> {
+export async function generateSkeleton(
+  payload: any,
+  options?: {
+    useSignalR?: boolean
+    onLoading?: () => void
+    onProgress?: (progress: number) => void
+  }
+): Promise<SkeletonResponse> {
   const subjectId: string | undefined =
     payload?.subjectId ??
     payload?.SubjectId ??
@@ -141,21 +150,73 @@ export async function generateSkeleton(payload: any): Promise<SkeletonResponse> 
   const complexityLevel: string | undefined =
     payload?.complexityLevel ?? payload?.ComplexityLevel ?? payload?.level ?? payload?.Level
 
+  const languageSelection: number | undefined =
+    payload?.languageSelection ?? payload?.LanguageSelection
+
   const reqBody: any = {
     subjectId,
     goalId,
     complexityLevel,
+    languageSelection,
   }
 
+  // Use SignalR if requested
+  if (options?.useSignalR) {
+    if (!subjectId || !goalId || !complexityLevel || languageSelection === undefined) {
+      throw new Error('Missing required parameters for SignalR learning path generation')
+    }
+
+    const raw = await requestLearningPathGeneration(
+      {
+        subjectId,
+        goalId,
+        complexityLevel,
+        languageSelection,
+      },
+      options.onLoading,
+      options.onProgress
+    )
+    const normalized = normalizeSkeleton(raw)
+    return normalized
+  }
+
+  // Fallback to REST API
   const res: any = await api.post(skeletonUrl, reqBody)
   const raw = unwrap<SkeletonResponse>(res)
   return normalizeSkeleton(raw)
 }
 
-export async function generateLessonContent(lessonId: string, payload?: any): Promise<Lesson> {
+export async function generateLessonContent(
+  lessonId: string,
+  payload?: any,
+  onQuizSkeleton?: (quizSkeleton: any) => void
+): Promise<Lesson> {
+  // Use SignalR by default for lesson content generation (includes quiz skeleton)
+  if (!payload || payload.useSignalR !== false) {
+    return await requestLessonContent(lessonId, payload?.onLoading, onQuizSkeleton)
+  }
+
+  // Fallback to REST API
   const body = payload && typeof payload === 'object' ? payload : {}
   const res: any = await api.post(lessonContentUrl(lessonId), body)
   return unwrap<Lesson>(res)
+}
+
+export async function generateChapterSkeleton(
+  pathId: string,
+  orderIndex: number,
+  options?: {
+    useSignalR?: boolean
+    onLoading?: () => void
+  }
+): Promise<any> {
+  // Use SignalR if requested
+  if (options?.useSignalR) {
+    return await requestChapterSkeleton(pathId, orderIndex, options.onLoading)
+  }
+
+  // Fallback to REST API (if available)
+  throw new Error('REST API for chapter skeleton generation not implemented. Use SignalR instead.')
 }
 
 export interface UserLearningPathsParams {
@@ -199,4 +260,4 @@ export async function getUserLearningPaths(
   }
 }
 
-export default { generateSkeleton, generateLessonContent, getUserLearningPaths }
+export default { generateSkeleton, generateLessonContent, generateChapterSkeleton, getUserLearningPaths }

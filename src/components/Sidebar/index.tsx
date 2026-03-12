@@ -1,12 +1,10 @@
-
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
 
 export interface SidebarNavItem {
   label: string
   path: string
-  icon: React.ReactNode
+  icon?: React.ReactNode
   badge?: number
 }
 
@@ -35,15 +33,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   actions = [],
   brand,
   menuLabel = 'Main Menu',
-  collapsible = true,
   className = '',
 }) => {
   const location = useLocation()
-  const [isOpen, setIsOpen] = useState(true)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   const isActive = (path: string) => location.pathname === path
-  const toggleSidebar = () => setIsOpen(!isOpen)
   const closeMobileSidebar = () => setIsMobileOpen(false)
 
   return (
@@ -51,21 +46,23 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile Toggle */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed md:hidden top-4 left-4 z-40 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200"
+        style={{
+          position: 'fixed', bottom: 20, right: 20, zIndex: 40, padding: '10px 14px',
+          background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2,
+          cursor: 'pointer', fontFamily: 'monospace', fontSize: 13,
+          boxShadow: '0 4px 6px var(--shadow-base)'
+        }}
+        className="md:hidden"
         aria-label="Toggle sidebar"
-        aria-expanded={isMobileOpen}
       >
-        {isMobileOpen ? (
-          <X className="w-6 h-6 text-gray-900 dark:text-gray-100" />
-        ) : (
-          <Menu className="w-6 h-6 text-gray-900 dark:text-gray-100" />
-        )}
+        {isMobileOpen ? 'Close Menu' : 'Open Menu'}
       </button>
 
       {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 md:hidden z-30"
+          className="md:hidden"
+          style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', zIndex: 30 }}
           onClick={closeMobileSidebar}
           aria-hidden="true"
         />
@@ -73,111 +70,96 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar */}
       <aside
-        className={`
-          fixed md:relative
-          top-0 left-0 h-screen
-          bg-white dark:bg-slate-900
-          border-r border-gray-200 dark:border-slate-700
-          transition-all duration-300 ease-out
-          z-30
-          ${isOpen && !isMobileOpen ? 'w-64' : 'w-0 md:w-20'}
-          ${isMobileOpen ? 'w-64' : ''}
-          overflow-hidden
-          ${className}
-        `}
+        className={`fixed md:relative top-0 left-0 h-screen z-30 transition-all duration-300 ease-out overflow-hidden flex flex-col ${className}`}
+        style={{
+          width: isMobileOpen ? 256 : 'inherit',
+          background: 'var(--bg-surface)',
+          borderRight: '1px solid var(--border-base)',
+          minWidth: 256
+        }}
       >
         {/* Brand Section */}
         {brand && (
-          <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-            <div className="flex items-center justify-between gap-3">
-              <div className={`flex items-center gap-3 transition-opacity duration-300 ${(isOpen || isMobileOpen) ? 'opacity-100' : 'md:opacity-0 md:hidden'}`}>
-                {brand.icon && <div className="flex-shrink-0">{brand.icon}</div>}
-                {(brand.name || brand.subtitle) && (
-                  <div>
-                    {brand.name && <p className="font-semibold text-gray-900 dark:text-white text-sm">{brand.name}</p>}
-                    {brand.subtitle && <p className="text-xs text-gray-500 dark:text-gray-400">{brand.subtitle}</p>}
-                  </div>
-                )}
-              </div>
-
-              {collapsible && (
-                <button
-                  onClick={toggleSidebar}
-                  className="hidden md:flex p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors duration-200"
-                  aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-                >
-                  <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                </button>
+          <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border-base)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {(brand.name || brand.subtitle) && (
+                <div>
+                  {brand.name && <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{brand.name}</p>}
+                  {brand.subtitle && <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>{brand.subtitle}</p>}
+                </div>
               )}
             </div>
           </div>
         )}
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2 flex-1">
+        <nav style={{ padding: '20px 16px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {menuLabel && (
-            <p className={`text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 transition-opacity duration-300 ${(isOpen || isMobileOpen) ? 'opacity-100' : 'md:opacity-0 md:hidden'}`}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
               {menuLabel}
             </p>
           )}
 
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={closeMobileSidebar}
-              className={`
-                flex items-center gap-3 px-4 py-3 rounded-lg
-                transition-all duration-200
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                dark:focus:ring-offset-slate-900
-                min-h-12
-                ${isActive(item.path)
-                  ? 'bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-semibold shadow-sm'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                }
-              `}
-              aria-label={item.label}
-              aria-current={isActive(item.path) ? 'page' : undefined}
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
-              <span className={`flex-1 transition-opacity duration-300 ${(isOpen || isMobileOpen) ? 'opacity-100' : 'md:opacity-0 md:hidden'}`}>
-                {item.label}
-              </span>
-              {item.badge && (isOpen || isMobileOpen) && (
-                <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 rounded-full flex-shrink-0">
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const active = isActive(item.path)
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={closeMobileSidebar}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
+                  borderRadius: 2, textDecoration: 'none', transition: 'all 0.2s',
+                  background: active ? 'var(--bg-blue-hover)' : 'transparent',
+                  border: `1px solid ${active ? 'var(--accent-primary)' : 'transparent'}`,
+                  color: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  fontWeight: active ? 600 : 400
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) { e.currentTarget.style.background = 'var(--bg-main)'; e.currentTarget.style.color = 'var(--text-primary)' }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)' }
+                }}
+              >
+                <span style={{ fontSize: 12, opacity: active ? 1 : 0.7 }}>{item.icon}</span>
+                <span style={{ fontSize: 13, flex: 1 }}>{item.label}</span>
+                {item.badge && (
+                  <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--danger-primary)', color: 'var(--bg-surface-short)', borderRadius: 2, fontWeight: 700 }}>
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* Actions Section */}
         {actions.length > 0 && (
-          <div className="px-4 py-4 border-t border-gray-200 dark:border-slate-700">
-            <div className="space-y-2">
+          <div style={{ padding: 16, borderTop: '1px solid var(--border-base)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {actions.map((action, idx) => (
                 <button
                   key={idx}
-                  onClick={ () => action.onClick?.()}
-                  className={`
-                    w-full flex items-center gap-3 px-4 py-3 rounded-lg
-                    transition-all duration-200
-                    focus:outline-none focus:ring-2 focus:ring-offset-2
-                    dark:focus:ring-offset-slate-900
-                    min-h-12
-                    ${action.variant === 'danger'
-                      ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:ring-red-500 font-medium'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 focus:ring-blue-500'
-                    }
-                  `}
-                  aria-label={action.label}
+                  onClick={() => action.onClick?.()}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
+                    width: '100%', border: '1px solid transparent', borderRadius: 2,
+                    background: 'transparent', cursor: 'pointer', transition: 'all 0.2s',
+                    color: action.variant === 'danger' ? 'var(--danger-primary)' : 'var(--text-secondary)',
+                    fontWeight: 600, textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = action.variant === 'danger' ? 'var(--bg-red-tint)' : 'var(--bg-main)'
+                    e.currentTarget.style.borderColor = action.variant === 'danger' ? 'var(--danger-primary)' : 'var(--border-base)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.borderColor = 'transparent'
+                  }}
                 >
-                  <span className="flex-shrink-0">{action.icon}</span>
-                  <span className={`transition-opacity duration-300 ${(isOpen || isMobileOpen) ? 'opacity-100' : 'md:opacity-0 md:hidden'}`}>
-                    {action.label}
-                  </span>
+                  <span style={{ fontSize: 13 }}>{action.icon}</span>
+                  <span style={{ fontSize: 13 }}>{action.label}</span>
                 </button>
               ))}
             </div>

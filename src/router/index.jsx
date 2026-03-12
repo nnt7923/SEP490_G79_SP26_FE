@@ -1,8 +1,9 @@
 
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ROUTER from './ROUTER'
 import ROUTER_META from './ROUTER_META'
 import React, { Suspense } from 'react'
+import PageSkeleton from '../components/PageSkeleton'
 
 // Layouts
 const LayoutCommon = React.lazy(() => import('../components/Layout'))
@@ -29,6 +30,8 @@ const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
+const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
+const AdminAuditLogs = React.lazy(() => import('../pages/private/Admin/AuditLogs'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
@@ -36,13 +39,14 @@ const MentorClasses = React.lazy(() => import('../pages/private/Mentor/Classes')
 const MentorStudents = React.lazy(() => import('../pages/private/Mentor/Students'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
+const TaskPage = React.lazy(() => import('../pages/private/Task'))
 const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
 
-const Fallback = () => <div />
+const Fallback = () => <PageSkeleton />
 
 const router = createBrowserRouter([
   {
-    element: <Suspense fallback={<div />}> <LayoutCommon /> </Suspense>,
+    element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
     handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
     children: [
       { index: true, path: ROUTER.HOME, element: <Home /> },
@@ -51,7 +55,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: <Suspense fallback={<div />}> <LayoutCommon /> </Suspense>,
+    element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
     children: [
       { path: ROUTER.LOGIN, element: <Login /> },
       { path: ROUTER.REGISTER, element: <Register /> },
@@ -62,16 +66,17 @@ const router = createBrowserRouter([
   },
   // General protected routes (any logged-in user)
   {
-    element: <Suspense fallback={<div />}> <ProtectedRoute /> </Suspense>,
+    element: <Suspense fallback={<PageSkeleton />}> <ProtectedRoute /> </Suspense>,
     children: [
       // Student-only routes
       {
-        element: <Suspense fallback={<div />}> <RequireRole role="Student" /> </Suspense>,
+        element: <Suspense fallback={<PageSkeleton />}> <RequireRole role="Student" /> </Suspense>,
         children: [
           { path: ROUTER.STUDENT_DASHBOARD, element: <StudentDashboard /> },
-          { path: ROUTER.STUDENT_OVERVIEW, element: <StudentOverview /> },
+          { path: ROUTER.STUDENT_OVERVIEW, element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
+          { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
-          { path: '/my-plans/:pathId', element: <MyPlansDetail /> },
+          { path: '/my-plans/detail', element: <MyPlansDetail /> },
           { path: ROUTER.GOALS, element: <Goals /> },
           { path: '/goals/:goalId', element: <GoalsDetail /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
@@ -79,11 +84,12 @@ const router = createBrowserRouter([
           { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },
           { path: '/lesson/:lessonId', element: <LessonDetail /> },
           { path: '/quiz/:quizId', element: <Quiz /> },
+          { path: '/task/:taskId', element: <TaskPage /> },
         ],
       },
       // Shared routes (Student & Mentor)
       {
-        element: <Suspense fallback={<div />}> <ForbidRole forbid="Admin" /> </Suspense>,
+        element: <Suspense fallback={<PageSkeleton />}> <ForbidRole forbid="Admin" /> </Suspense>,
         children: [
           { path: ROUTER.PROFILE, element: <Profile /> },
           { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
@@ -93,17 +99,19 @@ const router = createBrowserRouter([
   },
   // Admin-only routes
   {
-    element: <Suspense fallback={<div />}> <ProtectedRoute role="Admin" /> </Suspense>,
+    element: <Suspense fallback={<PageSkeleton />}> <ProtectedRoute role="Admin" /> </Suspense>,
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
+      { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },
+      { path: ROUTER.ADMIN_AUDIT_LOGS, element: <AdminAuditLogs /> },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },
   // Mentor-only routes
   {
-    element: <Suspense fallback={<div />}> <ProtectedRoute role="Mentor" /> </Suspense>,
+    element: <Suspense fallback={<PageSkeleton />}> <ProtectedRoute role="Mentor" /> </Suspense>,
     children: [
       { path: ROUTER.MENTOR_DASHBOARD, element: <MentorDashboard /> },
       { path: '/mentor/subjects', element: <MentorSubjects /> },

@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import * as AuthService from '../../../services/AuthService'
 import ROUTER from '../../../router/ROUTER'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
-import { useResponsive } from '../../../hook/useResponsive'
+import { useTranslation } from 'react-i18next'
 
 const ResetPassword: React.FC = () => {
   const navigate = useNavigate()
@@ -34,6 +34,8 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const { t } = useTranslation('auth')
 
   useEffect(() => {
     const state: any = location.state
@@ -51,96 +53,140 @@ const ResetPassword: React.FC = () => {
 
     const token = tokenFromQuery
     if (!token) {
-      setError('Reset token is missing or invalid')
+      setError(t('resetPassword.tokenMissing'))
       return
     }
 
     const pwd = password.trim()
     const cf = confirm.trim()
     if (!pwd || !cf) {
-      setError('Please enter new password and confirmation')
+      setError(t('resetPassword.enterBothFields'))
       return
     }
     if (pwd.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError(t('resetPassword.passwordMin'))
       return
     }
     if (pwd !== cf) {
-      setError('Password and confirmation do not match')
+      setError(t('resetPassword.passwordMismatch'))
       return
     }
 
     try {
       setSubmitting(true)
       await AuthService.resetPassword({ Token: token, Password: pwd, Email: email || undefined })
-      navigate(ROUTER.LOGIN, { state: { toast: 'Password has been reset. Please log in.' } })
+      navigate(ROUTER.LOGIN, { state: { toast: t('resetPassword.success') } })
     } catch (err: any) {
-      setError(extractErrorMessage(err, 'Failed to reset password.'))
+      setError(extractErrorMessage(err, t('resetPassword.failed')))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const { isSmallScreen } = useResponsive()
-  const containerClass = `auth auth--split ${isSmallScreen ? 'auth--stack auth--fluid' : ''}`
-
   return (
-    <div className="page">
-      <section className={containerClass}>
-        <div className="auth__card">
+    <div className="page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <section style={{ width: '100%', maxWidth: 480, margin: '0 auto' }}>
+        <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 32, background: 'var(--bg-surface)' }}>
           {toast && (
-            <div style={{
-              background: '#10b981', color: '#fff', padding: '8px 12px', borderRadius: 6,
-              marginBottom: 12, fontSize: 14
-            }} role="status">{toast}</div>
-          )}
-          <h2 className="auth__title">Reset Password</h2>
-          <p className="auth__subtitle">Enter your new password</p>
-          {!tokenFromQuery && (
-            <div style={{ color: '#6b7280', fontSize: 13, marginBottom: 8 }}>
-              We have sent a reset link to your email. Please open the link from your email to continue.
+            <div style={{ background: 'var(--bg-green-tint)', border: '1px solid var(--success-primary)', color: 'var(--success-primary)', padding: '8px 12px', borderRadius: 2, marginBottom: 16, fontSize: 13, fontFamily: 'inherit' }} role="status">
+              // SUCCESS: {toast}
             </div>
           )}
-          <form className="form" onSubmit={onSubmit}>
-            <label className="form__label" htmlFor="email">Email (optional)</label>
-            <input
-              id="email"
-              type="email"
-              className="form__input"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+          <div style={{ marginBottom: 24 }}>
+             <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'inherit' }}>{t('resetPassword.title')}</h2>
+             <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0, fontFamily: 'inherit' }}>{t('resetPassword.subtitle')}</p>
+          </div>
+          {!tokenFromQuery && (
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16, fontFamily: 'inherit' }}>
+              // {t('resetPassword.emailSent')}
+            </div>
+          )}
+          <form onSubmit={onSubmit}>
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="email" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'inherit' }}>{t('resetPassword.emailOptional')}</label>
+              <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-base)', borderRadius: 2, width: '100%', boxSizing: 'border-box', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s ease' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="password" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'inherit' }}>{t('resetPassword.newPassword')}</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={t('resetPassword.newPassword')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ padding: '8px 36px 8px 12px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-base)', borderRadius: 2, width: '100%', boxSizing: 'border-box', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s ease' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'inherit', lineHeight: 1 }}
+                  tabIndex={-1}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                >
+                  {showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                </button>
+              </div>
+            </div>
 
-            <label className="form__label" htmlFor="password">New Password</label>
-            <input
-              id="password"
-              type="password"
-              className="form__input"
-              placeholder="Enter new password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="confirm" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'inherit' }}>{t('resetPassword.confirmPassword')}</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="confirm"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={t('resetPassword.confirmPassword')}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  style={{ padding: '8px 36px 8px 12px', fontSize: 13, fontFamily: 'inherit', border: '1px solid var(--border-base)', borderRadius: 2, width: '100%', boxSizing: 'border-box', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s ease' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'inherit', lineHeight: 1 }}
+                  tabIndex={-1}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                >
+                  {showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                </button>
+              </div>
+            </div>
 
-            <label className="form__label" htmlFor="confirm">Confirm Password</label>
-            <input
-              id="confirm"
-              type="password"
-              className="form__input"
-              placeholder="Confirm new password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
+            {error && (
+              <div style={{ background: 'var(--bg-red-light)', border: '1px solid var(--danger-primary)', borderRadius: 2, padding: '8px 12px', margin: '12px 0', color: 'var(--danger-primary)', fontSize: 13, fontFamily: 'inherit' }} role="alert">
+                // ERROR: {error}
+              </div>
+            )}
 
-            {error && <div className="form__error" role="alert">{error}</div>}
-
-            <button type="submit" className="btn btn-primary auth__submit" disabled={submitting}>
-              {submitting ? 'Resetting...' : 'Reset Password'}
+            <button
+               type="submit"
+               disabled={submitting}
+               style={{ width: '100%', padding: '10px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background-color 0.2s ease', marginTop: 8 }}
+               onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = 'var(--text-strong)' }}
+               onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.background = 'var(--text-primary)' }}
+            >
+              {submitting ? t('resetPassword.submitting') : t('resetPassword.submit')}
             </button>
 
-            <div className="auth__links" style={{ justifyContent: 'space-between' }}>
-              <span>Back</span>
-              <Link to={ROUTER.LOGIN}>Login</Link>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'inherit' }}>
+              <span>{t('resetPassword.back')}</span>
+              <Link to={ROUTER.LOGIN} style={{ color: 'var(--accent-primary)', textDecoration: 'none' }} onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }} onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}>
+                {t('resetPassword.backToLogin')}
+              </Link>
             </div>
           </form>
         </div>

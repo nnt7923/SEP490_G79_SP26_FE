@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { requestChapterTasks } from '../../../../../services/SignalR'
+import { useTranslation } from 'react-i18next'
 
 interface ChapterTasksProps {
   chapterId: string
@@ -15,12 +16,14 @@ interface Task {
 }
 
 const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksCompleted }) => {
+  const { t } = useTranslation('student')
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
-  const loadingRef = React.useRef(false) // Prevent double loading
+  const loadingRef = React.useRef(false)
+  const prevAllCompletedRef = React.useRef(false)
 
   const toggleTaskCompletion = (taskId: string | undefined, taskIdx: number) => {
     setTasks(prevTasks => {
@@ -30,213 +33,235 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
           : task
       )
       
-      // Check if all tasks are completed (must be explicitly true)
       const allCompleted = newTasks.length > 0 && newTasks.every(t => t.completed === true)
       const wasAllCompleted = prevTasks.length > 0 && prevTasks.every(t => t.completed === true)
       
-      // Show celebration only when transitioning from incomplete to all complete
       if (allCompleted && !wasAllCompleted) {
         setShowCelebration(true)
         setTimeout(() => setShowCelebration(false), 3000)
-      }
-      
-      // Notify parent about completion status change
-      if (allCompleted !== wasAllCompleted) {
-        onAllTasksCompleted?.(chapterId, allCompleted)
       }
       
       return newTasks
     })
   }
 
-  const loadTasks = async () => {
-    if (loaded || loadingRef.current) {
-      return
+  // Handle onAllTasksCompleted callback in useEffect to avoid setState during render
+  React.useEffect(() => {
+    const allCompleted = tasks.length > 0 && tasks.every(t => t.completed === true)
+    if (allCompleted !== prevAllCompletedRef.current) {
+      prevAllCompletedRef.current = allCompleted
+      onAllTasksCompleted?.(chapterId, allCompleted)
     }
+  }, [tasks, chapterId, onAllTasksCompleted])
+
+  const loadTasks = async (retryCount = 0) => {
+    if (loaded || loadingRef.current) return
 
     loadingRef.current = true
     setLoading(true)
     setError(null)
 
     try {
-      const result = await requestChapterTasks(chapterId, () => {
-        setLoading(true)
-      })
-      
-      // Handle different response formats
+      const result = await requestChapterTasks(chapterId, () => setLoading(true))
       let taskArray: Task[] = []
+      
       if (Array.isArray(result)) {
         taskArray = result
       } else if (result && typeof result === 'object') {
-        // Check if result has a tasks property
-        if (Array.isArray(result.tasks)) {
-          taskArray = result.tasks
-        } else if (Array.isArray(result.data)) {
-          taskArray = result.data
-        } else if (Array.isArray(result.items)) {
-          taskArray = result.items
-        } else {
-          // Single task object
-          taskArray = [result]
-        }
+        if (Array.isArray(result.tasks)) taskArray = result.tasks
+        else if (Array.isArray(result.data)) taskArray = result.data
+        else if (Array.isArray(result.items)) taskArray = result.items
+        else taskArray = [result]
       }
       
-      // Ensure all tasks have completed property set to false by default
       taskArray = taskArray.map(task => ({
         ...task,
-        completed: false // Always start as incomplete, ignore backend value
+        completed: false
       }))
       
       setTasks(taskArray)
       setLoaded(true)
     } catch (e: any) {
-      const msg = e?.message || 'Unable to load tasks.'
-      setError(msg)
-      loadingRef.current = false // Reset on error
+      loadingRef.current = false
+      if (retryCount < 1) {
+        await new Promise(r => setTimeout(r, 1000))
+        return loadTasks(retryCount + 1)
+      }
+      setError(e?.message || t('task.notFound'))
     } finally {
       setLoading(false)
     }
   }
 
+  React.useEffect(() => {
+    loadTasks()
+  }, [chapterId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const completedCount = tasks.filter(t => t.completed).length
+  const totalCount = tasks.length
+  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+
   return (
-    <div className="px-6 py-4 bg-orange-50 relative">
+    <div style={{
+      padding: '24px',
+      background: 'var(--bg-main)',
+      fontFamily: 'monospace',
+      position: 'relative',
+      borderTop: '1px dashed var(--border-base)'
+    }}>
       {/* Celebration Message */}
       {showCelebration && (
-        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">
-          <div className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <span className="font-semibold">All tasks completed! 🎉</span>
+        <div style={{
+          position: 'absolute',
+          top: -20, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 10, animation: 'bounce 1s infinite'
+        }}>
+          <div style={{
+            background: 'var(--success-primary)', color: 'var(--bg-main)',
+            padding: '8px 16px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 8,
+            fontWeight: 700, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }}>
+            <span>[{t('task.success')}]</span>
+            <span>{t('task.allCompleted')}</span>
           </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-          </svg>
-          <h4 className="font-semibold text-gray-900">Chapter Tasks</h4>
-          
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+          {'>'} {t('task.title')}
+        </h4>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {!loaded && !loading && (
+            <button
+              onClick={() => loadTasks()}
+              style={{
+                background: 'var(--bg-surface)', border: '1px solid var(--border-base)', color: 'var(--text-primary)',
+                padding: '4px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 2
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-100)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}
+            >
+              [ {t('task.execute')} ]
+            </button>
+          )}
+          {loaded && (
+            <button
+              onClick={() => {
+                setLoaded(false); loadingRef.current = false; setTasks([]); setError(null);
+              }}
+              style={{
+                background: 'transparent', border: '1px dashed var(--border-base)', color: 'var(--text-disabled)',
+                padding: '4px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 2
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-disabled)'}
+            >
+              [ {t('task.reload')} ]
+            </button>
+          )}
         </div>
-        {!loaded && !loading && (
-          <button
-            type="button"
-            onClick={loadTasks}
-            className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-white border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
-          >
-            Load Tasks
-          </button>
-        )}
-        {loaded && (
-          <button
-            type="button"
-            onClick={() => {
-              setLoaded(false)
-              loadingRef.current = false
-              setTasks([])
-              setError(null)
-            }}
-            className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Reload
-          </button>
-        )}
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          Loading tasks...
+        <div style={{ fontSize: 13, color: 'var(--accent-primary)', marginBottom: 16 }}>
+          {'>'} {t('task.processing')} _
         </div>
       )}
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          {error}
+        <div style={{
+          padding: '12px 16px', background: 'var(--error-surface)', border: '1px solid var(--error-primary)',
+          color: 'var(--error-primary)', fontSize: 13, marginBottom: 16, borderRadius: 2
+        }}>
+          [{t('task.error')}]: {error}
         </div>
       )}
 
       {loaded && tasks.length > 0 && (
-        <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Progress Bar */}
-          <div className="mb-3 p-3 bg-white rounded-lg border border-amber-200">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Progress</span>
-              <span className="text-sm font-semibold text-amber-600">
-                {tasks.filter(t => t.completed === true).length} / {tasks.length} completed
+          <div style={{
+            background: 'var(--bg-surface)', padding: 16, border: '1px solid var(--border-base)', borderRadius: 2
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
+              <span style={{ color: 'var(--text-secondary)' }}>// {t('task.progress')}</span>
+              <span style={{ color: progressPercent === 100 ? 'var(--success-primary)' : 'var(--accent-primary)', fontWeight: 600 }}>
+                [{completedCount}/{totalCount}]
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-orange-500 transition-all duration-300"
-                style={{ 
-                  width: `${tasks.length > 0 ? (tasks.filter(t => t.completed === true).length / tasks.length) * 100 : 0}%` 
-                }}
-              />
+            <div style={{ width: '100%', height: 4, background: 'var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${progressPercent}%`,
+                background: progressPercent === 100 ? 'var(--success-primary)' : 'var(--accent-primary)',
+                transition: 'width 0.3s ease'
+              }} />
             </div>
           </div>
 
           {/* Task List */}
-          <div className="space-y-2">
-            {tasks.map((task, taskIdx) => (
-              <div 
-                key={task.id || taskIdx} 
-                className={`bg-white rounded-lg border border-amber-200 p-3 hover:shadow-sm transition-all ${
-                  task.completed ? 'opacity-75' : ''
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => toggleTaskCompletion(task.id, taskIdx)}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${
-                        task.completed 
-                          ? 'border-amber-600 bg-amber-600 hover:bg-amber-700' 
-                          : 'border-amber-500 hover:bg-amber-50'
-                      }`}
-                      aria-label={task.completed ? 'Mark as incomplete' : 'Mark as complete'}
-                    >
-                      {task.completed && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {tasks.map((task, taskIdx) => {
+              const difficultyKey = task.difficulty ? task.difficulty.toLowerCase() as 'easy' | 'medium' | 'hard' : undefined;
+              return (
+                <div
+                  key={task.id || taskIdx}
+                  style={{
+                    background: 'var(--bg-surface)', border: `1px solid ${task.completed ? 'var(--success-primary)' : 'var(--border-base)'}`,
+                    padding: 16, borderRadius: 2, display: 'flex', gap: 16, alignItems: 'flex-start',
+                    opacity: task.completed ? 0.7 : 1, transition: 'all 0.2s ease', cursor: 'pointer'
+                  }}
+                  onClick={() => toggleTaskCompletion(task.id, taskIdx)}
+                  onMouseEnter={e => { if(!task.completed) e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                  onMouseLeave={e => { if(!task.completed) e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                >
+                  <div
+                    style={{
+                      width: 20, height: 20, flexShrink: 0, marginTop: 2,
+                      background: task.completed ? 'var(--success-primary)' : 'transparent',
+                      border: `1px solid ${task.completed ? 'var(--success-primary)' : 'var(--border-base)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg-main)', borderRadius: 2
+                    }}
+                  >
+                    {task.completed && '✓'}
                   </div>
-                  <div className="flex-1">
-                    <p className={`font-medium ${task.completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{
+                      margin: 0, fontSize: 14, fontWeight: 600,
+                      color: task.completed ? 'var(--success-primary)' : 'var(--text-primary)',
+                      textDecoration: task.completed ? 'line-through' : 'none'
+                    }}>
                       {task.title || task.description || `Task ${taskIdx + 1}`}
                     </p>
                     {task.description && task.title && (
-                      <p className={`text-sm mt-1 ${task.completed ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
                         {task.description}
                       </p>
                     )}
-                    {task.difficulty && (
-                      <span className={`inline-block mt-2 px-2 py-0.5 text-xs font-medium rounded ${
-                        task.difficulty.toLowerCase() === 'easy' ? 'bg-green-100 text-green-700' :
-                        task.difficulty.toLowerCase() === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {task.difficulty}
+                    {task.difficulty && difficultyKey && (
+                      <span style={{
+                        display: 'inline-block', marginTop: 12, padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                        textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                        color: difficultyKey === 'easy' ? 'var(--success-primary)' :
+                               difficultyKey === 'medium' ? 'var(--warning-primary)' :
+                               'var(--error-primary)'
+                      }}>
+                        {t(`task.${difficultyKey}`)}
                       </span>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </>
+        </div>
       )}
 
       {loaded && tasks.length === 0 && (
-        <p className="text-sm text-gray-600">No tasks available for this chapter.</p>
+        <div style={{ fontSize: 13, color: 'var(--text-disabled)', padding: 16, textAlign: 'center', border: '1px dashed var(--border-base)', borderRadius: 2 }}>
+          {t('task.noTasks')}
+        </div>
       )}
     </div>
   )

@@ -30,17 +30,13 @@ import {
   Container,
   Rocket,
   Settings,
-  Wrench,
-  Hammer,
   Binary,
   CircuitBoard,
   HardDrive,
   MemoryStick,
   Blocks,
   Box,
-  Puzzle,
-  Sparkles,
-  ChevronDown,
+  Sparkles
 } from 'lucide-react'
 
 interface CreateSubjectModalProps {
@@ -62,62 +58,61 @@ interface Subject {
 }
 
 const PRESET_COLORS = [
-  '#3B82F6',
-  '#8B5CF6',
-  '#EC4899',
-  '#F59E0B',
-  '#10B981',
-  '#06B6D4',
-  '#EF4444',
-  '#F97316',
-  '#6366F1',
-  '#A855F7',
-  '#DB2777',
-  '#D97706',
-  '#059669',
-  '#0891B2',
-  '#DC2626',
-  '#EA580C',
-  '#4F46E5',
-  '#9333EA',
-  '#BE185D',
-  '#CA8A04',
-  '#047857',
-  '#0E7490',
-  '#B91C1C',
-  '#C2410C',
+  'var(--blue-500)',
+  'var(--icon-violet-to)',
+  'var(--icon-pink-to)',
+  'var(--color-amber-500)',
+  'var(--color-emerald-500)',
+  'var(--icon-cyan-to)',
+  'var(--color-red-500)',
+  'var(--icon-orange-to)',
+  'var(--icon-indigo-to)',
+  'var(--color-purple-400)',
+  'var(--color-pink-600)',
+  'var(--text-amber-dark)',
+  'var(--text-emerald)',
+  'var(--color-cyan-600)',
+  'var(--red-600)',
+  'var(--color-orange-600)',
+  'var(--accent-indigo)',
+  'var(--color-purple-600)',
+  'var(--color-pink-700)',
+  'var(--warning-primary)',
+  'var(--color-emerald-700)',
+  'var(--color-cyan-700)',
+  'var(--color-red-700)',
+  'var(--color-orange-700)',
 ]
 
 const SUBJECT_ICONS = [
   { name: 'Code', icon: Code2, emoji: '💻', category: 'Languages' },
-  { name: 'JavaScript', icon: FileCode, emoji: '📜', category: 'Languages' },
-  { name: 'TypeScript', icon: FileJson, emoji: '📘', category: 'Languages' },
-  { name: 'Python', icon: Terminal, emoji: '🐍', category: 'Languages' },
-  { name: 'Java', icon: Braces, emoji: '☕', category: 'Languages' },
-  { name: 'C/C++', icon: Binary, emoji: '⚙️', category: 'Languages' },
-  { name: 'C#', icon: Box, emoji: '🔷', category: 'Languages' },
-  { name: 'Go', icon: Zap, emoji: '🔵', category: 'Languages' },
-  { name: 'Rust', icon: Settings, emoji: '🦀', category: 'Languages' },
-  { name: 'PHP', icon: Globe, emoji: '🐘', category: 'Languages' },
-  { name: 'Ruby', icon: Sparkles, emoji: '💎', category: 'Languages' },
-  { name: 'Swift', icon: Rocket, emoji: '🚀', category: 'Languages' },
-  { name: 'HTML/CSS', icon: Layout, emoji: '🎨', category: 'Frontend' },
-  { name: 'React', icon: Component, emoji: '⚛️', category: 'Frontend' },
-  { name: 'Vue', icon: Layers, emoji: '💚', category: 'Frontend' },
-  { name: 'Angular', icon: Boxes, emoji: '🅰️', category: 'Frontend' },
+  { name: 'JavaScript', icon: FileCode, emoji: 'devicon-javascript-plain', category: 'Languages' },
+  { name: 'TypeScript', icon: FileJson, emoji: 'devicon-typescript-plain', category: 'Languages' },
+  { name: 'Python', icon: Terminal, emoji: 'devicon-python-plain', category: 'Languages' },
+  { name: 'Java', icon: Braces, emoji: 'devicon-java-plain', category: 'Languages' },
+  { name: 'C/C++', icon: Binary, emoji: 'devicon-cplusplus-plain', category: 'Languages' },
+  { name: 'C#', icon: Box, emoji: 'devicon-csharp-plain', category: 'Languages' },
+  { name: 'Go', icon: Zap, emoji: 'devicon-go-original-wordmark', category: 'Languages' },
+  { name: 'Rust', icon: Settings, emoji: 'devicon-rust-plain', category: 'Languages' },
+  { name: 'PHP', icon: Globe, emoji: 'devicon-php-plain', category: 'Languages' },
+  { name: 'Ruby', icon: Sparkles, emoji: 'devicon-ruby-plain', category: 'Languages' },
+  { name: 'Swift', icon: Rocket, emoji: 'devicon-swift-plain', category: 'Languages' },
+  { name: 'HTML5', icon: Layout, emoji: 'devicon-html5-plain', category: 'Frontend' },
+  { name: 'CSS3', icon: Layout, emoji: 'devicon-css3-plain', category: 'Frontend' },
+  { name: 'React', icon: Component, emoji: 'devicon-react-original', category: 'Frontend' },
+  { name: 'Vue', icon: Layers, emoji: 'devicon-vuejs-plain', category: 'Frontend' },
+  { name: 'Angular', icon: Boxes, emoji: 'devicon-angularjs-plain', category: 'Frontend' },
   { name: 'UI/UX', icon: Monitor, emoji: '🖥️', category: 'Frontend' },
   { name: 'Responsive Design', icon: Smartphone, emoji: '📱', category: 'Frontend' },
-  { name: 'Node.js', icon: Server, emoji: '🟢', category: 'Backend' },
+  { name: 'Node.js', icon: Server, emoji: 'devicon-nodejs-plain', category: 'Backend' },
   { name: 'Database', icon: Database, emoji: '🗄️', category: 'Backend' },
-  { name: 'SQL', icon: HardDrive, emoji: '📊', category: 'Backend' },
-  { name: 'NoSQL', icon: MemoryStick, emoji: '🍃', category: 'Backend' },
+  { name: 'SQL', icon: HardDrive, emoji: 'devicon-mysql-plain', category: 'Backend' },
+  { name: 'NoSQL', icon: MemoryStick, emoji: 'devicon-mongodb-plain', category: 'Backend' },
   { name: 'API', icon: Network, emoji: '🔌', category: 'Backend' },
-  { name: 'GraphQL', icon: Workflow, emoji: '📡', category: 'Backend' },
-  { name: 'Microservices', icon: Puzzle, emoji: '🧩', category: 'Backend' },
-  { name: 'Git', icon: GitBranch, emoji: '🌿', category: 'DevOps' },
-  { name: 'Docker', icon: Container, emoji: '🐳', category: 'DevOps' },
+  { name: 'GraphQL', icon: Workflow, emoji: 'devicon-graphql-plain', category: 'Backend' },
+  { name: 'Docker', icon: Container, emoji: 'devicon-docker-plain', category: 'DevOps' },
+  { name: 'Git', icon: GitBranch, emoji: 'devicon-git-plain', category: 'DevOps' },
   { name: 'Cloud', icon: Cloud, emoji: '☁️', category: 'DevOps' },
-  { name: 'CI/CD', icon: Workflow, emoji: '🔄', category: 'DevOps' },
   { name: 'Testing', icon: TestTube, emoji: '🧪', category: 'DevOps' },
   { name: 'Debugging', icon: Bug, emoji: '🐛', category: 'DevOps' },
   { name: 'Security', icon: Lock, emoji: '🔒', category: 'Security' },
@@ -125,9 +120,8 @@ const SUBJECT_ICONS = [
   { name: 'System Design', icon: CircuitBoard, emoji: '🏗️', category: 'Architecture' },
   { name: 'Algorithms', icon: Blocks, emoji: '🧮', category: 'Architecture' },
   { name: 'Data Structures', icon: Cpu, emoji: '📦', category: 'Architecture' },
-  { name: 'Package Manager', icon: Package, emoji: '📦', category: 'Tools' },
-  { name: 'Build Tools', icon: Hammer, emoji: '🔨', category: 'Tools' },
-  { name: 'Configuration', icon: Wrench, emoji: '🔧', category: 'Tools' },
+  { name: 'Package Manager', icon: Package, emoji: 'devicon-npm-original-wordmark', category: 'Tools' },
+  { name: 'VS Code', icon: FileCode, emoji: 'devicon-vscode-plain', category: 'Tools' },
 ]
 
 const QUICK_PRESET_ICONS = [
@@ -148,7 +142,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
   editSubject = null,
 }) => {
   const isEditMode = !!editSubject
-  
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -220,7 +214,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
     setLoading(true)
     try {
       const { SubjectService } = await import('../../../../../services')
-      
+
       if (isEditMode && editSubject) {
         await SubjectService.updateSubject(editSubject.subjectId, formData)
       } else {
@@ -271,97 +265,92 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 font-mono">
+      <div className="bg-th-card border-2 border-bd-dark w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-th-input border-b-2 border-bd-dark px-6 py-4 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900">
+            <h2 className="text-xl font-bold text-heading">
               {isEditMode ? 'Edit Subject' : 'Create New Subject'}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {isEditMode ? 'Update subject information' : 'Add a new subject to your teaching portfolio'}
+            <p className="text-xs text-label mt-1">
+              {isEditMode ? 'Update subject parameters' : 'Initialize a new subject instance'}
             </p>
           </div>
           <button
             onClick={handleClose}
             disabled={loading}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-2 border border-transparent hover:border-bd-dark transition-colors disabled:opacity-50"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-heading" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Subject Name <span className="text-red-500">*</span>
+            <label className="block text-sm font-bold text-heading mb-2">
+              Subject Name <span className="text-status-red-muted">*</span>
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., JavaScript & TypeScript"
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                errors.name
-                  ? 'border-red-300 focus:ring-red-500'
-                  : 'border-gray-300 focus:ring-blue-500'
-              }`}
+              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors text-heading ${errors.name
+                  ? 'border-red-500'
+                  : 'border-bd-strong focus:border-blue-600'
+                }`}
               disabled={loading}
             />
-            {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name}</p>}
+            {errors.name && <p className="text-sm text-status-red mt-1">{errors.name}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Description</label>
+            <label className="block text-sm font-bold text-heading mb-2">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Brief description of what this subject covers..."
               rows={4}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all resize-none ${
-                errors.description
-                  ? 'border-red-300 focus:ring-red-500'
-                  : 'border-gray-300 focus:ring-blue-500'
-              }`}
+              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors resize-none text-heading ${errors.description
+                  ? 'border-red-500'
+                  : 'border-bd-strong focus:border-blue-600'
+                }`}
               disabled={loading}
             />
             <div className="flex items-center justify-between mt-1">
-              {errors.description && <p className="text-sm text-red-600">{errors.description}</p>}
-              <p className="text-xs text-gray-500 ml-auto">{formData.description.length}/500</p>
+              {errors.description && <p className="text-sm text-status-red">{errors.description}</p>}
+              <p className="text-xs text-muted ml-auto">{formData.description.length}/500</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Color Theme</label>
+            <label className="block text-sm font-bold text-heading mb-3">Color Theme</label>
 
             <div className="flex items-center gap-4">
               <div className="relative">
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="w-24 h-24 rounded-xl border-2 border-gray-200 cursor-pointer"
-                  disabled={loading}
+                <div
+                  className="w-16 h-16 border-2 border-bd-strong"
+                  style={{ backgroundColor: formData.color }}
                 />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700 mb-1">Selected Color</p>
+                <p className="text-xs font-bold text-body mb-1">Selected Color:</p>
                 <input
                   type="text"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  placeholder="#3B82F6"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  placeholder="var(--blue-500)"
+                  className="w-full px-3 py-2 border-2 border-bd-strong focus:outline-none focus:border-blue-600 text-heading rounded-sm"
                   disabled={loading}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Click the color box or enter a hex code
+                <p className="text-xs text-muted mt-1">
+                  Enter a CSS variable or hex color value
                 </p>
               </div>
             </div>
 
             <div className="mt-4">
-              <p className="text-xs font-medium text-gray-600 mb-2">Quick Presets</p>
+              <p className="text-xs font-bold text-label mb-2">quick_presets:</p>
               <div className="flex flex-wrap gap-2">
                 {PRESET_COLORS.slice(0, 12).map((color) => (
                   <button
@@ -369,7 +358,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                     type="button"
                     onClick={() => setFormData({ ...formData, color })}
                     disabled={loading}
-                    className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-400 transition-colors"
+                    className="w-8 h-8 border-2 border-bd-strong hover:border-bd-dark transition-colors"
                     style={{ backgroundColor: color }}
                     title={color}
                   />
@@ -379,14 +368,14 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Icon</label>
+            <label className="block text-sm font-bold text-heading mb-3">Icon Selection</label>
 
             <div className="relative" ref={iconPickerRef}>
               <button
                 type="button"
                 onClick={() => setShowIconPicker(!showIconPicker)}
                 disabled={loading}
-                className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors bg-white"
+                className="w-full flex items-center justify-between px-4 py-2 border-2 border-bd-strong hover:border-bd-dark transition-colors bg-th-card"
               >
                 <div className="flex items-center gap-3">
                   {(() => {
@@ -394,23 +383,25 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                     const IconComponent = selectedIcon.icon
                     return (
                       <>
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                          <IconComponent className="w-5 h-5 text-gray-700" strokeWidth={2} />
+                        <div className="w-8 h-8 bg-th-input border border-bd flex items-center justify-center">
+                          {selectedIcon.emoji.startsWith('devicon-') ? (
+                            <i className={`${selectedIcon.emoji} text-lg`} style={{ color: formData.color }}></i>
+                          ) : (
+                            <IconComponent className="w-5 h-5" style={{ color: formData.color }} strokeWidth={2} />
+                          )}
                         </div>
-                        <span className="text-sm text-gray-700">{selectedIcon.name}</span>
+                        <span className="text-sm font-bold text-heading">{selectedIcon.name}</span>
                       </>
                     )
                   })()}
                 </div>
-                <ChevronDown
-                  className={`w-5 h-5 text-gray-400 transition-transform ${showIconPicker ? 'rotate-180' : ''}`}
-                />
+                <span className="text-muted font-bold">{showIconPicker ? '[-]' : '[+]'}</span>
               </button>
 
               {showIconPicker && (
-                <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-4 max-h-96 overflow-y-auto">
+                <div className="absolute z-10 mt-2 w-full bg-th-card border-2 border-bd-dark p-4 max-h-96 overflow-y-auto">
                   <div className="mb-4">
-                    <p className="text-xs font-medium text-gray-600 mb-2">Quick Presets</p>
+                    <p className="text-xs font-bold text-label mb-2">quick_presets:</p>
                     <div className="grid grid-cols-8 gap-2">
                       {QUICK_PRESET_ICONS.map((iconItem) => {
                         const IconComponent = iconItem.icon
@@ -421,14 +412,17 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                             key={iconItem.name}
                             type="button"
                             onClick={() => handleIconSelect(iconItem.emoji)}
-                            className={`aspect-square rounded-lg flex items-center justify-center transition-all ${
-                              isSelected
-                                ? 'bg-blue-500 text-white shadow-md'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                            className={`aspect-square border flex items-center justify-center transition-all ${isSelected
+                                ? 'bg-status-blue-solid text-white border-blue-600'
+                                : 'bg-th-card text-body border-bd hover:border-bd-dark'
+                              }`}
                             title={iconItem.name}
                           >
-                            <IconComponent className="w-5 h-5" strokeWidth={2} />
+                            {iconItem.emoji.startsWith('devicon-') ? (
+                              <i className={`${iconItem.emoji} text-lg`} style={{ color: isSelected ? 'white' : formData.color }}></i>
+                            ) : (
+                              <IconComponent className="w-5 h-5" style={{ color: isSelected ? 'white' : formData.color }} strokeWidth={2} />
+                            )}
                           </button>
                         )
                       })}
@@ -436,7 +430,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-gray-600 mb-2">All Icons</p>
+                    <p className="text-xs font-bold text-label mb-2">all_icons:</p>
                     {[
                       'Languages',
                       'Frontend',
@@ -451,7 +445,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
                       return (
                         <div key={category} className="mb-3">
-                          <p className="text-xs text-gray-500 mb-1.5">{category}</p>
+                          <p className="text-xs font-bold text-status-blue mb-1.5">{category}</p>
                           <div className="grid grid-cols-6 gap-2">
                             {categoryIcons.map((iconItem) => {
                               const IconComponent = iconItem.icon
@@ -462,14 +456,17 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                                   key={iconItem.name}
                                   type="button"
                                   onClick={() => handleIconSelect(iconItem.emoji)}
-                                  className={`aspect-square rounded-lg flex items-center justify-center transition-all ${
-                                    isSelected
-                                      ? 'bg-blue-500 text-white shadow-md'
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                  }`}
+                                  className={`aspect-square border flex items-center justify-center transition-all ${isSelected
+                                      ? 'bg-status-blue-solid text-white border-blue-600'
+                                      : 'bg-th-card text-body border-bd hover:border-bd-dark'
+                                    }`}
                                   title={iconItem.name}
                                 >
-                                  <IconComponent className="w-5 h-5" strokeWidth={2} />
+                                  {iconItem.emoji.startsWith('devicon-') ? (
+                                    <i className={`${iconItem.emoji} text-lg`} style={{ color: isSelected ? 'white' : formData.color }}></i>
+                                  ) : (
+                                    <IconComponent className="w-5 h-5" style={{ color: isSelected ? 'white' : formData.color }} strokeWidth={2} />
+                                  )}
                                 </button>
                               )
                             })}
@@ -484,60 +481,59 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Preview</label>
-            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-              <div
-                className="h-24 flex items-center justify-center"
-                style={{
-                  background: `linear-gradient(135deg, ${formData.color} 0%, ${formData.color}dd 100%)`,
-                }}
-              >
-                <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
+            <label className="block text-sm font-bold text-heading mb-3">Preview</label>
+            <div className="border border-bd-strong p-4 bg-th-page rounded-md">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="w-12 h-12 bg-th-card border border-bd flex items-center justify-center flex-shrink-0">
                   {(() => {
                     const selectedIcon = getSelectedIcon()
                     const IconComponent = selectedIcon.icon
-                    return <IconComponent className="w-6 h-6 text-white" strokeWidth={2} />
+                    return selectedIcon.emoji.startsWith('devicon-') ? (
+                      <i className={`${selectedIcon.emoji} text-2xl`} style={{ color: formData.color }}></i>
+                    ) : (
+                      <IconComponent className="w-6 h-6" style={{ color: formData.color }} strokeWidth={2} />
+                    )
                   })()}
                 </div>
-              </div>
-              <div className="p-4 bg-white">
-                <h3 className="font-semibold text-gray-900 mb-1">
-                  {formData.name || 'Subject Name'}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {formData.description || 'No description provided'}
-                </p>
+                <div className="flex-1 min-w-0 w-full">
+                  <h3 className="text-sm font-bold text-heading mb-1 truncate uppercase">
+                    {formData.name || 'SUBJECT NAME'}
+                  </h3>
+                  <p className="text-xs text-label line-clamp-1">
+                    {formData.description || 'No description provided'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
           {errors.submit && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm text-red-600">{errors.submit}</p>
+            <div className="border border-red-500 bg-status-red-bg p-4 rounded-md">
+              <p className="text-sm font-bold text-status-red">{errors.submit}</p>
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t border-bd-strong">
             <button
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 font-medium"
+              className="flex-1 px-6 py-2 border border-bd-strong text-body hover:bg-th-input transition-colors disabled:opacity-50 font-bold uppercase rounded-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white hover:bg-status-blue-solid-hover transition-colors disabled:opacity-50 font-bold flex items-center justify-center gap-2 uppercase rounded-sm"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {isEditMode ? 'Updating...' : 'Creating...'}
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
                 </>
               ) : (
-                isEditMode ? 'Update Subject' : 'Create Subject'
+                isEditMode ? 'Update' : 'Create'
               )}
             </button>
           </div>

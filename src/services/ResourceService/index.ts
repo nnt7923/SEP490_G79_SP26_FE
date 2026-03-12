@@ -1,13 +1,29 @@
 import api from '../Axios'
 import { getMyResourcesUrl, createResourceUrl, updateResourceUrl, deleteResourceUrl, getResourcePagesUrl, generateSummaryUrl } from './url'
 
-export async function getMyResources() {
-  const res: any = await api.get(getMyResourcesUrl)
+export interface GetMyResourcesParams {
+  PageNumber?: number
+  PageSize?: number
+  SubjectId?: string
+  SearchTerm?: string
+  SortBy?: string
+  SortDescending?: boolean
+}
+
+export async function getMyResources(params?: GetMyResourcesParams) {
+  const res: any = await api.get(getMyResourcesUrl, { params })
   return res?.data ?? res
 }
 
-export async function createResource(formData: FormData) {
-  const res: any = await api.post(createResourceUrl, formData)
+export async function createResource(formData: FormData, onUploadProgress?: (progressEvent: any) => void) {
+  const res: any = await api.post(createResourceUrl, formData, {
+    onUploadProgress: onUploadProgress ? (progressEvent: any) => {
+      const percentCompleted = progressEvent.total 
+        ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        : 0
+      onUploadProgress({ loaded: progressEvent.loaded, total: progressEvent.total, percent: percentCompleted })
+    } : undefined,
+  })
   return res?.data ?? res
 }
 

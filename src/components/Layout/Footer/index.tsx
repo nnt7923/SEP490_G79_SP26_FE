@@ -1,54 +1,119 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
-import BrandIcon from '../../../assets/div.png'
+import { useTranslation } from 'react-i18next'
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear()
+  const { t } = useTranslation('common')
 
   return (
-    <footer className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+    <footer
+      style={{
+        background: 'var(--bg-surface)',
+        borderTop: '1px solid var(--border-base)',
+        fontFamily: 'inherit',
+      }}
+    >
+      <div style={{ width: '100%', padding: '0 24px' }}>
         {/* Main Footer Content */}
-        <div className="py-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div style={{ padding: '32px 0' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 32,
+            }}
+          >
             {/* Brand Section */}
-            <div className="md:col-span-1">
-              <Link to="/" className="flex items-center gap-3 mb-3">
-                <img src={BrandIcon} alt="CodeNexus" className="w-8 h-8 rounded-md" />
-                <span className="text-lg font-semibold text-slate-900 dark:text-white">CodeNexus</span>
+            <div>
+              <Link
+                to="/"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  textDecoration: 'none',
+                  color: 'var(--text-primary)',
+                  marginBottom: 8,
+                }}
+              >
+                <span style={{ color: 'var(--accent-primary)', fontWeight: 700, fontSize: 13 }}>{'>'}_</span>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>CodeNexus</span>
               </Link>
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Personalized learning paths powered by AI
+              <p
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}
+              >
+                {/* Personalized learning paths */}
+                {t('footer.tagline1')}
+                <br />
+                {t('footer.tagline2')}
               </p>
             </div>
 
             {/* Product Links */}
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Product</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link 
-                    to={ROUTER.PLANS} 
-                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              <h4
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  margin: '0 0 12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                {t('footer.product')}
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <li style={{ marginBottom: 6 }}>
+                  <Link
+                    to={ROUTER.PLANS}
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--text-secondary)',
+                      textDecoration: 'none',
+                      transition: 'color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    Plans
+                    {t('footer.plans')}
                   </Link>
                 </li>
-                <li>
-                  <Link 
-                    to={ROUTER.STUDENT_OVERVIEW} 
-                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                <li style={{ marginBottom: 6 }}>
+                  <Link
+                    to={ROUTER.STUDENT_OVERVIEW}
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--text-secondary)',
+                      textDecoration: 'none',
+                      transition: 'color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    Overview
+                    {t('footer.overview')}
                   </Link>
                 </li>
-                <li>
-                  <Link 
-                    to={ROUTER.MY_RESOURCES} 
-                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                <li style={{ marginBottom: 6 }}>
+                  <Link
+                    to={ROUTER.MY_RESOURCES}
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--text-secondary)',
+                      textDecoration: 'none',
+                      transition: 'color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    Resources
+                    {t('footer.resources')}
                   </Link>
                 </li>
               </ul>
@@ -56,22 +121,47 @@ const Footer: React.FC = () => {
 
             {/* Company Links */}
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Company</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link 
-                    to={ROUTER.ABOUT} 
-                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              <h4
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  margin: '0 0 12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                {t('footer.company')}
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <li style={{ marginBottom: 6 }}>
+                  <Link
+                    to={ROUTER.ABOUT}
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--text-secondary)',
+                      textDecoration: 'none',
+                      transition: 'color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    About
+                    {t('footer.about')}
                   </Link>
                 </li>
-                <li>
-                  <Link 
-                    to={ROUTER.HOME} 
-                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                <li style={{ marginBottom: 6 }}>
+                  <Link
+                    to={ROUTER.HOME}
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--text-secondary)',
+                      textDecoration: 'none',
+                      transition: 'color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
-                    Home
+                    {t('footer.home')}
                   </Link>
                 </li>
               </ul>
@@ -80,25 +170,47 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-gray-200 dark:border-slate-700 py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              © {currentYear} CodeNexus. All rights reserved.
-            </p>
-            <div className="flex items-center gap-4">
-              <a 
-                href="#terms" 
-                className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              >
-                Terms
-              </a>
-              <a 
-                href="#privacy" 
-                className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              >
-                Privacy
-              </a>
-            </div>
+        <div
+          style={{
+            borderTop: '1px solid var(--border-base)',
+            padding: '12px 0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
+            {t('footer.copyright', { year: currentYear })}
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <a
+              href="#terms"
+              style={{
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+            >
+              {t('footer.terms')}
+            </a>
+            <a
+              href="#privacy"
+              style={{
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+            >
+              {t('footer.privacy')}
+            </a>
           </div>
         </div>
       </div>

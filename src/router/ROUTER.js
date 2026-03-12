@@ -23,12 +23,16 @@ const ROUTER = {
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_USERS: "/admin/users",
+  ADMIN_REPORTS: "/admin/reports",
+  ADMIN_AUDIT_LOGS: "/admin/audit-logs",
   // Mentor nested
   MENTOR_PROFILE: "/mentor/profile",
   // Student resources
   MY_RESOURCES: "/my-resources",
   // Quiz
   QUIZ: "/quiz/:quizId",
+  // Task (Chapter Tasks)
+  TASK: "/task/:chapterId",
 };
 
 export default ROUTER;

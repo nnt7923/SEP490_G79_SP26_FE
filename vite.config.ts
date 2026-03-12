@@ -33,7 +33,7 @@ export default defineConfig({
         manualChunks(id: string) {
           if (id.includes('node_modules')) {
             // Keep a few curated groups for better caching
-            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react'
+            if (id.includes('react') || id.includes('react-dom') || id.includes('use-sync-external-store') || id.includes('remix-run') || id.includes('router')) return 'vendor-react'
             if (id.includes('@microsoft/signalr')) return 'vendor-signalr'
 
             // Fallback: split by top-level package name
