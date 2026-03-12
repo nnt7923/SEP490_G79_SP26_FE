@@ -1,12 +1,11 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
-import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory, FocusSessionService, SessionType } from '../../../services'
+import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory } from '../../../services'
 import type { Subject, SubjectCategoryType } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import ConfirmDialog from '../../../components/ConfirmDialog'
 import Toast from '../../../components/Toast'
-import FocusSessionDialog from '../../../components/FocusSessionDialog'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
 import StepHeader from './components/StepHeader'
@@ -120,10 +119,7 @@ const PlansPage: React.FC = () => {
   // Toast states
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
-  // Focus session dialog states
-  const [showFocusDialog, setShowFocusDialog] = useState<boolean>(false)
-  const [selectedTask, setSelectedTask] = useState<{ id: string; title: string } | null>(null)
-  const [creatingSession, setCreatingSession] = useState<boolean>(false)
+  // Focus session dialog states - REMOVED (not used in this component)
 
   const startEditGoal = (id: string, currTitle: string) => {
     setEditingGoalId(id)
@@ -191,43 +187,11 @@ const PlansPage: React.FC = () => {
     }
   }
 
-  // Handle focus session creation
-  const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
-    if (!selectedTask) return
-
-    setCreatingSession(true)
-    try {
-      const session = await FocusSessionService.startSession({
-        taskId: selectedTask.id,
-        sessionType,
-        plannedDurationMinutes: duration,
-        title: title || selectedTask.title
-      })
-
-      setToast({ message: 'Phiên học tập đã được tạo thành công!', type: 'success' })
-      setShowFocusDialog(false)
-      setSelectedTask(null)
-
-      // Navigate to focus session page
-      navigate(ROUTER.FOCUS_SESSION, { state: { session } })
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Không thể tạo phiên học tập'
-      setToast({ message: msg, type: 'error' })
-    } finally {
-      setCreatingSession(false)
-    }
-  }
-
-  const handleCancelFocusSession = () => {
-    setShowFocusDialog(false)
-    setSelectedTask(null)
-  }
-
   // IMPORTANT: initialize navigate for routing
   const navigate = useNavigate()
 
   // Handle chapter skeleton generation
-  const handleChapterClick = async (pathId: string, chapterIndex: number, chapterId: string) => {
+  const handleChapterClick = async (pathId: string, chapterIndex: number, _chapterId: string) => {
     const chapterKey = `${pathId}-${chapterIndex}`
 
     // Don't generate if already generating
@@ -404,9 +368,9 @@ const PlansPage: React.FC = () => {
     }
     console.log('Lesson clicked:', { lessonId, lessonTitle })
     
-    // Show focus session dialog instead of generating content
-    setSelectedTask({ id: lessonId, title: lessonTitle })
-    setShowFocusDialog(true)
+    // Focus session functionality removed - lessons are now just for display
+    // setSelectedTask({ id: lessonId, title: lessonTitle })
+    // setShowFocusDialog(true)
   }
 
   // Persist selections
@@ -1142,12 +1106,9 @@ const PlansPage: React.FC = () => {
                 <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-status-red-bg border-2 border-red-200 rounded-2xl text-status-red-dark font-medium text-center shadow-sm">
                   {planError}
                 </div>
-               {planError && (
-                 <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-status-red-bg border-2 border-red-200 rounded-2xl text-status-red-dark font-medium text-center shadow-sm">
-                   {planError}
-                 </div>
-               )}
-               {planGenerated && skeleton && (
+              )}
+              
+              {planGenerated && skeleton && (
                  <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
                    <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
                    
@@ -1280,167 +1241,162 @@ const PlansPage: React.FC = () => {
              </>
            )}
 
-            {/* Footer actions */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 40, paddingTop: 32, borderTop: '1px solid var(--border-base)' }}>
-              {step > 1 && (
-                <button
-                  type="button"
-                  style={{ padding: '8px 24px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
-                  onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
-                >
-                  {/* eslint-disable-next-line react/jsx-no-comment-textnodes */}
-                  {'<'} {t('plans.back')}
-                </button>
-              )}
-              {planGenerated && skeleton && (
-                <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
-                  <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
+           {step === 5 && (
+             <>
+               <StepHeader
+                 title={t('plans.step5Title')}
+                 subtitle={t('plans.step5Subtitle')}
+                 icon="✓"
+               />
 
-                  {/* Display chapters if available */}
-                  {(Array.isArray(skeleton?.chapters) && skeleton.chapters.length > 0) || (Array.isArray(skeleton?.chapterDtos) && skeleton.chapterDtos.length > 0) ? (
-                    <div>
-                      <h3 className="text-lg font-semibold text-heading mb-3">Chapters</h3>
-                      <p className="text-sm text-muted mb-4">Click on a chapter to generate lesson titles</p>
-                      <ul className="space-y-4">
-                        {(skeleton.chapters || skeleton.chapterDtos || []).map((ch: any, idx: number) => {
-                          const chapterKey = `${skeleton.pathId}-${idx}`
-                          const isGenerating = generatingChapters.has(chapterKey)
-                          const error = chapterErrors.get(chapterKey)
-                          const chapterId = ch.chapterId || ch.id
+               {planGenerated && skeleton && (
+                 <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
+                   <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
+                   
+                   {/* Display chapters if available */}
+                   {(Array.isArray(skeleton?.chapters) && skeleton.chapters.length > 0) || (Array.isArray(skeleton?.chapterDtos) && skeleton.chapterDtos.length > 0) ? (
+                     <div>
+                       <h3 className="text-lg font-semibold text-heading mb-3">Chapters</h3>
+                       <p className="text-sm text-muted mb-4">Click on a chapter to generate lesson titles</p>
+                       <ul className="space-y-4">
+                         {(skeleton.chapters || skeleton.chapterDtos || []).map((ch: any, idx: number) => {
+                           const chapterKey = `${skeleton.pathId}-${idx}`
+                           const isGenerating = generatingChapters.has(chapterKey)
+                           const error = chapterErrors.get(chapterKey)
+                           const chapterId = ch.chapterId || ch.id
 
-                          return (
-                            <li key={chapterId ?? ch.title} className="relative">
-                              <button
-                                type="button"
-                                onClick={() => handleChapterClick(skeleton.pathId, idx, chapterId)}
-                                disabled={isGenerating}
-                                className={`w-full text-left flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${isGenerating
-                                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
-                                    : 'bg-status-blue-bg border-blue-200 hover:border-blue-300 hover:bg-blue-100'
-                                  }`}
-                              >
-                                <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <div className="font-semibold text-heading">{ch.title ?? `Chapter ${idx + 1}`}</div>
-                                    {isGenerating && (
-                                      <div className="flex items-center gap-1 text-xs text-muted">
-                                        <div className="animate-spin w-3 h-3 border border-gray-400 border-t-transparent rounded-full"></div>
-                                        <span>Generating...</span>
-                                      </div>
-                                    )}
-                                    {ch.lessonCount && (
-                                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
-                                        {ch.lessonCount} lessons
-                                      </span>
-                                    )}
-                                    {ch.quizCount && ch.quizCount > 0 && (
-                                      <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                                        {ch.quizCount} quizzes
-                                      </span>
-                                    )}
-                                  </div>
-                                  {ch.content && <div className="text-sm text-label mt-1">{ch.content}</div>}
-                                  {error && (
-                                    <div className="text-sm text-red-600 mt-1 bg-red-50 p-2 rounded">
-                                      Error: {error}
-                                    </div>
-                                  )}
-                                  {Array.isArray(ch.lessons) && ch.lessons.length > 0 && (
-                                    <div className="mt-3">
-                                      <h4 className="text-sm font-semibold text-heading mb-2">Lessons:</h4>
-                                      <ul className="ml-4 space-y-2">
-                                        {ch.lessons.map((ls: any) => {
-                                          const lessonId = ls.lessonId || ls.id
-                                          const isLessonGenerating = generatingLessons.has(lessonId)
-                                          const lessonError = lessonErrors.get(lessonId)
+                           return (
+                             <li key={chapterId ?? ch.title} className="relative">
+                               <button
+                                 type="button"
+                                 onClick={() => handleChapterClick(skeleton.pathId, idx, chapterId)}
+                                 disabled={isGenerating}
+                                 className={`w-full text-left flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${isGenerating
+                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                                     : 'bg-status-blue-bg border-blue-200 hover:border-blue-300 hover:bg-blue-100'
+                                   }`}
+                               >
+                                 <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
+                                 <div className="flex-1">
+                                   <div className="flex items-center gap-2">
+                                     <div className="font-semibold text-heading">{ch.title ?? `Chapter ${idx + 1}`}</div>
+                                     {isGenerating && (
+                                       <div className="flex items-center gap-1 text-xs text-muted">
+                                         <div className="animate-spin w-3 h-3 border border-gray-400 border-t-transparent rounded-full"></div>
+                                         <span>Generating...</span>
+                                       </div>
+                                     )}
+                                     {ch.lessonCount && (
+                                       <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                                         {ch.lessonCount} lessons
+                                       </span>
+                                     )}
+                                     {ch.quizCount && ch.quizCount > 0 && (
+                                       <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                                         {ch.quizCount} quizzes
+                                       </span>
+                                     )}
+                                   </div>
+                                   {ch.content && <div className="text-sm text-label mt-1">{ch.content}</div>}
+                                   {error && (
+                                     <div className="text-sm text-red-600 mt-1 bg-red-50 p-2 rounded">
+                                       Error: {error}
+                                     </div>
+                                   )}
+                                   {Array.isArray(ch.lessons) && ch.lessons.length > 0 && (
+                                     <div className="mt-3">
+                                       <h4 className="text-sm font-semibold text-heading mb-2">Lessons:</h4>
+                                       <ul className="ml-4 space-y-2">
+                                         {ch.lessons.map((ls: any) => {
+                                           const lessonId = ls.lessonId || ls.id
+                                           const isLessonGenerating = generatingLessons.has(lessonId)
+                                           const lessonError = lessonErrors.get(lessonId)
 
-                                          return (
-                                            <li key={lessonId} className="relative">
-                                              <button
-                                                type="button"
-                                                onClick={() => handleLessonClick(lessonId, ls.title)}
-                                                disabled={isLessonGenerating}
-                                                className={`w-full text-left p-2 rounded-lg border transition-all text-sm ${isLessonGenerating
-                                                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
-                                                    : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
-                                                  }`}
-                                              >
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-body">• {ls.title ?? 'Lesson'}</span>
-                                                  {isLessonGenerating && (
-                                                    <div className="flex items-center gap-1 text-xs text-muted">
-                                                      <div className="animate-spin w-2 h-2 border border-gray-400 border-t-transparent rounded-full"></div>
-                                                      <span>Generating...</span>
-                                                    </div>
-                                                  )}
-                                                  {ls.hasContent && (
-                                                    <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
-                                                      Content ready
-                                                    </span>
-                                                  )}
-                                                  {ls.quizCount && ls.quizCount > 0 && (
-                                                    <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
-                                                      {ls.quizCount} quiz{ls.quizCount > 1 ? 'zes' : ''}
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                {lessonError && (
-                                                  <div className="text-xs text-red-600 mt-1 bg-red-50 p-1 rounded">
-                                                    Error: {lessonError}
-                                                  </div>
-                                                )}
-                                              </button>
-                                            </li>
-                                          )
-                                        })}
-                                      </ul>
-                                    </div>
-                                  )}
-                                </div>
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    </div>
-                  ) : Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
-                    <div>
-                      <h3 className="text-lg font-semibold text-heading mb-3">Lessons</h3>
-                      <ul className="space-y-4">
-                        {skeleton.lessons.map((ls: any) => (
-                          <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
-                            <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
-                            <div className="flex-1">
-                              <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
-                              {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
-                              {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
-                                <ul className="mt-2 ml-4 space-y-1">
-                                  {ls.chapters.map((ch: any) => (
-                                    <li key={ch.id ?? ch.title} className="text-sm text-body">
-                                      • {ch.title ?? 'Chapter'}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
-                      <div className="text-xs text-muted text-center mt-2">
-                        Debug: {JSON.stringify(skeleton, null, 2)}
-                      </div>
-                    </div>
-                  )}
-                </section>
-              )}
-            </>
-          )}
+                                           return (
+                                             <li key={lessonId} className="relative">
+                                               <button
+                                                 type="button"
+                                                 onClick={() => handleLessonClick(lessonId, ls.title)}
+                                                 disabled={isLessonGenerating}
+                                                 className={`w-full text-left p-2 rounded-lg border transition-all text-sm ${isLessonGenerating
+                                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                                                     : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
+                                                   }`}
+                                               >
+                                                 <div className="flex items-center gap-2">
+                                                   <span className="text-body">• {ls.title ?? 'Lesson'}</span>
+                                                   {isLessonGenerating && (
+                                                     <div className="flex items-center gap-1 text-xs text-muted">
+                                                       <div className="animate-spin w-2 h-2 border border-gray-400 border-t-transparent rounded-full"></div>
+                                                       <span>Generating...</span>
+                                                     </div>
+                                                   )}
+                                                   {ls.hasContent && (
+                                                     <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                                                       Content ready
+                                                     </span>
+                                                   )}
+                                                   {ls.quizCount && ls.quizCount > 0 && (
+                                                     <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                                                       {ls.quizCount} quiz{ls.quizCount > 1 ? 'zes' : ''}
+                                                     </span>
+                                                   )}
+                                                 </div>
+                                                 {lessonError && (
+                                                   <div className="text-xs text-red-600 mt-1 bg-red-50 p-1 rounded">
+                                                     Error: {lessonError}
+                                                   </div>
+                                                 )}
+                                               </button>
+                                             </li>
+                                           )
+                                         })}
+                                       </ul>
+                                     </div>
+                                   )}
+                                 </div>
+                               </button>
+                             </li>
+                           )
+                         })}
+                       </ul>
+                     </div>
+                   ) : Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
+                     <div>
+                       <h3 className="text-lg font-semibold text-heading mb-3">Lessons</h3>
+                       <ul className="space-y-4">
+                         {skeleton.lessons.map((ls: any) => (
+                           <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
+                             <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
+                             <div className="flex-1">
+                               <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
+                               {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
+                               {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
+                                 <ul className="mt-2 ml-4 space-y-1">
+                                   {ls.chapters.map((ch: any) => (
+                                     <li key={ch.id ?? ch.title} className="text-sm text-body">
+                                       • {ch.title ?? 'Chapter'}
+                                     </li>
+                                   ))}
+                                 </ul>
+                               )}
+                             </div>
+                           </li>
+                         ))}
+                       </ul>
+                     </div>
+                   ) : (
+                     <div>
+                       <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
+                       <div className="text-xs text-muted text-center mt-2">
+                         Debug: {JSON.stringify(skeleton, null, 2)}
+                       </div>
+                     </div>
+                   )}
+                 </section>
+               )}
+             </>
+           )}
 
           {/* Footer actions */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 40, paddingTop: 32, borderTop: '1px solid var(--border-base)' }}>
@@ -1499,42 +1455,3 @@ const PlansPage: React.FC = () => {
 }
 
 export default PlansPage
-       {/* Confirm Delete Dialog */}
-       <ConfirmDialog
-         isOpen={showDeleteConfirm}
-         title={t('plans.deleteGoal')}
-         message={t('plans.deleteGoalConfirm', { title: goalToDelete?.title })}
-         confirmText={t('plans.delete')}
-         cancelText={t('plans.cancel')}
-         variant="danger"
-         onConfirm={confirmDeleteGoal}
-         onCancel={() => {
-           setShowDeleteConfirm(false)
-           setGoalToDelete(null)
-         }}
-       />
-
-       {/* Toast Notification */}
-       {toast && (
-         <Toast
-           message={toast.message}
-           type={toast.type}
-           onClose={() => setToast(null)}
-         />
-       )}
-
-       {/* Focus Session Dialog */}
-       {showFocusDialog && selectedTask && (
-         <FocusSessionDialog
-           isOpen={showFocusDialog}
-           taskTitle={selectedTask.title}
-           onConfirm={handleCreateFocusSession}
-           onCancel={handleCancelFocusSession}
-           loading={creatingSession}
-         />
-       )}
-     </div>
-   )
- }
-
- export default PlansPage

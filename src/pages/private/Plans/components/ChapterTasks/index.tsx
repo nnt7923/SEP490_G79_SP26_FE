@@ -39,7 +39,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const loadingRef = React.useRef(false)
-  const prevAllCompletedRef = React.useRef(false)
   const [showFocusDialog, setShowFocusDialog] = useState<boolean>(false)
   const [selectedTask, setSelectedTask] = useState<{ id: string; title: string; fullTask?: Task } | null>(null)
   const [creatingSession, setCreatingSession] = useState<boolean>(false)
@@ -74,7 +73,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
       const taskType = selectedTask.fullTask?.taskType
       const quizData = selectedTask.fullTask?.QuizQuestionsJson || selectedTask.fullTask?.quizQuestionsJson
       
-      return newTasks
       console.log('Navigating to focus session with task data:', {
         taskType,
         quizData,
@@ -129,17 +127,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     setShowFocusDialog(true)
   }
 
-  // Handle onAllTasksCompleted callback in useEffect to avoid setState during render
-  React.useEffect(() => {
-    const allCompleted = tasks.length > 0 && tasks.every(t => t.completed === true)
-    if (allCompleted !== prevAllCompletedRef.current) {
-      prevAllCompletedRef.current = allCompleted
-      onAllTasksCompleted?.(chapterId, allCompleted)
-    }
-  }, [tasks, chapterId, onAllTasksCompleted])
-
-  const loadTasks = async (retryCount = 0) => {
-    if (loaded || loadingRef.current) return
   const loadTasks = async (retryCount = 0, forceReload = false) => {
     if (!forceReload && (loaded || loadingRef.current)) return
 
