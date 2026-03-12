@@ -24,6 +24,8 @@ declare const ROUTER: {
   ADMIN_AUDIT_LOGS: string
   MENTOR_PROFILE: string
   QUIZ: string
+  TASK: string
+  FOCUS_SESSION: string
 }
 
 export default ROUTER
