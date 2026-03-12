@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useMentorSidebarConfig } from '../components/MentorSideBar'
-import { Users, Plus, Search, Calendar, Clock, BookOpen } from 'lucide-react'
+import { Users, Plus, Search, Clock, BookOpen } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 type Class = {
@@ -67,17 +67,16 @@ const MentorClasses: React.FC = () => {
                 <Users className="w-6 h-6 text-purple-600" />
                 <div>
                   <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
-                    <span className="text-purple-600 mr-2">{'>_'}</span>
                     {t('classes.title')}
                   </h1>
                   <p className="text-xs text-label mt-1 font-mono">
-                    {'//'} {t('classes.subtitle')}
+                    {t('classes.subtitle')}
                   </p>
                 </div>
               </div>
-              <button className="flex items-center gap-2 px-6 py-2 border border-purple-600 bg-th-card text-purple-600 font-bold hover:bg-purple-50 transition-colors uppercase">
+              <button className="flex items-center gap-2 px-6 py-2 border border-purple-600 bg-th-card text-purple-600 font-bold hover:bg-purple-50 transition-colors uppercase rounded-sm">
                 <Plus className="w-4 h-4" />
-                <span>[ {t('classes.newClass')} ]</span>
+                <span>{t('classes.newClass')}</span>
               </button>
             </div>
           </div>
@@ -98,14 +97,14 @@ const MentorClasses: React.FC = () => {
 
           {/* Classes Grid */}
           {filteredClasses.length === 0 ? (
-            <div className="bg-th-card border border-bd-strong p-12 text-center">
+            <div className="bg-th-card border border-bd-strong p-12 text-center rounded-md">
               <Users className="w-12 h-12 text-disabled mx-auto mb-4" />
               <h3 className="text-lg font-bold text-heading mb-2">{t('classes.noClassesFound')}</h3>
               <p className="text-sm text-muted font-mono mb-4">
-                {'//'} {searchQuery ? t('classes.adjustSearch') : t('classes.createFirst')}
+                {searchQuery ? t('classes.adjustSearch') : t('classes.createFirst')}
               </p>
-              <button className="px-6 py-2 border border-purple-600 bg-th-card text-purple-600 font-bold hover:bg-purple-50 transition-colors uppercase">
-                [ {t('classes.createClass')} ]
+              <button className="px-6 py-2 border border-purple-600 bg-th-card text-purple-600 font-bold hover:bg-purple-50 transition-colors uppercase rounded-sm">
+                {t('classes.createClass')}
               </button>
             </div>
           ) : (
@@ -125,26 +124,26 @@ const MentorClasses: React.FC = () => {
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center gap-3 text-sm text-label">
                         <BookOpen className="w-4 h-4 text-placeholder" />
-                        <span>{'//'} {cls.subject}</span>
+                        <span>{cls.subject}</span>
                       </div>
                       <div className="flex items-center gap-3 text-sm text-label">
                         <Clock className="w-4 h-4 text-placeholder" />
-                        <span>{'//'} {cls.schedule}</span>
+                        <span>{cls.schedule}</span>
                       </div>
                       <div className="flex items-center gap-3 text-sm text-label">
                         <Users className="w-4 h-4 text-placeholder" />
-                        <span>{'//'} [{cls.studentCount}] {t('classes.students')}</span>
+                        <span>{cls.studentCount} {t('classes.students')}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-auto px-5 pb-5 pt-4 border-t border-bd">
                     <div className="flex gap-2">
-                      <button className="flex-1 px-4 py-2 border border-purple-600 bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors uppercase">
-                        [ {t('classes.view')} ]
+                      <button className="flex-1 px-4 py-2 border border-purple-600 bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors uppercase rounded-sm">
+                        {t('classes.view')}
                       </button>
-                      <button className="flex-1 px-4 py-2 border border-bd-strong bg-th-card text-body text-xs font-bold hover:bg-th-input transition-colors uppercase">
-                        [ {t('classes.edit')} ]
+                      <button className="flex-1 px-4 py-2 border border-bd-strong bg-th-card text-body text-xs font-bold hover:bg-th-input transition-colors uppercase rounded-sm">
+                        {t('classes.edit')}
                       </button>
                     </div>
                   </div>

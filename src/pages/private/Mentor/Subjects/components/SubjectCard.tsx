@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen, Calendar, User } from 'lucide-react'
+import { BookOpen, Calendar } from 'lucide-react'
 import type { Subject } from '../types'
 
 interface SubjectCardProps {
@@ -22,7 +22,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({ subject, onEdit, onDelete }) 
             </h3>
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs ${subject.createdBy === 'Me' ? 'text-status-blue font-bold' : 'text-muted'}`}>
-                {subject.createdBy === 'Me' ? '[me]' : `[${subject.createdBy || 'unknown'}]`}
+                {subject.createdBy === 'Me' ? 'me' : subject.createdBy || 'unknown'}
               </span>
             </div>
           </div>
@@ -31,7 +31,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({ subject, onEdit, onDelete }) 
 
       <div className="flex-grow">
         <p className="text-xs text-label mb-4 line-clamp-3 min-h-[48px]">
-          {'//'} {subject.description || 'no_description( )'}
+          {subject.description || 'no_description( )'}
         </p>
       </div>
 
@@ -46,17 +46,17 @@ const SubjectCard: React.FC<SubjectCardProps> = ({ subject, onEdit, onDelete }) 
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => onEdit?.(subject)}
-                className="text-xs font-bold text-status-blue hover:text-status-blue-dark transition-colors uppercase px-2"
+                className="text-xs font-bold text-status-blue hover:text-status-blue-dark transition-colors uppercase px-2 rounded-sm"
                 title="Edit subject"
               >
-                [ edit ]
+                edit
               </button>
               <button 
                 onClick={() => onDelete?.(subject)}
-                className="text-xs font-bold text-status-red hover:text-status-red-darker transition-colors uppercase px-2"
+                className="text-xs font-bold text-status-red hover:text-status-red-darker transition-colors uppercase px-2 rounded-sm"
                 title="Delete subject"
               >
-                [ del ]
+                del
               </button>
             </div>
           )}

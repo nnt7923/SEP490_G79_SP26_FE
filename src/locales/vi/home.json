@@ -1,16 +1,16 @@
 {
   "hero": {
-    "badge": "> Nền tảng học tập hỗ trợ bởi AI",
+    "badge": "Nền tảng học tập hỗ trợ bởi AI",
     "titleLine1": "Tạo lộ trình học",
     "titleHighlight": "lập trình",
     "titleLine2": "được cá nhân hóa bởi AI",
-    "descLine1": "// Chọn ngôn ngữ, đặt mục tiêu, AI tự động tạo learning path.",
-    "descLine2": "// Theo dõi tiến độ, ôn tập bài học, hoàn thiện kỹ năng.",
-    "ctaPlan": "> Tạo Learning Plan",
+    "descLine1": "Chọn ngôn ngữ, đặt mục tiêu, AI tự động tạo learning path.",
+    "descLine2": "Theo dõi tiến độ, ôn tập bài học, hoàn thiện kỹ năng.",
+    "ctaPlan": "Tạo Learning Plan",
     "ctaRegister": "Đăng ký miễn phí"
   },
   "features": {
-    "title": "// Nền tảng hỗ trợ bạn học gì?",
+    "title": "Nền tảng hỗ trợ bạn học gì?",
     "subtitle": "Mọi thứ bạn cần để xây dựng lộ trình học lập trình hiệu quả",
     "plan": {
       "title": "Tạo Learning Plan",
@@ -34,7 +34,7 @@
     }
   },
   "howItWorks": {
-    "title": "// Cách sử dụng",
+    "title": "Cách sử dụng",
     "subtitle": "4 bước để bắt đầu lộ trình học lập trình của bạn",
     "step1": {
       "title": "Chọn ngôn ngữ",
@@ -52,11 +52,11 @@
       "title": "Học theo lộ trình",
       "desc": "AI tạo chapters → lessons → code examples. Theo dõi progress trên dashboard."
     },
-    "ctaStart": "> Bắt đầu học ngay"
+    "ctaStart": "Bắt đầu học ngay"
   },
   "roles": {
-    "title": "// Dành cho ai?",
-    "personalizeLabel": "> Cá nhân hóa trải nghiệm",
+    "title": "Dành cho ai?",
+    "personalizeLabel": "Cá nhân hóa trải nghiệm",
     "personalizeTitle": "Phát triển kỹ năng lập trình cùng CodeNexus",
     "feature1": "Tạo và quản lý lộ trình học tập cá nhân",
     "feature2": "Tổng hợp tài nguyên học lập trình thực tế",

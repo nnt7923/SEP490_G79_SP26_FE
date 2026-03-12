@@ -1,13 +1,13 @@
 {
   "appName": "CodeNexus",
   "nav": {
-    "home": "~/home",
-    "plans": "~/plans",
-    "about": "~/about"
+    "home": "Trang Chủ",
+    "plans": "Kế Hoạch",
+    "about": "Thông Tin"
   },
   "auth": {
-    "login": "> login",
-    "register": "> register",
+    "login": "login",
+    "register": "register",
     "logout": "Đăng xuất"
   },
   "userMenu": {
@@ -44,10 +44,10 @@
     "upload": "Tải lên",
     "update": "Cập nhật",
     "viewAll": "xem tất cả →",
-    "viewDetails": "> xem chi tiết"
+    "viewDetails": "xem chi tiết"
   },
   "status": {
-    "loading": "// đang tải...",
+    "loading": "đang tải...",
     "error": "Đã xảy ra lỗi",
     "success": "Thành công",
     "noData": "Không có dữ liệu",
@@ -87,16 +87,16 @@
     "logout": "Đăng xuất"
   },
   "footer": {
-    "tagline1": "// Lộ trình học tập cá nhân hóa",
-    "tagline2": "// được hỗ trợ bởi AI",
-    "product": "/* sản phẩm */",
-    "company": "/* công ty */",
-    "plans": "./kế-hoạch",
-    "overview": "./tổng-quan",
-    "resources": "./tài-nguyên",
-    "about": "./giới-thiệu",
-    "home": "./trang-chủ",
-    "copyright": "© {{year}} CodeNexus // Bản quyền thuộc về.",
+    "tagline1": "Lộ trình học tập cá nhân hóa",
+    "tagline2": "được hỗ trợ bởi AI",
+    "product": "Sản phẩm",
+    "company": "Công ty",
+    "plans": "kế hoạch",
+    "overview": "tổng quan",
+    "resources": "tài nguyên",
+    "about": "giới thiệu",
+    "home": "trang chủ",
+    "copyright": "© {{year}} CodeNexus - Bản quyền thuộc về.",
     "terms": "điều khoản",
     "privacy": "bảo mật"
   }

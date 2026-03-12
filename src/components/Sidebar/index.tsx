@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         className="md:hidden"
         aria-label="Toggle sidebar"
       >
-        {isMobileOpen ? '[x] close' : '[m] sidebar'}
+        {isMobileOpen ? 'Close Menu' : 'Open Menu'}
       </button>
 
       {/* Mobile Overlay */}
@@ -84,8 +84,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               {(brand.name || brand.subtitle) && (
                 <div>
-                  {brand.name && <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>_'} {brand.name}</p>}
-                  {brand.subtitle && <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>// {brand.subtitle}</p>}
+                  {brand.name && <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{brand.name}</p>}
+                  {brand.subtitle && <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>{brand.subtitle}</p>}
                 </div>
               )}
             </div>
@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <nav style={{ padding: '20px 16px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {menuLabel && (
             <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
-              $ {menuLabel.toLowerCase()}
+              {menuLabel}
             </p>
           )}
 

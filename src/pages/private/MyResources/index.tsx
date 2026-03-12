@@ -109,12 +109,12 @@ const MyResourcesPage: React.FC = () => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {ROUTER_META[ROUTER.MY_RESOURCES]?.title || t('resources.title')}</h1>
+            <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{ROUTER_META[ROUTER.MY_RESOURCES]?.title || t('resources.title')}</h1>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{t('resources.subtitle')}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setIsModalOpen(true)} style={{ padding: '6px 14px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              {'>'} {t('resources.create')}
+              {t('resources.create')}
             </button>
             <button onClick={() => navigate(ROUTER.STUDENT_DASHBOARD)} style={{ padding: '6px 14px', background: 'var(--bg-surface-short)', color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 12, cursor: 'pointer' }}>
               {t('resources.back')}
@@ -126,14 +126,14 @@ const MyResourcesPage: React.FC = () => {
         <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 200 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ search</label>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>search</label>
               <input type="text" placeholder="search by title or description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.2s' }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
               />
             </div>
             <div style={{ minWidth: 140 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ sort by</label>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>sort by</label>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', cursor: 'pointer' }}>
                 <option value="UploadedAt">{t('resources.uploadedDate')}</option>
@@ -141,7 +141,7 @@ const MyResourcesPage: React.FC = () => {
               </select>
             </div>
             <div style={{ minWidth: 100 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ order</label>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>order</label>
               <div style={{ display: 'flex', border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
                 <button onClick={() => setSortDescending(false)}
                   style={{ flex: 1, padding: '8px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: !sortDescending ? 'var(--text-primary)' : 'var(--bg-main)', color: !sortDescending ? 'var(--bg-surface-short)' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
@@ -157,7 +157,7 @@ const MyResourcesPage: React.FC = () => {
           {!loading && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--gray-200)' }}>
               <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>
-                {resources.length === 0 ? `// ${t('resources.noResourcesFound')}` : `// ${t(resources.length === 1 ? 'resources.showingOne' : 'resources.showing', { count: resources.length })}`}
+                {resources.length === 0 ? t('resources.noResourcesFound') : t(resources.length === 1 ? 'resources.showingOne' : 'resources.showing', { count: resources.length })}
               </p>
             </div>
           )}
@@ -165,14 +165,14 @@ const MyResourcesPage: React.FC = () => {
 
         {/* Content */}
         {loading && (
-          <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)', fontSize: 13 }}>// {t('resources.loading')}</div>
+          <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)', fontSize: 13 }}>{t('resources.loading')}</div>
         )}
         {error && (
-          <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, marginBottom: 20, color: 'var(--danger-primary)', fontSize: 13 }}>// ERROR: {error}</div>
+          <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: 16, marginBottom: 20, color: 'var(--danger-primary)', fontSize: 13 }}>ERROR: {error}</div>
         )}
         {!loading && !error && resources.length === 0 && (
           <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 48, textAlign: 'center' }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>// {t('resources.noResources')}</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('resources.noResources')}</p>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t('resources.resourcesWillAppear')}</p>
           </div>
         )}

@@ -23,7 +23,7 @@ const Profile: React.FC = () => {
     const [form, setForm] = useState<ProfileForm | null>(null)
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [toast, setToast] = useState<{ message: string; progress: number; status: 'loading' | 'success' | 'error' } | null>(null)
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
     const navigate = useNavigate()
     const { t } = useTranslation('student')
     const { t: tc } = useTranslation('common')
@@ -132,12 +132,7 @@ const Profile: React.FC = () => {
         <Layout sidebar={sidebarConfig}>
             {toast && <ProgressToast message={toast.message} progress={toast.progress} status={toast.status} onClose={() => setToast(null)} />}
             <div style={{ padding: 24, background: 'var(--bg-surface)', minHeight: '100vh' }}>
-                {/* Message Alert */}
-                {message && (
-                    <div style={{ marginBottom: 20, padding: 12, border: `1px solid ${message.type === 'success' ? 'var(--success-primary)' : 'var(--danger-primary)'}`, borderRadius: 2, color: message.type === 'success' ? 'var(--success-primary)' : 'var(--danger-primary)', fontSize: 13 }}>
-                        // {message.type === 'success' ? 'SUCCESS' : 'ERROR'}: {message.text}
-                    </div>
-                )}
+
 
                 {/* Profile Header */}
                 <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
@@ -166,8 +161,8 @@ const Profile: React.FC = () => {
                             </div>
 
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {user.firstName} {user.lastName}</h1>
-                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>// {user.email}</p>
+                                <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{user.firstName} {user.lastName}</h1>
+                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{user.email}</p>
                             </div>
 
                             <button onClick={() => setOpen(true)} style={{ padding: '8px 20px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
@@ -186,12 +181,12 @@ const Profile: React.FC = () => {
                     <div style={{ padding: 24 }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                             {[
-                                { label: '$ firstName', value: user.firstName || tc('status.notUpdated') },
-                                { label: '$ lastName', value: user.lastName || tc('status.notUpdated') },
-                                { label: '$ email', value: user.email },
-                                { label: '$ phone', value: user.phone || tc('status.notUpdated') },
-                                { label: '$ dateOfBirth', value: formatDate(user.dateOfBirth) },
-                                { label: '$ address', value: user.address || tc('status.notUpdated') },
+                                { label: 'First Name', value: user.firstName || tc('status.notUpdated') },
+                                { label: 'Last Name', value: user.lastName || tc('status.notUpdated') },
+                                { label: 'Email', value: user.email },
+                                { label: 'Phone', value: user.phone || tc('status.notUpdated') },
+                                { label: 'Date of Birth', value: formatDate(user.dateOfBirth) },
+                                { label: 'Address', value: user.address || tc('status.notUpdated') },
                             ].map((info) => (
                                 <div key={info.label} style={infoCardStyle}>
                                     <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{info.label}</p>
@@ -200,7 +195,7 @@ const Profile: React.FC = () => {
                             ))}
                         </div>
                         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--gray-200)' }}>
-                            <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ bio</h3>
+                            <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Bio</h3>
                             <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.6 }}>{user.bio || t('profile.noBio')}</p>
                         </div>
                     </div>
@@ -221,26 +216,26 @@ const Profile: React.FC = () => {
                         <div style={{ padding: 20 }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 {[
-                                    { field: 'firstName' as keyof ProfileForm, label: '$ firstName', type: 'text' },
-                                    { field: 'lastName' as keyof ProfileForm, label: '$ lastName', type: 'text' },
-                                    { field: 'phone' as keyof ProfileForm, label: '$ phone', type: 'text', placeholder: '0123456789' },
-                                    { field: 'dateOfBirth' as keyof ProfileForm, label: '$ dateOfBirth', type: 'date' },
+                                    { field: 'firstName' as keyof ProfileForm, label: 'First Name', type: 'text' },
+                                    { field: 'lastName' as keyof ProfileForm, label: 'Last Name', type: 'text' },
+                                    { field: 'phone' as keyof ProfileForm, label: 'Phone', type: 'text', placeholder: '0123456789' },
+                                    { field: 'dateOfBirth' as keyof ProfileForm, label: 'Date of Birth', type: 'date' },
                                 ].map(({ field, label, type, placeholder }) => (
                                     <div key={field}>
                                         <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</label>
                                         <input type={type} value={(form[field] as string) || ''} onChange={(e) => handleChange(field, e.target.value)} placeholder={placeholder}
                                             style={{ ...inputStyle, borderColor: errors[field] ? 'var(--danger-primary)' : 'var(--border-base)' }}
                                             onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = errors[field] ? 'var(--danger-primary)' : 'var(--border-base)' }} />
-                                        {errors[field] && <p style={{ fontSize: 11, color: 'var(--danger-primary)', margin: '4px 0 0' }}>// {errors[field]}</p>}
+                                        {errors[field] && <p style={{ fontSize: 11, color: 'var(--danger-primary)', margin: '4px 0 0' }}>{errors[field]}</p>}
                                     </div>
                                 ))}
                                 <div style={{ gridColumn: 'span 2' }}>
-                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ address</label>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Address</label>
                                     <input type="text" value={form.address || ''} onChange={(e) => handleChange('address', e.target.value)} style={inputStyle}
                                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
-                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>$ bio</label>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Bio</label>
                                     <textarea value={form.bio || ''} onChange={(e) => handleChange('bio', e.target.value)} placeholder={t('profile.bioPlaceholder')}
                                         style={{ ...inputStyle, resize: 'none', minHeight: 100 }}
                                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
@@ -254,7 +249,7 @@ const Profile: React.FC = () => {
                             <button onClick={handleSubmit} disabled={updatingProfile}
                                 style={{ padding: '8px 20px', background: updatingProfile ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: updatingProfile ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {updatingProfile && <Loader size={14} className="animate-spin" />}
-                                {'>'} {updatingProfile ? t('profile.updating') : t('profile.update')}
+                                {updatingProfile ? t('profile.updating') : t('profile.update')}
                             </button>
                         </div>
                     </div>

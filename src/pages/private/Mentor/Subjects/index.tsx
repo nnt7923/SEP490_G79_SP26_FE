@@ -133,17 +133,16 @@ const SubjectsPage: React.FC = () => {
                 <BookOpen className="w-6 h-6 text-status-blue" />
                 <div>
                   <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center">
-                    <span className="text-status-blue mr-2">{'>_'}</span>
                     {t('subjects.title')}
                   </h1>
                 </div>
               </div>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors"
+                className="flex items-center gap-2 px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors rounded-sm"
               >
                 <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">[ {t('subjects.createSubject')} ]</span>
+                <span className="hidden sm:inline">{t('subjects.createSubject')}</span>
               </button>
             </div>
           </div>
@@ -196,7 +195,7 @@ const SubjectsPage: React.FC = () => {
             {/* Results Count */}
             <div className="mt-4 pt-4 border-t border-bd">
               <p className="text-sm font-bold text-muted">
-               {'//'} {t('subjects.showing', { filtered: filteredSubjects.length, total: subjects.length })}
+               {t('subjects.showing', { filtered: filteredSubjects.length, total: subjects.length })}
               </p>
             </div>
           </div>
@@ -211,25 +210,25 @@ const SubjectsPage: React.FC = () => {
 
           {/* Error State */}
           {error && !loading && (
-            <div className="bg-status-red-bg border border-red-500 p-6 text-center">
-              <p className="text-status-red-dark font-bold mb-2">{'//'} {t('subjects.error')}</p>
+            <div className="bg-status-red-bg border border-red-500 p-6 text-center rounded-md">
+              <p className="text-status-red-dark font-bold mb-2">{t('subjects.error')}</p>
               <p className="text-status-red text-sm font-mono">{error}</p>
               <button
                 onClick={fetchSubjects}
-                className="mt-4 px-6 py-2 border border-red-600 bg-th-card text-status-red font-bold hover:bg-status-red-bg transition-colors"
+                className="mt-4 px-6 py-2 border border-red-600 bg-th-card text-status-red font-bold hover:bg-status-red-bg transition-colors rounded-sm"
               >
-                [ {t('subjects.retry')} ]
+                {t('subjects.retry')}
               </button>
             </div>
           )}
 
           {/* Empty State */}
           {!loading && !error && filteredSubjects.length === 0 && (
-            <div className="bg-th-card border border-bd-strong p-12 text-center">
+            <div className="bg-th-card border border-bd-strong p-12 text-center rounded-md">
               <BookOpen className="w-12 h-12 text-disabled mx-auto mb-4" />
               <h3 className="text-lg font-bold text-heading mb-2">{t('subjects.noSubjectsFound')}</h3>
               <p className="text-sm text-muted font-mono">
-                {'//'} {searchQuery ? t('subjects.adjustSearch') : t('subjects.noSubjectsAvailable')}
+                {searchQuery ? t('subjects.adjustSearch') : t('subjects.noSubjectsAvailable')}
               </p>
             </div>
           )}

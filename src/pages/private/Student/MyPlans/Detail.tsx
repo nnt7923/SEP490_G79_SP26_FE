@@ -83,7 +83,7 @@ const MyPlansDetailPage: React.FC = () => {
         <div style={{ padding: 40, background: 'var(--bg-main)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' }}>
           <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>
             <Loader className="w-8 h-8 animate-spin mx-auto mb-3" />
-            <p>{'>'} {t('goals.loading')}</p>
+            <p>{t('goals.loading')}</p>
           </div>
         </div>
       </Layout>
@@ -100,14 +100,14 @@ const MyPlansDetailPage: React.FC = () => {
             onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-primary)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
-            <ArrowLeft className="w-4 h-4" /> [ {t('plansResult.back').toUpperCase()} ]
+            <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
           </button>
 
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--error-primary)', borderRadius: 4, padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <AlertCircle className="w-5 h-5" style={{ color: 'var(--error-primary)' }} />
               <div>
-                <h3 style={{ margin: '0 0 8px 0', fontWeight: 700, color: 'var(--text-primary)' }}>[ ERROR ]</h3>
+                <h3 style={{ margin: '0 0 8px 0', fontWeight: 700, color: 'var(--text-primary)' }}>ERROR</h3>
                 <p style={{ margin: 0, fontSize: 14, color: 'var(--error-primary)' }}>{error || 'Learning path not found'}</p>
               </div>
             </div>
@@ -134,7 +134,7 @@ const MyPlansDetailPage: React.FC = () => {
             onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
-            <ArrowLeft className="w-4 h-4" /> [ {t('plansResult.back').toUpperCase()} ]
+            <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
           </button>
 
           {/* Hero frame */}
@@ -160,12 +160,10 @@ const MyPlansDetailPage: React.FC = () => {
                   color: 'var(--text-primary)', fontSize: 24, fontWeight: 700, margin: '0 0 16px 0',
                   display: 'flex', alignItems: 'center', gap: 12
                 }}>
-                  <span style={{ color: 'var(--accent-primary)' }}>{'>'}</span>
                   {plan.title || t('myPlans.untitled')}
-                  <span style={{ animation: 'blink 1s step-end infinite', color: 'var(--accent-primary)', fontWeight: 300 }}>_</span>
                 </h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px 0', lineHeight: 1.6 }}>
-                  // {plan.description || t('myPlans.noDescription')}
+                  {plan.description || t('myPlans.noDescription')}
                 </p>
               </div>
             </div>
@@ -177,23 +175,23 @@ const MyPlansDetailPage: React.FC = () => {
               <span style={{
                 background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
               }}>
-                [ {t('plansResult.chaptersFormat', { count: plan.chapterCount || plan.chapters?.length || 0 })} ]
+                {t('plansResult.chaptersFormat', { count: plan.chapterCount || plan.chapters?.length || 0 })}
               </span>
               <span style={{
                 background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
               }}>
-                [ {t('plansResult.lessonsFormat', { count: plan.lessons?.length || 0 })} ]
+                {t('plansResult.lessonsFormat', { count: plan.lessons?.length || 0 })}
               </span>
               <span style={{
                 background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)', color: 'var(--success-primary)'
               }}>
-                [ 0% PROGRESS ]
+                0% PROGRESS
               </span>
               {plan.createdAt && (
                 <span style={{
                   background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
                 }}>
-                  [ {new Date(plan.createdAt).toLocaleDateString()} ]
+                  {new Date(plan.createdAt).toLocaleDateString()}
                 </span>
               )}
             </div>
@@ -222,7 +220,7 @@ const MyPlansDetailPage: React.FC = () => {
               {/* Left Column: Chapters List */}
               <div className="term-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '600px', overflowY: 'auto', paddingRight: '8px' }}>
                 <h2 style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8, marginTop: 0, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  {'// '} {t('plansResult.contentTree')}
+                  {t('plansResult.contentTree')}
                 </h2>
 
                 {plan.chapters.map((chapter, chapterIdx) => {
@@ -274,7 +272,7 @@ const MyPlansDetailPage: React.FC = () => {
               }}>
                 {(() => {
                   const chapter = plan.chapters?.find(c => c.id === activeChapterId)
-                  if (!chapter) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-disabled)' }}>[ SELECT_CHAPTER ]</div>
+                  if (!chapter) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-disabled)' }}>SELECT CHAPTER</div>
 
                   return (
                     <>
@@ -294,7 +292,7 @@ const MyPlansDetailPage: React.FC = () => {
                       {chapter.lessons && chapter.lessons.length > 0 && (
                         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                           <h4 style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>
-                            {'//'} {t('plansResult.lessonsCount', { count: chapter.lessons.length })}
+                            {t('plansResult.lessonsCount', { count: chapter.lessons.length })}
                           </h4>
                           <div style={{ display: 'grid', gap: 16 }}>
                             {chapter.lessons.map((lesson, lessonIdx) => (
@@ -322,7 +320,7 @@ const MyPlansDetailPage: React.FC = () => {
                                   </button>
                                   {lesson.description && (
                                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                      {'>'} {lesson.description}
+                                      {lesson.description}
                                     </p>
                                   )}
 
@@ -386,7 +384,7 @@ const MyPlansDetailPage: React.FC = () => {
               padding: 40, textAlign: 'center', color: 'var(--text-disabled)', fontFamily: 'monospace',
               background: 'var(--bg-surface)', border: '1px dashed var(--border-base)', borderRadius: 2, marginBottom: 32
             }}>
-              [ {t('plansResult.noChapters')} ]
+              {t('plansResult.noChapters')}
             </div>
           )}
         </div>

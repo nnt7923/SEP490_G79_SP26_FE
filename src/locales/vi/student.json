@@ -1,8 +1,8 @@
 {
   "overview": {
-    "welcomeBack": "> Chào mừng trở lại, {{name}}",
-    "subtitle": "// Tiếp tục hành trình học tập",
-    "newPlan": "> kế hoạch mới",
+    "welcomeBack": "Chào mừng trở lại, {{name}}",
+    "subtitle": "Tiếp tục hành trình học tập",
+    "newPlan": "kế hoạch mới",
     "resources": "tài nguyên",
     "stats": {
       "plans": "KẾ HOẠCH",
@@ -11,47 +11,47 @@
       "lessons": "BÀI HỌC"
     },
     "progress": {
-      "title": "// Tiến độ tổng quan",
+      "title": "Tiến độ tổng quan",
       "subtitle": "Theo dõi hành trình học tập",
       "completed": "{{count}} hoàn thành",
       "total": "{{count}} tổng"
     },
     "recentPlans": {
-      "title": "// Kế hoạch gần đây",
-      "empty": "// Chưa có kế hoạch",
-      "createFirst": "> tạo kế hoạch đầu tiên",
+      "title": "Kế hoạch gần đây",
+      "empty": "Chưa có kế hoạch",
+      "createFirst": "tạo kế hoạch đầu tiên",
       "untitled": "Kế hoạch chưa đặt tên",
       "chapters": "{{count}} chương"
     },
     "recentGoals": {
-      "title": "// Mục tiêu đang thực hiện",
-      "empty": "// Chưa có mục tiêu",
-      "setFirst": "> đặt mục tiêu đầu tiên",
+      "title": "Mục tiêu đang thực hiện",
+      "empty": "Chưa có mục tiêu",
+      "setFirst": "đặt mục tiêu đầu tiên",
       "untitled": "Mục tiêu chưa đặt tên",
       "noDescription": "Không có mô tả"
     }
   },
   "goals": {
     "searchPlaceholder": "tìm mục tiêu...",
-    "loading": "// đang tải mục tiêu...",
-    "noGoalsFound": "// Không tìm thấy mục tiêu",
+    "loading": "đang tải mục tiêu...",
+    "noGoalsFound": "Không tìm thấy mục tiêu",
     "noGoalsMatch": "Không có mục tiêu nào phù hợp với tìm kiếm.",
     "startCreating": "Bắt đầu tạo mục tiêu đầu tiên!",
     "untitled": "Mục tiêu chưa đặt tên",
     "noDescription": "Không có mô tả",
     "days": "{{count}} ngày",
-    "goalDetails": "> Chi tiết mục tiêu",
-    "description": "$ mô tả",
+    "goalDetails": "Chi tiết mục tiêu",
+    "description": "mô tả",
     "noDescAvailable": "Không có mô tả",
-    "statusLabel": "$ trạng thái",
-    "createdLabel": "$ ngày tạo",
-    "completedLabel": "$ hoàn thành",
-    "selectGoal": "// chọn mục tiêu để xem chi tiết"
+    "statusLabel": "trạng thái",
+    "createdLabel": "ngày tạo",
+    "completedLabel": "hoàn thành",
+    "selectGoal": "chọn mục tiêu để xem chi tiết"
   },
   "myPlans": {
     "searchPlaceholder": "tìm kế hoạch...",
-    "loading": "// đang tải kế hoạch...",
-    "noPlansFound": "// Không tìm thấy kế hoạch",
+    "loading": "đang tải kế hoạch...",
+    "noPlansFound": "Không tìm thấy kế hoạch",
     "noPlansMatch": "Không có kế hoạch nào phù hợp với tìm kiếm.",
     "startCreating": "Bắt đầu tạo lộ trình học tập đầu tiên!",
     "untitled": "Kế hoạch chưa đặt tên",
@@ -60,11 +60,11 @@
     "lessons": "{{count}} bài học"
   },
   "profile": {
-    "editProfile": "> chỉnh sửa hồ sơ",
-    "personalInfo": "// Thông tin cá nhân",
+    "editProfile": "chỉnh sửa hồ sơ",
+    "personalInfo": "Thông tin cá nhân",
     "upload": "tải lên",
     "noBio": "Chưa thêm tiểu sử.",
-    "updateProfile": "> Cập nhật hồ sơ",
+    "updateProfile": "Cập nhật hồ sơ",
     "bioPlaceholder": "Giới thiệu về bạn...",
     "updating": "đang cập nhật...",
     "update": "cập nhật",
@@ -164,7 +164,7 @@
     "setLearningObjective": "đặt mục tiêu học tập",
     "chapters": "{{count}} chương",
     "logout": "Đăng xuất",
-    "viewAll": "xem tất cả \u2192"
+    "viewAll": "xem tất cả →"
   },
   "task": {
     "title": "Bài tập Chương",
@@ -214,7 +214,7 @@
     "noHeadings": "KHÔNG CÓ MỤC LỤC"
   },
   "quiz": {
-    "loading": "// đang tải bài kiểm tra...",
+    "loading": "đang tải bài kiểm tra...",
     "error": "Không thể tải bài kiểm tra.",
     "noQuestions": "Quiz chưa có câu hỏi. Vui lòng tạo câu hỏi trước.",
     "goBack": "Quay lại",
@@ -226,12 +226,12 @@
     "totalPoints": "Tổng điểm",
     "questions": "câu",
     "points": "điểm",
-    "startQuiz": "> BẮT ĐẦU LÀM BÀI",
+    "startQuiz": "BẮT ĐẦU LÀM BÀI",
     "starting": "đang bắt đầu...",
     "questionOf": "Câu {{current}} / {{total}}",
     "previous": "Trước",
     "next": "Tiếp",
-    "submit": "> NỘP BÀI",
+    "submit": "NỘP BÀI",
     "submitting": "đang nộp bài...",
     "timeRemaining": "Thời gian còn lại",
     "timeUp": "Hết giờ! Bài làm đã được nộp tự động.",
@@ -249,23 +249,23 @@
     "fillInTheBlank": "Điền vào chỗ trống",
     "ordering": "Sắp xếp",
     "pointsLabel": "{{points}} điểm",
-    "resultSuccess": "[ THÀNH CÔNG ]",
-    "resultFailed": "[ THẤT BẠI ]",
+    "resultSuccess": "THÀNH CÔNG",
+    "resultFailed": "THẤT BẠI",
     "scoreLabel": "ĐIỂM",
     "percentageLabel": "TỶ LỆ",
     "viewDetails": "CHI_TIẾT",
     "userAns": "CÂU_TRẢ_LỜI",
     "expected": "ĐÁP_ÁN_ĐÚNG",
-    "nullOrEmpty": "[ TRỐNG ]",
+    "nullOrEmpty": "TRỐNG",
     "questionPrefix": "C",
     "passedMsg": "CHÚC MỪNG! BẠN ĐẠT YÊU CẦU",
     "failedMsg": "RẤT TIẾC! BẠN CHƯA ĐẠT YÊU CẦU"
   },
   "quizStatus": {
-    "NotStarted": "[ CHƯA LÀM ]",
-    "InProgress": "[ ĐANG LÀM ]",
-    "NotPassed": "[ KHÔNG ĐẠT ]",
-    "Passed": "[ ĐẠT ]",
-    "loading": "[ ... ]"
+    "NotStarted": "CHƯA LÀM",
+    "InProgress": "ĐANG LÀM",
+    "NotPassed": "KHÔNG ĐẠT",
+    "Passed": "ĐẠT",
+    "loading": "..."
   }
 }

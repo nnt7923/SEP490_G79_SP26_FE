@@ -1,16 +1,16 @@
 {
   "hero": {
-    "badge": "> AI-Powered Learning Platform",
+    "badge": "AI-Powered Learning Platform",
     "titleLine1": "Create personalized",
     "titleHighlight": "programming",
     "titleLine2": "learning paths with AI",
-    "descLine1": "// Choose a language, set your goal, AI generates the learning path.",
-    "descLine2": "// Track progress, review lessons, improve your skills.",
-    "ctaPlan": "> Create Learning Plan",
+    "descLine1": "Choose a language, set your goal, AI generates the learning path.",
+    "descLine2": "Track progress, review lessons, improve your skills.",
+    "ctaPlan": "Create Learning Plan",
     "ctaRegister": "Register for free"
   },
   "features": {
-    "title": "// What does the platform help you learn?",
+    "title": "What does the platform help you learn?",
     "subtitle": "Everything you need to build an effective programming learning roadmap",
     "plan": {
       "title": "Create Learning Plan",
@@ -34,7 +34,7 @@
     }
   },
   "howItWorks": {
-    "title": "// How to use",
+    "title": "How to use",
     "subtitle": "4 steps to start your programming learning journey",
     "step1": {
       "title": "Choose a language",
@@ -52,11 +52,11 @@
       "title": "Learn the roadmap",
       "desc": "AI creates chapters → lessons → code examples. Track progress on dashboard."
     },
-    "ctaStart": "> Start learning now"
+    "ctaStart": "Start learning now"
   },
   "roles": {
-    "title": "// Who is it for?",
-    "personalizeLabel": "> Personalize your experience",
+    "title": "Who is it for?",
+    "personalizeLabel": "Personalize your experience",
     "personalizeTitle": "Develop programming skills with CodeNexus",
     "feature1": "Create and manage personal learning roadmaps",
     "feature2": "Curate real-world programming learning resources",

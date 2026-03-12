@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { AIConfigService, AIUsageType } from '../../../../services'
-import { LayoutTemplate, FileText, CheckCircle, MessageSquare } from 'lucide-react'
+import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 const AdminApiKeyPage: React.FC = () => {
@@ -267,20 +267,22 @@ const AdminApiKeyPage: React.FC = () => {
            <div className="mb-6 border-b border-bd pb-4">
              <div className="flex items-center justify-between gap-4">
                <div>
-                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent">
-                   <span className="text-status-blue mr-2">{'>_'}</span>
+                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center gap-2">
+                   <Key className="text-status-blue flex-shrink-0" size={28} />
                     {t('apiKey.title')}
                  </h1>
                  <p className="text-muted mt-2">
-                   <span className="text-placeholder mr-2">{'//'}</span>
                     {t('apiKey.subtitle')}
                  </p>
                </div>
                <button
                  type="button"
                  onClick={() => { setShowForm((s) => !s); setIsEditMode(false); resetForm() }}
-                 className="px-6 py-2 border border-blue-600 bg-th-card text-status-blue font-bold hover:bg-status-blue-bg transition-colors cursor-pointer"
-                >{showForm && !isEditMode ? `[ ${t('apiKey.close')} ]` : `[ ${t('apiKey.addKey')} ]`}</button>
+                 className="px-6 py-2 border border-blue-600 bg-th-card text-status-blue font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm flex items-center gap-2"
+                >
+                  {showForm && !isEditMode ? <X size={18} /> : <Plus size={18} />}
+                  {showForm && !isEditMode ? t('apiKey.close') : t('apiKey.addKey')}
+                </button>
              </div>
            </div>
 
@@ -309,9 +311,10 @@ const AdminApiKeyPage: React.FC = () => {
         {/* ========== ADD/EDIT FORM ========== */}
         {showForm && (
           <div className="mb-8 bg-th-card border border-bd-strong">
-            <div className="bg-th-input px-6 py-4 border-b border-bd-strong">
+            <div className="bg-th-input px-6 py-4 border-b border-bd-strong flex items-center gap-2">
+              <Settings className="text-status-blue" size={20} />
               <h2 className="text-lg font-bold text-heading">
-                {isEditMode ? `[ ${t('apiKey.editConfiguration')} ]` : `[ ${t('apiKey.addNewConfiguration')} ]`}
+                {isEditMode ? t('apiKey.editConfiguration') : t('apiKey.addNewConfiguration')}
               </h2>
             </div>
             <form onSubmit={isEditMode ? onUpdate : onSave} className="p-6 space-y-6 lg:w-4/5">
@@ -353,7 +356,7 @@ const AdminApiKeyPage: React.FC = () => {
                   <option value={AIUsageType.Verification}>Verification</option>
                   <option value={AIUsageType.Assistant}>Assistant</option>
                 </select>
-                <p className="text-xs text-muted mt-2">{'//'} {t('apiKey.selectUsageType')}</p>
+                <p className="text-xs text-muted mt-2">{t('apiKey.selectUsageType')}</p>
               </div>
 
               <div>
@@ -362,15 +365,15 @@ const AdminApiKeyPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={addAdditionalProp}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
                   >
-                    [+] {t('apiKey.addProp')}
+                    <Plus size={16} /> {t('apiKey.addProp')}
                   </button>
                 </div>
 
                 <div className="space-y-3 bg-th-page border border-bd-strong p-4">
                   {additionalProps.length === 0 ? (
-                    <p className="text-sm text-muted font-bold">{'//'} {t('apiKey.noProperties')}</p>
+                    <p className="text-sm text-muted font-bold">{t('apiKey.noProperties')}</p>
                   ) : (
                     additionalProps.map((prop, idx) => (
                       <div key={idx} className="flex gap-3 items-end bg-th-card p-3 border border-bd">
@@ -400,7 +403,7 @@ const AdminApiKeyPage: React.FC = () => {
                           className="px-3 py-2 border border-red-500 text-status-red hover:bg-status-red-bg transition-colors font-bold text-sm"
                           title="Remove property"
                         >
-                          [x]
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     ))
@@ -423,13 +426,13 @@ const AdminApiKeyPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold disabled:opacity-60 hover:bg-status-blue-solid-hover transition-colors cursor-pointer"
-                >{saving ? `[ ${t('apiKey.saving')} ]` : (isEditMode ? `[ ${t('apiKey.update')} ]` : `[ ${t('apiKey.save')} ]`)}</button>
+                  className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold disabled:opacity-60 hover:bg-status-blue-solid-hover transition-colors cursor-pointer rounded-sm"
+                >{saving ? t('apiKey.saving') : (isEditMode ? t('apiKey.update') : t('apiKey.save'))}</button>
                 <button
                   type="button"
                   onClick={() => { setShowForm(false); resetForm() }}
-                  className="px-6 py-2 border border-bd-strong text-body font-bold hover:bg-th-input transition-colors cursor-pointer"
-                >[ {t('apiKey.cancel')} ]</button>
+                  className="px-6 py-2 border border-bd-strong text-body font-bold hover:bg-th-input transition-colors cursor-pointer rounded-sm"
+                >{t('apiKey.cancel')}</button>
               </div>
             </form>
           </div>
@@ -447,7 +450,7 @@ const AdminApiKeyPage: React.FC = () => {
         ) : items.length === 0 ? (
           <div className="text-center py-16 bg-th-card border border-bd-strong">
             <p className="text-heading font-bold text-lg mb-1">{t('apiKey.noApiKeys')}</p>
-            <p className="text-sm text-muted">{'//'} {t('apiKey.getStarted')}</p>
+            <p className="text-sm text-muted">{t('apiKey.getStarted')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -475,7 +478,7 @@ const AdminApiKeyPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="font-bold text-sm text-muted group-hover:text-black">
-                        {isExpanded ? '[-]' : '[+]'}
+                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                       </div>
                     </div>
                   </button>
@@ -500,8 +503,8 @@ const AdminApiKeyPage: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                       <typeInfo.icon className="w-4 h-4 text-placeholder" />
                                       <h4 className="text-sm font-bold text-heading truncate">{name}</h4>
-                                      <span className={`px-2 py-0.5 text-xs font-bold border ${enabled ? 'border-green-600 text-status-green-dark bg-status-green-bg' : 'border-bd-strong text-muted bg-th-input'}`}>
-                                        {enabled ? `[${t('apiKey.active')}]` : `[${t('apiKey.inactive')}]`}
+                                      <span className={`px-2 py-0.5 text-xs font-bold border rounded-sm ${enabled ? 'border-green-600 text-status-green-dark bg-status-green-bg' : 'border-bd-strong text-muted bg-th-input'}`}>
+                                        {enabled ? t('apiKey.active') : t('apiKey.inactive')}
                                       </span>
                                     </div>
                                   </div>
@@ -511,34 +514,38 @@ const AdminApiKeyPage: React.FC = () => {
                                       type="button"
                                       onClick={() => handleSelectKey(name)}
                                       disabled={enabled}
-                                      className={`px-2 py-1 text-xs font-bold border transition-colors ${
+                                      className={`px-3 py-1 text-xs font-bold border transition-colors rounded-sm flex items-center gap-1 ${
                                         enabled 
                                           ? 'border-bd-strong text-placeholder bg-th-input cursor-not-allowed' 
                                           : 'border-blue-600 text-status-blue hover:bg-status-blue-bg cursor-pointer'
                                       }`}
                                     >
-                                      {enabled ? `[ ${t('apiKey.selected')} ]` : `[ ${t('apiKey.select')} ]`}
+                                      {enabled ? <CheckCircle size={14} /> : <ChevronRight size={14} />}
+                                      {enabled ? t('apiKey.selected') : t('apiKey.select')}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => setExpandedIndex(itemExpanded ? null : `${usageType}-${idx}`)}
-                                      className="px-2 py-1 border border-bd-strong text-label text-xs font-bold hover:bg-th-input cursor-pointer transition-colors"
+                                      className="px-3 py-1 border border-bd-strong text-label text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                                     >
-                                      {itemExpanded ? '[-]' : '[+]'}
+                                      {itemExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                      {t('apiKey.details', 'Details')}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => startEdit(it)}
-                                      className="px-2 py-1 border border-bd-strong text-body text-xs font-bold hover:bg-th-input cursor-pointer transition-colors"
+                                      className="px-3 py-1 border border-bd-strong text-body text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                                     >
-                                      [ {t('apiKey.edit')} ]
+                                      <Edit size={14} />
+                                      {t('apiKey.edit')}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => name !== '—' && onDelete(name)}
-                                      className="px-2 py-1 border border-red-500 text-status-red text-xs font-bold hover:bg-status-red-bg cursor-pointer transition-colors"
+                                      className="px-3 py-1 border border-red-500 text-status-red text-xs font-bold hover:bg-status-red-bg cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                                     >
-                                      [ {t('apiKey.delete')} ]
+                                      <Trash2 size={14} />
+                                      {t('apiKey.delete')}
                                     </button>
                                   </div>
                                 </div>
