@@ -68,7 +68,6 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
     // Wait up to 10 seconds for connection to be established
     const maxWait = 10000
     const startTime = Date.now()
-<<<<<<< HEAD
     while (Date.now() - startTime < maxWait) {
       const currentState = conn.state
       if (currentState === signalR.HubConnectionState.Connected) {
@@ -77,9 +76,6 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
       if (currentState === signalR.HubConnectionState.Disconnected) {
         break
       }
-=======
-    while ((conn.state as signalR.HubConnectionState) !== signalR.HubConnectionState.Connected && Date.now() - startTime < maxWait) {
->>>>>>> 6965b7884f2fb422f139ae0450fbd5d692ed0903
       await new Promise(resolve => setTimeout(resolve, 100))
     }
     if ((conn.state as signalR.HubConnectionState) !== signalR.HubConnectionState.Connected) {
