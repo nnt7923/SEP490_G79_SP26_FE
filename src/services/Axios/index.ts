@@ -1,4 +1,4 @@
-import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
+import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import * as AuthService from '../AuthService'
 import useAuthStore from '../../store/useAuthStore'
 
@@ -45,7 +45,7 @@ const noAuthHeaderPaths = [
 
 // Attach Authorization from store or stored auth on requests except unauthenticated endpoints
 api.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     const url = config.url || ''
     if (noAuthHeaderPaths.some((p) => url.includes(p))) {
       return config
@@ -55,14 +55,14 @@ api.interceptors.request.use(
     let token: string | undefined
     try {
       token = useAuthStore.getState().token ?? undefined
-    } catch {}
+    } catch { }
     if (!token) {
       const stored = AuthService.getStoredAuth()
       token = stored?.token
     }
     if (token) {
       config.headers = config.headers || {}
-      ;(config.headers as any).Authorization = `Bearer ${token}`
+        ; (config.headers as any).Authorization = `Bearer ${token}`
     }
     return config
   },
@@ -132,7 +132,7 @@ api.interceptors.response.use(
         if (!newToken) throw new Error('No token from refresh')
 
         // Persist new access token
-        try { useAuthStore.getState().setToken(newToken) } catch {}
+        try { useAuthStore.getState().setToken(newToken) } catch { }
         if (typeof AuthService.setAccessToken === 'function') {
           AuthService.setAccessToken(newToken)
         }
@@ -140,7 +140,7 @@ api.interceptors.response.use(
 
         // Persist rotated refresh token (one-time use — must update)
         if (newRefreshToken) {
-          try { useAuthStore.getState().setRefreshToken(newRefreshToken) } catch {}
+          try { useAuthStore.getState().setRefreshToken(newRefreshToken) } catch { }
         }
 
         processQueue(null, newToken)
@@ -150,7 +150,7 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (err) {
         processQueue(err, undefined)
-        try { useAuthStore.getState().clearState() } catch {}
+        try { useAuthStore.getState().clearState() } catch { }
         if (typeof AuthService.clearState === 'function') {
           AuthService.clearState()
         }
