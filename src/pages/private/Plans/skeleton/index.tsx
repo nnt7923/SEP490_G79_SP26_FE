@@ -5,11 +5,8 @@ import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar
 import ROUTER from '../../../../router/ROUTER'
 import { requestLessonContent } from '../../../../services/SignalR'
 import { generateAllContent } from '../../../../services/ContentGenerator'
-import { FocusSessionService, SessionType } from '../../../../services'
 import LessonContent from '../components/LessonContent'
 import ChapterTasks from '../components/ChapterTasks'
-import FocusSessionDialog from '../../../../components/FocusSessionDialog'
-import Toast from '../../../../components/Toast'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 
@@ -158,51 +155,14 @@ const ResultPage: React.FC = () => {
     }
   }, [activeChapterId])
 
-  // Handle focus session creation
-  const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
-    if (!selectedTask) return
-
-    setCreatingSession(true)
-    try {
-      const session = await FocusSessionService.startSession({
-        taskId: selectedTask.id,
-        sessionType,
-        plannedDurationMinutes: duration,
-        title: title || selectedTask.title
-      })
-
-      setToast({ message: 'Phiên học tập đã được tạo thành công!', type: 'success' })
-      setShowFocusDialog(false)
-      setSelectedTask(null)
-
-      // Navigate to focus session page
-      navigate(ROUTER.FOCUS_SESSION, { state: { session } })
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Không thể tạo phiên học tập'
-      setToast({ message: msg, type: 'error' })
-    } finally {
-      setCreatingSession(false)
-    }
-  }
-
-  const handleCancelFocusSession = () => {
-    setShowFocusDialog(false)
-    setSelectedTask(null)
-  }
-
-  // Handle lesson click - show focus session dialog
+  // Handle lesson click - navigate to lesson detail page
   const handleLessonClick = (lessonId: string, lessonTitle: string) => {
-    setSelectedTask({ id: lessonId, title: lessonTitle })
-    setShowFocusDialog(true)
+    // Navigate to lesson detail page with skeleton data
+    navigate(`/lesson/${lessonId}`, { state: { skeleton } })
   }
 
+  // Focus session dialog states - removed, using ChapterTasks component for focus sessions
   const [showLessonContent, setShowLessonContent] = useState(false)
-
-  // Focus session dialog states
-  const [showFocusDialog, setShowFocusDialog] = useState<boolean>(false)
-  const [selectedTask, setSelectedTask] = useState<{ id: string; title: string } | null>(null)
-  const [creatingSession, setCreatingSession] = useState<boolean>(false)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
   const navItems = useStudentSidebarConfig()
   const sidebarConfig = {
@@ -493,26 +453,6 @@ const ResultPage: React.FC = () => {
 
         </div>
       </div>
-
-      {/* Focus Session Dialog */}
-      {showFocusDialog && selectedTask && (
-        <FocusSessionDialog
-          isOpen={showFocusDialog}
-          taskTitle={selectedTask.title}
-          onConfirm={handleCreateFocusSession}
-          onCancel={handleCancelFocusSession}
-          loading={creatingSession}
-        />
-      )}
-
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
     </Layout>
   )
 }

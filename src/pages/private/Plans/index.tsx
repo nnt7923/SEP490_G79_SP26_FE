@@ -119,8 +119,6 @@ const PlansPage: React.FC = () => {
   // Toast states
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
-  // Focus session dialog states - REMOVED (not used in this component)
-
   const startEditGoal = (id: string, currTitle: string) => {
     setEditingGoalId(id)
     setEditingTitle(currTitle)
@@ -261,7 +259,7 @@ const PlansPage: React.FC = () => {
     }
   }
 
-  // Handle lesson click - show focus session dialog
+  // Handle lesson click - always generate content and quiz
   const handleLessonClick = async (lessonId: string, lessonTitle: string) => {
     // Don't generate if already generating
     if (generatingLessons.has(lessonId)) {
@@ -366,10 +364,6 @@ const PlansPage: React.FC = () => {
         return newSet
       })
     }
-    
-    // Focus session functionality removed - lessons are now just for display
-    // setSelectedTask({ id: lessonId, title: lessonTitle })
-    // setShowFocusDialog(true)
   }
 
   // Persist selections
