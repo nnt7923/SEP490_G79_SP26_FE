@@ -34,7 +34,7 @@ function processQueue(err?: any, token?: string) {
 const noAuthHeaderPaths = [
   '/Auth/login',
   '/Auth/register',
-  '/Auth/refresh',
+  '/Auth/refresh-token',
   '/Auth/login-google',
   // '/Auth/verify-email', // removed: endpoint not used
   '/Auth/verify-otp',
@@ -73,7 +73,7 @@ api.interceptors.request.use(
 const authPaths = [
   '/Auth/login',
   '/Auth/register',
-  '/Auth/refresh',
+  '/Auth/refresh-token',
   '/Auth/forgot-password',
   '/Auth/reset-password',
   '/Auth/logout',
@@ -112,20 +112,36 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const refreshRes = await axios.get(
-          `${API_BASE}/Auth/refresh`,
+        // Get current refresh token from store or localStorage
+        const currentRefreshToken: string | null =
+          useAuthStore.getState().refreshToken ||
+          localStorage.getItem('refreshToken')
+
+        if (!currentRefreshToken) throw new Error('No refresh token available')
+
+        const refreshRes = await axios.post(
+          `${API_BASE}/Auth/refresh-token`,
+          { refreshToken: currentRefreshToken },
           { withCredentials: true }
         )
 
-        const newToken: string | undefined = (refreshRes as any)?.data?.data?.token
+        const resData = (refreshRes as any)?.data?.data ?? (refreshRes as any)?.data ?? refreshRes
+        const newToken: string | undefined = resData?.accessToken ?? resData?.token
+        const newRefreshToken: string | undefined = resData?.refreshToken
+
         if (!newToken) throw new Error('No token from refresh')
 
-        // Persist new token and update defaults
+        // Persist new access token
         try { useAuthStore.getState().setToken(newToken) } catch {}
         if (typeof AuthService.setAccessToken === 'function') {
           AuthService.setAccessToken(newToken)
         }
         api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
+
+        // Persist rotated refresh token (one-time use — must update)
+        if (newRefreshToken) {
+          try { useAuthStore.getState().setRefreshToken(newRefreshToken) } catch {}
+        }
 
         processQueue(null, newToken)
 

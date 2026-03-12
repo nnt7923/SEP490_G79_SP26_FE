@@ -1,7 +1,7 @@
 export const loginUrl = '/Auth/login'
 export const registerUrl = '/Auth/register'
 export const logoutUrl = '/Auth/logout'
-export const refreshUrl = '/Auth/refresh'
+export const refreshUrl = '/Auth/refresh-token'
 export const loginWithGoogleUrl = '/Auth/login-google'
 export const verifyOtpUrl = '/Auth/verify-otp'
 export const resendOtpUrl = '/Auth/resend-otp'
