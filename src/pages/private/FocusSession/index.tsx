@@ -65,14 +65,8 @@ const FocusSessionPage: React.FC = () => {
       })
       
       const result = JSON.stringify(answersArray)
-      console.log('Formatted quiz answers:', result)
-      console.log('Quiz answers object:', quizAnswers)
-      console.log('Sorted question keys:', questionKeys)
-      console.log('Final array:', answersArray)
-      
       return result
     } catch (error) {
-      console.error('Error formatting quiz answers:', error)
       return JSON.stringify([])
     }
   }
@@ -217,11 +211,6 @@ const FocusSessionPage: React.FC = () => {
         payload.submittedQuizAnswers = formatQuizAnswers()
       }
 
-      console.log('Completing session with:', {
-        sessionId: session.id,
-        payload
-      })
-
       // Call complete session API
       await FocusSessionService.completeSession(session.id, payload)
       
@@ -240,7 +229,6 @@ const FocusSessionPage: React.FC = () => {
         navigate(ROUTER.MY_PLANS)
       }, 2000)
     } catch (error: any) {
-      console.error('Complete session error:', error)
       const msg = error?.response?.data?.message || error?.message || 'Không thể hoàn thành phiên học tập'
       setToast({ message: msg, type: 'error' })
     } finally {
@@ -290,28 +278,16 @@ const FocusSessionPage: React.FC = () => {
         payload.submittedQuizAnswers = formatQuizAnswers()
       }
 
-      console.log('Requesting AI review with:', payload)
-      console.log('Session ID:', session.id)
-      console.log('Task Type:', taskTypeNum)
-
       // Use FocusSessionService to call AI review API
       const reviewData = await FocusSessionService.getAiReview(session.id, payload)
-      
-      console.log('AI Review response received:', reviewData)
       
       // Extract feedback from response structure based on backend response
       const feedback = reviewData?.aiFeedback || reviewData?.value?.aiFeedback || reviewData?.feedback || reviewData?.message || 'AI đã xem xét bài làm của bạn.'
       const score = reviewData?.verificationScore || reviewData?.value?.verificationScore
       
-      console.log('Extracted AI feedback:', { feedback, score })
-      
       setAiReview({ feedback, score })
       setToast({ message: 'Đã nhận được review từ AI!', type: 'success' })
     } catch (error: any) {
-      console.error('AI review error:', error)
-      console.error('Error response:', error?.response)
-      console.error('Error data:', error?.response?.data)
-      
       // More detailed error handling
       let errorMsg = 'Không thể lấy review từ AI'
       
@@ -452,11 +428,7 @@ const FocusSessionPage: React.FC = () => {
             <div style={{ flex: 1, padding: 16, overflow: 'auto' }}>
               {(() => {
                 try {
-                  console.log('Quiz task data:', task)
-                  console.log('QuizQuestionsJson:', task?.quizQuestionsJson)
-                  
                   const quizData = task?.quizQuestionsJson ? JSON.parse(task.quizQuestionsJson) : null
-                  console.log('Parsed quiz data:', quizData)
                   
                   if (!quizData) {
                     return (
@@ -513,7 +485,6 @@ const FocusSessionPage: React.FC = () => {
                     </div>
                   ))
                 } catch (error) {
-                  console.error('Quiz parsing error:', error)
                   return (
                     <div style={{ textAlign: 'center', color: 'var(--error-primary)', padding: 40 }}>
                       <div>Lỗi khi tải câu hỏi quiz</div>

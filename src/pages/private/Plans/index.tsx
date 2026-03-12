@@ -366,7 +366,6 @@ const PlansPage: React.FC = () => {
         return newSet
       })
     }
-    console.log('Lesson clicked:', { lessonId, lessonTitle })
     
     // Focus session functionality removed - lessons are now just for display
     // setSelectedTask({ id: lessonId, title: lessonTitle })
@@ -1071,7 +1070,13 @@ const PlansPage: React.FC = () => {
                       setPlanGenerated(true)
                       setGenerationProgress(100)
                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
-                      navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
+                      
+                      // Navigate to detail page if pathId exists, otherwise to result page
+                      if (sk?.pathId) {
+                        navigate('/my-plans/detail', { state: { pathId: sk.pathId } })
+                      } else {
+                        navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
+                      }
                     } catch (e: any) {
                       const d = e?.response?.data
                       const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail

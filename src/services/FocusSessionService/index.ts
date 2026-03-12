@@ -29,13 +29,9 @@ export interface StartSessionRequest {
 }
 
 export async function startSession(payload: StartSessionRequest): Promise<FocusSession> {
-  console.log('FocusSessionService.startSession called with:', payload)
-  
   const res: any = await api.post(startSessionUrl, payload)
   const data: any = res?.data ?? res
-  
-  console.log('FocusSessionService.startSession response:', data)
-  
+
   return {
     id: data?.id ?? data?.sessionId,
     taskId: data?.taskId,
@@ -86,7 +82,7 @@ export async function getSession(id: string | number): Promise<FocusSession> {
 
 export async function getMySessions(): Promise<FocusSession[]> {
   const res: any = await api.get(mySessionsUrl)
-  
+
   // Unwrap response
   const root: any = res?.data ?? res
   let items: any[] = []
@@ -114,24 +110,16 @@ export async function getMySessions(): Promise<FocusSession[]> {
 }
 
 export async function getAiReview(sessionId: string | number, payload: any): Promise<any> {
-  console.log('FocusSessionService.getAiReview called with:', { sessionId, payload })
-  
   const res: any = await api.post(reviewUrl(sessionId), payload)
   const data: any = res?.data ?? res
-  
-  console.log('FocusSessionService.getAiReview response:', data)
-  
+
   return data
 }
 
 export async function completeSession(sessionId: string | number, payload: any): Promise<any> {
-  console.log('FocusSessionService.completeSession called with:', { sessionId, payload })
-  
   const res: any = await api.post(completeUrl(sessionId), payload)
   const data: any = res?.data ?? res
-  
-  console.log('FocusSessionService.completeSession response:', data)
-  
+
   return data
 }
 

@@ -48,13 +48,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
     if (!selectedTask) return
 
-    console.log('Creating focus session with:', {
-      taskId: selectedTask.id,
-      sessionType,
-      plannedDurationMinutes: duration,
-      title: title || selectedTask.title
-    })
-
     setCreatingSession(true)
     try {
       const session = await FocusSessionService.startSession({
@@ -64,7 +57,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
         title: title || selectedTask.title
       })
 
-      console.log('Focus session created successfully:', session)
       setToast({ message: 'Phiên học tập đã được tạo thành công!', type: 'success' })
       setShowFocusDialog(false)
       setSelectedTask(null)
@@ -73,9 +65,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
       const taskType = selectedTask.fullTask?.taskType
       const quizData = selectedTask.fullTask?.QuizQuestionsJson || selectedTask.fullTask?.quizQuestionsJson
       
-      console.log('Navigating to focus session with task data:', {
-        taskType,
-        quizData,
+      navigate(ROUTER.FOCUS_SESSION, {
         fullTask: selectedTask.fullTask
       })
       
@@ -92,8 +82,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
         } 
       })
     } catch (error: any) {
-      console.error('Failed to create focus session:', error)
-      console.error('Error response:', error?.response?.data)
       const msg = error?.response?.data?.message || error?.message || 'Không thể tạo phiên học tập'
       setToast({ message: msg, type: 'error' })
     } finally {
@@ -111,7 +99,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     // Try both id and taskId fields from API
     const taskId = task.id || task.taskId || task.TaskId
     if (!taskId) {
-      console.error('Task missing ID:', task)
       setToast({ message: 'Task không có ID hợp lệ', type: 'error' })
       return
     }
@@ -135,7 +122,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     setError(null)
 
     try {
-      console.log('Loading tasks for chapter:', chapterId)
       const result = await requestChapterTasks(chapterId, () => setLoading(true))
       let taskArray: Task[] = []
       
@@ -152,11 +138,9 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
         ...task
       }))
       
-      console.log('Loaded tasks for chapter', chapterId, ':', taskArray.length, 'tasks')
       setTasks(taskArray)
       setLoaded(true)
     } catch (e: any) {
-      console.error('Error loading tasks for chapter', chapterId, ':', e)
       loadingRef.current = false
       if (retryCount < 1) {
         await new Promise(r => setTimeout(r, 1000))
@@ -182,7 +166,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   // Initial load when component mounts
   React.useEffect(() => {
     if (chapterId && !loaded && !loading) {
-      console.log('Initial load for chapter:', chapterId)
       loadTasks(0, true)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

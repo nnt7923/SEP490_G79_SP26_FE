@@ -192,7 +192,6 @@ const ResultPage: React.FC = () => {
 
   // Handle lesson click - show focus session dialog
   const handleLessonClick = (lessonId: string, lessonTitle: string) => {
-    console.log('handleLessonClick called:', { lessonId, lessonTitle })
     setSelectedTask({ id: lessonId, title: lessonTitle })
     setShowFocusDialog(true)
   }
