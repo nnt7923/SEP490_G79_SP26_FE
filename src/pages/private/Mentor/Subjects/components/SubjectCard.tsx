@@ -14,7 +14,15 @@ const SubjectCard: React.FC<SubjectCardProps> = ({ subject, onEdit, onDelete }) 
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-th-input border border-bd flex items-center justify-center">
-            {subject.icon || <BookOpen className="w-5 h-5 text-status-blue" />}
+            {subject.icon ? (
+              subject.icon.startsWith('devicon-') ? (
+                <i className={`${subject.icon} text-2xl text-status-blue`}></i>
+              ) : (
+                subject.icon
+              )
+            ) : (
+              <BookOpen className="w-5 h-5 text-status-blue" />
+            )}
           </div>
           <div>
             <h3 className="text-sm font-bold text-heading line-clamp-1 break-all uppercase">

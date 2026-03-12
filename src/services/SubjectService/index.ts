@@ -37,22 +37,22 @@ export interface ListSubjectsParams {
 
 export async function listSubjects(params?: ListSubjectsParams): Promise<Subject[]> {
   const queryParams = new URLSearchParams()
-  
+
   if (params?.category !== undefined) {
     queryParams.append('category', String(params.category))
   }
-  
+
   const url = `${listSubjectsUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
   const res: any = await api.get(url)
-  
+
   let subjects: any[] = []
-  
+
   // The API may wrap results as { isSuccess, value: [...] }
   if (Array.isArray(res)) subjects = res
   else if (Array.isArray(res?.value)) subjects = res.value
   else if (Array.isArray(res?.data)) subjects = res.data
   else if (Array.isArray(res?.data?.value)) subjects = res.data.value
-  
+
   // Normalize: backend uses 'subjectId', frontend expects 'id'
   return subjects.map((s: any) => ({
     id: s.subjectId || s.id,
@@ -69,7 +69,7 @@ export async function listSubjects(params?: ListSubjectsParams): Promise<Subject
   }))
 }
 
-export async function createSubject(payload: { 
+export async function createSubject(payload: {
   name: string
   description?: string
   color?: string
@@ -82,7 +82,7 @@ export async function createSubject(payload: {
   return data as Subject
 }
 
-export async function updateSubject(subjectId: string, payload: { 
+export async function updateSubject(subjectId: string, payload: {
   name: string
   description?: string
   color?: string

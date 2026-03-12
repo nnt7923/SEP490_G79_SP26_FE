@@ -15,7 +15,11 @@ const SubjectListItem: React.FC<SubjectListItemProps> = ({ subject, onEdit, onDe
           {/* Icon */}
           <div className="w-12 h-12 bg-th-input border border-bd flex items-center justify-center flex-shrink-0">
             {subject.icon ? (
-              <span className="text-xl">{subject.icon}</span>
+              subject.icon.startsWith('devicon-') ? (
+                <i className={`${subject.icon} text-2xl text-status-blue`}></i>
+              ) : (
+                <span className="text-xl">{subject.icon}</span>
+              )
             ) : (
               <BookOpen className="w-6 h-6 text-status-blue" />
             )}

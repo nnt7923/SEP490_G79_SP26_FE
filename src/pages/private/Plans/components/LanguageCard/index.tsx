@@ -37,7 +37,17 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
     }}
   >
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, width: '100%' }}>
-      <div style={{ fontSize: 24, flexShrink: 0 }}>{icon ?? '🔖'}</div>
+      <div style={{ fontSize: 24, flexShrink: 0 }}>
+        {icon ? (
+          icon.startsWith('devicon-') ? (
+            <i className={icon}></i>
+          ) : (
+            icon
+          )
+        ) : (
+          '🔖'
+        )}
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
           {active ? `> ${name}` : `$ ${name}`}

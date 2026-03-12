@@ -30,15 +30,12 @@ import {
   Container,
   Rocket,
   Settings,
-  Wrench,
-  Hammer,
   Binary,
   CircuitBoard,
   HardDrive,
   MemoryStick,
   Blocks,
   Box,
-  Puzzle,
   Sparkles
 } from 'lucide-react'
 
@@ -89,34 +86,33 @@ const PRESET_COLORS = [
 
 const SUBJECT_ICONS = [
   { name: 'Code', icon: Code2, emoji: '💻', category: 'Languages' },
-  { name: 'JavaScript', icon: FileCode, emoji: '📜', category: 'Languages' },
-  { name: 'TypeScript', icon: FileJson, emoji: '📘', category: 'Languages' },
-  { name: 'Python', icon: Terminal, emoji: '🐍', category: 'Languages' },
-  { name: 'Java', icon: Braces, emoji: '☕', category: 'Languages' },
-  { name: 'C/C++', icon: Binary, emoji: '⚙️', category: 'Languages' },
-  { name: 'C#', icon: Box, emoji: '🔷', category: 'Languages' },
-  { name: 'Go', icon: Zap, emoji: '🔵', category: 'Languages' },
-  { name: 'Rust', icon: Settings, emoji: '🦀', category: 'Languages' },
-  { name: 'PHP', icon: Globe, emoji: '🐘', category: 'Languages' },
-  { name: 'Ruby', icon: Sparkles, emoji: '💎', category: 'Languages' },
-  { name: 'Swift', icon: Rocket, emoji: '🚀', category: 'Languages' },
-  { name: 'HTML/CSS', icon: Layout, emoji: '🎨', category: 'Frontend' },
-  { name: 'React', icon: Component, emoji: '⚛️', category: 'Frontend' },
-  { name: 'Vue', icon: Layers, emoji: '💚', category: 'Frontend' },
-  { name: 'Angular', icon: Boxes, emoji: '🅰️', category: 'Frontend' },
+  { name: 'JavaScript', icon: FileCode, emoji: 'devicon-javascript-plain', category: 'Languages' },
+  { name: 'TypeScript', icon: FileJson, emoji: 'devicon-typescript-plain', category: 'Languages' },
+  { name: 'Python', icon: Terminal, emoji: 'devicon-python-plain', category: 'Languages' },
+  { name: 'Java', icon: Braces, emoji: 'devicon-java-plain', category: 'Languages' },
+  { name: 'C/C++', icon: Binary, emoji: 'devicon-cplusplus-plain', category: 'Languages' },
+  { name: 'C#', icon: Box, emoji: 'devicon-csharp-plain', category: 'Languages' },
+  { name: 'Go', icon: Zap, emoji: 'devicon-go-original-wordmark', category: 'Languages' },
+  { name: 'Rust', icon: Settings, emoji: 'devicon-rust-plain', category: 'Languages' },
+  { name: 'PHP', icon: Globe, emoji: 'devicon-php-plain', category: 'Languages' },
+  { name: 'Ruby', icon: Sparkles, emoji: 'devicon-ruby-plain', category: 'Languages' },
+  { name: 'Swift', icon: Rocket, emoji: 'devicon-swift-plain', category: 'Languages' },
+  { name: 'HTML5', icon: Layout, emoji: 'devicon-html5-plain', category: 'Frontend' },
+  { name: 'CSS3', icon: Layout, emoji: 'devicon-css3-plain', category: 'Frontend' },
+  { name: 'React', icon: Component, emoji: 'devicon-react-original', category: 'Frontend' },
+  { name: 'Vue', icon: Layers, emoji: 'devicon-vuejs-plain', category: 'Frontend' },
+  { name: 'Angular', icon: Boxes, emoji: 'devicon-angularjs-plain', category: 'Frontend' },
   { name: 'UI/UX', icon: Monitor, emoji: '🖥️', category: 'Frontend' },
   { name: 'Responsive Design', icon: Smartphone, emoji: '📱', category: 'Frontend' },
-  { name: 'Node.js', icon: Server, emoji: '🟢', category: 'Backend' },
+  { name: 'Node.js', icon: Server, emoji: 'devicon-nodejs-plain', category: 'Backend' },
   { name: 'Database', icon: Database, emoji: '🗄️', category: 'Backend' },
-  { name: 'SQL', icon: HardDrive, emoji: '📊', category: 'Backend' },
-  { name: 'NoSQL', icon: MemoryStick, emoji: '🍃', category: 'Backend' },
+  { name: 'SQL', icon: HardDrive, emoji: 'devicon-mysql-plain', category: 'Backend' },
+  { name: 'NoSQL', icon: MemoryStick, emoji: 'devicon-mongodb-plain', category: 'Backend' },
   { name: 'API', icon: Network, emoji: '🔌', category: 'Backend' },
-  { name: 'GraphQL', icon: Workflow, emoji: '📡', category: 'Backend' },
-  { name: 'Microservices', icon: Puzzle, emoji: '🧩', category: 'Backend' },
-  { name: 'Git', icon: GitBranch, emoji: '🌿', category: 'DevOps' },
-  { name: 'Docker', icon: Container, emoji: '🐳', category: 'DevOps' },
+  { name: 'GraphQL', icon: Workflow, emoji: 'devicon-graphql-plain', category: 'Backend' },
+  { name: 'Docker', icon: Container, emoji: 'devicon-docker-plain', category: 'DevOps' },
+  { name: 'Git', icon: GitBranch, emoji: 'devicon-git-plain', category: 'DevOps' },
   { name: 'Cloud', icon: Cloud, emoji: '☁️', category: 'DevOps' },
-  { name: 'CI/CD', icon: Workflow, emoji: '🔄', category: 'DevOps' },
   { name: 'Testing', icon: TestTube, emoji: '🧪', category: 'DevOps' },
   { name: 'Debugging', icon: Bug, emoji: '🐛', category: 'DevOps' },
   { name: 'Security', icon: Lock, emoji: '🔒', category: 'Security' },
@@ -124,9 +120,8 @@ const SUBJECT_ICONS = [
   { name: 'System Design', icon: CircuitBoard, emoji: '🏗️', category: 'Architecture' },
   { name: 'Algorithms', icon: Blocks, emoji: '🧮', category: 'Architecture' },
   { name: 'Data Structures', icon: Cpu, emoji: '📦', category: 'Architecture' },
-  { name: 'Package Manager', icon: Package, emoji: '📦', category: 'Tools' },
-  { name: 'Build Tools', icon: Hammer, emoji: '🔨', category: 'Tools' },
-  { name: 'Configuration', icon: Wrench, emoji: '🔧', category: 'Tools' },
+  { name: 'Package Manager', icon: Package, emoji: 'devicon-npm-original-wordmark', category: 'Tools' },
+  { name: 'VS Code', icon: FileCode, emoji: 'devicon-vscode-plain', category: 'Tools' },
 ]
 
 const QUICK_PRESET_ICONS = [
@@ -147,7 +142,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
   editSubject = null,
 }) => {
   const isEditMode = !!editSubject
-  
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -219,7 +214,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
     setLoading(true)
     try {
       const { SubjectService } = await import('../../../../../services')
-      
+
       if (isEditMode && editSubject) {
         await SubjectService.updateSubject(editSubject.subjectId, formData)
       } else {
@@ -300,11 +295,10 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., JavaScript & TypeScript"
-              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors text-heading ${
-                errors.name
+              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors text-heading ${errors.name
                   ? 'border-red-500'
                   : 'border-bd-strong focus:border-blue-600'
-              }`}
+                }`}
               disabled={loading}
             />
             {errors.name && <p className="text-sm text-status-red mt-1">{errors.name}</p>}
@@ -317,11 +311,10 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Brief description of what this subject covers..."
               rows={4}
-              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors resize-none text-heading ${
-                errors.description
+              className={`w-full px-4 py-2 border-2 bg-th-card focus:outline-none transition-colors resize-none text-heading ${errors.description
                   ? 'border-red-500'
                   : 'border-bd-strong focus:border-blue-600'
-              }`}
+                }`}
               disabled={loading}
             />
             <div className="flex items-center justify-between mt-1">
@@ -394,7 +387,11 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                     return (
                       <>
                         <div className="w-8 h-8 bg-th-input border border-bd flex items-center justify-center">
-                          <IconComponent className="w-5 h-5 text-status-blue" strokeWidth={2} />
+                          {selectedIcon.emoji.startsWith('devicon-') ? (
+                            <i className={`${selectedIcon.emoji} text-lg text-status-blue`}></i>
+                          ) : (
+                            <IconComponent className="w-5 h-5 text-status-blue" strokeWidth={2} />
+                          )}
                         </div>
                         <span className="text-sm font-bold text-heading">{selectedIcon.name}</span>
                       </>
@@ -418,14 +415,17 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                             key={iconItem.name}
                             type="button"
                             onClick={() => handleIconSelect(iconItem.emoji)}
-                            className={`aspect-square border flex items-center justify-center transition-all ${
-                              isSelected
+                            className={`aspect-square border flex items-center justify-center transition-all ${isSelected
                                 ? 'bg-status-blue-solid text-white border-blue-600'
                                 : 'bg-th-card text-body border-bd hover:border-bd-dark'
-                            }`}
+                              }`}
                             title={iconItem.name}
                           >
-                            <IconComponent className="w-5 h-5" strokeWidth={2} />
+                            {iconItem.emoji.startsWith('devicon-') ? (
+                              <i className={`${iconItem.emoji} text-lg ${isSelected ? 'text-white' : 'text-status-blue'}`}></i>
+                            ) : (
+                              <IconComponent className="w-5 h-5" strokeWidth={2} />
+                            )}
                           </button>
                         )
                       })}
@@ -459,14 +459,17 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                                   key={iconItem.name}
                                   type="button"
                                   onClick={() => handleIconSelect(iconItem.emoji)}
-                                  className={`aspect-square border flex items-center justify-center transition-all ${
-                                    isSelected
+                                  className={`aspect-square border flex items-center justify-center transition-all ${isSelected
                                       ? 'bg-status-blue-solid text-white border-blue-600'
                                       : 'bg-th-card text-body border-bd hover:border-bd-dark'
-                                  }`}
+                                    }`}
                                   title={iconItem.name}
                                 >
-                                  <IconComponent className="w-5 h-5" strokeWidth={2} />
+                                  {iconItem.emoji.startsWith('devicon-') ? (
+                                    <i className={`${iconItem.emoji} text-lg ${isSelected ? 'text-white' : 'text-status-blue'}`}></i>
+                                  ) : (
+                                    <IconComponent className="w-5 h-5" strokeWidth={2} />
+                                  )}
                                 </button>
                               )
                             })}
@@ -488,7 +491,11 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                   {(() => {
                     const selectedIcon = getSelectedIcon()
                     const IconComponent = selectedIcon.icon
-                    return <IconComponent className="w-6 h-6 text-status-blue" strokeWidth={2} />
+                    return selectedIcon.emoji.startsWith('devicon-') ? (
+                      <i className={`${selectedIcon.emoji} text-2xl text-status-blue`}></i>
+                    ) : (
+                      <IconComponent className="w-6 h-6 text-status-blue" strokeWidth={2} />
+                    )
                   })()}
                 </div>
                 <div className="flex-1 min-w-0 w-full">
