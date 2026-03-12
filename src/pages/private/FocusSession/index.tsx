@@ -130,12 +130,12 @@ const FocusSessionPage: React.FC = () => {
   const toggleFocusMode = async () => {
     if (!isFocusMode) {
       if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen().catch(() => { })
+        await document.documentElement.requestFullscreen().catch(() => {})
       }
       setIsFocusMode(true)
     } else {
       if (document.exitFullscreen && document.fullscreenElement) {
-        await document.exitFullscreen().catch(() => { })
+        await document.exitFullscreen().catch(() => {})
       }
       setIsFocusMode(false)
     }
