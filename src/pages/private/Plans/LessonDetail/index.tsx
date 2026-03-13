@@ -5,7 +5,7 @@ import Footer from '../../../../components/Layout/Footer'
 import { requestLessonContent } from '../../../../services/SignalR'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
-import { ArrowLeft, Maximize2, Minimize2, Terminal, BookOpen, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, Award, Clock, Target, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 // Helper to extract headings (## and ###) from markdown
@@ -52,6 +52,10 @@ const LessonDetailPage: React.FC = () => {
   const [md, setMd] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  
+  const [quizLoading, setQuizLoading] = useState<boolean>(false)
+  const [quizSkeleton, setQuizSkeleton] = useState<any>(null)
+  const [quizError, setQuizError] = useState<string | null>(null)
   
   const [isFocusMode, setIsFocusMode] = useState(false)
 
@@ -153,6 +157,8 @@ const LessonDetailPage: React.FC = () => {
     const run = async () => {
       setLoading(true)
       setError(null)
+      setQuizLoading(true)
+      setQuizError(null)
 
       // 1) Check if content is in skeleton
       const found = allLessons.find((l: any) => l.id === lessonId)
@@ -160,16 +166,44 @@ const LessonDetailPage: React.FC = () => {
       if (!disposed && fromSkeleton && fromSkeleton.trim().length > 0) {
         setMd(fromSkeleton)
         setLoading(false)
+        if (found?.quizSkeleton !== undefined) {
+           setQuizSkeleton(found.quizSkeleton)
+           setQuizLoading(false)
+        }
         return
       }
 
       // 2) Fallback to SignalR request
       try {
-        const content = await requestLessonContent(lessonId, () => {
-          if (!disposed) setLoading(true)
-        })
+        const content = await requestLessonContent(
+          lessonId, 
+          () => {
+            if (!disposed) setLoading(true)
+          },
+          {
+            onLoading: () => {
+               if (!disposed) setQuizLoading(true)
+            },
+            onSuccess: (qs) => {
+               if (!disposed) {
+                 setQuizSkeleton(qs)
+                 setQuizLoading(false)
+               }
+            },
+            onError: (err) => {
+               if (!disposed) {
+                 setQuizError(err?.message || 'Failed to load quiz')
+                 setQuizLoading(false)
+               }
+            }
+          }
+        )
         if (disposed) return
         setMd(extractMarkdown(content))
+        if(content.quizSkeleton !== undefined) {
+           setQuizSkeleton(content.quizSkeleton)
+           setQuizLoading(false)
+        }
       } catch (e: any) {
         if (disposed) return
         const msg = e?.message || 'Unable to load lesson content.'
@@ -195,15 +229,15 @@ const LessonDetailPage: React.FC = () => {
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p style={{ color: 'var(--text-secondary)' }} className="mb-4">// no learning path found. please generate a learning path first.</p>
+            <p style={{ color: 'var(--text-secondary)' }} className="mb-4">{t('lessonDetail.noPathFound', 'No learning path found. Please generate a learning path first.')}</p>
             <button
               onClick={() => navigate(ROUTER.PLANS)}
               style={{
-                background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)',
-                padding: '8px 16px', borderRadius: 4, fontWeight: 700
+                background: 'var(--accent-primary)', color: 'var(--bg-surface)', border: 'none',
+                padding: '8px 16px', borderRadius: 4, fontWeight: 700, cursor: 'pointer'
               }}
             >
-              {'>_'} goToPlans()
+              {t('lessonDetail.goToPlans', 'Go to Plans')}
             </button>
           </div>
         </main>
@@ -218,15 +252,15 @@ const LessonDetailPage: React.FC = () => {
         <Header />
         <main className="page-main py-12">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <p style={{ color: 'var(--error-primary)' }} className="mb-4">[ERROR]: lesson not found.</p>
+            <p style={{ color: 'var(--error-primary)' }} className="mb-4">{t('lessonDetail.lessonNotFound', 'Lesson not found.')}</p>
             <button
               onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
               style={{
                 background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)',
-                padding: '8px 16px', borderRadius: 4, fontWeight: 700
+                padding: '8px 16px', borderRadius: 4, fontWeight: 600, cursor: 'pointer'
               }}
             >
-              {'<'} backToPath()
+              {t('lessonDetail.backToPath', 'Back to Learning Path')}
             </button>
           </div>
         </main>
@@ -252,7 +286,7 @@ const LessonDetailPage: React.FC = () => {
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
             >
-              <ArrowLeft className="w-4 h-4" /> [ {t('lessonDetail.backToPlan')} ]
+              <ArrowLeft className="w-4 h-4" /> <span>{t('lessonDetail.backToPlan')}</span>
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -266,8 +300,8 @@ const LessonDetailPage: React.FC = () => {
                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
                  title="Toggle Distraction-Free Reading"
                >
-                 <Maximize2 className="w-3.5 h-3.5" />
-                 [ {t('lessonDetail.enableFocus')} ]
+                 <Maximize2 className="w-4 h-4" />
+                 <span>{t('lessonDetail.enableFocus')}</span>
                </button>
             </div>
           </div>
@@ -291,7 +325,7 @@ const LessonDetailPage: React.FC = () => {
           onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-primary)' }}
         >
-          <Minimize2 className="w-4 h-4" /> [ {t('lessonDetail.exitFocus')} ]
+          <Minimize2 className="w-4 h-4" /> <span>{t('lessonDetail.exitFocus')}</span>
         </button>
       )}
 
@@ -311,8 +345,8 @@ const LessonDetailPage: React.FC = () => {
           <div style={{ minWidth: 0 }}>
             {/* Lesson Title Header */}
             <div style={{ marginBottom: 40, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                 <Terminal className="w-4 h-4" />
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                 <BookOpen className="w-4 h-4" />
                  {currentLesson.chapterTitle} <span style={{ color: 'var(--border-strong)' }}>/</span> {String(currentLessonIndex + 1).padStart(2, '0')}
               </div>
               <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 16px 0', lineHeight: 1.3, color: 'var(--text-primary)' }}>
@@ -328,8 +362,73 @@ const LessonDetailPage: React.FC = () => {
             {/* Lesson Content Render */}
             <LessonContent content={md} loading={loading} error={error || undefined} isFocusMode={isFocusMode} />
 
+            {/* Quiz Block */}
+            <div style={{ marginTop: 40, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
+               <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                 <Award className="w-5 h-5 text-[var(--accent-primary)]" /> {t('lessonDetail.quizTitle', 'Lesson Quiz')}
+               </h3>
+               {quizLoading ? (
+                 <div style={{ padding: 24, border: '1px dashed var(--border-base)', borderRadius: 6, background: 'var(--bg-surface)' }}>
+                   <div className="flex justify-center items-center gap-2 text-[var(--accent-primary)] font-medium text-sm">
+                     <Loader2 className="w-5 h-5 animate-spin" />
+                     {t('lessonDetail.loadingQuiz', 'Loading quiz details...')}
+                   </div>
+                 </div>
+               ) : quizError ? (
+                 <div style={{ padding: 24, border: '1px solid var(--danger-primary)', borderRadius: 6, background: 'var(--bg-surface)' }}>
+                   <div className="flex items-center gap-2 text-sm text-[var(--danger-primary)] font-medium">
+                     <AlertCircle className="w-5 h-5" /> {quizError}
+                   </div>
+                 </div>
+               ) : !quizSkeleton || !quizSkeleton.quizzes || quizSkeleton.quizzes.length === 0 ? (
+                 <div style={{ padding: 24, border: '1px dashed var(--border-base)', borderRadius: 6, background: 'var(--bg-surface)' }}>
+                   <div className="flex justify-center items-center gap-2 text-sm text-[var(--text-secondary)] font-medium">
+                     {t('lessonDetail.noQuiz', 'No quiz available for this lesson.')}
+                   </div>
+                 </div>
+               ) : (
+                 <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                   {quizSkeleton.quizzes.map((quiz: any) => (
+                     <div key={quiz.quizId} style={{ padding: 20, border: '1px solid var(--border-base)', borderRadius: 4, background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column' }}>
+                       <div style={{ marginBottom: 16, flex: 1 }}>
+                         <h4 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>{quiz.title}</h4>
+                         {quiz.description && <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{quiz.description}</p>}
+                         
+                         <div style={{ display: 'flex', gap: 16, marginTop: 16, fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                           {quiz.timeLimit != null && (
+                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                               <Clock className="w-3.5 h-3.5" />
+                               {quiz.timeLimit} {t('lessonDetail.minutes', 'min')}
+                             </div>
+                           )}
+                           {quiz.passingScore != null && (
+                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                               <Target className="w-3.5 h-3.5" />
+                               {quiz.passingScore}% {t('lessonDetail.passingScore', 'to pass')}
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                       <button
+                         onClick={() => navigate(ROUTER.QUIZ.replace(':quizId', quiz.quizId))}
+                         style={{
+                           width: '100%', padding: '10px 16px', background: 'var(--bg-main)', border: '1px solid var(--accent-primary)',
+                           color: 'var(--accent-primary)', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                           transition: 'all 0.2s ease'
+                         }}
+                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--bg-surface)' }}
+                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-main)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
+                       >
+                         {t('lessonDetail.startQuiz', 'Start Quiz')}
+                       </button>
+                     </div>
+                   ))}
+                 </div>
+               )}
+            </div>
+
             {/* Interactive Footer & Actions */}
-            <div style={{ marginTop: 64, borderTop: '1px dashed var(--border-strong)', paddingTop: 32, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
+            <div style={{ marginTop: 64, borderTop: '1px solid var(--border-base)', paddingTop: 32, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
                
                {/* Next / Prev Lessons */}
                <div style={{ display: 'flex', gap: 24, justifyContent: 'space-between' }}>
@@ -338,13 +437,13 @@ const LessonDetailPage: React.FC = () => {
                       onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
                       style={{
                         flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
-                        borderRadius: 4, cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8
+                        borderRadius: 6, cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8
                       }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-primary)'}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
                     >
-                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>{'<'} {t('lessonDetail.prevLesson')}</span>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'underline decoration-transparent', transition: '0.2s' }}>{prevLesson.title}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{t('lessonDetail.prevLesson')}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', transition: '0.2s' }}>{prevLesson.title}</span>
                     </button>
                   ) : <div style={{ flex: 1 }} />}
 
@@ -353,25 +452,25 @@ const LessonDetailPage: React.FC = () => {
                       onClick={() => navigate(`/lesson/${nextLesson.id}`, { state: { skeleton } })}
                       style={{
                         flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
-                        borderRadius: 4, cursor: 'pointer', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 8
+                        borderRadius: 6, cursor: 'pointer', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 8
                       }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
                     >
-                      <span style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 700 }}>{t('lessonDetail.nextLesson')} {'>'}</span>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'underline decoration-transparent', transition: '0.2s' }}>{nextLesson.title}</span>
+                      <span style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>{t('lessonDetail.nextLesson')}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', transition: '0.2s' }}>{nextLesson.title}</span>
                     </button>
                   ) : (
                     <button
                       onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton } })}
                       style={{
                         flex: 1, padding: 24, background: 'var(--success-primary)', border: '1px solid var(--success-primary)',
-                        borderRadius: 4, cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8,
+                        borderRadius: 6, cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8,
                         alignItems: 'center', justifyContent: 'center'
                       }}
                     >
-                      <span style={{ fontSize: 12, color: 'var(--bg-main)', fontWeight: 800 }}>[ {t('lessonDetail.completePlan')} ]</span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--bg-main)' }}>{t('lessonDetail.returnToPlan')}</span>
+                      <span style={{ fontSize: 12, color: 'var(--bg-surface)', fontWeight: 600, textTransform: 'uppercase' }}>{t('lessonDetail.completePlan')}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--bg-surface)' }}>{t('lessonDetail.returnToPlan')}</span>
                     </button>
                   )}
                </div>
@@ -400,7 +499,7 @@ const LessonDetailPage: React.FC = () => {
                                  background: 'none', border: 'none', padding: 0, margin: 0,
                                  textAlign: 'left', cursor: 'pointer', fontSize: 13, lineHeight: 1.4,
                                  color: activeHeadingId === h.id ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                                 fontWeight: activeHeadingId === h.id ? 700 : 500,
+                                 fontWeight: activeHeadingId === h.id ? 600 : 400,
                                  textDecoration: 'none',
                                  transition: 'color 0.2s',
                                  display: 'block',
@@ -416,7 +515,7 @@ const LessonDetailPage: React.FC = () => {
                        </ul>
                      ) : (
                        <div style={{ fontSize: 13, color: 'var(--text-disabled)', display: 'flex', gap: 8, alignItems: 'center' }}>
-                         <AlertCircle className="w-4 h-4" /> [ {t('lessonDetail.noHeadings')} ]
+                         <AlertCircle className="w-4 h-4" /> <span>{t('lessonDetail.noHeadings')}</span>
                        </div>
                      )}
                      

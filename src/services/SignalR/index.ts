@@ -148,7 +148,11 @@ export async function getLearningPathHub(): Promise<signalR.HubConnection> {
 export async function requestLessonContent(
   lessonId: string,
   onLoading?: () => void,
-  onQuizSkeleton?: (quizSkeleton: any) => void
+  onQuizEvent?: {
+    onLoading?: () => void
+    onSuccess?: (quizSkeleton: any) => void
+    onError?: (err: any) => void
+  }
 ): Promise<any> {
   if (!isGuid(lessonId)) {
     return Promise.reject(new Error('lessonId phải là GUID hợp lệ'))
@@ -165,6 +169,7 @@ export async function requestLessonContent(
 
     return new Promise<any>((resolve, reject) => {
       let done = false
+      let isResolved = false
       let lessonContent: any = null
       let quizSkeleton: any = null
 
@@ -179,12 +184,9 @@ export async function requestLessonContent(
         inflightLesson.delete(lessonId)
       }
 
-      const checkComplete = () => {
-        // Complete when we have lesson content (quiz skeleton is optional)
-        if (lessonContent) {
-          if (done) return
-          done = true
-          cleanup()
+      const resolveEarly = () => {
+        if (!isResolved && lessonContent) {
+          isResolved = true
           resolve({
             ...lessonContent,
             quizSkeleton: quizSkeleton === false ? null : quizSkeleton
@@ -199,45 +201,46 @@ export async function requestLessonContent(
       const handleContent = (content: any) => {
         if (content?.LessonId === lessonId || content?.lessonId === lessonId) {
           lessonContent = content
-          checkComplete()
+          resolveEarly()
         }
       }
 
       const handleQuizLoading = (data: any) => {
         // Quiz skeleton loading started
+        if (data?.LessonId === lessonId || data?.lessonId === lessonId) {
+          onQuizEvent?.onLoading?.()
+        }
       }
 
       const handleQuizSkeleton = (quizData: any) => {
         if (quizData?.LessonId === lessonId || quizData?.lessonId === lessonId) {
           quizSkeleton = quizData
-          // Call the callback if provided, even if we already resolved
-          onQuizSkeleton?.(quizData)
-          // If we haven't resolved yet, check if we can complete
-          if (!done) {
-            checkComplete()
-          }
+          onQuizEvent?.onSuccess?.(quizData)
         }
       }
 
       const handleQuizError = (err: any) => {
         if (err?.LessonId === lessonId || err?.lessonId === lessonId) {
           quizSkeleton = false // Mark as failed but don't fail the whole request
-          checkComplete()
+          onQuizEvent?.onError?.(err)
         }
       }
 
       const handleCompleted = (result: any) => {
         if (result?.LessonId === lessonId || result?.lessonId === lessonId) {
-          // If we haven't resolved yet, resolve with whatever we have
-          if (!done) {
-            done = true
-            cleanup()
+          if (!isResolved) {
+            isResolved = true
             resolve({
               lessonId,
               content: lessonContent?.content || result?.content,
               quizSkeleton: quizSkeleton === false ? null : (quizSkeleton || result?.quizSkeleton),
               ...result
             })
+          }
+          if (!done) {
+            done = true
+            cleanup()
+            clearTo()
           }
         }
       }
@@ -246,7 +249,11 @@ export async function requestLessonContent(
         if (done) return
         done = true
         cleanup()
-        reject(new Error(err?.message || 'Failed to load lesson content'))
+        clearTo()
+        if (!isResolved) {
+          isResolved = true
+          reject(new Error(err?.message || 'Failed to load lesson content'))
+        }
       }
 
       // timeout safety
@@ -254,23 +261,23 @@ export async function requestLessonContent(
         if (done) return
         done = true
         cleanup()
-        reject(new Error('Lesson content request timeout'))
+        if (!isResolved) {
+          isResolved = true
+          reject(new Error('Lesson content request timeout'))
+        }
       }, REQUEST_TIMEOUT)
 
-      // ensure timeout cleared in all paths
       const clearTo = () => { try { clearTimeout(to) } catch { } }
 
-      // rewrap to clear timeout then delegate
-      const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
-      const handleQuizSkeletonWrap = (qs: any) => { clearTo(); handleQuizSkeleton(qs) }
-      const handleCompletedWrap = (r: any) => { clearTo(); handleCompleted(r) }
-      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+      // rewrap to clear timeout on completion/error ONLY
+      const handleCompletedWrap = (r: any) => { handleCompleted(r) }
+      const handleErrorWrap = (e: any) => { handleError(e) }
 
       hub.on('LessonContentLoading', handleLoading)
-      hub.on('ReceiveLessonContent', handleContentWrap)
+      hub.on('ReceiveLessonContent', handleContent)
       hub.on('LessonContentError', handleErrorWrap)
       hub.on('QuizSkeletonLoading', handleQuizLoading)
-      hub.on('ReceiveQuizSkeleton', handleQuizSkeletonWrap)
+      hub.on('ReceiveQuizSkeleton', handleQuizSkeleton)
       hub.on('QuizSkeletonError', handleQuizError)
       hub.on('LessonGenerationCompleted', handleCompletedWrap)
 

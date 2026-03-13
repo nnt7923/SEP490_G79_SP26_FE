@@ -220,7 +220,17 @@
     "completePlan": "SYSTEM: COMPLETED",
     "returnToPlan": "Return to Plan",
     "tableOfContents": "TABLE OF CONTENTS",
-    "noHeadings": "NO HEADINGS FOUND"
+    "noHeadings": "NO HEADINGS FOUND",
+    "noPathFound": "No learning path found. Please generate a learning path first.",
+    "goToPlans": "Go to Plans",
+    "lessonNotFound": "Lesson not found.",
+    "backToPath": "Back to Learning Path",
+    "quizTitle": "Lesson Quiz",
+    "loadingQuiz": "Loading quiz details...",
+    "noQuiz": "No quiz available for this lesson.",
+    "startQuiz": "Start Quiz",
+    "loadingContent": "Loading lesson content...",
+    "noContent": "No content found for this lesson."
   },
   "quiz": {
     "loading": "loading quiz...",

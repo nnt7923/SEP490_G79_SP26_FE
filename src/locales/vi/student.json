@@ -220,7 +220,17 @@
     "completePlan": "HỆ THỐNG: HOÀN THÀNH",
     "returnToPlan": "Trở lại lộ trình",
     "tableOfContents": "MỤC LỤC",
-    "noHeadings": "KHÔNG CÓ MỤC LỤC"
+    "noHeadings": "KHÔNG CÓ MỤC LỤC",
+    "noPathFound": "Không tìm thấy lộ trình. Vui lòng tạo lộ trình học tập trước.",
+    "goToPlans": "Đi tới Lộ trình",
+    "lessonNotFound": "Không tìm thấy bài học.",
+    "backToPath": "Trở về Lộ trình",
+    "quizTitle": "Bài tập Trắc nghiệm",
+    "loadingQuiz": "Đang tải thông tin bài tập...",
+    "noQuiz": "Không có bài tập nào cho bài học này.",
+    "startQuiz": "Vào làm bài",
+    "loadingContent": "Đang tải nội dung bài học...",
+    "noContent": "Từ từ, nội dung bài học đang được soạn."
   },
   "quiz": {
     "loading": "đang tải bài kiểm tra...",

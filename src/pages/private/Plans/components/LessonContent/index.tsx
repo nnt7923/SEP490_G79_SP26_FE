@@ -5,7 +5,8 @@ import rehypeRaw from 'rehype-raw'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
-import { AlertTriangle, Info, Lightbulb, AlertCircle } from 'lucide-react'
+import { AlertTriangle, Info, Lightbulb, AlertCircle, Loader2, Copy } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface LessonContentProps {
   content: string
@@ -15,6 +16,7 @@ interface LessonContentProps {
 }
 
 const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, isFocusMode = false }) => {
+  const { t } = useTranslation('student')
   const [processedContent, setProcessedContent] = React.useState<string>(content)
 
   React.useEffect(() => {
@@ -87,31 +89,28 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, 
 
   if (loading) {
     return (
-      <div className="flex items-center gap-3 text-heading bg-[var(--gray-100)] px-4 py-3 border border-bd font-mono text-sm">
-        <span className="font-bold text-status-blue">{'>_'}</span>
-        <span className="font-medium inline-block relative pr-3">
-          loading_lesson_content()
-          <span className="absolute right-0 top-0 bottom-0 w-2 bg-status-blue-solid animate-[blink_1s_step-end_infinite]"></span>
-        </span>
+      <div className="flex justify-center items-center py-12">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--accent-primary)]">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          {t('lessonDetail.loadingContent', 'Loading lesson content...')}
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-status-red-dark bg-[var(--gray-100)] px-4 py-3 border border-red-300 font-mono text-sm">
-        <div className="flex items-start gap-2">
-          <span className="font-bold">{'>_'}</span>
-          <span className="font-medium">[ERROR]: {error}</span>
-        </div>
+      <div className="flex items-center gap-2 p-4 my-6 bg-[var(--error-primary-muted)] border border-[var(--danger-primary)] rounded-md text-sm font-medium text-[var(--danger-primary)]">
+        <AlertCircle className="w-5 h-5" />
+        {error}
       </div>
     )
   }
 
   if (!content || content.trim().length === 0) {
     return (
-      <div className="text-muted text-center py-8 bg-[var(--gray-100)] border border-dashed border-bd-strong font-mono text-sm">
-        <p className="font-medium">// no_content_found_for_selected_lesson</p>
+      <div className="flex justify-center items-center py-12 my-6 bg-[var(--bg-surface)] border border-dashed border-[var(--border-base)] rounded-md text-sm font-medium text-[var(--text-secondary)]">
+        {t('lessonDetail.noContent', 'No content found for this lesson.')}
       </div>
     )
   }
@@ -191,7 +190,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, 
             
             return (
               <li className="leading-relaxed relative pl-5 text-base" {...props}>
-                <span className="absolute left-0 top-0 text-status-blue-muted">{'*'}</span>
+                <span className="absolute left-1 top-2.5 w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></span>
                 <span>{children}</span>
               </li>
             )
@@ -272,11 +271,9 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, 
 
             // Default blockquote
             return (
-              <blockquote className="border border-bd bg-[var(--gray-100)] pl-4 pr-4 py-3 my-6 text-body font-mono relative">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-th-skeleton"></div>
+              <blockquote className="border border-[var(--border-base)] bg-[var(--bg-surface)] pl-4 pr-4 py-3 my-6 text-body font-mono relative rounded-r-md" style={{ borderLeft: '4px solid var(--border-strong)' }}>
                 <div className="flex gap-3">
-                  <span className="text-placeholder select-none">|</span>
-                  <div className="flex-1 text-heading">{children}</div>
+                  <div className="flex-1 text-heading opacity-90">{children}</div>
                 </div>
               </blockquote>
             )
@@ -299,10 +296,10 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, 
                       onClick={() => {
                         navigator.clipboard.writeText(String(children).replace(/\n$/, ''))
                       }}
-                      className="text-xs text-muted hover:text-black hover:bg-th-hover transition-colors px-2 py-0.5"
+                      className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors px-2 py-1 flex items-center gap-1 bg-transparent border-none cursor-pointer"
                       title="Copy code"
                     >
-                      [copy]
+                      <Copy className="w-3.5 h-3.5" /> Copy
                     </button>
                   </div>
                   <SyntaxHighlighter
