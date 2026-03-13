@@ -5,8 +5,9 @@ import Footer from '../../../../components/Layout/Footer'
 import { requestLessonContent } from '../../../../services/SignalR'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
-import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, Award, Clock, Target, Loader2 } from 'lucide-react'
+import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, Award, Clock, Target, Loader2, ArrowUp, ArrowDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { normalizeQuizList, readQuizSkeletonCache, writeQuizSkeletonCache } from '../../../../utils/quizCache'
 
 // Helper to extract headings (## and ###) from markdown
 const extractHeadings = (md: string) => {
@@ -146,29 +147,79 @@ const LessonDetailPage: React.FC = () => {
     return ''
   }
 
+  const quizItems = useMemo(() => normalizeQuizList(quizSkeleton), [quizSkeleton])
+  const seedQuizFromLesson = (lesson: any) => {
+    const fromLesson = normalizeQuizList(lesson?.quizzes)
+    if (fromLesson.length > 0) {
+      const payload = lesson?.quizSkeleton || { quizzes: fromLesson }
+      setQuizSkeleton(payload)
+      setQuizLoading(false)
+      writeQuizSkeletonCache(lessonId as string, payload)
+      return true
+    }
+    return false
+  }
+
   // Fetch lesson content
   useEffect(() => {
     if (!lessonId) return
-    
+
     // Scroll to top when lesson changes
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    
+
+    // Restore quiz from cache immediately so it doesn't disappear after navigation
+    const cachedQuiz = readQuizSkeletonCache(lessonId)
+    if (cachedQuiz) {
+      setQuizSkeleton(cachedQuiz)
+      setQuizLoading(false)
+    }
+
     let disposed = false
+    let quizResolved = false
     const run = async () => {
       setLoading(true)
       setError(null)
-      setQuizLoading(true)
-      setQuizError(null)
+      if (!cachedQuiz) {
+        // Only show loading if we don't have cached data
+        setQuizLoading(true)
+        setQuizError(null)
+      }
 
       // 1) Check if content is in skeleton
       const found = allLessons.find((l: any) => l.id === lessonId)
       const fromSkeleton = extractMarkdown(found?.content)
+      if (!cachedQuiz) {
+        seedQuizFromLesson(found)
+      }
       if (!disposed && fromSkeleton && fromSkeleton.trim().length > 0) {
         setMd(fromSkeleton)
         setLoading(false)
-        if (found?.quizSkeleton !== undefined) {
-           setQuizSkeleton(found.quizSkeleton)
-           setQuizLoading(false)
+        // If no cached quiz, request via SignalR to get quiz for this lesson
+        if (!cachedQuiz) {
+          // Still need to fetch quiz even if lesson content came from skeleton
+          try {
+            await requestLessonContent(
+              lessonId,
+              undefined,
+              {
+                onLoading: () => { if (!disposed) setQuizLoading(true) },
+                onSuccess: (qs) => {
+                  if (!disposed) {
+                    quizResolved = true
+                    setQuizSkeleton(qs)
+                    setQuizLoading(false)
+                    writeQuizSkeletonCache(lessonId, qs)
+                  }
+                },
+                onError: (err) => {
+                  if (!disposed) {
+                    setQuizError(err?.message || 'Failed to load quiz')
+                    setQuizLoading(false)
+                  }
+                }
+              }
+            )
+          } catch { /* lesson content request failed, quiz stays loading */ }
         }
         return
       }
@@ -176,18 +227,20 @@ const LessonDetailPage: React.FC = () => {
       // 2) Fallback to SignalR request
       try {
         const content = await requestLessonContent(
-          lessonId, 
+          lessonId,
           () => {
             if (!disposed) setLoading(true)
           },
           {
             onLoading: () => {
-               if (!disposed) setQuizLoading(true)
+               if (!disposed && !cachedQuiz) setQuizLoading(true)
             },
             onSuccess: (qs) => {
                if (!disposed) {
+                 quizResolved = true
                  setQuizSkeleton(qs)
                  setQuizLoading(false)
+                 writeQuizSkeletonCache(lessonId, qs)
                }
             },
             onError: (err) => {
@@ -200,9 +253,20 @@ const LessonDetailPage: React.FC = () => {
         )
         if (disposed) return
         setMd(extractMarkdown(content))
-        if(content.quizSkeleton !== undefined) {
+        if (content.quizSkeleton !== undefined && !disposed) {
            setQuizSkeleton(content.quizSkeleton)
            setQuizLoading(false)
+           writeQuizSkeletonCache(lessonId, content.quizSkeleton)
+           quizResolved = true
+        }
+        if (!quizResolved && !disposed) {
+          const cacheAfter = readQuizSkeletonCache(lessonId)
+          if (cacheAfter) {
+            setQuizSkeleton(cacheAfter)
+            setQuizLoading(false)
+          } else {
+            setQuizLoading(false)
+          }
         }
       } catch (e: any) {
         if (disposed) return
@@ -221,6 +285,13 @@ const LessonDetailPage: React.FC = () => {
     if (el) {
       window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' })
     }
+  }
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  const scrollToBottom = () => {
+    const height = document.documentElement?.scrollHeight || document.body?.scrollHeight || 0
+    window.scrollTo({ top: height, behavior: 'smooth' })
   }
 
   if (!skeleton) {
@@ -380,7 +451,7 @@ const LessonDetailPage: React.FC = () => {
                      <AlertCircle className="w-5 h-5" /> {quizError}
                    </div>
                  </div>
-               ) : !quizSkeleton || !quizSkeleton.quizzes || quizSkeleton.quizzes.length === 0 ? (
+               ) : quizItems.length === 0 ? (
                  <div style={{ padding: 24, border: '1px dashed var(--border-base)', borderRadius: 6, background: 'var(--bg-surface)' }}>
                    <div className="flex justify-center items-center gap-2 text-sm text-[var(--text-secondary)] font-medium">
                      {t('lessonDetail.noQuiz', 'No quiz available for this lesson.')}
@@ -388,8 +459,10 @@ const LessonDetailPage: React.FC = () => {
                  </div>
                ) : (
                  <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-                   {quizSkeleton.quizzes.map((quiz: any) => (
-                     <div key={quiz.quizId} style={{ padding: 20, border: '1px solid var(--border-base)', borderRadius: 4, background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column' }}>
+                   {quizItems.map((quiz: any) => {
+                     const quizId = quiz?.quizId ?? quiz?.id
+                     return (
+                     <div key={quizId || quiz.title} style={{ padding: 20, border: '1px solid var(--border-base)', borderRadius: 4, background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column' }}>
                        <div style={{ marginBottom: 16, flex: 1 }}>
                          <h4 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>{quiz.title}</h4>
                          {quiz.description && <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{quiz.description}</p>}
@@ -410,7 +483,10 @@ const LessonDetailPage: React.FC = () => {
                          </div>
                        </div>
                        <button
-                         onClick={() => navigate(ROUTER.QUIZ.replace(':quizId', quiz.quizId))}
+                         onClick={() => {
+                           if (!quizId) return
+                           navigate(ROUTER.QUIZ.replace(':quizId', quizId))
+                         }}
                          style={{
                            width: '100%', padding: '10px 16px', background: 'var(--bg-main)', border: '1px solid var(--accent-primary)',
                            color: 'var(--accent-primary)', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600,
@@ -422,7 +498,7 @@ const LessonDetailPage: React.FC = () => {
                          {t('lessonDetail.startQuiz', 'Start Quiz')}
                        </button>
                      </div>
-                   ))}
+                   )})}
                  </div>
                )}
             </div>
@@ -532,6 +608,40 @@ const LessonDetailPage: React.FC = () => {
           )}
         </div>
       </main>
+      
+      {/* Scroll Controls */}
+      <div style={{
+        position: 'fixed',
+        right: 24,
+        bottom: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        zIndex: 60
+      }}>
+        <button
+          onClick={scrollToTop}
+          style={{
+            width: 36, height: 36, borderRadius: 4,
+            background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
+            color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+          title="Scroll to top"
+        >
+          <ArrowUp className="w-4 h-4" />
+        </button>
+        <button
+          onClick={scrollToBottom}
+          style={{
+            width: 36, height: 36, borderRadius: 4,
+            background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
+            color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+          title="Scroll to bottom"
+        >
+          <ArrowDown className="w-4 h-4" />
+        </button>
+      </div>
       {!isFocusMode && <Footer />}
     </div>
   )

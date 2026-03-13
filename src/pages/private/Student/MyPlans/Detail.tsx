@@ -10,8 +10,7 @@ import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 import ChapterTasks from '../../Plans/components/ChapterTasks'
 import { motion } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
-import Particles, { initParticlesEngine } from '@tsparticles/react'
-import { loadSlim } from '@tsparticles/slim'
+import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
 
 const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
@@ -25,8 +24,6 @@ const MyPlansDetailPage: React.FC = () => {
 
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
-  const [particlesInit, setParticlesInit] = useState(false)
-
   // Track chapter completion status
   const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
 
@@ -37,16 +34,8 @@ const MyPlansDetailPage: React.FC = () => {
   }
 
   useEffect(() => {
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine)
-    }).then(() => {
-      setParticlesInit(true)
-    })
-  }, [])
-
-  useEffect(() => {
     fetchPlanDetail()
-  }, [pathId])
+  }, [pathId, location?.key, user?.id])
 
   const fetchPlanDetail = async () => {
     if (!user?.id || !pathId) return
@@ -61,7 +50,8 @@ const MyPlansDetailPage: React.FC = () => {
 
       const foundPlan = response.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
-        setPlan(foundPlan)
+        const merged = mergeSkeletonWithCachedQuizzes(foundPlan)
+        setPlan(merged)
         if (foundPlan.chapters && foundPlan.chapters.length > 0) {
           setActiveChapterId(foundPlan.chapters[0].id)
         }
@@ -140,37 +130,6 @@ const MyPlansDetailPage: React.FC = () => {
         position: 'relative',
         overflow: 'hidden'
       }}>
-        {/* Particles Background */}
-        {particlesInit && (
-          <Particles
-            id="tsparticles-detail"
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
-            options={{
-              background: { color: { value: 'transparent' } },
-              fpsLimit: 120,
-              interactivity: {
-                events: {
-                  onHover: { enable: true, mode: 'bubble' },
-                  resize: { enable: true }
-                },
-                modes: {
-                  bubble: { distance: 200, duration: 2, opacity: 0.4, size: 40 }
-                }
-              },
-              particles: {
-                color: { value: '#3B82F6' },
-                links: { color: '#3B82F6', distance: 150, enable: true, opacity: 0.1, width: 1 },
-                move: { direction: 'none', enable: true, outModes: { default: 'bounce' }, random: false, speed: 0.8, straight: false },
-                number: { density: { enable: true, width: 800 }, value: 40 },
-                opacity: { value: 0.2 },
-                shape: { type: 'circle' },
-                size: { value: { min: 1, max: 2 } }
-              },
-              detectRetina: true
-            }}
-          />
-        )}
-
         <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
           {/* Back Button */}
@@ -192,6 +151,8 @@ const MyPlansDetailPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
+              data-aos="fade-up"
+              data-aos-duration="450"
               style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-base)',
@@ -265,6 +226,8 @@ const MyPlansDetailPage: React.FC = () => {
                   transition: { staggerChildren: 0.1 }
                 }
               }}
+              data-aos="fade-up"
+              data-aos-duration="450"
               style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 30%) 1fr', gap: 24, marginBottom: 32, alignItems: 'start' }}
             >
               <style>
@@ -298,9 +261,10 @@ const MyPlansDetailPage: React.FC = () => {
                     <motion.div
                       key={chapter.id || chapterIdx}
                       variants={{
-                        hidden: { opacity: 0, x: -20 },
+                        hidden: { opacity: 0, x: -16 },
                         visible: { opacity: 1, x: 0 }
                       }}
+                      transition={{ duration: 0.35 }}
                     >
                       <button
                         className={`chapter-btn ${isActive ? 'active' : ''}`}
@@ -391,9 +355,10 @@ const MyPlansDetailPage: React.FC = () => {
                               <motion.div 
                                 key={lesson.id || lessonIdx} 
                                 variants={{
-                                  hidden: { opacity: 0, scale: 0.95 },
-                                  visible: { opacity: 1, scale: 1 }
+                                  hidden: { opacity: 0, y: 10 },
+                                  visible: { opacity: 1, y: 0 }
                                 }}
+                                transition={{ duration: 0.3 }}
                                 style={{ 
                                   display: 'flex', 
                                   alignItems: 'flex-start', 
@@ -439,33 +404,36 @@ const MyPlansDetailPage: React.FC = () => {
                                         {t('plansResult.quizzes')}
                                       </span>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                                        {lesson.quizzes.map((quiz, quizIdx) => (
-                                          <motion.button
-                                            key={quiz.id || quizIdx}
-                                            whileHover={{ x: 2 }}
-                                            onClick={() => {
-                                              if (!quiz.id) {
-                                                alert('Quiz ID is missing! Cannot navigate to quiz.')
-                                                return
-                                              }
-                                              navigate(`/quiz/${quiz.id}`, {
-                                                state: { quizTitle: quiz.title, skeleton: plan }
-                                              })
-                                            }}
-                                            style={{
-                                              background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
-                                              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
-                                            }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
-                                          >
-                                            <span style={{ color: 'var(--success-primary)' }}>➔</span>
-                                            <span style={{ display: 'flex', alignItems: 'center' }}>
-                                              {quiz.title}
-                                              {quiz.id && <QuizStatusBadge quizId={quiz.id} />}
-                                            </span>
-                                          </motion.button>
-                                        ))}
+                                        {lesson.quizzes.map((quiz, quizIdx) => {
+                                          const quizId = quiz?.id ?? quiz?.quizId ?? quiz?.quizzId
+                                          return (
+                                            <motion.button
+                                              key={quizId || quizIdx}
+                                              whileHover={{ x: 2 }}
+                                              onClick={() => {
+                                                if (!quizId) {
+                                                  alert('Quiz ID is missing! Cannot navigate to quiz.')
+                                                  return
+                                                }
+                                                navigate(`/quiz/${quizId}`, {
+                                                  state: { quizTitle: quiz.title, skeleton: plan }
+                                                })
+                                              }}
+                                              style={{
+                                                background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
+                                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
+                                              }}
+                                              onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                                              onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
+                                            >
+                                              <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                              <span style={{ display: 'flex', alignItems: 'center' }}>
+                                                {quiz.title}
+                                                {quizId && <QuizStatusBadge quizId={quizId} />}
+                                              </span>
+                                            </motion.button>
+                                          )
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -492,7 +460,10 @@ const MyPlansDetailPage: React.FC = () => {
             <div style={{
               padding: 40, textAlign: 'center', color: 'var(--text-disabled)', fontFamily: 'monospace',
               background: 'var(--bg-surface)', border: '1px dashed var(--border-base)', borderRadius: 2, marginBottom: 32
-            }}>
+            }}
+            data-aos="fade-up"
+            data-aos-duration="450"
+            >
               {t('plansResult.noChapters')}
             </div>
           )}

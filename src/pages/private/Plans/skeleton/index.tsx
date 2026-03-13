@@ -9,26 +9,37 @@ import LessonContent from '../components/LessonContent'
 import ChapterTasks from '../components/ChapterTasks'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
+import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
 
 const ResultPage: React.FC = () => {
   const location = useLocation() as any
   const navigate = useNavigate()
   const { t } = useTranslation('student')
 
-  const [skeleton] = useState<any | null>(() => {
-    const fromState = location?.state?.skeleton
-    if (fromState) return fromState
+  const readStoredSkeleton = () => {
     try {
       const raw = sessionStorage.getItem('learningPathSkeleton')
       return raw ? JSON.parse(raw) : null
     } catch {
       return null
     }
+  }
+
+  const [skeleton, setSkeleton] = useState<any | null>(() => {
+    const fromState = location?.state?.skeleton
+    const base = fromState || readStoredSkeleton()
+    return mergeSkeletonWithCachedQuizzes(base)
   })
 
   useEffect(() => {
     if (!skeleton) navigate(ROUTER.PLANS)
   }, [skeleton, navigate])
+
+  useEffect(() => {
+    const fromState = location?.state?.skeleton
+    const base = fromState || readStoredSkeleton()
+    setSkeleton(mergeSkeletonWithCachedQuizzes(base))
+  }, [location?.key])
 
   // Dev-only: initialize hubs and generate content in background
   useEffect(() => {
@@ -363,26 +374,32 @@ const ResultPage: React.FC = () => {
                                         {t('plansResult.quizzes')}
                                       </span>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                                        {lesson.quizzes.map((quiz: any, quizIdx: number) => (
-                                          <button
-                                            key={quiz.id || quizIdx}
-                                            onClick={() => navigate(`/quiz/${quiz.id}`, {
-                                              state: { quizTitle: quiz.title, skeleton }
-                                            })}
-                                            style={{
-                                              background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
-                                              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
-                                            }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
-                                          >
-                                            <span style={{ color: 'var(--success-primary)' }}>➔</span>
-                                            <span style={{ display: 'flex', alignItems: 'center' }}>
-                                              {quiz.title}
-                                              {quiz.id && <QuizStatusBadge quizId={quiz.id} />}
-                                            </span>
-                                          </button>
-                                        ))}
+                                        {lesson.quizzes.map((quiz: any, quizIdx: number) => {
+                                          const quizId = quiz?.id ?? quiz?.quizId ?? quiz?.quizzId
+                                          return (
+                                            <button
+                                              key={quizId || quizIdx}
+                                              onClick={() => {
+                                                if (!quizId) return
+                                                navigate(`/quiz/${quizId}`, {
+                                                  state: { quizTitle: quiz.title, skeleton }
+                                                })
+                                              }}
+                                              style={{
+                                                background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
+                                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
+                                              }}
+                                              onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                                              onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
+                                            >
+                                              <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                              <span style={{ display: 'flex', alignItems: 'center' }}>
+                                                {quiz.title}
+                                                {quizId && <QuizStatusBadge quizId={quizId} />}
+                                              </span>
+                                            </button>
+                                          )
+                                        })}
                                       </div>
                                     </div>
                                   )}
