@@ -230,7 +230,9 @@
     "noQuiz": "No quiz available for this lesson.",
     "startQuiz": "Start Quiz",
     "loadingContent": "Loading lesson content...",
-    "noContent": "No content found for this lesson."
+    "noContent": "No content found for this lesson.",
+    "minutes": "min",
+    "passingScore": "to pass"
   },
   "quiz": {
     "loading": "loading quiz...",

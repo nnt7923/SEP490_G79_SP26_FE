@@ -230,7 +230,9 @@
     "noQuiz": "Không có bài tập nào cho bài học này.",
     "startQuiz": "Vào làm bài",
     "loadingContent": "Đang tải nội dung bài học...",
-    "noContent": "Từ từ, nội dung bài học đang được soạn."
+    "noContent": "Từ từ, nội dung bài học đang được soạn.",
+    "minutes": "phút",
+    "passingScore": "để đạt"
   },
   "quiz": {
     "loading": "đang tải bài kiểm tra...",
