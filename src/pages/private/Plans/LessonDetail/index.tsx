@@ -33,6 +33,88 @@ const extractHeadings = (md: string) => {
   })
 }
 
+const SECTION_KEYS = [
+  'overview',
+  'core-concepts',
+  'code-examples',
+  'common-mistakes',
+  'best-practices',
+  'summary',
+] as const
+
+type LessonSectionKey = (typeof SECTION_KEYS)[number]
+
+const HEADING: Record<LessonSectionKey, string> = {
+  overview: '## Overview',
+  'core-concepts': '## Core Concepts',
+  'code-examples': '## Code Examples',
+  'common-mistakes': '## Common Mistakes',
+  'best-practices': '## Best Practices',
+  summary: '## Summary',
+}
+
+const ORDER: LessonSectionKey[] = [
+  'overview',
+  'core-concepts',
+  'code-examples',
+  'common-mistakes',
+  'best-practices',
+  'summary',
+]
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const extractSectionByMarkers = (markdown: string, key: LessonSectionKey): string => {
+  const start = `<!-- SECTION:${key}:start -->`
+  const end = `<!-- SECTION:${key}:end -->`
+
+  const startIndex = markdown.indexOf(start)
+  const endIndex = markdown.indexOf(end)
+
+  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) return ''
+
+  return markdown.slice(startIndex + start.length, endIndex).trim()
+}
+
+const extractSectionByHeading = (markdown: string, heading: string): string => {
+  const pattern = new RegExp(`^${escapeRegExp(heading)}\\s*\\n([\\s\\S]*?)(?=^##\\s|\\Z)`, 'im')
+  const match = markdown.match(pattern)
+  return match ? match[1].trim() : ''
+}
+
+const normalizeSectionContent = (section: string, key: LessonSectionKey): string => {
+  const heading = HEADING[key]
+  const pattern = new RegExp(`^${escapeRegExp(heading)}\\s*\\n+`, 'i')
+  return section.replace(pattern, '').trim()
+}
+
+const buildTocSource = (markdown: string) => {
+  if (!markdown) return ''
+
+  const hasAnyMarker = SECTION_KEYS.some((key) =>
+    markdown.includes(`<!-- SECTION:${key}:start -->`)
+  )
+
+  const sections = {} as Record<LessonSectionKey, string>
+  SECTION_KEYS.forEach((key) => {
+    const markerContent = hasAnyMarker ? extractSectionByMarkers(markdown, key) : ''
+    if (markerContent) {
+      sections[key] = normalizeSectionContent(markerContent, key)
+      return
+    }
+
+    sections[key] = extractSectionByHeading(markdown, HEADING[key])
+  })
+
+  return ORDER.map((key) => {
+    const content = sections[key]?.trim()
+    if (!content) return null
+    return `${HEADING[key]}\n\n${content}`
+  })
+    .filter(Boolean)
+    .join('\n\n')
+}
+
 const LessonDetailPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>()
   const navigate = useNavigate()
@@ -111,7 +193,8 @@ const LessonDetailPage: React.FC = () => {
   const currentChapterId = currentLesson?.chapterId
 
   // Table of Contents
-  const headings = useMemo(() => extractHeadings(md), [md])
+  const tocSource = useMemo(() => buildTocSource(md), [md])
+  const headings = useMemo(() => extractHeadings(tocSource || md), [tocSource, md])
 
   // Scroll spy to highlight active TOC item
   useEffect(() => {
@@ -200,7 +283,7 @@ const LessonDetailPage: React.FC = () => {
         if (!cachedQuiz) {
           // Still need to fetch quiz even if lesson content came from skeleton
           try {
-            await requestLessonContent(
+            const result = await requestLessonContent(
               lessonId,
               undefined,
               {
@@ -221,6 +304,15 @@ const LessonDetailPage: React.FC = () => {
                 }
               }
             )
+            if (!disposed && !quizResolved) {
+              const qs = result?.quizSkeleton ?? null
+              setQuizSkeleton(qs)
+              setQuizLoading(false)
+              if (qs) {
+                writeQuizSkeletonCache(lessonId, qs)
+              }
+              quizResolved = true
+            }
           } catch { /* lesson content request failed, quiz stays loading */ }
         }
         return
@@ -274,6 +366,7 @@ const LessonDetailPage: React.FC = () => {
         if (disposed) return
         const msg = e?.message || 'Unable to load lesson content.'
         setError(msg)
+        if (!cachedQuiz) setQuizLoading(false)
       } finally {
         if (!disposed) setLoading(false)
       }
