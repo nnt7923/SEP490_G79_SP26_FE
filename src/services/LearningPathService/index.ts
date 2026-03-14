@@ -160,11 +160,12 @@ export async function generateSkeleton(
     (Array.isArray(payload?.subjectIds) ? payload.subjectIds[0] : undefined) ??
     (Array.isArray(payload?.subjects) ? (payload.subjects[0]?.id ?? payload.subjects[0]?.subjectId) : undefined)
 
-  const goalId: string | undefined =
-    payload?.goalId ??
-    payload?.GoalId ??
-    (Array.isArray(payload?.goalIds) ? payload.goalIds[0] : undefined) ??
-    (Array.isArray(payload?.goals) ? (payload.goals[0]?.id ?? payload.goals[0]?.goalId) : undefined)
+  // Handle both old goalId format and new goals array format
+  const goals: Array<{ goalId: string; weight: number }> = Array.isArray(payload?.goals) 
+    ? payload.goals 
+    : payload?.goalId 
+      ? [{ goalId: payload.goalId, weight: 100 }]
+      : []
 
   const complexityLevel: string | undefined =
     payload?.complexityLevel ?? payload?.ComplexityLevel ?? payload?.level ?? payload?.Level
@@ -174,21 +175,21 @@ export async function generateSkeleton(
 
   const reqBody: any = {
     subjectId,
-    goalId,
+    goals,
     complexityLevel,
     languageSelection,
   }
 
   // Use SignalR if requested
   if (options?.useSignalR) {
-    if (!subjectId || !goalId || !complexityLevel || languageSelection === undefined) {
+    if (!subjectId || !goals || goals.length === 0 || !complexityLevel || languageSelection === undefined) {
       throw new Error('Missing required parameters for SignalR learning path generation')
     }
 
     const raw = await requestLearningPathGeneration(
       {
         subjectId,
-        goalId,
+        goals,
         complexityLevel,
         languageSelection,
       },
@@ -199,8 +200,14 @@ export async function generateSkeleton(
     return normalized
   }
 
-  // Fallback to REST API
-  const res: any = await api.post(skeletonUrl, reqBody)
+  // Fallback to REST API - convert goals array to single goalId for backward compatibility
+  const legacyReqBody = {
+    subjectId,
+    goalId: goals[0]?.goalId,
+    complexityLevel,
+    languageSelection,
+  }
+  const res: any = await api.post(skeletonUrl, legacyReqBody)
   const raw = unwrap<SkeletonResponse>(res)
   return normalizeSkeleton(raw)
 }

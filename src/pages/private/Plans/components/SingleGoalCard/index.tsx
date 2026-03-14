@@ -4,6 +4,7 @@ import Tilt from 'react-parallax-tilt'
 interface SingleGoalCardProps {
   id: string
   active?: boolean
+  disabled?: boolean
   title: string
   colorClass: string
   icon?: string
@@ -23,6 +24,7 @@ interface SingleGoalCardProps {
 const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
   id,
   active,
+  disabled = false,
   title,
   onToggle,
   onStartEdit,
@@ -53,19 +55,21 @@ const SingleGoalCard: React.FC<SingleGoalCardProps> = ({
       style={{
         position: 'relative', display: 'flex', flexDirection: 'column',
         padding: 16, border: '1px solid var(--border-base)', borderRadius: 2,
-        background: active ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+        background: active ? 'var(--bg-blue-hover)' : disabled ? 'var(--bg-disabled)' : 'var(--bg-surface)',
         borderColor: active ? 'var(--accent-primary)' : 'var(--border-base)',
-        cursor: (!isEditing && !menuOpen) ? 'pointer' : 'default',
-        transition: 'all 0.2s', boxSizing: 'border-box'
+        cursor: (!isEditing && !menuOpen && !disabled) ? 'pointer' : disabled ? 'not-allowed' : 'default',
+        transition: 'all 0.2s', boxSizing: 'border-box',
+        opacity: disabled ? 0.6 : 1
       }}
       role={!isEditing ? 'button' : undefined}
       aria-pressed={!isEditing && active ? 'true' : 'false'}
-      onClick={() => { if (!isEditing && !menuOpen) onToggle(id) }}
+      aria-disabled={disabled}
+      onClick={() => { if (!isEditing && !menuOpen && !disabled) onToggle(id) }}
       onMouseEnter={(e) => {
-        if (!active && !isEditing) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }
+        if (!active && !isEditing && !disabled) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }
       }}
       onMouseLeave={(e) => {
-        if (!active && !isEditing) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }
+        if (!active && !isEditing && !disabled) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>

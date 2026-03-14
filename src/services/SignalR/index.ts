@@ -627,14 +627,14 @@ export interface LearningPathError {
 export async function requestLearningPathGeneration(
   payload: {
     subjectId: string
-    goalId: string
+    goals: Array<{ goalId: string; weight: number }>
     complexityLevel: string
     languageSelection: number
   },
   onLoading?: () => void,
   onProgress?: (progress: number) => void
 ): Promise<any> {
-  if (!payload.subjectId || !payload.goalId || !payload.complexityLevel || !payload.languageSelection) {
+  if (!payload.subjectId || !payload.goals || !Array.isArray(payload.goals) || payload.goals.length === 0 || !payload.complexityLevel || payload.languageSelection === undefined) {
     return Promise.reject(new Error('Missing required parameters for learning path generation'))
   }
 
@@ -642,7 +642,7 @@ export async function requestLearningPathGeneration(
   const languageSelectionString = payload.languageSelection === 1 ? 'VietNamese' : 'English'
 
   // single-flight: return running promise for same payload
-  const key = `${payload.subjectId}-${payload.goalId}-${payload.complexityLevel}-${payload.languageSelection}`
+  const key = `${payload.subjectId}-${JSON.stringify(payload.goals)}-${payload.complexityLevel}-${payload.languageSelection}`
   if (inflightLearningPath.has(key)) {
     return inflightLearningPath.get(key)!
   }
@@ -715,10 +715,10 @@ export async function requestLearningPathGeneration(
       hub.on('LearningPathGenerationError', handleErrorWrap)
 
       try {
-        // Backend expects 4 separate parameters, not an object
+        // Backend expects subjectId, goals array, complexityLevel, languageSelection
         hub.invoke('RequestLearningPathGeneration',
           payload.subjectId,
-          payload.goalId,
+          payload.goals,
           payload.complexityLevel,
           languageSelectionString
         ).catch(handleErrorWrap)

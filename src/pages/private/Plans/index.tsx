@@ -39,7 +39,7 @@ type GoalItem = { key: string; label: string };
 type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 
 const PlansPage: React.FC = () => {
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1)
   const { t } = useTranslation('student')
   const [language, setLanguage] = useState<string | null>(() => {
     try {
@@ -55,6 +55,16 @@ const PlansPage: React.FC = () => {
       return raw ? JSON.parse(raw) : []
     } catch {
       return []
+    }
+  })
+  
+  // New state for goal priorities (1-100, higher = more important)
+  const [goalPriorities, setGoalPriorities] = useState<Record<string, number>>(() => {
+    try {
+      const raw = sessionStorage.getItem('plans.goalPriorities')
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
     }
   })
   const [level, setLevel] = useState<Level | null>(() => {
@@ -88,6 +98,9 @@ const PlansPage: React.FC = () => {
   const [goalsError, setGoalsError] = useState<string | null>(null)
   const [myGoalsError, setMyGoalsError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<boolean>(false)
+  
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
@@ -118,9 +131,6 @@ const PlansPage: React.FC = () => {
   // Confirm dialog states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false)
   const [goalToDelete, setGoalToDelete] = useState<{ id: string; title: string } | null>(null)
-
-  // Toast states
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
   const startEditGoal = (id: string, currTitle: string) => {
     setEditingGoalId(id)
@@ -383,8 +393,9 @@ const PlansPage: React.FC = () => {
   useEffect(() => {
     try {
       sessionStorage.setItem('plans.goals', JSON.stringify(selectedGoals))
+      sessionStorage.setItem('plans.goalPriorities', JSON.stringify(goalPriorities))
     } catch { }
-  }, [selectedGoals])
+  }, [selectedGoals, goalPriorities])
 
   useEffect(() => {
     try {
@@ -549,19 +560,23 @@ const PlansPage: React.FC = () => {
 
   const canNext = useMemo(() => {
     if (step === 1) return !!language
-    if (step === 2) return selectedGoals.length > 0
-    if (step === 3) return !!level
-    if (step === 4) return !!languageSelection
+    if (step === 2) return selectedGoals.length > 0 && selectedGoals.length <= 2
+    if (step === 3) return selectedGoals.length === 2 // Priority step only for 2 goals
+    if (step === 4) return !!level
+    if (step === 5) return !!languageSelection
+    if (step === 6) return true // Review step
     return true
   }, [step, language, selectedGoals, level, languageSelection])
 
-  const canGenerate = useMemo(() => !!language && selectedGoals.length > 0 && !!level && !!languageSelection, [language, selectedGoals, level, languageSelection])
+  const canGenerate = useMemo(() => !!language && selectedGoals.length > 0 && selectedGoals.length <= 2 && !!level && !!languageSelection, [language, selectedGoals, level, languageSelection])
 
   const isStepValid = (s: number) => {
     if (s === 1) return !!language
-    if (s === 2) return selectedGoals.length > 0
-    if (s === 3) return !!level
-    if (s === 4) return !!languageSelection
+    if (s === 2) return selectedGoals.length > 0 && selectedGoals.length <= 2
+    if (s === 3) return selectedGoals.length === 2 // Priority step only for 2 goals
+    if (s === 4) return !!level
+    if (s === 5) return !!languageSelection
+    if (s === 6) return true // Review step
     return true
   }
 
@@ -582,13 +597,57 @@ const PlansPage: React.FC = () => {
     if (valid) setStep(targetStep as any)
   }
 
+  // Helper functions for step navigation
+  const getNextStep = (currentStep: number): number => {
+    if (currentStep === 2 && selectedGoals.length === 1) {
+      return 4 // Skip step 3 (priorities) if only 1 goal
+    }
+    return Math.min(currentStep + 1, 6)
+  }
+
+  const getPrevStep = (currentStep: number): number => {
+    if (currentStep === 4 && selectedGoals.length === 1) {
+      return 2 // Skip step 3 (priorities) if only 1 goal
+    }
+    return Math.max(currentStep - 1, 1)
+  }
+
   const toggleGoal = (key: string) => {
     setSelectedGoals((prev) => {
-      // Single-select: toggle same id off, otherwise replace with the new id
-      if (prev.length === 1 && prev[0] === key) return []
-      return [key]
+      const isSelected = prev.includes(key)
+      
+      if (isSelected) {
+        // Remove goal and its priority
+        setGoalPriorities(prevPriorities => {
+          const newPriorities = { ...prevPriorities }
+          delete newPriorities[key]
+          return newPriorities
+        })
+        return prev.filter(id => id !== key)
+      } else {
+        // Add goal if less than 2 selected
+        if (prev.length < 2) {
+          // Set default priority (50 for first goal, 50 for second)
+          setGoalPriorities(prevPriorities => ({
+            ...prevPriorities,
+            [key]: 50
+          }))
+          
+          const newGoals = [...prev, key]
+          
+          // If this is the second goal, show toast
+          if (newGoals.length === 2) {
+            setToast({ 
+              message: 'Great! Now set goal priorities in the next step.', 
+              type: 'success' 
+            })
+          }
+          
+          return newGoals
+        }
+        return prev // Don't add if already 2 goals selected
+      }
     })
-    // durationDay removed; no extra state to update
   }
 
   const handleCreateGoalModal = async () => {
@@ -634,7 +693,7 @@ const PlansPage: React.FC = () => {
       <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
         <div style={{ width: '100%' }}>
           {/* Stepper */}
-          <Stepper currentStep={step} totalSteps={5} onChangeStep={handleStepChange} />
+          <Stepper currentStep={step} totalSteps={6} onChangeStep={handleStepChange} />
 
           {/* Content */}
           <AnimatePresence mode="wait">
@@ -762,8 +821,38 @@ const PlansPage: React.FC = () => {
                 title={t('plans.step2Title')}
                 subtitle={t('plans.step2Subtitle')}
                 icon="$"
-                selectedValue={selectedGoals.length > 0 ? goalItems.find((x) => String(x.key) === String(selectedGoals[0]))?.label : undefined}
+                selectedValue={selectedGoals.length > 0 ? 
+                  selectedGoals.length === 1 
+                    ? goalItems.find((x) => String(x.key) === String(selectedGoals[0]))?.label 
+                    : `${selectedGoals.length} goals selected`
+                  : undefined}
               />
+
+              {/* Instruction Text */}
+              <div style={{ 
+                marginBottom: 24, 
+                padding: 16, 
+                background: 'var(--bg-surface)', 
+                border: '1px dashed var(--border-base)', 
+                borderRadius: 4 
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: 12,
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.5
+                }}>
+                  <span style={{ fontSize: 16 }}>💡</span>
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)' }}>Select up to 2 learning goals</strong>
+                    <br />
+                    Choose 1-2 goals that best match what you want to achieve. If you select 2 goals, 
+                    you'll be able to set priority weights to focus more on your primary objective.
+                  </div>
+                </div>
+              </div>
 
               {/* Thông báo hành động goal */}
               {goalActionError && (
@@ -805,6 +894,7 @@ const PlansPage: React.FC = () => {
                           colorClass={palette[idx % palette.length]}
                           icon='🔖'
                           active={selectedGoals.includes(String(id))}
+                          disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
                           onToggle={toggleGoal}
                           onStartEdit={() => { }}
                           onDelete={() => { }}
@@ -868,6 +958,7 @@ const PlansPage: React.FC = () => {
                           colorClass={palette[idx % palette.length]}
                           icon='🔖'
                           active={selectedGoals.includes(String(id))}
+                          disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
                           onToggle={toggleGoal}
                           onStartEdit={startEditGoal}
                           onDelete={handleDeleteGoal}
@@ -940,11 +1031,199 @@ const PlansPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
             </motion.div>
           )}
 
-          {step === 3 && (
+          {step === 3 && selectedGoals.length === 2 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+              <StepHeader
+                title="Set Goal Priorities"
+                subtitle="Balance the importance of your learning goals"
+                icon="⚖️"
+                selectedValue={selectedGoals.length === 2 ? 'Priorities set' : undefined}
+              />
+              
+              <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                <div style={{ 
+                  marginBottom: 32, 
+                  padding: 20, 
+                  background: 'var(--bg-surface)', 
+                  border: '1px dashed var(--border-base)', 
+                  borderRadius: 4 
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: 12,
+                    fontSize: 14,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6
+                  }}>
+                    <span style={{ fontSize: 18 }}>💡</span>
+                    <div>
+                      <strong style={{ color: 'var(--text-primary)' }}>Balance your learning focus</strong>
+                      <br />
+                      Adjust the weight of each goal. The total must equal 100%. The AI will focus more 
+                      on the goal with higher weight when generating your learning path.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {selectedGoals.map((goalId, index) => {
+                    const goal = goalItems.find(g => String(g.key) === String(goalId))
+                    const priority = goalPriorities[goalId] || 50
+                    const otherGoalId = selectedGoals.find(id => id !== goalId)
+                    const otherPriority = otherGoalId ? (goalPriorities[otherGoalId] || 50) : 50
+                    
+                    return (
+                      <div key={goalId} style={{ 
+                        background: 'var(--bg-surface)', 
+                        border: '1px solid var(--border-base)', 
+                        borderRadius: 4, 
+                        padding: 24 
+                      }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          marginBottom: 20 
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                            <div style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 4,
+                              background: index === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                              color: 'var(--bg-surface)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 18,
+                              fontWeight: 700
+                            }}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h4 style={{ 
+                                fontSize: 18, 
+                                fontWeight: 600, 
+                                color: 'var(--text-primary)', 
+                                margin: 0 
+                              }}>
+                                {goal?.label || 'Unknown Goal'}
+                              </h4>
+                            </div>
+                          </div>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 12,
+                            fontSize: 24,
+                            fontWeight: 700,
+                            color: priority >= 60 ? 'var(--success-primary)' : 
+                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'
+                          }}>
+                            <span>{priority}%</span>
+                          </div>
+                        </div>
+                        
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="range"
+                            min="10"
+                            max="90"
+                            value={priority}
+                            onChange={(e) => {
+                              const newPriority = parseInt(e.target.value)
+                              const otherPriority = 100 - newPriority
+                              
+                              setGoalPriorities(prev => ({
+                                ...prev,
+                                [goalId]: newPriority,
+                                [otherGoalId!]: otherPriority
+                              }))
+                            }}
+                            style={{
+                              width: '100%',
+                              height: 10,
+                              borderRadius: 5,
+                              background: `linear-gradient(to right, 
+                                ${priority >= 60 ? 'var(--success-primary)' : 
+                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} 0%, 
+                                ${priority >= 60 ? 'var(--success-primary)' : 
+                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} ${priority}%, 
+                                var(--border-base) ${priority}%, 
+                                var(--border-base) 100%)`,
+                              outline: 'none',
+                              appearance: 'none',
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <style>
+                            {`
+                              input[type="range"]::-webkit-slider-thumb {
+                                appearance: none;
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 50%;
+                                background: ${priority >= 60 ? 'var(--success-primary)' : 
+                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
+                                cursor: pointer;
+                                border: 3px solid var(--bg-surface);
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                              }
+                              input[type="range"]::-moz-range-thumb {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 50%;
+                                background: ${priority >= 60 ? 'var(--success-primary)' : 
+                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
+                                cursor: pointer;
+                                border: 3px solid var(--bg-surface);
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                              }
+                            `}
+                          </style>
+                          
+                          {/* Priority scale labels */}
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            marginTop: 16,
+                            fontSize: 12,
+                            color: 'var(--text-secondary)',
+                            fontWeight: 600
+                          }}>
+                            <span>LOW FOCUS</span>
+                            <span>BALANCED</span>
+                            <span>HIGH FOCUS</span>
+                          </div>
+                        </div>
+                        
+                        {/* Show other goal's weight */}
+                        <div style={{ 
+                          marginTop: 16, 
+                          padding: 12, 
+                          background: 'var(--bg-main)', 
+                          border: '1px dashed var(--border-base)', 
+                          borderRadius: 4,
+                          fontSize: 13,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Other goal will have <strong style={{ color: 'var(--text-primary)' }}>{100 - priority}%</strong> weight
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 4 && (
+            <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step3Title')}
                 subtitle={t('plans.step3Subtitle')}
@@ -973,8 +1252,8 @@ const PlansPage: React.FC = () => {
               </section>
             </motion.div>
           )}
-          {step === 4 && (
-            <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+          {step === 5 && (
+            <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step4Title')}
                 subtitle={t('plans.step4Subtitle')}
@@ -1027,8 +1306,8 @@ const PlansPage: React.FC = () => {
             </motion.div>
           )}
 
-          {step === 5 && (
-            <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+          {step === 6 && (
+            <motion.div key="step6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step5Title')}
                 subtitle={t('plans.step5Subtitle')}
@@ -1041,7 +1320,15 @@ const PlansPage: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
                   {[
                     { label: `$ ${t('plans.programmingLanguage')}`, val: language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : undefined },
-                    { label: `$ ${t('plans.learningGoal')}`, val: selectedGoals.length > 0 ? goalItems.find((x) => x.key === selectedGoals[0])?.label : undefined },
+                    { label: `$ ${t('plans.learningGoal')}`, val: selectedGoals.length > 0 ? 
+                        selectedGoals.length === 1 
+                          ? goalItems.find((x) => x.key === selectedGoals[0])?.label 
+                          : selectedGoals.map(goalId => {
+                              const goal = goalItems.find(x => x.key === goalId)
+                              const priority = goalPriorities[goalId] || 50
+                              return `${goal?.label} (${priority}%)`
+                            }).join(', ')
+                        : undefined },
                     { label: `$ ${t('plans.difficultyLevel')}`, val: level },
                     { label: `$ ${t('plans.contentLanguage')}`, val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined }
                   ].map((sum, i) => (
@@ -1072,7 +1359,7 @@ const PlansPage: React.FC = () => {
                   disabled={!canGenerate || generating}
                   onClick={async () => {
                     if (!language) { setPlanError(t('plans.selectLanguage')); return }
-                    if (selectedGoals.length !== 1) { setPlanError(t('plans.selectOneGoal')); return }
+                    if (selectedGoals.length === 0) { setPlanError(t('plans.selectAtLeastOneGoal')); return }
                     if (!level) { setPlanError(t('plans.selectLevel')); return }
                     if (!languageSelection) { setPlanError(t('plans.selectLanguage')); return }
                     setPlanError(null)
@@ -1081,7 +1368,10 @@ const PlansPage: React.FC = () => {
                     try {
                       const payload: any = {
                         subjectId: language,
-                        goalId: selectedGoals[0],
+                        goals: selectedGoals.map(goalId => ({
+                          goalId: goalId,
+                          weight: goalPriorities[goalId] || (selectedGoals.length === 1 ? 100 : 50)
+                        })),
                         complexityLevel: level,
                         languageSelection: languageSelection
                       }
@@ -1285,19 +1575,19 @@ const PlansPage: React.FC = () => {
                 type="button"
                 style={{ padding: '8px 24px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
-                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4 | 5) : s))}
+                onClick={() => setStep(getPrevStep(step) as any)}
               >
                 {/* eslint-disable-next-line react/jsx-no-comment-textnodes */}
                 {'<'} {t('plans.back')}
               </button>
             )}
-            {step < 5 && (
+            {step < 6 && (
               <button
                 type="button"
                 style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
                 onMouseEnter={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-primary)' }}
                 disabled={!canNext}
-                onClick={() => setStep((s) => (s < 5 ? ((s + 1) as 1 | 2 | 3 | 4 | 5) : s))}
+                onClick={() => setStep(getNextStep(step) as any)}
               >
                 {t('plans.continue')} {'>'}
               </button>
