@@ -27,8 +27,12 @@ interface Task {
   type?: number | string // Alternative field name for taskType
   kind?: number | string // Alternative field name for taskType
   category?: number | string // Alternative field name for taskType
-  Priority?: number
-  TaskStatus?: number | string
+  priority?: string | number | null  // Can be string ("High", "Medium", "Low") or number (1, 2, 3)
+  Priority?: string | number | null
+  taskStatus?: string | number | null  // Can be string ("Pending", "Completed") or number (0, 1, 2)
+  TaskStatus?: string | number | null
+  dueDate?: string | null
+  DueDate?: string | null
   QuizQuestionsJson?: string
   quizQuestionsJson?: string // lowercase version
 }
@@ -294,7 +298,82 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                         {task.description || task.Description}
                       </p>
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                      {/* Priority */}
+                      {(task.priority !== undefined && task.priority !== null) || (task.Priority !== undefined && task.Priority !== null) ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: (() => {
+                            const priority = task.priority ?? task.Priority;
+                            const priorityStr = String(priority).toLowerCase();
+                            // Handle both string and number values
+                            if (priorityStr === 'high' || priority === 3) return 'var(--danger-primary)';
+                            if (priorityStr === 'medium' || priority === 2) return 'var(--warning-primary)';
+                            if (priorityStr === 'low' || priority === 1) return 'var(--success-primary)';
+                            return 'var(--text-secondary)';
+                          })()
+                        }}>
+                          🔥 {(() => {
+                            const priority = task.priority ?? task.Priority;
+                            // Convert number to string
+                            if (priority === 3) return 'High';
+                            if (priority === 2) return 'Medium';
+                            if (priority === 1) return 'Low';
+                            return String(priority);
+                          })()}
+                        </span>
+                      ) : null}
+                      
+                      {/* Task Status */}
+                      {(task.taskStatus !== undefined && task.taskStatus !== null) || (task.TaskStatus !== undefined && task.TaskStatus !== null) ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: (() => {
+                            const status = task.taskStatus ?? task.TaskStatus;
+                            const statusStr = String(status).toLowerCase();
+                            // Handle both string and number values
+                            if (statusStr === 'completed' || status === 2) return 'var(--success-primary)';
+                            if (statusStr === 'in_progress' || statusStr === 'inprogress' || status === 1) return 'var(--accent-primary)';
+                            if (statusStr === 'pending' || status === 0) return 'var(--warning-primary)';
+                            return 'var(--text-secondary)';
+                          })()
+                        }}>
+                          {(() => {
+                            const status = task.taskStatus ?? task.TaskStatus;
+                            const statusStr = String(status).toLowerCase();
+                            // Icons based on status
+                            if (statusStr === 'completed' || status === 2) return '✅';
+                            if (statusStr === 'in_progress' || statusStr === 'inprogress' || status === 1) return '⏳';
+                            if (statusStr === 'pending' || status === 0) return '⏸️';
+                            return '📋';
+                          })()} {(() => {
+                            const status = task.taskStatus ?? task.TaskStatus;
+                            // Convert number to string
+                            if (status === 2) return 'Completed';
+                            if (status === 1) return 'In Progress';
+                            if (status === 0) return 'Pending';
+                            return String(status);
+                          })()}
+                        </span>
+                      ) : null}
+                      
+                      {/* Due Date */}
+                      {(task.dueDate && task.dueDate !== '') || (task.DueDate && task.DueDate !== '') ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          borderRadius: 2, border: '1px solid currentColor',
+                          color: new Date(task.dueDate || task.DueDate!) < new Date() ? 'var(--danger-primary)' : 'var(--accent-primary)'
+                        }}>
+                          📅 {new Date(task.dueDate || task.DueDate!).toLocaleDateString('vi-VN', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: new Date(task.dueDate || task.DueDate!).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                          })}
+                        </span>
+                      ) : null}
+                      
                       {task.difficulty && (
                         <span style={{
                           display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,

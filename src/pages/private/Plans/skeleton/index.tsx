@@ -203,7 +203,7 @@ const ResultPage: React.FC = () => {
   }, [activeChapterId])
 
   // Handle lesson click - navigate to lesson detail page
-  const handleLessonClick = (lessonId: string, lessonTitle: string) => {
+  const handleLessonClick = (lessonId: string) => {
     // Navigate to lesson detail page with skeleton data
     navigate(`/lesson/${lessonId}`, { state: { skeleton } })
   }
@@ -389,7 +389,7 @@ const ResultPage: React.FC = () => {
                                 <div style={{ flex: 1 }}>
                                   <button
                                     className="lesson-link"
-                                    onClick={() => handleLessonClick(lesson.id, lesson.title)}
+                                    onClick={() => handleLessonClick(lesson.id)}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
                                       fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
@@ -398,6 +398,23 @@ const ResultPage: React.FC = () => {
                                   >
                                     {lesson.title}
                                   </button>
+                                  
+                                  {/* Lesson Day */}
+                                  {lesson.lessonDay && (
+                                    <div style={{ 
+                                      display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+                                      fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600
+                                    }}>
+                                      <span>📅</span>
+                                      <span>{new Date(lesson.lessonDay).toLocaleDateString('vi-VN', { 
+                                        weekday: 'short', 
+                                        year: 'numeric', 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                      })}</span>
+                                    </div>
+                                  )}
+                                  
                                   {lesson.description && (
                                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                                       {'>'} {lesson.description}

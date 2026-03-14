@@ -391,6 +391,23 @@ const MyPlansDetailPage: React.FC = () => {
                                   >
                                     {lesson.title}
                                   </motion.button>
+                                  
+                                  {/* Lesson Day */}
+                                  {lesson.lessonDay && (
+                                    <div style={{ 
+                                      display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+                                      fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600
+                                    }}>
+                                      <span>📅</span>
+                                      <span>{new Date(lesson.lessonDay).toLocaleDateString('vi-VN', { 
+                                        weekday: 'short', 
+                                        year: 'numeric', 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                      })}</span>
+                                    </div>
+                                  )}
+                                  
                                   {lesson.description && (
                                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                                       {lesson.description}

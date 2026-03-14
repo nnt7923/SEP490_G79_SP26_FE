@@ -4,6 +4,8 @@ import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonCon
 
 export type Quiz = {
   id: string
+  quizId?: string
+  quizzId?: string
   title: string
   description?: string | null
 }
@@ -13,6 +15,7 @@ export type Lesson = {
   title: string
   description?: string | null
   content?: string | null
+  lessonDay?: string | null
   quizzes?: Quiz[]
   chapters?: Chapter[]
   quizSkeleton?: any
@@ -22,6 +25,9 @@ export type Task = {
   id: string
   title: string
   description?: string | null
+  priority?: string | null
+  taskStatus?: string | null
+  dueDate?: string | null
 }
 
 export type Chapter = {
@@ -46,9 +52,17 @@ export type SkeletonResponse = {
       lessonId: string
       title: string
       content?: string | null
+      lessonDay?: string | null
       quizzes?: Array<{ quizzId: string; title: string; description?: string | null }>
     }>
-    tasks?: Array<{ taskId: string; title: string; description?: string | null }>
+    tasks?: Array<{ 
+      taskId: string; 
+      title: string; 
+      description?: string | null;
+      priority?: string | null;
+      taskStatus?: string | null;
+      dueDate?: string | null;
+    }>
   }>
   chapterCount?: number
   createdAt?: string
@@ -83,6 +97,7 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
           title: ls?.title,
           description: null,
           content: ls?.content ?? null,
+          lessonDay: ls?.lessonDay ?? null,
           quizzes: Array.isArray(ls?.quizzes)
             ? ls.quizzes.map((q: any) => ({
               id: q?.quizzId ?? q?.id,
@@ -97,6 +112,9 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
           id: t?.taskId ?? t?.id,
           title: t?.title,
           description: t?.description ?? null,
+          priority: t?.priority ?? null,
+          taskStatus: t?.taskStatus ?? null,
+          dueDate: t?.dueDate ?? null,
         }))
         : [],
     }))
@@ -110,6 +128,7 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
         title: ls?.title,
         description: ls?.description ?? null,
         content: ls?.content ?? null,
+        lessonDay: ls?.lessonDay ?? null,
         quizzes: Array.isArray(ls?.quizzes)
           ? ls.quizzes.map((q: any) => ({
             id: q?.id ?? q?.quizzId,
@@ -193,7 +212,9 @@ export async function generateLessonContent(
 ): Promise<Lesson> {
   // Use SignalR by default for lesson content generation (includes quiz skeleton)
   if (!payload || payload.useSignalR !== false) {
-    return await requestLessonContent(lessonId, payload?.onLoading, onQuizSkeleton)
+    return await requestLessonContent(lessonId, payload?.onLoading, {
+      onSuccess: onQuizSkeleton
+    })
   }
 
   // Fallback to REST API
