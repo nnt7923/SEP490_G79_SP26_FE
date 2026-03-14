@@ -24,6 +24,13 @@ const ResultPage: React.FC = () => {
       return null
     }
   }
+  const readStoredActiveChapter = () => {
+    try {
+      return sessionStorage.getItem('plansResult.activeChapterId')
+    } catch {
+      return null
+    }
+  }
 
   const [skeleton, setSkeleton] = useState<any | null>(() => {
     const fromState = location?.state?.skeleton
@@ -70,6 +77,8 @@ const ResultPage: React.FC = () => {
   }, [skeleton])
 
   const selectedFromNav: string | undefined = location?.state?.selectedLessonId
+  const activeChapterFromNav: string | undefined = location?.state?.activeChapterId
+  const storedActiveChapter = readStoredActiveChapter() || undefined
   const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>(() => selectedFromNav || lessons?.[0]?.id)
   useEffect(() => {
     if (!selectedLessonId && lessons?.[0]?.id) setSelectedLessonId(lessons[0].id)
@@ -154,10 +163,37 @@ const ResultPage: React.FC = () => {
   const detailScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (chapters.length > 0 && !activeChapterId) {
+    if (chapters.length === 0) return
+
+    if (activeChapterFromNav && chapters.some((c: any) => c.id === activeChapterFromNav)) {
+      setActiveChapterId(activeChapterFromNav)
+      return
+    }
+
+    if (selectedFromNav) {
+      const fromLesson = chapters.find((c: any) =>
+        Array.isArray(c.lessons) && c.lessons.some((l: any) => (l?.id ?? l?.lessonId ?? l?.LessonId) === selectedFromNav)
+      )
+      if (fromLesson?.id) {
+        setActiveChapterId(fromLesson.id)
+        return
+      }
+    }
+
+    if (storedActiveChapter && chapters.some((c: any) => c.id === storedActiveChapter)) {
+      setActiveChapterId(storedActiveChapter)
+      return
+    }
+
+    if (!activeChapterId) {
       setActiveChapterId(chapters[0].id)
     }
-  }, [chapters, activeChapterId])
+  }, [chapters, activeChapterId, activeChapterFromNav, selectedFromNav, storedActiveChapter])
+
+  useEffect(() => {
+    if (!activeChapterId) return
+    try { sessionStorage.setItem('plansResult.activeChapterId', activeChapterId) } catch { }
+  }, [activeChapterId])
 
   // Scroll details pane to top when chapter changes
   useEffect(() => {
