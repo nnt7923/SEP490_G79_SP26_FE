@@ -19,6 +19,14 @@ export function writeQuizSkeletonCache(lessonId: string, data: AnyRecord): void 
   }
 }
 
+export function clearQuizSkeletonCache(lessonId: string): void {
+  try {
+    sessionStorage.removeItem(QUIZ_SKELETON_KEY(lessonId))
+  } catch {
+    // ignore
+  }
+}
+
 const quizKey = (q: AnyRecord) => q?.id ?? q?.quizId ?? q?.quizzId ?? q?.title ?? ''
 
 export function normalizeQuizList(input: any): AnyRecord[] {
