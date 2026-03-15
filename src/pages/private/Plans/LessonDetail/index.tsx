@@ -7,7 +7,7 @@ import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
 import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, Award, Clock, Target, Loader2, ArrowUp, ArrowDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { normalizeQuizList, readQuizSkeletonCache, writeQuizSkeletonCache } from '../../../../utils/quizCache'
+import { clearQuizSkeletonCache, normalizeQuizList, readQuizSkeletonCache, writeQuizSkeletonCache } from '../../../../utils/quizCache'
 
 // Helper to extract headings (## and ###) from markdown
 const extractHeadings = (md: string) => {
@@ -252,11 +252,17 @@ const LessonDetailPage: React.FC = () => {
     // Scroll to top when lesson changes
     window.scrollTo({ top: 0, behavior: 'smooth' })
 
+    // Reset quiz UI state for new lesson
+    setQuizSkeleton(null)
+    setQuizError(null)
+
     // Restore quiz from cache immediately so it doesn't disappear after navigation
     const cachedQuiz = readQuizSkeletonCache(lessonId)
     if (cachedQuiz) {
       setQuizSkeleton(cachedQuiz)
       setQuizLoading(false)
+    } else {
+      setQuizLoading(true)
     }
 
     let disposed = false
@@ -310,6 +316,8 @@ const LessonDetailPage: React.FC = () => {
               setQuizLoading(false)
               if (qs) {
                 writeQuizSkeletonCache(lessonId, qs)
+              } else {
+                clearQuizSkeletonCache(lessonId)
               }
               quizResolved = true
             }
@@ -359,7 +367,9 @@ const LessonDetailPage: React.FC = () => {
             setQuizSkeleton(cacheAfter)
             setQuizLoading(false)
           } else {
+            setQuizSkeleton(null)
             setQuizLoading(false)
+            clearQuizSkeletonCache(lessonId)
           }
         }
       } catch (e: any) {
