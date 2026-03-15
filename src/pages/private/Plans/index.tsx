@@ -38,7 +38,7 @@ type GoalItem = { key: string; label: string };
 type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 
 const PlansPage: React.FC = () => {
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1)
   const { t } = useTranslation('student')
   const [language, setLanguage] = useState<string | null>(() => {
     try {
@@ -664,6 +664,7 @@ const PlansPage: React.FC = () => {
     if (step === 4) return !!level
     if (step === 5) return !!languageSelection
     if (step === 6) return true // Review step
+    if (step === 7) return true // Generation options step
     return true
   }, [step, language, selectedGoals, level, languageSelection])
 
@@ -676,6 +677,7 @@ const PlansPage: React.FC = () => {
     if (s === 4) return !!level
     if (s === 5) return !!languageSelection
     if (s === 6) return true // Review step
+    if (s === 7) return true // Generation options step
     return true
   }
 
@@ -701,7 +703,7 @@ const PlansPage: React.FC = () => {
     if (currentStep === 2 && selectedGoals.length === 1) {
       return 4 // Skip step 3 (priorities) if only 1 goal
     }
-    return Math.min(currentStep + 1, 6)
+    return Math.min(currentStep + 1, 7)
   }
 
   const getPrevStep = (currentStep: number): number => {
@@ -947,7 +949,7 @@ const PlansPage: React.FC = () => {
       <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
         <div style={{ width: '100%' }}>
           {/* Stepper */}
-          <Stepper currentStep={step} totalSteps={6} onChangeStep={handleStepChange} />
+          <Stepper currentStep={step} totalSteps={7} onChangeStep={handleStepChange} />
 
           {/* Content */}
           <AnimatePresence mode="wait">
@@ -1833,20 +1835,31 @@ const PlansPage: React.FC = () => {
                   ))}
                 </div>
               </section>
+              </motion.div>
+            )}
 
-              {/* Generate Button */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
-                <MagneticButton
-                  type="button"
+          {step === 7 && (
+            <motion.div key="step7" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+              <StepHeader
+                title={t('plans.step7Title')}
+                subtitle={t('plans.step7Subtitle')}
+                icon="$"
+                selectedValue={t('plans.chooseGenerationMethod')}
+              />
+
+              {/* Generation Options */}
+              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, maxWidth: 1000, margin: '0 auto' }} aria-label="generation-options">
+                
+                {/* Option 1: AI Generation */}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div
                   style={{
-                    padding: '12px 32px', background: (!canGenerate || generating) ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)',
-                    border: 'none', borderRadius: 2, fontSize: 14, fontWeight: 700,
-                    cursor: (!canGenerate || generating) ? 'not-allowed' : 'pointer', transition: 'background 0.2s',
-                    display: 'flex', alignItems: 'center', gap: 12
+                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
+                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%', display: 'flex', flexDirection: 'column'
                   }}
-                  onMouseEnter={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--text-strong)' }}
-                  onMouseLeave={(e) => { if (canGenerate && !generating) e.currentTarget.style.background = 'var(--text-primary)' }}
-                  disabled={!canGenerate || generating}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
                   onClick={async () => {
                     if (!language) { setPlanError(t('plans.selectLanguage')); return }
                     if (selectedGoals.length === 0) { setPlanError(t('plans.selectAtLeastOneGoal')); return }
@@ -1904,158 +1917,114 @@ const PlansPage: React.FC = () => {
                     }
                   }}
                 >
-                  {generating ? (
-                    <>
-                      <div className="animate-spin" style={{ width: 16, height: 16, border: '2px solid var(--bg-surface-short)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-                      <span>// {t('plans.generatingPath')} ({generationProgress}%)</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{'>_'}</span>
-                      <span>{t('plans.generateLearningPath')}</span>
-                    </>
-                  )}
-                </MagneticButton>
-              </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                    <div style={{ fontSize: 32 }}>🤖</div>
+                    <div>
+                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                        {t('plans.aiGeneration')}
+                      </h3>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                        {t('plans.recommended')}
+                      </p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.5, flex: 1 }}>
+                    {t('plans.aiGenerationDesc')}
+                  </p>
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-base)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    ⚡ {t('plans.fastAndPersonalized')}
+                  </div>
+                </div>
+                </Tilt>
+
+                {/* Option 2: Similar Learning Paths */}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div
+                  style={{
+                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
+                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%', display: 'flex', flexDirection: 'column', opacity: 0.7
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+                  onClick={() => {
+                    setToast({ message: t('plans.comingSoon'), type: 'success' })
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                    <div style={{ fontSize: 32 }}>📚</div>
+                    <div>
+                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                        {t('plans.similarPaths')}
+                      </h3>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                        {t('plans.comingSoon')}
+                      </p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.5, flex: 1 }}>
+                    {t('plans.similarPathsDesc')}
+                  </p>
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-base)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    🔍 {t('plans.browseExisting')}
+                  </div>
+                </div>
+                </Tilt>
+
+                {/* Option 3: Ask Mentor */}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div
+                  style={{
+                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
+                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%', display: 'flex', flexDirection: 'column', opacity: 0.7
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+                  onClick={() => {
+                    setToast({ message: t('plans.comingSoon'), type: 'success' })
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                    <div style={{ fontSize: 32 }}>👨‍🏫</div>
+                    <div>
+                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                        {t('plans.askMentor')}
+                      </h3>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                        {t('plans.comingSoon')}
+                      </p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.5, flex: 1 }}>
+                    {t('plans.askMentorDesc')}
+                  </p>
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-base)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    💬 {t('plans.personalGuidance')}
+                  </div>
+                </div>
+                </Tilt>
+
+              </section>
+
+              {/* Loading and Error States */}
+              {generating && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 32, padding: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+                  <div className="animate-spin" style={{ width: 20, height: 20, border: '2px solid var(--text-secondary)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', marginRight: 12 }} />
+                  <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                    {t('plans.generatingPath')} ({generationProgress}%)
+                  </span>
+                </div>
+              )}
 
               {planError && (
-                <div className="mt-8 max-w-2xl mx-auto px-5 py-4 bg-status-red-bg border-2 border-red-200 rounded-2xl text-status-red-dark font-medium text-center shadow-sm">
+                <div style={{ marginTop: 32, maxWidth: 600, margin: '32px auto 0', padding: 16, background: 'var(--bg-red-tint)', border: '1px solid var(--danger-primary)', borderRadius: 4, color: 'var(--danger-primary)', textAlign: 'center' }}>
                   {planError}
                 </div>
               )}
-              
-              {planGenerated && skeleton && (
-                 <section className="mt-8 p-6 bg-th-card rounded-2xl border-2 border-bd-muted shadow-sm" aria-label="generated-plan">
-                   <h2 className="text-xl font-semibold text-heading mb-4">{t('plans.learningPathResult')}</h2>
-                   
-                   {/* Display chapters if available */}
-                   {(Array.isArray(skeleton?.chapters) && skeleton.chapters.length > 0) || (Array.isArray(skeleton?.chapterDtos) && skeleton.chapterDtos.length > 0) ? (
-                     <div>
-                       <h3 className="text-lg font-semibold text-heading mb-3">Chapters</h3>
-                       <p className="text-sm text-muted mb-4">Click on a chapter to generate lesson titles</p>
-                       <ul className="space-y-4">
-                         {(skeleton.chapters || skeleton.chapterDtos || []).map((ch: any, idx: number) => {
-                           const chapterKey = `${skeleton.pathId}-${idx}`
-                           const isGenerating = generatingChapters.has(chapterKey)
-                           const error = chapterErrors.get(chapterKey)
-                           const chapterId = ch.chapterId || ch.id
-                           
-                           return (
-                             <li key={chapterId ?? ch.title} className="relative">
-                               <button
-                                 type="button"
-                                 onClick={() => handleChapterClick(skeleton.pathId, idx, chapterId)}
-                                 disabled={isGenerating}
-                                 className={`w-full text-left flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
-                                   isGenerating 
-                                     ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
-                                     : 'bg-status-blue-bg border-blue-200 hover:border-blue-300 hover:bg-blue-100'
-                                 }`}
-                               >
-                                 <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
-                                 <div className="flex-1">
-                                   <div className="flex items-center gap-2">
-                                     <div className="font-semibold text-heading">{ch.title ?? `Chapter ${idx + 1}`}</div>
-                                     {isGenerating && (
-                                       <div className="flex items-center gap-1 text-xs text-muted">
-                                         <div className="animate-spin w-3 h-3 border border-gray-400 border-t-transparent rounded-full"></div>
-                                         <span>Generating...</span>
-                                       </div>
-                                     )}
-                                     {ch.lessonCount && (
-                                       <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
-                                         {ch.lessonCount} lessons
-                                       </span>
-                                     )}
-                                     {ch.quizCount && ch.quizCount > 0 && (
-                                       <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                                         {ch.quizCount} quizzes
-                                       </span>
-                                     )}
-                                   </div>
-                                   {ch.content && <div className="text-sm text-label mt-1">{ch.content}</div>}
-                                   {error && (
-                                     <div className="text-sm text-red-600 mt-1 bg-red-50 p-2 rounded">
-                                       Error: {error}
-                                     </div>
-                                   )}
-                                   {Array.isArray(ch.lessons) && ch.lessons.length > 0 && (
-                                     <div className="mt-3">
-                                       <h4 className="text-sm font-semibold text-heading mb-2">Lessons:</h4>
-                                       <ul className="ml-4 space-y-2">
-                                         {ch.lessons.map((ls: any) => {
-                                           const lessonId = ls.lessonId || ls.id
-                                           
-                                           return (
-                                             <li key={lessonId} className="relative">
-                                               <button
-                                                 type="button"
-                                                 onClick={() => handleLessonClick(lessonId, ls.title)}
-                                                 className="w-full text-left p-2 rounded-lg border transition-all text-sm bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                               >
-                                                 <div className="flex items-center gap-2">
-                                                   <span className="text-body">• {ls.title ?? 'Lesson'}</span>
-                                                   {ls.hasContent && (
-                                                     <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
-                                                       Content ready
-                                                     </span>
-                                                   )}
-                                                   {ls.quizCount && ls.quizCount > 0 && (
-                                                     <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
-                                                       {ls.quizCount} quiz{ls.quizCount > 1 ? 'zes' : ''}
-                                                     </span>
-                                                   )}
-                                                 </div>
-                                               </button>
-                                             </li>
-                                           )
-                                         })}
-                                       </ul>
-                                     </div>
-                                   )}
-                                 </div>
-                               </button>
-                             </li>
-                           )
-                         })}
-                       </ul>
-                     </div>
-                   ) : Array.isArray(skeleton?.lessons) && skeleton.lessons.length > 0 ? (
-                     <div>
-                       <h3 className="text-lg font-semibold text-heading mb-3">Lessons</h3>
-                       <ul className="space-y-4">
-                         {skeleton.lessons.map((ls: any) => (
-                           <li key={ls.id ?? ls.title} className="flex items-start gap-3 p-4 rounded-xl bg-status-blue-bg border border-blue-200">
-                             <span className="mt-1 w-2 h-2 rounded-full bg-status-blue-solid-muted flex-shrink-0" />
-                             <div className="flex-1">
-                               <div className="font-semibold text-heading">{ls.title ?? 'Lesson'}</div>
-                               {ls.description && <div className="text-sm text-label mt-1">{ls.description}</div>}
-                               {Array.isArray(ls.chapters) && ls.chapters.length > 0 && (
-                                 <ul className="mt-2 ml-4 space-y-1">
-                                   {ls.chapters.map((ch: any) => (
-                                     <li key={ch.id ?? ch.title} className="text-sm text-body">
-                                       • {ch.title ?? 'Chapter'}
-                                     </li>
-                                   ))}
-                                 </ul>
-                               )}
-                             </div>
-                           </li>
-                         ))}
-                       </ul>
-                     </div>
-                   ) : (
-                     <div>
-                       <div className="text-muted text-center py-4">{t('plans.noPathData')}</div>
-                       <div className="text-xs text-muted text-center mt-2">
-                         Debug: {JSON.stringify(skeleton, null, 2)}
-                       </div>
-                     </div>
-                   )}
-                  </section>
-                )}
-              </motion.div>
-            )}
+
+            </motion.div>
+          )}
           </AnimatePresence>
 
           {/* Footer actions */}
@@ -2071,7 +2040,7 @@ const PlansPage: React.FC = () => {
                 {'<'} {t('plans.back')}
               </button>
             )}
-            {step < 6 && (
+            {step < 7 && (
               <button
                 type="button"
                 style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
