@@ -105,10 +105,17 @@ export async function getMyGoals(): Promise<Goal[]> {
   }))
 }
 
-export async function createGoal(payload: { title?: string; name?: string; description?: string }): Promise<Goal> {
+export async function createGoal(payload: { 
+  subjectId: string; 
+  title: string; 
+  description?: string; 
+  duration: string 
+}): Promise<Goal> {
   const send = {
-    title: payload.title ?? payload.name,
-    description: payload.description,
+    subjectId: payload.subjectId,
+    title: payload.title,
+    description: payload.description || '',
+    duration: payload.duration
   }
   const res: any = await api.post(createGoalUrl, send)
   const data: any = res?.data ?? res
@@ -116,6 +123,8 @@ export async function createGoal(payload: { title?: string; name?: string; descr
     goalId: data?.goalId ?? data?.id,
     title: data?.title ?? data?.name,
     description: data?.description ?? null,
+    isSystemDefined: data?.isSystemDefined ?? false,
+    isActive: data?.isActive ?? true,
     createdAt: data?.createdAt,
     ...data,
   }
@@ -123,11 +132,20 @@ export async function createGoal(payload: { title?: string; name?: string; descr
 
 export async function updateGoal(
   id: string | number,
-  payload: { title?: string; name?: string; description?: string }
+  payload: { 
+    subjectId: string;
+    title: string; 
+    description?: string; 
+    isActive?: boolean;
+    duration: string;
+  }
 ): Promise<Goal> {
   const send = {
-    title: payload.title ?? payload.name,
-    description: payload.description,
+    subjectId: payload.subjectId,
+    title: payload.title,
+    description: payload.description || '',
+    isActive: payload.isActive ?? true,
+    duration: payload.duration
   }
   const res: any = await api.put(goalUrl(String(id)), send)
   const data: any = res?.data ?? res
@@ -135,6 +153,8 @@ export async function updateGoal(
     goalId: data?.goalId ?? data?.id ?? String(id),
     title: data?.title ?? data?.name,
     description: data?.description ?? null,
+    isSystemDefined: data?.isSystemDefined ?? false,
+    isActive: data?.isActive ?? true,
     createdAt: data?.createdAt,
     ...data,
   }
