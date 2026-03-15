@@ -6,7 +6,6 @@ import { SubjectService, GoalService, LearningPathService, LanguageSelection, Su
 import type { Subject, SubjectCategoryType } from '../../../services/SubjectService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
-import ConfirmDialog from '../../../components/ConfirmDialog'
 import Toast from '../../../components/Toast'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
@@ -89,14 +88,14 @@ const PlansPage: React.FC = () => {
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
   // Subject category filter
   const [selectedCategory, setSelectedCategory] = useState<SubjectCategoryType>(SubjectCategory.ProgrammingLanguage)
-  // Load goals from API + generation states
-  const [systemGoals, setSystemGoals] = useState<any[]>([])
-  const [myGoals, setMyGoals] = useState<any[]>([])
-  const [goalsLoading, setGoalsLoading] = useState<boolean>(true)
-  const [myGoalsLoading, setMyGoalsLoading] = useState<boolean>(true)
-  // Enable Live auto-update for goals
+  // Store goals from selected subject (no longer separate API calls)
+  const [subjectGoals, setSubjectGoals] = useState<any[]>([])
+  const [goalsLoading, setGoalsLoading] = useState<boolean>(false)
   const [goalsError, setGoalsError] = useState<string | null>(null)
-  const [myGoalsError, setMyGoalsError] = useState<string | null>(null)
+  // Pagination for system goals and my goals separately
+  const [currentSystemGoalPage, setCurrentSystemGoalPage] = useState<number>(1)
+  const [currentMyGoalPage, setCurrentMyGoalPage] = useState<number>(1)
+  const goalsPerPage = 15
   const [generating, setGenerating] = useState<boolean>(false)
   
   // Toast state
@@ -112,94 +111,222 @@ const PlansPage: React.FC = () => {
   // Lesson content and quiz generation states
   const [generatingLessons, setGeneratingLessons] = useState<Set<string>>(new Set())
   const [lessonErrors, setLessonErrors] = useState<Map<string, string>>(new Map())
+  
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
   const [newGoalDesc, setNewGoalDesc] = useState<string>('')
+  const [newGoalDuration, setNewGoalDuration] = useState<string>('OneMonth')
   const [creatingGoal, setCreatingGoal] = useState<boolean>(false)
   const [createGoalError, setCreateGoalError] = useState<string | null>(null)
-  // Duration for each selected goal (days)
-  // 
 
-  // Added: goal edit/delete states and handlers
+  // Goal editing states
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
-  const [editingTitle, setEditingTitle] = useState<string>('')
-  const [savingGoal, setSavingGoal] = useState<boolean>(false)
-  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null)
-  const [goalActionError, setGoalActionError] = useState<string | null>(null)
-
-  // Confirm dialog states
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false)
-  const [goalToDelete, setGoalToDelete] = useState<{ id: string; title: string } | null>(null)
-
-  const startEditGoal = (id: string, currTitle: string) => {
-    setEditingGoalId(id)
-    setEditingTitle(currTitle)
-    setGoalActionError(null)
-  }
-
-  const cancelEditGoal = () => {
-    setEditingGoalId(null)
-    setEditingTitle('')
-    setGoalActionError(null)
-  }
-
-  const saveEditGoal = async () => {
-    const id = editingGoalId
-    const title = editingTitle.trim()
-    if (!id) return
-    if (!title) {
-      setGoalActionError(t('plans.titleEmpty'))
-      return
-    }
-    setSavingGoal(true)
-    setGoalActionError(null)
-    try {
-      const updated = await GoalService.updateGoal(id, { title })
-      setMyGoals((prev) => prev.map((g: any) => (String(g?.id ?? g?.goalId ?? g?.key) === String(id) ? { ...g, ...updated } : g)))
-      setToast({ message: t('plans.goalUpdated'), type: 'success' })
-      setEditingGoalId(null)
-      setEditingTitle('')
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || t('plans.goalUpdateFailed')
-      setGoalActionError(msg)
-    } finally {
-      setSavingGoal(false)
-    }
-  }
-
-  const handleDeleteGoal = async (id: string) => {
-    const goal = myGoals.find((g: any) => String(g?.id ?? g?.goalId ?? g?.key) === String(id))
-    const title = goal?.title ?? goal?.name ?? goal?.label ?? 'this goal'
-
-    setGoalToDelete({ id, title })
-    setShowDeleteConfirm(true)
-  }
-
-  const confirmDeleteGoal = async () => {
-    if (!goalToDelete) return
-
-    const { id } = goalToDelete
-    setDeletingGoalId(id)
-    setGoalActionError(null)
-    setShowDeleteConfirm(false)
-
-    try {
-      await GoalService.deleteGoal(id)
-      setMyGoals((prev) => prev.filter((g: any) => String(g?.id ?? g?.goalId ?? g?.key) !== String(id)))
-      setSelectedGoals((prev) => prev.filter((k) => String(k) !== String(id)))
-      setToast({ message: t('plans.goalDeleted'), type: 'success' })
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || t('plans.goalDeleteFailed')
-      setToast({ message: msg, type: 'error' })
-    } finally {
-      setDeletingGoalId(null)
-      setGoalToDelete(null)
-    }
-  }
+  const [editingGoalTitle, setEditingGoalTitle] = useState<string>('')
+  const [editingGoalDesc, setEditingGoalDesc] = useState<string>('')
+  const [editingGoalDuration, setEditingGoalDuration] = useState<string>('OneMonth')
+  const [editingGoalActive, setEditingGoalActive] = useState<boolean>(true)
+  const [editingGoalSubject, setEditingGoalSubject] = useState<string>('')
+  const [updatingGoal, setUpdatingGoal] = useState<boolean>(false)
+  const [updateGoalError, setUpdateGoalError] = useState<string | null>(null)
+  const [showEditGoal, setShowEditGoal] = useState<boolean>(false)
 
   // IMPORTANT: initialize navigate for routing
   const navigate = useNavigate()
+
+  // Function to reload goals for the current subject
+  const reloadSubjectGoals = async () => {
+    if (!language) return
+
+    try {
+      setGoalsLoading(true)
+      setGoalsError(null)
+      
+      const params = { category: selectedCategory }
+      const data = await SubjectService.listSubjects(params)
+      const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ 
+        ...s, 
+        id: s?.id ?? s?.subjectId,
+        goals: s?.goals || []
+      }))
+      
+      const selectedSubject = normalized.find((s: any) => String(s.id ?? s.subjectId) === language)
+      if (selectedSubject && Array.isArray(selectedSubject.goals)) {
+        setSubjectGoals(selectedSubject.goals)
+        // Update subjects list as well
+        setSubjects(normalized as any)
+      }
+    } catch (e: any) {
+      const d = e?.response?.data
+      const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSubjects')
+      setGoalsError(msg)
+    } finally {
+      setGoalsLoading(false)
+    }
+  }
+
+  // Handle goal creation
+  const handleCreateGoalModal = async () => {
+    const title = newGoalTitle.trim()
+    const description = newGoalDesc.trim()
+    const duration = newGoalDuration
+    
+    if (!title) {
+      setCreateGoalError(t('plans.enterGoalTitle'))
+      return
+    }
+    if (!language) {
+      setCreateGoalError(t('plans.selectSubjectFirst'))
+      return
+    }
+    
+    setCreatingGoal(true)
+    setCreateGoalError(null)
+    
+    try {
+      const payload = {
+        subjectId: language,
+        title: title,
+        description: description,
+        duration: duration
+      }
+      
+      const created = await GoalService.createGoal(payload)
+      
+      setToast({ message: t('plans.goalCreated'), type: 'success' })
+      setShowAddGoal(false)
+      setNewGoalTitle('')
+      setNewGoalDesc('')
+      setNewGoalDuration('OneMonth')
+      
+      // Reload goals to get updated list
+      await reloadSubjectGoals()
+    } catch (e: any) {
+      const d = e?.response?.data
+      const errorCode = d?.errorCode || d?.code
+      const errorMessage = d?.errorMessage || d?.message || d?.error || e?.message
+      
+      let displayMessage = errorMessage || t('plans.goalCreateFailed')
+      
+      // Handle specific error codes with translated messages
+      if (errorCode === 'GOAL_SUBJECT_MISMATCH') {
+        displayMessage = t('plans.goalSubjectMismatch')
+      } else if (errorCode === 'INVALID_SUBJECT') {
+        displayMessage = t('plans.invalidSubject')
+      } else if (errorCode === 'DUPLICATE_GOAL') {
+        displayMessage = t('plans.duplicateGoal')
+      } else if (errorCode === 'VALIDATION_ERROR') {
+        displayMessage = t('plans.validationError')
+      } else if (errorCode === 'UNAUTHORIZED') {
+        displayMessage = t('plans.unauthorized')
+      } else if (errorCode === 'RATE_LIMIT_EXCEEDED') {
+        displayMessage = t('plans.rateLimitExceeded')
+      }
+      
+      setCreateGoalError(displayMessage)
+    } finally {
+      setCreatingGoal(false)
+    }
+  }
+
+  // Handle goal editing
+  const handleStartEditGoal = (goalId: string) => {
+    const goal = subjectGoals.find(g => String(g?.id ?? g?.goalId ?? g?.key) === goalId)
+    if (goal) {
+      setEditingGoalId(goalId)
+      setEditingGoalTitle(goal.title || goal.name || '')
+      setEditingGoalDesc(goal.description || '')
+      setEditingGoalDuration(goal.duration || 'OneMonth')
+      setEditingGoalActive(goal.isActive ?? true)
+      setEditingGoalSubject(goal.subjectId || language || '') // Use goal's subjectId or current language
+      setUpdateGoalError(null)
+      setShowEditGoal(true)
+    }
+  }
+
+  const handleUpdateGoalModal = async () => {
+    const title = editingGoalTitle.trim()
+    const description = editingGoalDesc.trim()
+    const duration = editingGoalDuration
+    const isActive = editingGoalActive
+    const subjectId = editingGoalSubject
+    
+    if (!title) {
+      setUpdateGoalError(t('plans.enterGoalTitle'))
+      return
+    }
+    if (!subjectId) {
+      setUpdateGoalError(t('plans.selectSubjectFirst'))
+      return
+    }
+    if (!editingGoalId) {
+      setUpdateGoalError('Goal ID is missing')
+      return
+    }
+    
+    setUpdatingGoal(true)
+    setUpdateGoalError(null)
+    
+    try {
+      const payload = {
+        subjectId: subjectId,
+        title: title,
+        description: description,
+        duration: duration,
+        isActive: isActive
+      }
+      
+      await GoalService.updateGoal(editingGoalId, payload)
+      
+      setToast({ message: t('plans.goalUpdated'), type: 'success' })
+      setShowEditGoal(false)
+      setEditingGoalId(null)
+      setEditingGoalTitle('')
+      setEditingGoalDesc('')
+      setEditingGoalDuration('OneMonth')
+      setEditingGoalActive(true)
+      setEditingGoalSubject('')
+      
+      // Reload goals to get updated list
+      await reloadSubjectGoals()
+    } catch (e: any) {
+      const d = e?.response?.data
+      const errorCode = d?.errorCode || d?.code
+      const errorMessage = d?.errorMessage || d?.message || d?.error || e?.message
+      
+      let displayMessage = errorMessage || t('plans.goalUpdateFailed')
+      
+      // Handle specific error codes with translated messages
+      if (errorCode === 'GOAL_SUBJECT_MISMATCH') {
+        displayMessage = t('plans.goalSubjectMismatch')
+      } else if (errorCode === 'INVALID_SUBJECT') {
+        displayMessage = t('plans.invalidSubject')
+      } else if (errorCode === 'DUPLICATE_GOAL') {
+        displayMessage = t('plans.duplicateGoal')
+      } else if (errorCode === 'VALIDATION_ERROR') {
+        displayMessage = t('plans.validationError')
+      } else if (errorCode === 'UNAUTHORIZED') {
+        displayMessage = t('plans.unauthorized')
+      } else if (errorCode === 'RATE_LIMIT_EXCEEDED') {
+        displayMessage = t('plans.rateLimitExceeded')
+      }
+      
+      setUpdateGoalError(displayMessage)
+    } finally {
+      setUpdatingGoal(false)
+    }
+  }
+
+  const handleCancelEditGoal = () => {
+    setShowEditGoal(false)
+    setEditingGoalId(null)
+    setEditingGoalTitle('')
+    setEditingGoalDesc('')
+    setEditingGoalDuration('OneMonth')
+    setEditingGoalActive(true)
+    setEditingGoalSubject('')
+    setUpdateGoalError(null)
+  }
 
   // Handle chapter skeleton generation
   const handleChapterClick = async (pathId: string, chapterIndex: number, _chapterId: string) => {
@@ -475,7 +602,12 @@ const PlansPage: React.FC = () => {
           const params = { category: selectedCategory }
           const data = await SubjectService.listSubjects(params)
           if (active) {
-            const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ ...s, id: s?.id ?? s?.subjectId }))
+            const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({ 
+              ...s, 
+              id: s?.id ?? s?.subjectId,
+              // Extract goals from subject if available
+              goals: s?.goals || []
+            }))
             setSubjects(normalized as any)
           }
         } catch (e: any) {
@@ -490,73 +622,40 @@ const PlansPage: React.FC = () => {
       active = false
     }
   }, [selectedCategory])
-  // Load system goals from backend (isSystemDefined = true)
+  // Load goals from selected subject when language changes
   useEffect(() => {
-    let active = true
-      ; (async () => {
-        try {
-          const data = await GoalService.listGoals()
-          if (active) {
-            const filtered = (Array.isArray(data) ? data : []).filter((g: any) => g.isSystemDefined === true)
-            setSystemGoals(filtered)
-          }
-        } catch (e: any) {
-          const d = e?.response?.data
-          const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSystemGoals')
-          if (active) setGoalsError(msg)
-        } finally {
-          if (active) setGoalsLoading(false)
-        }
-      })()
-    return () => { active = false }
-  }, [])
-
-  // Load my goals from backend
-  useEffect(() => {
-    let active = true
-      ; (async () => {
-        try {
-          const data = await GoalService.getMyGoals()
-          if (active) setMyGoals(Array.isArray(data) ? data : [])
-        } catch (e: any) {
-          const d = e?.response?.data
-          const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadYourGoals')
-          if (active) setMyGoalsError(msg)
-        } finally {
-          if (active) setMyGoalsLoading(false)
-        }
-      })()
-    return () => { active = false }
-  }, [])
-
-  // Background polling to keep goals in sync (realtime-like)
-  useEffect(() => {
-    if (step !== 2) return
-    let disposed = false
-
-    const fetchGoals = async () => {
-      try {
-        const [systemData, myData] = await Promise.all([
-          GoalService.listGoals(),
-          GoalService.getMyGoals()
-        ])
-        if (!disposed) {
-          const filtered = (Array.isArray(systemData) ? systemData : []).filter((g: any) => g.isSystemDefined === true)
-          setSystemGoals(filtered)
-          setMyGoals(Array.isArray(myData) ? myData : [])
-        }
-      } catch { }
+    if (!language) {
+      setSubjectGoals([])
+      setGoalsLoading(false)
+      setGoalsError(null)
+      // Clear selected goals when no language is selected
+      setSelectedGoals([])
+      setGoalPriorities({})
+      setCurrentSystemGoalPage(1) // Reset pagination
+      setCurrentMyGoalPage(1) // Reset pagination
+      return
     }
 
-    // initial fetch then interval
-    fetchGoals()
-    const id = setInterval(fetchGoals, 8000)
-
-    return () => {
-      disposed = true
-      clearInterval(id)
+    const selectedSubject = subjects.find((s: any) => String(s.id ?? s.subjectId) === language)
+    if (selectedSubject && Array.isArray(selectedSubject.goals)) {
+      setSubjectGoals(selectedSubject.goals)
+      setGoalsLoading(false)
+      setGoalsError(null)
+      // Clear selected goals when switching subjects since goals are different
+      setSelectedGoals([])
+      setGoalPriorities({})
+      setCurrentSystemGoalPage(1) // Reset pagination
+      setCurrentMyGoalPage(1) // Reset pagination
+    } else {
+      setSubjectGoals([])
+      setGoalsLoading(false)
+      setGoalsError(null)
+      setSelectedGoals([])
+      setGoalPriorities({})
+      setCurrentSystemGoalPage(1) // Reset pagination
+      setCurrentMyGoalPage(1) // Reset pagination
     }
-  }, [step])
+  }, [language, subjects])
 
   const canNext = useMemo(() => {
     if (step === 1) return !!language
@@ -650,42 +749,197 @@ const PlansPage: React.FC = () => {
     })
   }
 
-  const handleCreateGoalModal = async () => {
-    const title = newGoalTitle.trim()
-    const description = newGoalDesc.trim()
-    if (!title) {
-      setCreateGoalError(t('plans.enterGoalTitle'))
-      return
-    }
-    setCreatingGoal(true)
-    setCreateGoalError(null)
-    try {
-      const created = await GoalService.createGoal({ title, description })
-      const newKey = String(created?.goalId ?? created?.id ?? created?.key ?? '')
-      setMyGoals((prev) => [created, ...prev])
-      if (newKey) setSelectedGoals([newKey])
-      setToast({ message: t('plans.goalCreated'), type: 'success' })
-      setShowAddGoal(false)
-      setNewGoalTitle('')
-      setNewGoalDesc('')
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message
-      setCreateGoalError(msg || t('plans.goalCreateFailed'))
-    } finally {
-      setCreatingGoal(false)
-    }
-  }
+  // Map subject goals to GoalCard items and separate system vs my goals
+  const systemGoals = Array.isArray(subjectGoals) 
+    ? subjectGoals.filter((g: any) => g.isSystemDefined === true)
+    : []
+  
+  const myGoals = Array.isArray(subjectGoals) 
+    ? subjectGoals.filter((g: any) => g.isSystemDefined === false)
+    : []
 
-  // Map API goals to GoalCard items
-  const allGoals = [...systemGoals, ...myGoals]
-  const goalItems: GoalItem[] = Array.isArray(allGoals)
-    ? allGoals
+  const goalItems: GoalItem[] = Array.isArray(subjectGoals)
+    ? subjectGoals
       .map((g: any) => ({
         key: g?.id ?? g?.goalId ?? g?.key,
         label: g?.title ?? g?.name ?? g?.label ?? 'Goal',
       }))
       .filter((it) => !!it.key)
     : []
+
+  // Pagination calculations for system goals
+  const totalSystemGoals = systemGoals.length
+  const totalSystemPages = Math.ceil(totalSystemGoals / goalsPerPage)
+  const systemStartIndex = (currentSystemGoalPage - 1) * goalsPerPage
+  const systemEndIndex = systemStartIndex + goalsPerPage
+  const currentPageSystemGoals = systemGoals.slice(systemStartIndex, systemEndIndex)
+
+  // Pagination calculations for my goals
+  const totalMyGoals = myGoals.length
+  const totalMyPages = Math.ceil(totalMyGoals / goalsPerPage)
+  const myStartIndex = (currentMyGoalPage - 1) * goalsPerPage
+  const myEndIndex = myStartIndex + goalsPerPage
+  const currentPageMyGoals = myGoals.slice(myStartIndex, myEndIndex)
+
+  // Pagination component
+  const PaginationControls = ({ 
+    currentPage, 
+    totalPages, 
+    onPageChange, 
+    label 
+  }: { 
+    currentPage: number
+    totalPages: number
+    onPageChange: (page: number) => void
+    label: string
+  }) => {
+    if (totalPages <= 1) return null
+
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        gap: 8, 
+        marginTop: 16,
+        padding: '12px 0'
+      }}>
+        {/* Previous button */}
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          disabled={currentPage === 1}
+          style={{
+            padding: '6px 10px',
+            border: '1px solid var(--border-base)',
+            borderRadius: 4,
+            background: currentPage === 1 ? 'var(--bg-surface)' : 'var(--bg-main)',
+            color: currentPage === 1 ? 'var(--text-disabled)' : 'var(--text-primary)',
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            if (currentPage !== 1) {
+              e.currentTarget.style.background = 'var(--bg-blue-hover)'
+              e.currentTarget.style.borderColor = 'var(--accent-primary)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (currentPage !== 1) {
+              e.currentTarget.style.background = 'var(--bg-main)'
+              e.currentTarget.style.borderColor = 'var(--border-base)'
+            }
+          }}
+        >
+          ← Prev
+        </button>
+
+        {/* Page numbers */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+            const isCurrentPage = pageNum === currentPage
+            const shouldShow = pageNum === 1 || 
+                             pageNum === totalPages || 
+                             Math.abs(pageNum - currentPage) <= 1
+
+            if (!shouldShow) {
+              // Show ellipsis for gaps
+              if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                return (
+                  <span key={`ellipsis-${pageNum}`} style={{ 
+                    padding: '6px 3px', 
+                    color: 'var(--text-secondary)',
+                    fontSize: 11
+                  }}>
+                    ...
+                  </span>
+                )
+              }
+              return null
+            }
+
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => onPageChange(pageNum)}
+                style={{
+                  padding: '6px 10px',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 4,
+                  background: isCurrentPage ? 'var(--accent-primary)' : 'var(--bg-main)',
+                  color: isCurrentPage ? 'var(--bg-surface)' : 'var(--text-primary)',
+                  fontSize: 11,
+                  fontWeight: isCurrentPage ? 700 : 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  minWidth: 28
+                }}
+                onMouseEnter={(e) => {
+                  if (!isCurrentPage) {
+                    e.currentTarget.style.background = 'var(--bg-blue-hover)'
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isCurrentPage) {
+                    e.currentTarget.style.background = 'var(--bg-main)'
+                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                  }
+                }}
+              >
+                {pageNum}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Next button */}
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          style={{
+            padding: '6px 10px',
+            border: '1px solid var(--border-base)',
+            borderRadius: 4,
+            background: currentPage === totalPages ? 'var(--bg-surface)' : 'var(--bg-main)',
+            color: currentPage === totalPages ? 'var(--text-disabled)' : 'var(--text-primary)',
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            if (currentPage !== totalPages) {
+              e.currentTarget.style.background = 'var(--bg-blue-hover)'
+              e.currentTarget.style.borderColor = 'var(--accent-primary)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (currentPage !== totalPages) {
+              e.currentTarget.style.background = 'var(--bg-main)'
+              e.currentTarget.style.borderColor = 'var(--border-base)'
+            }
+          }}
+        >
+          Next →
+        </button>
+
+        {/* Page info */}
+        <div style={{ 
+          marginLeft: 12, 
+          fontSize: 10, 
+          color: 'var(--text-secondary)',
+          fontWeight: 500
+        }}>
+          {currentPage}/{totalPages}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -848,147 +1102,224 @@ const PlansPage: React.FC = () => {
                   <div>
                     <strong style={{ color: 'var(--text-primary)' }}>Select up to 2 learning goals</strong>
                     <br />
-                    Choose 1-2 goals that best match what you want to achieve. If you select 2 goals, 
-                    you'll be able to set priority weights to focus more on your primary objective.
+                    Choose 1-2 goals that best match what you want to achieve with{' '}
+                    <strong style={{ color: 'var(--text-primary)' }}>
+                      {language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : 'the selected subject'}
+                    </strong>
+                    . If you select 2 goals, you'll be able to set priority weights to focus more on your primary objective.
                   </div>
                 </div>
               </div>
 
-              {/* Thông báo hành động goal */}
-              {goalActionError && (
-                <div style={{ marginBottom: 24 }}>
-                  <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {goalActionError}</div>
-                </div>
-              )}
-
               {/* System Goals Section */}
               <div style={{ marginBottom: 40 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('plans.suggestGoals')}</h3>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                    // {t('plans.suggestGoals')}
+                    {totalSystemGoals > 0 && (
+                      <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
+                        ({totalSystemGoals} goals)
+                      </span>
+                    )}
+                  </h3>
                 </div>
-                <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
-                  {goalsLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                          <div className="flex-1">
-                            <div className="w-32 h-5 bg-th-hover rounded" />
+                
+                {!language ? (
+                  <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                    {t('plans.selectSubjectFirst')}
+                  </div>
+                ) : (
+                  <>
+                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
+                      {goalsLoading ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                          <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-th-hover rounded-xl" />
+                              <div className="flex-1">
+                                <div className="w-32 h-5 bg-th-hover rounded" />
+                              </div>
+                            </div>
                           </div>
+                        ))
+                      ) : goalsError ? (
+                        <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                          {t('plans.failedLoadSystemGoals')}: {goalsError}
                         </div>
-                      </div>
-                    ))
-                  ) : goalsError ? (
-                    <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                      {t('plans.failedLoadSystemGoals')}: {goalsError}
-                    </div>
-                  ) : systemGoals.length > 0 ? (
-                    systemGoals.map((g: any, idx: number) => {
-                      const id = g?.id ?? g?.goalId ?? g?.key
-                      const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                      return (
-                        <SingleGoalCard
-                          key={String(id)}
-                          id={String(id)}
-                          title={title}
-                          colorClass={palette[idx % palette.length]}
-                          icon='🔖'
-                          active={selectedGoals.includes(String(id))}
-                          disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
-                          onToggle={toggleGoal}
-                          onStartEdit={() => { }}
-                          onDelete={() => { }}
-                          isEditing={false}
-                          editingTitle=""
-                          setEditingTitle={() => { }}
-                          onSaveEdit={() => { }}
-                          onCancelEdit={() => { }}
-                          saving={false}
-                          deleting={false}
-                          isSystemGoal={true}
-                        />
-                      )
-                    })
-                  ) : (
-                    <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                      {t('plans.noSystemGoals')}
-                    </div>
-                  )}
-                </section>
+                      ) : currentPageSystemGoals.length > 0 ? (
+                        currentPageSystemGoals.map((g: any, idx: number) => {
+                          const id = g?.id ?? g?.goalId ?? g?.key
+                          const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                          const globalIndex = systemStartIndex + idx // Calculate global index for color palette
+                          return (
+                            <SingleGoalCard
+                              key={String(id)}
+                              id={String(id)}
+                              title={title}
+                              colorClass={palette[globalIndex % palette.length]}
+                              icon='🔖'
+                              active={selectedGoals.includes(String(id))}
+                              disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
+                              onToggle={toggleGoal}
+                              onStartEdit={() => { }}
+                              onDelete={() => { }}
+                              isEditing={false}
+                              editingTitle=""
+                              setEditingTitle={() => { }}
+                              onSaveEdit={() => { }}
+                              onCancelEdit={() => { }}
+                              saving={false}
+                              deleting={false}
+                              isSystemGoal={true}
+                            />
+                          )
+                        })
+                      ) : totalSystemGoals === 0 ? (
+                        <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                          {t('plans.noSystemGoals')}
+                        </div>
+                      ) : null}
+                    </section>
+
+                    {/* System Goals Pagination */}
+                    <PaginationControls
+                      currentPage={currentSystemGoalPage}
+                      totalPages={totalSystemPages}
+                      onPageChange={setCurrentSystemGoalPage}
+                      label="System Goals"
+                    />
+                  </>
+                )}
               </div>
 
               {/* My Goals Section */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>// {t('plans.myGoals')}</h3>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                    // {t('plans.myGoals')}
+                    {totalMyGoals > 0 && (
+                      <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
+                        ({totalMyGoals} goals)
+                      </span>
+                    )}
+                  </h3>
                   <button
                     type="button"
                     onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
-                    style={{ padding: '6px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: '1px solid var(--text-primary)', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
+                    style={{ 
+                      padding: '6px 16px', 
+                      background: 'var(--text-primary)', 
+                      color: 'var(--bg-surface-short)', 
+                      border: '1px solid var(--text-primary)', 
+                      borderRadius: 2, 
+                      fontSize: 12, 
+                      fontWeight: 600, 
+                      cursor: 'pointer', 
+                      transition: 'background 0.2s' 
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} 
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
                   >
                     {'>'} {t('plans.addGoal')}
                   </button>
                 </div>
-                <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
-                  {myGoalsLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                          <div className="flex-1">
-                            <div className="w-32 h-5 bg-th-hover rounded" />
+                
+                {!language ? (
+                  <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                    {t('plans.selectSubjectFirst')}
+                  </div>
+                ) : (
+                  <>
+                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
+                      {goalsLoading ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                          <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-th-hover rounded-xl" />
+                              <div className="flex-1">
+                                <div className="w-32 h-5 bg-th-hover rounded" />
+                              </div>
+                            </div>
                           </div>
+                        ))
+                      ) : goalsError ? (
+                        <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                          {t('plans.failedLoadYourGoals')}: {goalsError}
                         </div>
-                      </div>
-                    ))
-                  ) : myGoalsError ? (
-                    <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                      {t('plans.failedLoadYourGoals')}: {myGoalsError}
-                    </div>
-                  ) : myGoals.length > 0 ? (
-                    myGoals.map((g: any, idx: number) => {
-                      const id = g?.id ?? g?.goalId ?? g?.key
-                      const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                      return (
-                        <SingleGoalCard
-                          key={String(id)}
-                          id={String(id)}
-                          title={title}
-                          colorClass={palette[idx % palette.length]}
-                          icon='🔖'
-                          active={selectedGoals.includes(String(id))}
-                          disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
-                          onToggle={toggleGoal}
-                          onStartEdit={startEditGoal}
-                          onDelete={handleDeleteGoal}
-                          isEditing={String(editingGoalId) === String(id)}
-                          editingTitle={editingTitle}
-                          setEditingTitle={setEditingTitle}
-                          onSaveEdit={saveEditGoal}
-                          onCancelEdit={cancelEditGoal}
-                          saving={savingGoal}
-                          deleting={String(deletingGoalId) === String(id)}
-                        />
-                      )
-                    })
-                  ) : (
-                    <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                      {t('plans.noPersonalGoals')}
-                    </div>
-                  )}
-                </section>
+                      ) : currentPageMyGoals.length > 0 ? (
+                        currentPageMyGoals.map((g: any, idx: number) => {
+                          const id = g?.id ?? g?.goalId ?? g?.key
+                          const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                          const globalIndex = myStartIndex + idx // Calculate global index for color palette
+                          return (
+                            <SingleGoalCard
+                              key={String(id)}
+                              id={String(id)}
+                              title={title}
+                              colorClass={palette[globalIndex % palette.length]}
+                              icon='🔖'
+                              active={selectedGoals.includes(String(id))}
+                              disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
+                              onToggle={toggleGoal}
+                              onStartEdit={handleStartEditGoal}
+                              onDelete={() => { }}
+                              isEditing={false}
+                              editingTitle=""
+                              setEditingTitle={() => { }}
+                              onSaveEdit={() => { }}
+                              onCancelEdit={() => { }}
+                              saving={false}
+                              deleting={false}
+                              isSystemGoal={false}
+                            />
+                          )
+                        })
+                      ) : totalMyGoals === 0 ? (
+                        <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                          {t('plans.noPersonalGoals')}
+                        </div>
+                      ) : null}
+                    </section>
+
+                    {/* My Goals Pagination */}
+                    <PaginationControls
+                      currentPage={currentMyGoalPage}
+                      totalPages={totalMyPages}
+                      onPageChange={setCurrentMyGoalPage}
+                      label="My Goals"
+                    />
+                  </>
+                )}
+                
                 {/* Add Goal Modal */}
                 {showAddGoal && (
                   <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
-                    <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 448, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 500, width: '100%', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
                         <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {t('plans.addNewGoal')}</h3>
                       </div>
                       <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
                         {createGoalError && (
-                          <div style={{ padding: 12, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', fontSize: 13, background: 'var(--bg-red-tint)' }}>// {createGoalError}</div>
+                          <div style={{ 
+                            padding: 12, 
+                            border: '1px solid var(--danger-primary)', 
+                            borderRadius: 4, 
+                            color: 'var(--danger-primary)', 
+                            fontSize: 13, 
+                            background: 'var(--bg-red-tint)',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 8
+                          }}>
+                            <span style={{ fontSize: 16, flexShrink: 0 }}></span>
+                            <div>
+                              <strong style={{ display: 'block', marginBottom: 4 }}>{t('plans.errorCreatingGoal')}</strong>
+                              {createGoalError}
+                            </div>
+                          </div>
                         )}
+                        
+                        {/* Title Field */}
                         <div>
                           <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.titleLabel')}</label>
                           <input
@@ -997,9 +1328,12 @@ const PlansPage: React.FC = () => {
                             onChange={(e) => setNewGoalTitle(e.target.value)}
                             placeholder={t('plans.titlePlaceholder')}
                             style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
-                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                           />
                         </div>
+                        
+                        {/* Description Field */}
                         <div>
                           <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.descriptionLabel')}</label>
                           <textarea
@@ -1008,23 +1342,179 @@ const PlansPage: React.FC = () => {
                             rows={3}
                             placeholder={t('plans.descriptionPlaceholder')}
                             style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
-                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                           />
                         </div>
+                        
+                        {/* Duration Field */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ Duration</label>
+                          <select
+                            value={newGoalDuration}
+                            onChange={(e) => setNewGoalDuration(e.target.value)}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          >
+                            <option value="OneWeek">One Week</option>
+                            <option value="OneMonth">One Month</option>
+                            <option value="ThreeMonths">Three Months</option>
+                            <option value="SixMonths">Six Months</option>
+                            <option value="OneYear">One Year</option>
+                          </select>
+                        </div>
+                        
                         <div style={{ display: 'flex', gap: 12, paddingTop: 16 }}>
                           <button
                             type="button"
-                            onClick={() => { setShowAddGoal(false); setNewGoalTitle(''); setNewGoalDesc(''); setCreateGoalError(null) }}
+                            onClick={() => { 
+                              setShowAddGoal(false); 
+                              setNewGoalTitle(''); 
+                              setNewGoalDesc(''); 
+                              setNewGoalDuration('OneMonth');
+                              setCreateGoalError(null) 
+                            }}
                             style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} 
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
                           >{t('plans.cancel')}</button>
                           <button
                             type="button"
                             disabled={creatingGoal}
                             onClick={handleCreateGoalModal}
                             style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
-                            onMouseEnter={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
+                            onMouseEnter={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} 
+                            onMouseLeave={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
                           >{creatingGoal ? t('plans.savingGoal') : t('plans.saveGoal')}</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Edit Goal Modal */}
+                {showEditGoal && (
+                  <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+                    <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 500, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{'>'} {t('plans.editGoal')}</h3>
+                      </div>
+                      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {updateGoalError && (
+                          <div style={{ 
+                            padding: 12, 
+                            border: '1px solid var(--danger-primary)', 
+                            borderRadius: 4, 
+                            color: 'var(--danger-primary)', 
+                            fontSize: 13, 
+                            background: 'var(--bg-red-tint)',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 8
+                          }}>
+                            <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+                            <div>
+                              <strong style={{ display: 'block', marginBottom: 4 }}>{t('plans.errorUpdatingGoal')}</strong>
+                              {updateGoalError}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Title Field */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.titleLabel')}</label>
+                          <input
+                            type="text"
+                            value={editingGoalTitle}
+                            onChange={(e) => setEditingGoalTitle(e.target.value)}
+                            placeholder={t('plans.titlePlaceholder')}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          />
+                        </div>
+                        
+                        {/* Description Field */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.descriptionLabel')}</label>
+                          <textarea
+                            value={editingGoalDesc}
+                            onChange={(e) => setEditingGoalDesc(e.target.value)}
+                            rows={3}
+                            placeholder={t('plans.descriptionPlaceholder')}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          />
+                        </div>
+                        
+                        {/* Subject Field */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.subjectLabel')}</label>
+                          <select
+                            value={editingGoalSubject}
+                            onChange={(e) => setEditingGoalSubject(e.target.value)}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          >
+                            <option value="">{t('plans.selectSubject')}</option>
+                            {subjects.map((subject: any) => (
+                              <option key={subject.id ?? subject.subjectId} value={subject.id ?? subject.subjectId}>
+                                {subject.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        {/* Duration Field */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ Duration</label>
+                          <select
+                            value={editingGoalDuration}
+                            onChange={(e) => setEditingGoalDuration(e.target.value)}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          >
+                            <option value="OneWeek">One Week</option>
+                            <option value="OneMonth">One Month</option>
+                            <option value="ThreeMonths">Three Months</option>
+                            <option value="SixMonths">Six Months</option>
+                            <option value="OneYear">One Year</option>
+                          </select>
+                        </div>
+                        
+                        {/* Active Status Field */}
+                        <div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={editingGoalActive}
+                              onChange={(e) => setEditingGoalActive(e.target.checked)}
+                              style={{ width: 16, height: 16 }}
+                            />
+                            {t('plans.activeGoal')}
+                          </label>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: 12, paddingTop: 16 }}>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditGoal}
+                            style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }} 
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
+                          >{t('plans.cancel')}</button>
+                          <button
+                            type="button"
+                            disabled={updatingGoal}
+                            onClick={handleUpdateGoalModal}
+                            style={{ flex: 1, padding: '8px 16px', background: updatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: updatingGoal ? 'not-allowed' : 'pointer' }}
+                            onMouseEnter={(e) => { if (!updatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} 
+                            onMouseLeave={(e) => { if (!updatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
+                          >{updatingGoal ? t('plans.updatingGoal') : t('plans.updateGoal')}</button>
                         </div>
                       </div>
                     </div>
@@ -1596,21 +2086,6 @@ const PlansPage: React.FC = () => {
         </div>
       </main>
       <Footer />
-
-      {/* Confirm Delete Dialog */}
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('plans.deleteGoal')}
-        message={t('plans.deleteGoalConfirm', { title: goalToDelete?.title })}
-        confirmText={t('plans.delete')}
-        cancelText={t('plans.cancel')}
-        variant="danger"
-        onConfirm={confirmDeleteGoal}
-        onCancel={() => {
-          setShowDeleteConfirm(false)
-          setGoalToDelete(null)
-        }}
-      />
 
       {/* Toast Notification */}
       {toast && (

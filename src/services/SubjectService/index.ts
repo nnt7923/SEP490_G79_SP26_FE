@@ -7,7 +7,6 @@ export const SubjectCategory = {
   Frontend: 1,
   Backend: 2,
   Database: 3,
-  DevOps: 4,
   Cloud: 5,
   DataScience: 6,
   MachineLearning: 7,
@@ -31,6 +30,7 @@ export type Subject = {
   createdBy?: string
   createdByUserId?: string
   createdAt?: string
+  goals?: any[] // Goals array from the new API structure
 }
 
 export interface ListSubjectsParams {
@@ -68,6 +68,7 @@ export async function listSubjects(params?: ListSubjectsParams): Promise<Subject
     createdBy: s.createdBy,
     createdByUserId: s.createdByUserId,
     createdAt: s.createdAt,
+    goals: s.goals || [], // Include goals array from API response
   }))
 }
 
