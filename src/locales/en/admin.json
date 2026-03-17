@@ -102,7 +102,9 @@
     "failedToLoad": "Failed to load API keys",
     "createFailed": "Create failed",
     "updateFailed": "Update failed",
-    "deleteFailed": "Delete failed"
+    "deleteFailed": "Delete failed",
+    "setActiveSuccess": "API key set as active successfully",
+    "setActiveFailed": "Failed to set API key as active"
   },
   "resources": {
     "title": "My Resources",

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import Header from '../../../../components/Layout/Header'
 import Footer from '../../../../components/Layout/Footer'
+import TutorChatbot from '../../../../components/TutorChatbot'
 import { requestLessonContent } from '../../../../services/SignalR'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
@@ -747,6 +748,15 @@ const LessonDetailPage: React.FC = () => {
           <ArrowDown className="w-4 h-4" />
         </button>
       </div>
+      
+      {/* AI Tutor Chatbot - Only show in lesson pages */}
+      <TutorChatbot
+        conversationId={null}
+        learningPathId={skeleton?.pathId || null}
+        chapterId={currentChapterId || null}
+        lessonId={lessonId || null}
+      />
+      
       {!isFocusMode && <Footer />}
     </div>
   )

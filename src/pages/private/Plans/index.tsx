@@ -120,6 +120,12 @@ const PlansPage: React.FC = () => {
   const [creatingGoal, setCreatingGoal] = useState<boolean>(false)
   const [createGoalError, setCreateGoalError] = useState<string | null>(null)
 
+  // Learning path suggestions states
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState<boolean>(false)
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null)
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
+
   // Goal editing states
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [editingGoalTitle, setEditingGoalTitle] = useState<string>('')
@@ -326,6 +332,80 @@ const PlansPage: React.FC = () => {
     setEditingGoalActive(true)
     setEditingGoalSubject('')
     setUpdateGoalError(null)
+  }
+
+  // Handle learning path suggestions
+  const handleGetSuggestions = async () => {
+    if (!language) {
+      setSuggestionsError(t('plans.selectLanguage'))
+      return
+    }
+    if (selectedGoals.length === 0) {
+      setSuggestionsError(t('plans.selectAtLeastOneGoal'))
+      return
+    }
+    if (!level) {
+      setSuggestionsError(t('plans.selectLevel'))
+      return
+    }
+    if (!languageSelection) {
+      setSuggestionsError(t('plans.selectLanguage'))
+      return
+    }
+
+    setSuggestionsError(null)
+    setLoadingSuggestions(true)
+    setSuggestions([])
+    setShowSuggestions(true)
+
+    try {
+      const payload = {
+        subjectId: language,
+        goals: selectedGoals.map(goalId => ({
+          goalId: goalId,
+          weight: goalPriorities[goalId] || (selectedGoals.length === 1 ? 100 : 50)
+        })),
+        complexityLevel: level,
+        languageSelection: languageSelection
+      }
+
+      const result = await LearningPathService.getSuggestions(payload, {
+        useSignalR: true,
+        onLoading: () => {
+          setLoadingSuggestions(true)
+        },
+        onSuggestionsLoaded: (suggestionsData: any[]) => {
+          setSuggestions(suggestionsData)
+        }
+      })
+
+      // If suggestions weren't set via callback, set them from result
+      if (result?.suggestions && suggestions.length === 0) {
+        setSuggestions(result.suggestions)
+      }
+    } catch (e: any) {
+      const d = e?.response?.data
+      const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
+      const code = d?.errorCode || d?.code
+      let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || t('plans.unableToGetSuggestions'))
+      setSuggestionsError(msg)
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
+  const handleSelectSuggestion = async (suggestion: any) => {
+    if (!suggestion?.pathId) {
+      setToast({ message: t('plans.invalidSuggestion'), type: 'error' })
+      return
+    }
+
+    try {
+      // Navigate to the suggested learning path
+      navigate('/my-plans/detail', { state: { pathId: suggestion.pathId } })
+    } catch (e: any) {
+      setToast({ message: e?.message || t('plans.errorSelectingSuggestion'), type: 'error' })
+    }
   }
 
   // Handle chapter skeleton generation
@@ -1943,13 +2023,11 @@ const PlansPage: React.FC = () => {
                   style={{
                     padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
                     textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
-                    height: '100%', display: 'flex', flexDirection: 'column', opacity: 0.7
+                    height: '100%', display: 'flex', flexDirection: 'column'
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
-                  onClick={() => {
-                    setToast({ message: t('plans.comingSoon'), type: 'success' })
-                  }}
+                  onClick={handleGetSuggestions}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
                     <div style={{ fontSize: 32 }}>📚</div>
@@ -1958,7 +2036,7 @@ const PlansPage: React.FC = () => {
                         {t('plans.similarPaths')}
                       </h3>
                       <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                        {t('plans.comingSoon')}
+                        {t('plans.getRecommendations')}
                       </p>
                     </div>
                   </div>
@@ -2020,6 +2098,152 @@ const PlansPage: React.FC = () => {
               {planError && (
                 <div style={{ marginTop: 32, maxWidth: 600, margin: '32px auto 0', padding: 16, background: 'var(--bg-red-tint)', border: '1px solid var(--danger-primary)', borderRadius: 4, color: 'var(--danger-primary)', textAlign: 'center' }}>
                   {planError}
+                </div>
+              )}
+
+              {/* Suggestions Modal */}
+              {showSuggestions && (
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+                  <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 900, width: '100%', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                        📚 {t('plans.suggestedLearningPaths')}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSuggestions(false)
+                          setSuggestions([])
+                          setSuggestionsError(null)
+                        }}
+                        style={{ 
+                          padding: '6px 12px', 
+                          background: 'transparent', 
+                          border: '1px solid var(--border-base)', 
+                          borderRadius: 2, 
+                          color: 'var(--text-secondary)', 
+                          fontSize: 12, 
+                          cursor: 'pointer' 
+                        }}
+                      >
+                        ✕ Close
+                      </button>
+                    </div>
+                    
+                    <div style={{ padding: 20, flex: 1, overflow: 'auto' }}>
+                      {loadingSuggestions ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+                          <div className="animate-spin" style={{ width: 20, height: 20, border: '2px solid var(--text-secondary)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', marginRight: 12 }} />
+                          <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                            {t('plans.loadingSuggestions')}
+                          </span>
+                        </div>
+                      ) : suggestionsError ? (
+                        <div style={{ padding: 20, background: 'var(--bg-red-tint)', border: '1px solid var(--danger-primary)', borderRadius: 4, color: 'var(--danger-primary)', textAlign: 'center' }}>
+                          <strong>{t('plans.errorLoadingSuggestions')}</strong>
+                          <br />
+                          {suggestionsError}
+                        </div>
+                      ) : suggestions.length > 0 ? (
+                        <div style={{ display: 'grid', gap: 16 }}>
+                          {suggestions.map((suggestion, index) => (
+                            <div
+                              key={suggestion.pathId || index}
+                              style={{
+                                padding: 20,
+                                border: '1px solid var(--border-base)',
+                                borderRadius: 4,
+                                background: 'var(--bg-surface)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--accent-primary)'
+                                e.currentTarget.style.background = 'var(--bg-main)'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--border-base)'
+                                e.currentTarget.style.background = 'var(--bg-surface)'
+                              }}
+                              onClick={() => handleSelectSuggestion(suggestion)}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                                <div style={{ flex: 1 }}>
+                                  <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                                    {suggestion.title}
+                                  </h4>
+                                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px 0', lineHeight: 1.5 }}>
+                                    {suggestion.description}
+                                  </p>
+                                </div>
+                                <div style={{ 
+                                  padding: '4px 12px', 
+                                  background: 'var(--accent-primary)', 
+                                  color: 'white', 
+                                  borderRadius: 12, 
+                                  fontSize: 12, 
+                                  fontWeight: 600,
+                                  marginLeft: 16
+                                }}>
+                                  {t('plans.matchScore')}: {Math.round((suggestion.score || 0) * 100)}%
+                                </div>
+                              </div>
+                              
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 12, color: 'var(--text-secondary)' }}>
+                                <span>📚 {suggestion.chapterCount} chapters</span>
+                                {suggestion.goals && suggestion.goals.length > 0 && (
+                                  <span>🎯 {suggestion.goals.length} goals</span>
+                                )}
+                              </div>
+                              
+                              {suggestion.goals && suggestion.goals.length > 0 && (
+                                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-base)' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>
+                                    Goals Coverage:
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                    {suggestion.goals.map((goal: any, goalIndex: number) => (
+                                      <div
+                                        key={goalIndex}
+                                        style={{
+                                          padding: '4px 8px',
+                                          background: 'var(--bg-main)',
+                                          border: '1px solid var(--border-base)',
+                                          borderRadius: 2,
+                                          fontSize: 11,
+                                          color: 'var(--text-primary)'
+                                        }}
+                                      >
+                                        {goal.title} ({goal.weight}% • {goal.durationInDays} days)
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <div style={{ 
+                                marginTop: 16, 
+                                paddingTop: 12, 
+                                borderTop: '1px solid var(--border-base)', 
+                                fontSize: 11, 
+                                color: 'var(--accent-primary)', 
+                                fontWeight: 600 
+                              }}>
+                                → Click to select this learning path
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
+                          <div style={{ fontSize: 32, marginBottom: 16 }}>📚</div>
+                          <p style={{ fontSize: 14, margin: 0 }}>
+                            {t('plans.noSuggestionsFound')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 

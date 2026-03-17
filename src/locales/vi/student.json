@@ -173,7 +173,29 @@
     "learningPathResult": "Kết Quả Lộ Trình Học Tập",
     "noPathData": "Không có dữ liệu lộ trình từ máy chủ.",
     "back": "quay lại",
-    "continue": "tiếp tục"
+    "continue": "tiếp tục",
+    "getRecommendations": "Nhận đề xuất",
+    "suggestedLearningPaths": "Lộ trình học tập được đề xuất",
+    "loadingSuggestions": "Đang tải đề xuất...",
+    "errorLoadingSuggestions": "Lỗi tải đề xuất",
+    "noSuggestionsFound": "Không tìm thấy đề xuất nào phù hợp với tiêu chí của bạn.",
+    "unableToGetSuggestions": "Không thể lấy đề xuất lộ trình",
+    "invalidSuggestion": "Đề xuất không hợp lệ",
+    "errorSelectingSuggestion": "Lỗi khi chọn đề xuất"
+  },
+  "tutorChat": {
+    "aiTutor": "AI Tutor",
+    "openTutor": "Mở AI Tutor",
+    "close": "Đóng",
+    "minimize": "Thu nhỏ",
+    "maximize": "Phóng to",
+    "welcomeMessage": "Xin chào! Tôi là AI Tutor của bạn. Hãy hỏi tôi bất cứ điều gì về bài học này!",
+    "typeMessage": "Nhập câu hỏi của bạn...",
+    "sendMessage": "Gửi tin nhắn",
+    "thinking": "Đang suy nghĩ...",
+    "clearChat": "Xóa cuộc trò chuyện",
+    "errorSendingMessage": "Lỗi khi gửi tin nhắn",
+    "matchScore": "Độ phù hợp"
   },
   "dashboard": {
     "goals": "Mục tiêu",

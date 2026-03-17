@@ -83,9 +83,27 @@ const AdminApiKeyPage: React.FC = () => {
     return acc
   }, {} as Record<AIUsageType, any[]>)
   
-  const handleSelectKey = async (providerName: string) => {
-    // TODO: Call API to select this key
-    setNotice(`Selected: ${providerName}`)
+  const handleSelectKey = async (configId: string, usageType: AIUsageType) => {
+    setError('')
+    setNotice('')
+    try {
+      // Map aiUsageType enum to string for backend
+      const getUsageTypeString = (type: AIUsageType): string => {
+        switch (type) {
+          case AIUsageType.StructureGeneration: return 'StructureGeneration'
+          case AIUsageType.ContentGeneration: return 'ContentGeneration'
+          case AIUsageType.Verification: return 'Verification'
+          case AIUsageType.Assistant: return 'Assistant'
+          default: return 'StructureGeneration'
+        }
+      }
+      
+      await AIConfigService.setActiveAIConfig(configId, getUsageTypeString(usageType))
+      await fetchList()
+      setNotice(t('apiKey.setActiveSuccess'))
+    } catch (e: any) {
+      setError(e?.message || t('apiKey.setActiveFailed'))
+    }
   }
 
   const resetForm = () => {
@@ -512,7 +530,7 @@ const AdminApiKeyPage: React.FC = () => {
                                   <div className="flex items-center gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => handleSelectKey(name)}
+                                      onClick={() => handleSelectKey(it.configId ?? it.id ?? '', usageType)}
                                       disabled={enabled}
                                       className={`px-3 py-1 text-xs font-bold border transition-colors rounded-sm flex items-center gap-1 ${
                                         enabled 

@@ -3,3 +3,4 @@ export const configUrl = `${basePath}`
 export const addConfigUrl = `${basePath}`
 export const providerConfigUrl = (providerName: string) => `${basePath}/${encodeURIComponent(providerName)}`
 export const configIdUrl = (configId: string) => `${basePath}/${encodeURIComponent(configId)}`
+export const setActiveUrl = (configId: string) => `${basePath}/${encodeURIComponent(configId)}/set-active`

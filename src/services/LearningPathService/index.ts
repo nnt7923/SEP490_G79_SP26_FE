@@ -1,6 +1,6 @@
 import api from '../Axios'
 import { skeletonUrl, lessonContentUrl, userLearningPathsUrl } from './url'
-import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent } from '../SignalR'
+import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLearningPathSuggestions } from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -288,4 +288,54 @@ export async function getUserLearningPaths(
   }
 }
 
-export default { generateSkeleton, generateLessonContent, generateChapterSkeleton, getUserLearningPaths }
+export async function getSuggestions(
+  payload: any,
+  options?: {
+    useSignalR?: boolean
+    onLoading?: () => void
+    onSuggestionsLoaded?: (suggestions: any[]) => void
+  }
+): Promise<any> {
+  const subjectId: string | undefined =
+    payload?.subjectId ??
+    payload?.SubjectId ??
+    (Array.isArray(payload?.subjectIds) ? payload.subjectIds[0] : undefined) ??
+    (Array.isArray(payload?.subjects) ? (payload.subjects[0]?.id ?? payload.subjects[0]?.subjectId) : undefined)
+
+  // Handle both old goalId format and new goals array format
+  const goals: Array<{ goalId: string; weight: number }> = Array.isArray(payload?.goals) 
+    ? payload.goals 
+    : payload?.goalId 
+      ? [{ goalId: payload.goalId, weight: 100 }]
+      : []
+
+  const complexityLevel: string | undefined =
+    payload?.complexityLevel ?? payload?.ComplexityLevel ?? payload?.level ?? payload?.Level
+
+  const languageSelection: number | undefined =
+    payload?.languageSelection ?? payload?.LanguageSelection
+
+  // Use SignalR by default
+  if (!options || options.useSignalR !== false) {
+    if (!subjectId || !goals || goals.length === 0 || !complexityLevel || languageSelection === undefined) {
+      throw new Error('Missing required parameters for SignalR learning path suggestions')
+    }
+
+    const raw = await requestLearningPathSuggestions(
+      {
+        subjectId,
+        goals,
+        complexityLevel,
+        languageSelection,
+      },
+      options?.onLoading,
+      options?.onSuggestionsLoaded
+    )
+    return raw
+  }
+
+  // Fallback to REST API (if implemented)
+  throw new Error('REST API for learning path suggestions not implemented. Use SignalR instead.')
+}
+
+export default { generateSkeleton, generateLessonContent, generateChapterSkeleton, getUserLearningPaths, getSuggestions }
