@@ -19,6 +19,7 @@ const TASK_HUB_URL = `${HUB_BASE}/hubs/task`
 const QUIZ_HUB_URL = `${HUB_BASE}/hubs/quiz`
 const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
+const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
 
@@ -29,6 +30,7 @@ let taskHub: signalR.HubConnection | null = null
 let quizHub: signalR.HubConnection | null = null
 let summaryHub: signalR.HubConnection | null = null
 let learningPathHub: signalR.HubConnection | null = null
+let tutorHub: signalR.HubConnection | null = null
 
 // single-flight guards (avoid duplicate invokes for the same id)
 const inflightLesson = new Map<string, Promise<any>>()
@@ -39,6 +41,8 @@ const inflightSummary = new Map<string, Promise<any>>()
 const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
+const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
+const inflightTutorMessages = new Map<string, Promise<any>>()
 
 // ==== Utils ====
 function getToken(): string | undefined {
@@ -142,6 +146,14 @@ export async function getLearningPathHub(): Promise<signalR.HubConnection> {
   }
   await ensureStarted(learningPathHub, 'learningpath')
   return learningPathHub
+}
+
+export async function getTutorHub(): Promise<signalR.HubConnection> {
+  if (!tutorHub) {
+    tutorHub = buildConnection(TUTOR_HUB_URL)
+  }
+  await ensureStarted(tutorHub, 'tutor')
+  return tutorHub
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
@@ -732,6 +744,270 @@ export async function requestLearningPathGeneration(
   return p
 }
 
+// ==== Request learning path suggestions (pure SignalR) ====
+export async function requestLearningPathSuggestions(
+  payload: {
+    subjectId: string
+    goals: Array<{ goalId: string; weight: number }>
+    complexityLevel: string
+    languageSelection: number
+  },
+  onLoading?: () => void,
+  onSuggestionsLoaded?: (suggestions: any[]) => void
+): Promise<any> {
+  if (!payload.subjectId || !payload.goals || !Array.isArray(payload.goals) || payload.goals.length === 0 || !payload.complexityLevel || payload.languageSelection === undefined) {
+    return Promise.reject(new Error('Missing required parameters for learning path suggestions'))
+  }
+
+  // Convert languageSelection number to string for backend
+  const languageSelectionString = payload.languageSelection === 1 ? 'VietNamese' : 'English'
+
+  // single-flight: return running promise for same payload
+  const key = `suggestions-${payload.subjectId}-${JSON.stringify(payload.goals)}-${payload.complexityLevel}-${payload.languageSelection}`
+  if (inflightLearningPathSuggestions.has(key)) {
+    return inflightLearningPathSuggestions.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getLearningPathHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('LearningPathSuggestionsStarted', handleLoading)
+        hub.off('LearningPathSuggestionsLoaded', handleSuggestions)
+        hub.off('LearningPathSuggestionsError', handleError)
+        inflightLearningPathSuggestions.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleSuggestions = (data: any) => {
+        if (data && data.suggestions) {
+          onSuggestionsLoaded?.(data.suggestions)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to get learning path suggestions'
+        
+        switch (errorCode) {
+          case 'INVALID_COMPLEXITY':
+            errorMessage = 'Invalid complexity level provided'
+            break
+          case 'INVALID_LANGUAGE':
+            errorMessage = 'Invalid language selection'
+            break
+          case 'SUBJECT_NOT_FOUND':
+            errorMessage = 'Subject not found'
+            break
+          case 'GOALS_REQUIRED':
+            errorMessage = 'Goals are required'
+            break
+          case 'GOALS_LIMIT_EXCEEDED':
+            errorMessage = 'Too many goals selected'
+            break
+          case 'DUPLICATE_GOALS':
+            errorMessage = 'Duplicate goals detected'
+            break
+          case 'GOAL_NOT_FOUND':
+            errorMessage = 'One or more goals not found'
+            break
+          case 'GOAL_SUBJECT_MISMATCH':
+            errorMessage = 'Goals do not match the selected subject'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Learning path suggestions request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleSuggestionsWrap = (data: any) => { clearTo(); handleSuggestions(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('LearningPathSuggestionsStarted', handleLoading)
+      hub.on('LearningPathSuggestionsLoaded', handleSuggestionsWrap)
+      hub.on('LearningPathSuggestionsError', handleErrorWrap)
+
+      try {
+        // Backend expects subjectId, goals array, complexityLevel, languageSelection
+        hub.invoke('RequestLearningPathSuggestions',
+          payload.subjectId,
+          payload.goals,
+          payload.complexityLevel,
+          languageSelectionString
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightLearningPathSuggestions.set(key, p)
+  return p
+}
+
+// ==== Send tutor message (pure SignalR) ====
+export async function sendTutorMessage(
+  conversationId: string | null,
+  learningPathId: string | null,
+  chapterId: string | null,
+  lessonId: string | null,
+  message: string,
+  onMessageStarted?: () => void,
+  onMessageReceived?: (data: any) => void
+): Promise<any> {
+  if (!message || message.trim().length === 0) {
+    return Promise.reject(new Error('Message cannot be empty'))
+  }
+
+  // single-flight: return running promise for same message
+  const key = `tutor-${conversationId || 'new'}-${Date.now()}`
+  if (inflightTutorMessages.has(key)) {
+    return inflightTutorMessages.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorMessageStarted', handleStarted)
+        hub.off('TutorMessageReceived', handleReceived)
+        hub.off('TutorMessageError', handleError)
+        inflightTutorMessages.delete(key)
+      }
+
+      const handleStarted = () => {
+        onMessageStarted?.()
+      }
+
+      const handleReceived = (data: any) => {
+        if (data) {
+          onMessageReceived?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to send tutor message'
+        
+        switch (errorCode) {
+          case 'UNAUTHORIZED':
+            errorMessage = 'You are not authorized to use the tutor'
+            break
+          case 'EMPTY_MESSAGE':
+            errorMessage = 'Message cannot be empty'
+            break
+          case 'AI_CONFIG_NOT_FOUND':
+            errorMessage = 'AI configuration not found'
+            break
+          case 'CONVERSATION_NOT_FOUND':
+            errorMessage = 'Conversation not found'
+            break
+          case 'LEARNING_PATH_NOT_FOUND':
+            errorMessage = 'Learning path not found'
+            break
+          case 'CHAPTER_NOT_FOUND':
+            errorMessage = 'Chapter not found'
+            break
+          case 'LESSON_NOT_FOUND':
+            errorMessage = 'Lesson not found'
+            break
+          case 'ACCESS_DENIED':
+            errorMessage = 'Access denied to this resource'
+            break
+          case 'AI_RESPONSE_FAILED':
+            errorMessage = 'AI failed to generate response'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor message request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleReceivedWrap = (data: any) => { clearTo(); handleReceived(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorMessageStarted', handleStarted)
+      hub.on('TutorMessageReceived', handleReceivedWrap)
+      hub.on('TutorMessageError', handleErrorWrap)
+
+      try {
+        // Backend expects conversationId, learningPathId, chapterId, lessonId, message
+        hub.invoke('SendTutorMessage',
+          conversationId,
+          learningPathId,
+          chapterId,
+          lessonId,
+          message.trim()
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorMessages.set(key, p)
+  return p
+}
+
 // ==== Request chapter skeleton generation (pure SignalR) ====
 export async function requestChapterSkeleton(
   pathId: string,
@@ -840,6 +1116,9 @@ export async function disconnectHubs(): Promise<void> {
     if (learningPathHub && learningPathHub.state !== signalR.HubConnectionState.Disconnected) {
       await learningPathHub.stop()
     }
+    if (tutorHub && tutorHub.state !== signalR.HubConnectionState.Disconnected) {
+      await tutorHub.stop()
+    }
 
     // Clear all inflight requests
     inflightLesson.clear()
@@ -850,6 +1129,8 @@ export async function disconnectHubs(): Promise<void> {
     inflightLearningPath.clear()
     inflightChapterSkeleton.clear()
     inflightQuizSkeleton.clear()
+    inflightLearningPathSuggestions.clear()
+    inflightTutorMessages.clear()
   } catch {
     // ignore
   }

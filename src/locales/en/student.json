@@ -173,7 +173,29 @@
     "learningPathResult": "Learning Path Result",
     "noPathData": "No learning path data from server.",
     "back": "back",
-    "continue": "continue"
+    "continue": "continue",
+    "getRecommendations": "Get Recommendations",
+    "suggestedLearningPaths": "Suggested Learning Paths",
+    "loadingSuggestions": "Loading suggestions...",
+    "errorLoadingSuggestions": "Error loading suggestions",
+    "noSuggestionsFound": "No suggestions found matching your criteria.",
+    "unableToGetSuggestions": "Unable to get learning path suggestions",
+    "invalidSuggestion": "Invalid suggestion",
+    "errorSelectingSuggestion": "Error selecting suggestion"
+  },
+  "tutorChat": {
+    "aiTutor": "AI Tutor",
+    "openTutor": "Open AI Tutor",
+    "close": "Close",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "welcomeMessage": "Hello! I'm your AI Tutor. Ask me anything about this lesson!",
+    "typeMessage": "Type your question...",
+    "sendMessage": "Send message",
+    "thinking": "Thinking...",
+    "clearChat": "Clear chat",
+    "errorSendingMessage": "Error sending message",
+    "matchScore": "Match Score"
   },
   "dashboard": {
     "goals": "Goals",

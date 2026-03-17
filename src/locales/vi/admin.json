@@ -102,7 +102,9 @@
     "failedToLoad": "Không thể tải API keys",
     "createFailed": "Tạo thất bại",
     "updateFailed": "Cập nhật thất bại",
-    "deleteFailed": "Xóa thất bại"
+    "deleteFailed": "Xóa thất bại",
+    "setActiveSuccess": "Đã đặt API key làm active thành công",
+    "setActiveFailed": "Không thể đặt API key làm active"
   },
   "resources": {
     "title": "Tài Nguyên Của Tôi",

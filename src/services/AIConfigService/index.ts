@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { configUrl, addConfigUrl, providerConfigUrl, configIdUrl } from './url'
+import { configUrl, addConfigUrl, providerConfigUrl, configIdUrl, setActiveUrl } from './url'
 
 export type ConfigJson = {
   Model?: string
@@ -79,4 +79,10 @@ export async function deleteAIConfig(providerName: string): Promise<any> {
   return unwrap<any>(res)
 }
 
-export default { getAIConfig, updateAIConfig, putAIConfig, putAIConfigById, deleteAIConfig }
+// POST /admin/ai-configs/{configId}/set-active
+export async function setActiveAIConfig(configId: string, usageType: string): Promise<any> {
+  const res: any = await api.post(setActiveUrl(configId), { usageType })
+  return unwrap<any>(res)
+}
+
+export default { getAIConfig, updateAIConfig, putAIConfig, putAIConfigById, deleteAIConfig, setActiveAIConfig }
