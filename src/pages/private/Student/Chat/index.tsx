@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react'
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LogOut, MessageSquare, Gift, Users } from 'lucide-react'
+import { Gift, LogOut, MessageSquare, Smile, Users } from 'lucide-react'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar'
 import useAuthStore from '../../../../store/useAuthStore'
@@ -8,18 +8,79 @@ import useChatStore from '../../../../store/useChatStore'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../router/ROUTER'
 import { useChatHub } from '../../../../hooks/useChatHub'
-import ConversationList from '../../../../components/Chat/ConversationList'
-import ChatHeader from '../../../../components/Chat/ChatHeader'
-import MessageBubble from '../../../../components/Chat/MessageBubble'
-import ChatComposer from '../../../../components/Chat/ChatComposer'
-import { getPendingShares } from '../../../../services/LearningPathShareService'
-import { acceptShare, rejectShare } from '../../../../services/LearningPathShareService'
+import { getPendingShares, acceptShare, rejectShare } from '../../../../services/LearningPathShareService'
 import { getContacts, getMessages } from '../../../../services/DirectChatService'
-import type { PendingLearningPathShareSummaryDto, DirectChatContactDto } from '../../../../types/chat'
+import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
+import type { PendingLearningPathShareSummaryDto, DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
+import { getMessageStatus } from '../../../../types/chat'
+import { useTheme } from '../../../../contexts/ThemeContext'
+import {
+  MainContainer,
+  Sidebar as ChatSidebar,
+  ChatContainer,
+  ConversationList as ChatConversationList,
+  Conversation,
+  ConversationHeader,
+  MessageList,
+  Message,
+  MessageInput,
+  InputToolbox,
+  Avatar,
+  Search,
+} from '@chatscope/chat-ui-kit-react'
+import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react'
+
+function formatConversationTime(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
+  if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  if (diffDays === 1) return 'Yesterday'
+  return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
+}
+
+function formatMessageTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function getInitials(name: string): string {
+  if (!name) return '?'
+  return name
+    .split(' ')
+    .slice(-2)
+    .map(w => w[0]?.toUpperCase())
+    .join('')
+}
+
+function normalizeMessageContent(message: DirectMessageDto): string {
+  const raw = message.content ?? ''
+  if (!raw.includes('\n') && !raw.includes('\r')) return raw
+  const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const parts = normalized.split('\n')
+  const nonEmpty = parts.filter(p => p.length > 0)
+  if (nonEmpty.length >= 2 && nonEmpty.every(p => p.length === 1)) {
+    return nonEmpty.join('')
+  }
+  return raw
+}
+
+function getMessagePosition(messages: DirectMessageDto[], idx: number): 'single' | 'first' | 'normal' | 'last' {
+  const current = messages[idx]
+  const prev = messages[idx - 1]
+  const next = messages[idx + 1]
+  const samePrev = prev && prev.senderId === current.senderId
+  const sameNext = next && next.senderId === current.senderId
+  if (!samePrev && !sameNext) return 'single'
+  if (!samePrev && sameNext) return 'first'
+  if (samePrev && sameNext) return 'normal'
+  return 'last'
+}
 
 const StudentChatPage: React.FC = () => {
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
+  const { theme } = useTheme()
   const { logout, user } = useAuthStore()
   const navigate = useNavigate()
 
@@ -39,15 +100,16 @@ const StudentChatPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'conversations' | 'invites' | 'contacts'>('conversations')
   const [contacts, setContacts] = useState<DirectChatContactDto[]>([])
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const messagesWrapRef = useRef<HTMLDivElement>(null)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [inputValue, setInputValue] = useState('')
   const [isAtBottom, setIsAtBottom] = useState(true)
   const deliveredRef = useRef<Set<string>>(new Set())
   const seenRef = useRef<Set<string>>(new Set())
+  const messageListId = 'student-chat-message-list'
+  const messageInputRef = useRef<any>(null)
 
   const currentUserId = String(user?.id ?? '')
 
-  // Derived state
   const conversations = conversationOrder.map(id => conversationsById[id]).filter(Boolean)
   const activeMessages = activeConversationId
     ? (messagesByConversationId[activeConversationId] ?? [])
@@ -57,14 +119,20 @@ const StudentChatPage: React.FC = () => {
     ? (activeConv.mentorId === currentUserId ? activeConv.studentName : activeConv.mentorName)
     : ''
 
-  // ── SignalR Hub ──────────────────────────────────────────────────
+  const filteredConversations = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    return conversations.filter((c) => {
+      const name = c.mentorId === currentUserId ? c.studentName : c.mentorName
+      return name.toLowerCase().includes(q)
+    })
+  }, [conversations, currentUserId, searchQuery])
+
   const hub = useChatHub({
     onError: (code) => {
       if (code === 'UNAUTHORIZED') { logout(); navigate(ROUTER.LOGIN) }
     },
   })
 
-  // Load conversations + pending shares on mount
   useEffect(() => {
     hub.requestConversations()
     getPendingShares().then(setPendingShares).catch(() => { })
@@ -72,7 +140,6 @@ const StudentChatPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Join conversation & mark messages when active changes
   useEffect(() => {
     if (!activeConversationId) return
     hub.joinConversation(activeConversationId).catch(() => { })
@@ -82,30 +149,28 @@ const StudentChatPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId])
 
-  // Scroll to bottom when messages update
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messagesByConversationId, activeConversationId])
-
   useEffect(() => {
     deliveredRef.current.clear()
     seenRef.current.clear()
+    setShowEmoji(false)
+    setInputValue('')
   }, [activeConversationId])
 
   useEffect(() => {
-    const root = messagesWrapRef.current
-    const target = messagesEndRef.current
-    if (!root || !target || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0]
-        if (entry) setIsAtBottom(entry.isIntersecting)
-      },
-      { root, threshold: 0.98 }
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [activeConversationId])
+    const root = document.getElementById(messageListId)
+    if (!root) return
+    const container = root.querySelector('.cs-message-list__scroll-wrapper') as HTMLDivElement | null
+    if (!container) return
+
+    const handleScroll = () => {
+      const atBottom = Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 4
+      setIsAtBottom(atBottom)
+    }
+
+    handleScroll()
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [activeConversationId, activeMessages.length, messageListId])
 
   useEffect(() => {
     if (!activeConversationId || activeMessages.length === 0) return
@@ -127,7 +192,6 @@ const StudentChatPage: React.FC = () => {
     }
   }, [activeConversationId, activeMessages, isAtBottom, currentUserId])
 
-  // ── Handlers ────────────────────────────────────────────────────
   const handleSelectConversation = (id: string) => {
     if (activeConversationId && activeConversationId !== id) {
       hub.leaveConversation(activeConversationId).catch(() => { })
@@ -146,6 +210,14 @@ const StudentChatPage: React.FC = () => {
   const handleSend = (content: string, type: 'Text' | 'Emoji') => {
     if (!activeConversationId) return
     hub.sendMessage(activeConversationId, content, type).catch(() => { })
+  }
+
+  const handleSendText = (_innerHtml: string, textContent: string) => {
+    if (!activeConversationId) return
+    const trimmed = textContent.trim()
+    if (!trimmed) return
+    handleSend(trimmed, 'Text')
+    setInputValue('')
   }
 
   const handleAccept = async (share: PendingLearningPathShareSummaryDto) => {
@@ -170,7 +242,6 @@ const StudentChatPage: React.FC = () => {
 
   const handleLogout = async () => { await logout(); navigate(ROUTER.LOGIN) }
 
-  // ── Sidebar ──────────────────────────────────────────────────────
   const navItems = useStudentSidebarConfig()
   const sidebarConfig = {
     navItems,
@@ -185,393 +256,253 @@ const StudentChatPage: React.FC = () => {
     brand: { name: t('chat.title'), subtitle: 'Mentor Chat' },
   }
 
-  // ── Derived state ────────────────────────────────────────────────
+  const pickerTheme = theme === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT
+
   return (
     <Layout sidebar={sidebarConfig}>
-      <div
-        style={{
-          display: 'flex',
-          height: 'calc(100vh - 64px)',
-          background: 'var(--bg-main)',
-          overflow: 'hidden',
-          minHeight: 0,
-        }}
-      >
-        {/* ── LEFT: Sidebar ── */}
-        <div
-          style={{
-            width: '280px',
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            borderRight: '1px solid var(--border-base)',
-            background: 'var(--bg-surface)',
-          }}
-        >
-          {/* Tabs */}
-          <div
-            style={{
-              padding: '10px 12px',
-              borderBottom: '1px solid var(--border-base)',
-              background: 'var(--bg-surface)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                gap: '6px',
-                padding: '6px',
-                background: 'var(--bg-main)',
-                border: '1px solid var(--border-base)',
-                borderRadius: '12px',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-              }}
-            >
-              {(
-                [
-                  { key: 'conversations', icon: <MessageSquare size={14} />, label: t('chat.conversations') },
-                  { key: 'contacts', icon: <Users size={14} />, label: t('chat.contacts', { defaultValue: 'Mentors' }) },
-                  {
-                    key: 'invites',
-                    icon: <Gift size={14} />,
-                    label: t('chat.invites'),
-                    badge: pendingLearningPathShares.length,
-                  },
-                ] as const
-              ).map(tab => {
-                const isActive = activeTab === tab.key
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    aria-pressed={isActive}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      padding: '8px 10px',
-                      border: '1px solid transparent',
-                      background: isActive ? 'var(--accent-primary)' : 'transparent',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? '#fff' : 'var(--text-secondary)',
-                      borderRadius: '10px',
-                      transition: 'all 0.18s ease',
-                      boxShadow: isActive ? '0 6px 16px rgba(0,0,0,0.18)' : 'none',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (isActive) return
-                      e.currentTarget.style.background = 'var(--bg-surface)'
-                      e.currentTarget.style.color = 'var(--text-primary)'
-                      e.currentTarget.style.borderColor = 'var(--border-base)'
-                    }}
-                    onMouseLeave={(e) => {
-                      if (isActive) return
-                      e.currentTarget.style.background = 'transparent'
-                      e.currentTarget.style.color = 'var(--text-secondary)'
-                      e.currentTarget.style.borderColor = 'transparent'
-                    }}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                    {'badge' in tab && tab.badge > 0 && (
-                      <span
-                        style={{
-                          background: 'var(--danger-primary)',
-                          color: '#fff',
-                          borderRadius: '999px',
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          minWidth: '16px',
-                          height: '16px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '0 4px',
-                        }}
-                      >
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Tab content */}
-          {activeTab === 'conversations' ? (
-            <ConversationList
-              conversations={conversations}
-              currentUserId={currentUserId}
-              activeConversationId={activeConversationId}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onSelect={handleSelectConversation}
-              searchPlaceholder={t('chat.searchPlaceholder')}
-              emptyLabel={t('chat.noConversation')}
-            />
-          ) : activeTab === 'contacts' ? (
-            /* Contacts List */
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-              {contacts.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    color: 'var(--text-disabled)',
-                    fontSize: '13px',
-                    paddingTop: '40px',
-                  }}
-                >
-                  {t('chat.noContacts', { defaultValue: 'No mentors found' })}
-                </div>
-              ) : (
-                contacts.map(contact => (
-                  <div
-                    key={contact.userId}
-                    onClick={() => handleStartConversation(contact.userId)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px',
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-base)',
-                      borderRadius: '12px',
-                      marginBottom: '8px',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-main)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-surface)';
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: 'var(--bg-neutral)',
-                        color: 'var(--text-secondary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: 700,
-                        border: '1px solid var(--border-base)'
-                      }}
+      <div className="chat-kit-page">
+        <MainContainer responsive className="chat-kit-container">
+          <ChatSidebar position="left" scrollable={false} className="chat-kit-sidebar">
+            <div className="chat-kit-sidebar-header">
+              <div className="chat-kit-tabs">
+                {(
+                  [
+                    { key: 'conversations', icon: <MessageSquare size={14} />, label: t('chat.conversations') },
+                    { key: 'contacts', icon: <Users size={14} />, label: t('chat.contacts', { defaultValue: 'Mentors' }) },
+                    {
+                      key: 'invites',
+                      icon: <Gift size={14} />,
+                      label: t('chat.invites'),
+                      badge: pendingLearningPathShares.length,
+                    },
+                  ] as const
+                ).map(tab => {
+                  const isActive = activeTab === tab.key
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      aria-pressed={isActive}
+                      className="chat-kit-tab"
                     >
-                      {contact.username.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {contact.username}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        {t('chat.mentor', { defaultValue: 'Mentor' })}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          ) : (
-            /* Learning Path Invites */
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-              {pendingLearningPathShares.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    color: 'var(--text-disabled)',
-                    fontSize: '13px',
-                    paddingTop: '40px',
-                  }}
-                >
-                  {t('chat.noInvites')}
-                </div>
-              ) : (
-                pendingLearningPathShares.map(share => (
-                  <div
-                    key={share.shareId}
-                    style={{
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-base)',
-                      borderRadius: '12px',
-                      padding: '14px',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      {share.learningPathTitle}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        marginBottom: '10px',
-                      }}
-                    >
-                      {t('chat.inviteFrom', { mentorName: share.mentorName })}
-                    </div>
-                    {share.learningPathDescription && (
-                      <div
-                        style={{
-                          fontSize: '12px',
-                          color: 'var(--text-disabled)',
-                          marginBottom: '10px',
-                        }}
-                      >
-                        {share.learningPathDescription}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleAccept(share)}
-                        disabled={actionLoading[share.shareId]}
-                        style={{
-                          flex: 1,
-                          background: 'var(--success-primary)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '7px 0',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: actionLoading[share.shareId] ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        {actionLoading[share.shareId]
-                          ? t('chat.accepting')
-                          : t('chat.accept')}
-                      </button>
-                      <button
-                        onClick={() => handleReject(share)}
-                        disabled={actionLoading[share.shareId]}
-                        style={{
-                          flex: 1,
-                          background: 'transparent',
-                          color: 'var(--danger-primary)',
-                          border: '1px solid var(--danger-primary)',
-                          borderRadius: '8px',
-                          padding: '7px 0',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: actionLoading[share.shareId] ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        {actionLoading[share.shareId]
-                          ? t('chat.rejecting')
-                          : t('chat.reject')}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── RIGHT: Chat Panel ── */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            minHeight: 0,
-          }}
-        >
-          {!activeConversationId ? (
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-disabled)',
-                fontSize: '14px',
-              }}
-            >
-              {t('chat.noConversation')}
-            </div>
-          ) : (
-            <>
-              <ChatHeader name={otherName || '...'} />
-
-              {/* Messages */}
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  padding: '16px 20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  minHeight: 0,
-                }}
-                ref={messagesWrapRef}
-              >
-                {activeMessages.length === 0 ? (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      color: 'var(--text-disabled)',
-                      fontSize: '13px',
-                      marginTop: '40px',
-                    }}
-                  >
-                    {t('chat.noMessages')}
-                  </div>
-                ) : (
-                  activeMessages.map((msg, idx) => {
-                    const isMine = msg.senderId === currentUserId
-                    const isLast = idx === activeMessages.length - 1
-                    const isLastMine =
-                      isLast ||
-                      (isMine &&
-                        !activeMessages.slice(idx + 1).some(m => m.senderId === currentUserId))
-                    return (
-                      <div
-                        key={msg.messageId}
-                        style={{
-                          display: 'flex',
-                          justifyContent: isMine ? 'flex-end' : 'flex-start',
-                          width: '100%',
-                        }}
-                      >
-                        <MessageBubble
-                          message={msg}
-                          isMine={isMine}
-                          showStatus={isMine && isLastMine}
-                        />
-                      </div>
-                    )
-                  })
-                )}
-                <div ref={messagesEndRef} />
+                      {tab.icon}
+                      {tab.label}
+                      {'badge' in tab && tab.badge > 0 && (
+                        <span className="chat-kit-badge">{tab.badge}</span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
+            </div>
 
-              {/* Composer */}
-              <ChatComposer
-                onSend={handleSend}
-                placeholder={t('chat.typePlaceholder')}
-              />
-            </>
-          )}
-        </div>
+            <div className="chat-kit-sidebar-body">
+              {activeTab === 'conversations' ? (
+                <>
+                  <div className="chat-kit-search">
+                    <Search
+                      value={searchQuery}
+                      onChange={setSearchQuery}
+                      onClearClick={() => setSearchQuery('')}
+                      placeholder={t('chat.searchPlaceholder')}
+                    />
+                  </div>
+                  {filteredConversations.length === 0 ? (
+                    <div className="chat-kit-empty chat-kit-empty--fill">{t('chat.noConversation')}</div>
+                  ) : (
+                    <ChatConversationList>
+                      {filteredConversations.map((conv) => {
+                        const name = conv.mentorId === currentUserId ? conv.studentName : conv.mentorName
+                        const initials = getInitials(name)
+                        return (
+                          <Conversation
+                            key={conv.conversationId}
+                            name={name}
+                            info={conv.lastMessagePreview ?? ''}
+                            lastActivityTime={formatConversationTime(conv.lastMessageAt)}
+                            unreadCnt={conv.unreadCount}
+                            active={conv.conversationId === activeConversationId}
+                            onClick={() => handleSelectConversation(conv.conversationId)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                handleSelectConversation(conv.conversationId)
+                              }
+                            }}
+                          >
+                            <Avatar>
+                              <span className="chat-kit-avatar">{initials}</span>
+                            </Avatar>
+                          </Conversation>
+                        )
+                      })}
+                    </ChatConversationList>
+                  )}
+                </>
+              ) : activeTab === 'contacts' ? (
+                <div className="chat-kit-contact-list">
+                  {contacts.length === 0 ? (
+                    <div className="chat-kit-empty">
+                      {t('chat.noContacts', { defaultValue: 'No mentors found' })}
+                    </div>
+                  ) : (
+                    contacts.map(contact => (
+                      <div
+                        key={contact.userId}
+                        onClick={() => handleStartConversation(contact.userId)}
+                        className="chat-kit-contact-item"
+                      >
+                        <div className="chat-kit-contact-avatar">
+                          {contact.username.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div className="chat-kit-contact-name">{contact.username}</div>
+                          <div className="chat-kit-contact-role">
+                            {t('chat.mentor', { defaultValue: 'Mentor' })}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="chat-kit-invite-list">
+                  {pendingLearningPathShares.length === 0 ? (
+                    <div className="chat-kit-empty">{t('chat.noInvites')}</div>
+                  ) : (
+                    pendingLearningPathShares.map(share => (
+                      <div key={share.shareId} className="chat-kit-invite-card">
+                        <div className="chat-kit-invite-title">{share.learningPathTitle}</div>
+                        <div className="chat-kit-invite-meta">
+                          {t('chat.inviteFrom', { mentorName: share.mentorName })}
+                        </div>
+                        {share.learningPathDescription && (
+                          <div className="chat-kit-invite-desc">{share.learningPathDescription}</div>
+                        )}
+                        <div className="chat-kit-invite-actions">
+                          <button
+                            onClick={() => handleAccept(share)}
+                            disabled={actionLoading[share.shareId]}
+                            className="chat-kit-invite-btn chat-kit-invite-btn--accept"
+                          >
+                            {actionLoading[share.shareId]
+                              ? t('chat.accepting')
+                              : t('chat.accept')}
+                          </button>
+                          <button
+                            onClick={() => handleReject(share)}
+                            disabled={actionLoading[share.shareId]}
+                            className="chat-kit-invite-btn chat-kit-invite-btn--reject"
+                          >
+                            {actionLoading[share.shareId]
+                              ? t('chat.rejecting')
+                              : t('chat.reject')}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </ChatSidebar>
+
+          <ChatContainer className="chat-kit-panel">
+            <ConversationHeader>
+              <Avatar>
+                <span className="chat-kit-avatar chat-kit-avatar--header">
+                  {getInitials(otherName || t('chat.title'))}
+                </span>
+              </Avatar>
+              <ConversationHeader.Content userName={activeConversationId ? (otherName || '...') : t('chat.title')} />
+            </ConversationHeader>
+
+            <MessageList
+              id={messageListId}
+              className="chat-kit-message-list"
+              autoScrollToBottom
+              scrollBehavior="smooth"
+            >
+              {!activeConversationId ? (
+                <MessageList.Content>
+                  <div className="chat-kit-empty">{t('chat.noConversation')}</div>
+                </MessageList.Content>
+              ) : activeMessages.length === 0 ? (
+                <MessageList.Content>
+                  <div className="chat-kit-empty">{t('chat.noMessages')}</div>
+                </MessageList.Content>
+              ) : (
+                activeMessages.map((msg, idx) => {
+                  const isMine = msg.senderId === currentUserId
+                  const position = getMessagePosition(activeMessages, idx)
+                  const isLastMine =
+                    isMine && !activeMessages.slice(idx + 1).some(m => m.senderId === currentUserId)
+                  const displayContent = normalizeMessageContent(msg)
+                  return (
+                    <Message
+                      key={msg.messageId}
+                      model={{
+                        message: displayContent,
+                        direction: isMine ? 'outgoing' : 'incoming',
+                        position,
+                      }}
+                      type="text"
+                    >
+                      <Message.TextContent text={displayContent} />
+                      <Message.Footer>
+                        <span className="chat-kit-message-meta">
+                          {formatMessageTime(msg.sentAt)}
+                          {isMine && isLastMine && (
+                            <MessageStatusIcon status={getMessageStatus(msg)} />
+                          )}
+                        </span>
+                      </Message.Footer>
+                    </Message>
+                  )
+                })
+              )}
+            </MessageList>
+
+            <MessageInput
+              placeholder={t('chat.typePlaceholder')}
+              onSend={handleSendText}
+              onChange={(_html, textContent) => setInputValue(textContent)}
+              value={inputValue}
+              activateAfterChange
+              attachButton={false}
+              disabled={!activeConversationId}
+              sendDisabled={!activeConversationId}
+              ref={messageInputRef}
+            />
+
+            <InputToolbox className="chat-kit-input-toolbox">
+              <button
+                onClick={() => activeConversationId && setShowEmoji(!showEmoji)}
+                className={`chat-kit-emoji-toggle ${showEmoji ? 'is-active' : ''}`}
+                aria-label="Toggle emoji"
+                disabled={!activeConversationId}
+              >
+                <Smile size={20} />
+              </button>
+              {showEmoji && activeConversationId && (
+                <div className="chat-kit-emoji-picker">
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => {
+                      setInputValue((prev) => `${prev}${emojiData.emoji}`)
+                      messageInputRef.current?.focus?.()
+                    }}
+                    theme={pickerTheme}
+                    height={360}
+                    width={360}
+                    previewConfig={{ showPreview: false }}
+                  />
+                </div>
+              )}
+            </InputToolbox>
+          </ChatContainer>
+        </MainContainer>
       </div>
     </Layout>
   )
