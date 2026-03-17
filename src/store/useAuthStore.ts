@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { AuthService, UserService } from '../services'
+import useChatStore from './useChatStore'
 
 export type User = {
   id: number | string // Support both number and GUID
@@ -168,6 +169,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       await AuthService.logout()
     } catch { }
     get().clearState()
+    useChatStore.getState().reset()
     set({ loading: false })
   },
 
