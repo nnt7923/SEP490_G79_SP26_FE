@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Gift, LogOut, MessageSquare, Smile, Users } from 'lucide-react'
 import Layout from '../../../../components/Layout'
@@ -122,7 +122,7 @@ const StudentChatPage: React.FC = () => {
   const filteredConversations = useMemo(() => {
     const q = searchQuery.toLowerCase()
     return conversations.filter((c) => {
-      const name = c.mentorId === currentUserId ? c.studentName : c.mentorName
+      const name = (c.mentorId === currentUserId ? c.studentName : c.mentorName) ?? ''
       return name.toLowerCase().includes(q)
     })
   }, [conversations, currentUserId, searchQuery])
