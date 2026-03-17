@@ -26,6 +26,8 @@ declare const ROUTER: {
   QUIZ: string
   TASK: string
   FOCUS_SESSION: string
+  CHAT: string
+  MENTOR_CHAT: string
 }
 
 export default ROUTER

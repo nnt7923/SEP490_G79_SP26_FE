@@ -97,5 +97,33 @@
     "actions": "actions",
     "view": "view",
     "completed": "cmpltd"
+  },
+  "chat": {
+    "title": "Messages",
+    "noConversation": "Select a student to start chatting",
+    "searchPlaceholder": "Search...",
+    "typePlaceholder": "Type a message...",
+    "send": "Send",
+    "seen": "Seen",
+    "delivered": "Delivered",
+    "sent": "Sent",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "noMessages": "No messages yet",
+    "conversations": "Conversations",
+    "shareTitle": "Share Learning Path",
+    "selectStudent": "Select recipient student",
+    "sharePath": "Send Path",
+    "sharing": "Sending...",
+    "shareSuccess": "Learning path sent successfully",
+    "shareAlreadyPending": "This learning path is already pending a response",
+    "shareError": "Failed to share learning path",
+    "sharePathBtn": "Share with student",
+    "noStudentsYet": "No students have messaged you yet",
+    "unread": "{{count}} unread",
+    "errorLoad": "Failed to load messages",
+    "errorSend": "Failed to send message",
+    "accessDenied": "You do not have access",
+    "connectionError": "Connection error, retrying..."
   }
 }

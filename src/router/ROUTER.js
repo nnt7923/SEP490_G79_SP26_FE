@@ -35,6 +35,9 @@ const ROUTER = {
   TASK: "/task/:chapterId",
   // Focus Session
   FOCUS_SESSION: "/focus-session",
+  // Chat
+  CHAT: "/chat",
+  MENTOR_CHAT: "/mentor/chat",
 };
 
 export default ROUTER;

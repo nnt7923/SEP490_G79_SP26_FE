@@ -8,6 +8,8 @@ import ReactMarkdown from 'react-markdown'
 import { useTheme } from '../../../contexts/ThemeContext'
 import LanguageSwitcher from '../../LanguageSwitcher'
 import { useTranslation } from 'react-i18next'
+import { MessageSquare } from 'lucide-react'
+import useChatStore from '../../../store/useChatStore'
 
 const Header: React.FC = () => {
   const navigate = useNavigate()
@@ -17,6 +19,7 @@ const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { t } = useTranslation('common')
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const { globalUnreadCount } = useChatStore()
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -325,7 +328,54 @@ const Header: React.FC = () => {
               </div>
             ) : (
               <div style={{ position: 'relative' }} ref={menuRef}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {/* Chat Icon & Badge */}
+                  {(isStudent || isMentor) && (
+                    <Link
+                      to={isMentor ? ROUTER.MENTOR_CHAT : ROUTER.CHAT}
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 32,
+                        height: 32,
+                        color: 'var(--text-secondary)',
+                        textDecoration: 'none',
+                        transition: 'color 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+                      title={t('sidebar.chat', { defaultValue: 'Chat' })}
+                    >
+                      <MessageSquare size={18} />
+                      {globalUnreadCount > 0 && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            background: 'var(--danger-primary)',
+                            color: '#fff',
+                            borderRadius: '999px',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            minWidth: 16,
+                            height: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 4px',
+                            transform: 'translate(25%, -25%)',
+                            border: '2px solid var(--bg-surface)'
+                          }}
+                        >
+                          {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+
                   {profilePath ? (
                     <Link to={profilePath} aria-label="profile">
                       {AvatarEl}
