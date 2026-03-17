@@ -5,6 +5,7 @@ import Header from './Header'
 import Footer from './Footer'
 import Sidebar from '../Sidebar'
 import type { SidebarNavItem, SidebarAction } from '../Sidebar'
+import ROUTER from '../../router/ROUTER'
 
 interface LayoutProps {
   children?: React.ReactNode
@@ -21,6 +22,9 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
   const location = useLocation()
+  const isChatRoute =
+    location.pathname === ROUTER.CHAT ||
+    location.pathname === ROUTER.MENTOR_CHAT
 
   return (
     <div className="layout">
@@ -46,9 +50,9 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
           </motion.main>
         </AnimatePresence>
       </div>
-      <Footer />
+      {!isChatRoute && <Footer />}
     </div>
   )
 }
 
-export default Layout
+export default Layout

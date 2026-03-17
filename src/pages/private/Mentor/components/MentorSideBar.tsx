@@ -15,7 +15,7 @@ export const getMentorSidebarConfig = (): MentorNavItem[] => {
     { label: 'Subjects', path: '/mentor/subjects', icon: <BookOpen size={18} /> },
     { label: 'Classes', path: '/mentor/classes', icon: <Users size={18} /> },
     { label: 'Students', path: '/mentor/students', icon: <GraduationCap size={18} /> },
-    { label: 'Messages', path: '/mentor/messages', icon: <MessageSquare size={18} /> },
+    { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} /> },
     { label: 'Profile', path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }
@@ -28,7 +28,7 @@ export const useMentorSidebarConfig = (): MentorNavItem[] => {
     { label: t('sidebar.subjects'), path: '/mentor/subjects', icon: <BookOpen size={18} /> },
     { label: t('sidebar.classes'), path: '/mentor/classes', icon: <Users size={18} /> },
     { label: t('sidebar.students'), path: '/mentor/students', icon: <GraduationCap size={18} /> },
-    { label: t('sidebar.messages'), path: '/mentor/messages', icon: <MessageSquare size={18} /> },
+    { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} /> },
     { label: t('sidebar.profile'), path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }

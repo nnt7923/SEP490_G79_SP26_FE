@@ -97,5 +97,33 @@
     "actions": "thao tác",
     "view": "xem",
     "completed": "hoàn thành"
+  },
+  "chat": {
+    "title": "Tin nhắn",
+    "noConversation": "Chọn học viên để bắt đầu nhắn tin",
+    "searchPlaceholder": "Tìm kiếm...",
+    "typePlaceholder": "Nhập tin nhắn...",
+    "send": "Gửi",
+    "seen": "Đã xem",
+    "delivered": "Đã nhận",
+    "sent": "Đã gửi",
+    "today": "Hôm nay",
+    "yesterday": "Hôm qua",
+    "noMessages": "Chưa có tin nhắn nào",
+    "conversations": "Cuộc trò chuyện",
+    "shareTitle": "Chia sẻ lộ trình học",
+    "selectStudent": "Chọn học viên nhận",
+    "sharePath": "Gửi lộ trình",
+    "sharing": "Đang gửi...",
+    "shareSuccess": "Đã gửi lộ trình thành công",
+    "shareAlreadyPending": "Lộ trình này đang chờ phản hồi từ học viên",
+    "shareError": "Không thể chia sẻ lộ trình",
+    "sharePathBtn": "Chia sẻ cho học viên",
+    "noStudentsYet": "Chưa có học viên nào nhắn tin với bạn",
+    "unread": "{{count}} chưa đọc",
+    "errorLoad": "Không thể tải tin nhắn",
+    "errorSend": "Không thể gửi tin nhắn",
+    "accessDenied": "Bạn không có quyền truy cập",
+    "connectionError": "Lỗi kết nối, đang thử lại..."
   }
 }

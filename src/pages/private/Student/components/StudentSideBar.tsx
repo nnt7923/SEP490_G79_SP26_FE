@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
-import { LayoutDashboard, Map, Target, TrendingUp, Library, User } from 'lucide-react'
+import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare } from 'lucide-react'
 
 export const getStudentSidebarConfig = (): SidebarNavItem[] => {
   // Note: We can't use hooks directly in non-component functions,
@@ -36,6 +36,11 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
       path: '/profile',
       icon: <User size={18} />,
     },
+    {
+      label: 'Chat',
+      path: '/chat',
+      icon: <MessageSquare size={18} />,
+    },
   ]
 }
 
@@ -49,5 +54,6 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.progress'), path: '/plans', icon: <TrendingUp size={18} /> },
     { label: t('sidebar.resources'), path: '/my-resources', icon: <Library size={18} /> },
     { label: t('sidebar.profile'), path: '/profile', icon: <User size={18} /> },
+    { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} /> },
   ]
 }
