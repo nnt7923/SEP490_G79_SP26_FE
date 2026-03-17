@@ -59,8 +59,8 @@ const ChatHeader: React.FC<Props> = ({ name, onBack }) => {
       </div>
       <span
         style={{
-          fontWeight: 600,
-          fontSize: '15px',
+          fontWeight: 700,
+          fontSize: '16px',
           color: 'var(--text-primary)',
         }}
       >

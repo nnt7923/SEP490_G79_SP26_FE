@@ -99,15 +99,22 @@ const ChatComposer: React.FC<Props> = ({
           onClick={() => setShowEmoji(!showEmoji)}
           disabled={disabled}
           style={{
-            background: 'none',
+            background: showEmoji ? 'var(--tw-blue-bg)' : 'none',
             border: 'none',
-            cursor: 'pointer',
+            cursor: 'disabled' ? 'not-allowed' : 'pointer',
             color: showEmoji ? 'var(--accent-primary)' : 'var(--text-secondary)',
             display: 'flex',
             alignItems: 'center',
-            padding: '6px',
-            borderRadius: '8px',
+            padding: '8px',
+            borderRadius: '50%',
             flexShrink: 0,
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            if (!showEmoji && !disabled) e.currentTarget.style.background = 'var(--tw-bg-hover)'
+          }}
+          onMouseLeave={(e) => {
+            if (!showEmoji && !disabled) e.currentTarget.style.background = 'none'
           }}
         >
           <Smile size={20} />
@@ -126,8 +133,8 @@ const ChatComposer: React.FC<Props> = ({
             flex: 1,
             resize: 'none',
             border: '1px solid var(--border-base)',
-            borderRadius: '12px',
-            padding: '8px 12px',
+            borderRadius: '24px',
+            padding: '10px 16px',
             fontSize: '14px',
             color: 'var(--text-primary)',
             background: 'var(--bg-main)',
@@ -136,6 +143,7 @@ const ChatComposer: React.FC<Props> = ({
             maxHeight: '120px',
             overflowY: 'auto',
             fontFamily: 'inherit',
+            boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.05)',
           }}
         />
 
@@ -148,18 +156,30 @@ const ChatComposer: React.FC<Props> = ({
               ? 'var(--border-base)'
               : 'var(--accent-primary)',
             border: 'none',
-            borderRadius: '10px',
-            width: '38px',
-            height: '38px',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: disabled || !text.trim() ? 'not-allowed' : 'pointer',
             flexShrink: 0,
-            transition: 'background 0.15s',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            if (!disabled && text.trim()) {
+              e.currentTarget.style.transform = 'scale(1.05)'
+              e.currentTarget.style.filter = 'brightness(1.1)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!disabled && text.trim()) {
+              e.currentTarget.style.transform = 'none'
+              e.currentTarget.style.filter = 'none'
+            }
           }}
         >
-          <Send size={16} color="#fff" />
+          <Send size={18} color="#fff" />
         </button>
       </div>
     </div>
