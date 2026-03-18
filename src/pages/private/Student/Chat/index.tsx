@@ -14,6 +14,7 @@ import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
 import type { PendingLearningPathShareSummaryDto, DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
 import { getMessageStatus } from '../../../../types/chat'
 import { useTheme } from '../../../../contexts/ThemeContext'
+import Toast from '../../../../components/Toast'
 import {
   MainContainer,
   Sidebar as ChatSidebar,
@@ -29,6 +30,10 @@ import {
   Search,
 } from '@chatscope/chat-ui-kit-react'
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react'
+import LearningPathShareCard from '../../../../components/Chat/LearningPathShareCard'
+import { buildLearningPathShareCardData, isLearningPathShareMessage } from '../../../../components/Chat/learningPathShare'
+
+type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 
 function formatConversationTime(iso: string | null): string {
   if (!iso) return ''
@@ -95,6 +100,8 @@ const StudentChatPage: React.FC = () => {
     pendingLearningPathShares,
     setPendingShares,
     removePendingShare,
+    patchShareMessage,
+    reconcilePendingShares,
   } = useChatStore()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -104,6 +111,7 @@ const StudentChatPage: React.FC = () => {
   const [showEmoji, setShowEmoji] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const [toast, setToast] = useState<ToastState | null>(null)
   const deliveredRef = useRef<Set<string>>(new Set())
   const seenRef = useRef<Set<string>>(new Set())
   const messageListId = 'student-chat-message-list'
@@ -137,7 +145,10 @@ const StudentChatPage: React.FC = () => {
   useEffect(() => {
     hub.requestConversations()
     getConversations().then(setConversations).catch(() => { })
-    getPendingShares().then(setPendingShares).catch(() => { })
+    getPendingShares().then((shares) => {
+      setPendingShares(shares)
+      reconcilePendingShares(shares)
+    }).catch(() => { })
     getContacts().then(c => setContacts(c.filter(u => u.roleName === 'Mentor'))).catch(() => { })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -232,8 +243,19 @@ const StudentChatPage: React.FC = () => {
     setActionLoading(prev => ({ ...prev, [share.shareId]: true }))
     try {
       await acceptShare(share.shareId)
+      patchShareMessage(share.shareId, {
+        shareStatus: 'Accepted',
+        respondedAt: new Date().toISOString(),
+        learningPathTitle: share.learningPathTitle,
+        learningPathDescription: share.learningPathDescription,
+        pathId: share.pathId,
+        mentorName: share.mentorName,
+      })
       removePendingShare(share.shareId)
-    } catch { } finally {
+      setToast({ message: t('chat.inviteAccepted'), type: 'success' })
+    } catch {
+      setToast({ message: t('chat.inviteError'), type: 'error' })
+    } finally {
       setActionLoading(prev => ({ ...prev, [share.shareId]: false }))
     }
   }
@@ -242,8 +264,19 @@ const StudentChatPage: React.FC = () => {
     setActionLoading(prev => ({ ...prev, [share.shareId]: true }))
     try {
       await rejectShare(share.shareId)
+      patchShareMessage(share.shareId, {
+        shareStatus: 'Rejected',
+        respondedAt: new Date().toISOString(),
+        learningPathTitle: share.learningPathTitle,
+        learningPathDescription: share.learningPathDescription,
+        pathId: share.pathId,
+        mentorName: share.mentorName,
+      })
       removePendingShare(share.shareId)
-    } catch { } finally {
+      setToast({ message: t('chat.inviteRejected'), type: 'success' })
+    } catch {
+      setToast({ message: t('chat.inviteError'), type: 'error' })
+    } finally {
       setActionLoading(prev => ({ ...prev, [share.shareId]: false }))
     }
   }
@@ -265,6 +298,17 @@ const StudentChatPage: React.FC = () => {
   }
 
   const pickerTheme = theme === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT
+  const shareCardLabels = {
+    pending: t('chat.pendingInvite'),
+    accepted: t('chat.inviteAcceptedStatus', { defaultValue: 'Accepted' }),
+    rejected: t('chat.inviteRejectedStatus', { defaultValue: 'Rejected' }),
+    accept: t('chat.accept'),
+    reject: t('chat.reject'),
+    accepting: t('chat.accepting'),
+    rejecting: t('chat.rejecting'),
+    viewPath: t('chat.viewPath', { defaultValue: 'View learning path' }),
+    shareFrom: (mentorName?: string | null) => t('chat.inviteFrom', { mentorName: mentorName || otherName || t('chat.title') }),
+  }
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -381,35 +425,25 @@ const StudentChatPage: React.FC = () => {
                     <div className="chat-kit-empty">{t('chat.noInvites')}</div>
                   ) : (
                     pendingLearningPathShares.map(share => (
-                      <div key={share.shareId} className="chat-kit-invite-card">
-                        <div className="chat-kit-invite-title">{share.learningPathTitle}</div>
-                        <div className="chat-kit-invite-meta">
-                          {t('chat.inviteFrom', { mentorName: share.mentorName })}
-                        </div>
-                        {share.learningPathDescription && (
-                          <div className="chat-kit-invite-desc">{share.learningPathDescription}</div>
-                        )}
-                        <div className="chat-kit-invite-actions">
-                          <button
-                            onClick={() => handleAccept(share)}
-                            disabled={actionLoading[share.shareId]}
-                            className="chat-kit-invite-btn chat-kit-invite-btn--accept"
-                          >
-                            {actionLoading[share.shareId]
-                              ? t('chat.accepting')
-                              : t('chat.accept')}
-                          </button>
-                          <button
-                            onClick={() => handleReject(share)}
-                            disabled={actionLoading[share.shareId]}
-                            className="chat-kit-invite-btn chat-kit-invite-btn--reject"
-                          >
-                            {actionLoading[share.shareId]
-                              ? t('chat.rejecting')
-                              : t('chat.reject')}
-                          </button>
-                        </div>
-                      </div>
+                      <LearningPathShareCard
+                        key={share.shareId}
+                        data={{
+                          shareId: share.shareId,
+                          pathId: share.pathId,
+                          title: share.learningPathTitle,
+                          description: share.learningPathDescription,
+                          mentorName: share.mentorName,
+                          status: 'Pending',
+                          sentAt: share.sentAt,
+                        }}
+                        actionMode="invite"
+                        canRespond
+                        acceptLoading={!!actionLoading[share.shareId]}
+                        rejectLoading={!!actionLoading[share.shareId]}
+                        onAccept={() => handleAccept(share)}
+                        onReject={() => handleReject(share)}
+                        labels={shareCardLabels}
+                      />
                     ))
                   )}
                 </div>
@@ -448,6 +482,12 @@ const StudentChatPage: React.FC = () => {
                   const isLastMine =
                     isMine && !activeMessages.slice(idx + 1).some(m => m.senderId === currentUserId)
                   const displayContent = normalizeMessageContent(msg)
+                  const shareCardData = isLearningPathShareMessage(msg)
+                    ? buildLearningPathShareCardData(msg, pendingLearningPathShares)
+                    : null
+                  const pendingShare = shareCardData
+                    ? pendingLearningPathShares.find((share) => share.shareId === shareCardData.shareId)
+                    : null
                   return (
                     <Message
                       key={msg.messageId}
@@ -458,7 +498,26 @@ const StudentChatPage: React.FC = () => {
                       }}
                       type="text"
                     >
-                      <Message.TextContent text={displayContent} />
+                      {shareCardData ? (
+                        <Message.CustomContent>
+                          <div className={`chat-kit-share-message-body ${isMine ? 'chat-kit-share-message-body--outgoing' : 'chat-kit-share-message-body--incoming'}`}>
+                            <LearningPathShareCard
+                              data={shareCardData}
+                              canRespond={!!pendingShare && shareCardData.status === 'Pending'}
+                              acceptLoading={!!pendingShare && !!actionLoading[pendingShare.shareId]}
+                              rejectLoading={!!pendingShare && !!actionLoading[pendingShare.shareId]}
+                              onAccept={pendingShare ? () => handleAccept(pendingShare) : undefined}
+                              onReject={pendingShare ? () => handleReject(pendingShare) : undefined}
+                              onViewPath={shareCardData.pathId && shareCardData.status === 'Accepted'
+                                ? () => navigate('/my-plans/detail', { state: { pathId: shareCardData.pathId } })
+                                : undefined}
+                              labels={shareCardLabels}
+                            />
+                          </div>
+                        </Message.CustomContent>
+                      ) : (
+                        <Message.TextContent text={displayContent} />
+                      )}
                       <Message.Footer>
                         <span className="chat-kit-message-meta">
                           {formatMessageTime(msg.sentAt)}
@@ -512,6 +571,7 @@ const StudentChatPage: React.FC = () => {
           </ChatContainer>
         </MainContainer>
       </div>
+      {toast && <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 120 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div>}
     </Layout>
   )
 }

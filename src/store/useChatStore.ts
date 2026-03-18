@@ -3,6 +3,7 @@ import type {
   DirectConversationDto,
   DirectMessageDto,
   PendingLearningPathShareSummaryDto,
+  ShareStatus,
 } from '../types/chat'
 
 interface ChatState {
@@ -45,6 +46,11 @@ interface ChatState {
   setActiveConversation(id: string | null): void
   setPendingShares(shares: PendingLearningPathShareSummaryDto[]): void
   removePendingShare(shareId: string): void
+  patchShareMessage(
+    shareId: string,
+    patch: Partial<Pick<DirectMessageDto, 'shareStatus' | 'respondedAt' | 'learningPathTitle' | 'learningPathDescription' | 'pathId' | 'mentorName' | 'studentName'>>
+  ): void
+  reconcilePendingShares(shares: PendingLearningPathShareSummaryDto[]): void
   reset(): void
 }
 
@@ -138,6 +144,58 @@ const useChatStore = create<ChatState>((set, get) => ({
         s => s.shareId !== shareId
       ),
     }))
+  },
+
+  patchShareMessage(shareId, patch) {
+    set(state => {
+      const nextMessagesByConversationId: Record<string, DirectMessageDto[]> = {}
+      let changed = false
+
+      for (const [conversationId, messages] of Object.entries(state.messagesByConversationId)) {
+        nextMessagesByConversationId[conversationId] = messages.map((message) => {
+          const messageShareId =
+            message.learningPathShareId ??
+            (message as any)?.LearningPathShareId ??
+            (message as any)?.learningPathShare?.shareId ??
+            (message as any)?.LearningPathShare?.shareId
+
+          if (messageShareId !== shareId) return message
+          changed = true
+          return {
+            ...message,
+            ...patch,
+            learningPathShare: {
+              ...(message.learningPathShare ?? {}),
+              shareId,
+              status: (patch.shareStatus ?? message.shareStatus ?? message.learningPathShare?.status) as ShareStatus | undefined,
+              respondedAt: patch.respondedAt ?? message.respondedAt ?? message.learningPathShare?.respondedAt,
+              pathId: patch.pathId ?? message.pathId ?? message.learningPathShare?.pathId,
+              learningPathTitle: patch.learningPathTitle ?? message.learningPathTitle ?? message.learningPathShare?.learningPathTitle,
+              learningPathDescription: patch.learningPathDescription ?? message.learningPathDescription ?? message.learningPathShare?.learningPathDescription,
+              mentorName: patch.mentorName ?? message.mentorName ?? message.learningPathShare?.mentorName,
+              studentName: patch.studentName ?? message.studentName ?? message.learningPathShare?.studentName,
+            },
+          }
+        })
+      }
+
+      if (!changed) return state
+      return { messagesByConversationId: nextMessagesByConversationId }
+    })
+  },
+
+  reconcilePendingShares(shares) {
+    const patchShareMessage = get().patchShareMessage
+    shares.forEach((share) => {
+      patchShareMessage(share.shareId, {
+        shareStatus: 'Pending',
+        learningPathTitle: share.learningPathTitle,
+        learningPathDescription: share.learningPathDescription,
+        pathId: share.pathId,
+        mentorName: share.mentorName,
+        respondedAt: null,
+      })
+    })
   },
 
   reset() {

@@ -1,11 +1,11 @@
 import api from '../Axios'
-import type { PendingLearningPathShareSummaryDto } from '../../types/chat'
+import type { LearningPathShareDto, PendingLearningPathShareSummaryDto } from '../../types/chat'
 
 /** 4.2.1 — Mentor gửi learning path cho student */
 export async function shareToStudent(
   pathId: string,
   studentId: string
-): Promise<void> {
+): Promise<LearningPathShareDto> {
   return api.post(`/learningpath-shares/paths/${pathId}`, { studentId })
 }
 

@@ -3,7 +3,7 @@
 // Based on: fe-chat-learningpath-ui-guide.md
 // ============================================================
 
-export type MessageType = 'Text' | 'Emoji'
+export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare'
 export type ShareStatus = 'Pending' | 'Accepted' | 'Rejected'
 
 /** 3.1 ConversationDTO */
@@ -28,6 +28,21 @@ export interface DirectMessageDto {
   sentAt: string          // ISO 8601
   deliveredAt: string | null
   seenAt: string | null
+  learningPathShareId?: string | null
+  learningPathTitle?: string | null
+  learningPathDescription?: string | null
+  shareStatus?: ShareStatus | null
+  pathId?: string | null
+  mentorName?: string | null
+  studentName?: string | null
+  respondedAt?: string | null
+  learningPathShare?: Partial<LearningPathShareDto> & {
+    learningPathTitle?: string | null
+    learningPathDescription?: string | null
+    mentorName?: string | null
+    studentName?: string | null
+    pathId?: string | null
+  }
 }
 
 /** 3.3 UnreadCount DTO */
@@ -56,6 +71,18 @@ export interface PendingLearningPathShareSummaryDto {
   mentorName: string
   status: 'Pending'
   sentAt: string
+}
+
+export interface LearningPathShareCardData {
+  shareId: string
+  pathId?: string | null
+  title: string
+  description?: string | null
+  mentorName?: string | null
+  studentName?: string | null
+  status: ShareStatus
+  sentAt?: string | null
+  respondedAt?: string | null
 }
 
 /** Contact DTO — section 4.1.2 */

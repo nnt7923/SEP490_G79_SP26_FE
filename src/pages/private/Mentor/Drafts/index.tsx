@@ -7,6 +7,9 @@ import { SubjectService } from '../../../../services'
 import { useTranslation } from 'react-i18next'
 import Toast from '../../../../components/Toast'
 import ROUTER from '../../../../router/ROUTER'
+import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
+import { shareToStudent } from '../../../../services/LearningPathShareService'
+import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 
@@ -17,6 +20,7 @@ const MentorDraftsPage: React.FC = () => {
   const location = useLocation() as { state?: { toast?: ToastState } }
   const [drafts, setDrafts] = useState<SkeletonResponse[]>([])
   const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([])
+  const [studentOptions, setStudentOptions] = useState<Array<{ id: string; label: string }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
@@ -27,6 +31,10 @@ const MentorDraftsPage: React.FC = () => {
   const [pageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
+  const [shareDraft, setShareDraft] = useState<SkeletonResponse | null>(null)
+  const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [shareError, setShareError] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
 
   const sidebarConfig = {
     navItems: useMentorSidebarConfig(),
@@ -43,6 +51,16 @@ const MentorDraftsPage: React.FC = () => {
         })))
       })
       .catch(() => setSubjects([]))
+
+    getContacts()
+      .then((items) => {
+        setStudentOptions(
+          items
+            .filter((item: any) => item?.roleName === 'Student')
+            .map((item: any) => ({ id: String(item?.userId), label: item?.username ?? 'Student' }))
+        )
+      })
+      .catch(() => setStudentOptions([]))
   }, [])
 
   useEffect(() => {
@@ -91,6 +109,34 @@ const MentorDraftsPage: React.FC = () => {
   }, [pageNumber, pageSize, searchTerm, sortDescending, subjectId])
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [pageSize, totalCount])
+
+  const handleOpenShare = (draft: SkeletonResponse) => {
+    setShareDraft(draft)
+    setSelectedStudentId('')
+    setShareError(null)
+  }
+
+  const handleShareDraft = async () => {
+    const nextPathId = String(shareDraft?.pathId ?? shareDraft?.id ?? '')
+    if (!nextPathId || !selectedStudentId) return
+    setSharing(true)
+    setShareError(null)
+    try {
+      const conversation = await createOrGetConversation(selectedStudentId)
+      await shareToStudent(nextPathId, selectedStudentId)
+      navigate(ROUTER.MENTOR_CHAT, {
+        state: {
+          conversationId: conversation.conversationId,
+          toast: { message: t('chat.shareSuccess'), type: 'success' } satisfies ToastState,
+        },
+      })
+    } catch (err: any) {
+      const code = err?.response?.data?.errorCode
+      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : (err?.response?.data?.message || err?.message || t('chat.shareError')))
+    } finally {
+      setSharing(false)
+    }
+  }
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -219,9 +265,30 @@ const MentorDraftsPage: React.FC = () => {
                         <span>{draft.createdAt ? new Date(draft.createdAt).toLocaleDateString() : '-'}</span>
                       </div>
                     </div>
-                    <span style={{ color: 'var(--accent-primary)', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                      {t('drafts.openDraft')} →
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handleOpenShare(draft)
+                        }}
+                        style={{
+                          padding: '8px 10px',
+                          border: '1px solid var(--accent-primary)',
+                          borderRadius: 4,
+                          background: 'var(--bg-surface)',
+                          color: 'var(--accent-primary)',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('chat.sharePathBtn')}
+                      </button>
+                      <span style={{ color: 'var(--accent-primary)', fontSize: 12, fontWeight: 700 }}>
+                        {t('drafts.openDraft')} →
+                      </span>
+                    </div>
                   </div>
                 </button>
               ))}
@@ -276,6 +343,29 @@ const MentorDraftsPage: React.FC = () => {
             onClose={() => setToast(null)}
           />
         )}
+
+        <ShareLearningPathModal
+          isOpen={!!shareDraft}
+          title={t('chat.shareTitle')}
+          studentLabel={t('chat.selectStudent')}
+          pathLabel={t('chat.selectPath')}
+          selectStudentPlaceholder={t('chat.selectStudent')}
+          selectPathPlaceholder={t('chat.selectPath')}
+          submitLabel={t('chat.sharePath')}
+          submittingLabel={t('chat.sharing')}
+          closeLabel={tc('actions.close', { defaultValue: 'Close' })}
+          students={studentOptions}
+          paths={shareDraft ? [{ id: String(shareDraft.pathId ?? shareDraft.id ?? ''), label: shareDraft.title || t('chat.untitledPath') }] : []}
+          selectedStudentId={selectedStudentId}
+          selectedPathId={String(shareDraft?.pathId ?? shareDraft?.id ?? '')}
+          onSelectStudent={setSelectedStudentId}
+          onSelectPath={() => {}}
+          onClose={() => setShareDraft(null)}
+          onSubmit={handleShareDraft}
+          error={shareError}
+          submitting={sharing}
+          lockPath
+        />
       </div>
     </Layout>
   )

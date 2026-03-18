@@ -1,19 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LogOut, MessageSquare, Send, Share2, Smile, Users, X } from 'lucide-react'
+import { LogOut, MessageSquare, Share2, Smile, Users } from 'lucide-react'
 import Layout from '../../../../components/Layout'
 import { useMentorSidebarConfig } from '../components/MentorSideBar'
 import useAuthStore from '../../../../store/useAuthStore'
 import useChatStore from '../../../../store/useChatStore'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../router/ROUTER'
 import { useChatHub } from '../../../../hooks/useChatHub'
-import { getContacts, getConversations, getMessages } from '../../../../services/DirectChatService'
+import { createOrGetConversation, getContacts, getConversations, getMessages } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
 import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
 import type { DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
 import { getMessageStatus } from '../../../../types/chat'
 import { useTheme } from '../../../../contexts/ThemeContext'
+import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
+import Toast from '../../../../components/Toast'
 import {
   MainContainer,
   Sidebar as ChatSidebar,
@@ -29,11 +31,12 @@ import {
   Search,
 } from '@chatscope/chat-ui-kit-react'
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react'
+import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
+import LearningPathShareCard from '../../../../components/Chat/LearningPathShareCard'
+import { buildLearningPathShareCardData, isLearningPathShareMessage } from '../../../../components/Chat/learningPathShare'
 
-interface ShareModalState {
-  pathId: string
-  pathTitle: string
-}
+type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
+type ShareOption = { id: string; label: string }
 
 function formatConversationTime(iso: string | null): string {
   if (!iso) return ''
@@ -88,6 +91,7 @@ const MentorChatPage: React.FC = () => {
   const { theme } = useTheme()
   const { logout, user } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation() as { state?: { conversationId?: string; sharePath?: { pathId: string; title?: string }; toast?: ToastState } }
 
   const {
     conversationsById,
@@ -102,13 +106,16 @@ const MentorChatPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'conversations' | 'contacts'>('conversations')
   const [contacts, setContacts] = useState<DirectChatContactDto[]>([])
-  const [shareModal, setShareModal] = useState<ShareModalState | null>(null)
+  const [sharePaths, setSharePaths] = useState<ShareOption[]>([])
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [selectedPathId, setSelectedPathId] = useState('')
   const [sharing, setSharing] = useState(false)
   const [shareError, setShareError] = useState<string | null>(null)
   const [showEmoji, setShowEmoji] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
   const deliveredRef = useRef<Set<string>>(new Set())
   const seenRef = useRef<Set<string>>(new Set())
   const messageListId = 'mentor-chat-message-list'
@@ -143,14 +150,36 @@ const MentorChatPage: React.FC = () => {
     hub.requestConversations()
     getConversations().then(setConversations).catch(() => { })
     getContacts().then(setContacts).catch(() => { })
+    LearningPathService.getMyDrafts({ pageNumber: 1, pageSize: 100, sortDescending: true })
+      .then((response) => setSharePaths(response.items.map((item: SkeletonResponse) => ({
+        id: String(item.pathId ?? item.id),
+        label: item.title || t('chat.untitledPath', { defaultValue: 'Untitled learning path' }),
+      }))))
+      .catch(() => setSharePaths([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
+    if (location.state?.conversationId && conversationsById[location.state.conversationId]) {
+      setActiveConversation(location.state.conversationId)
+      return
+    }
     if (!activeConversationId && conversationOrder.length > 0) {
       setActiveConversation(conversationOrder[0])
     }
-  }, [activeConversationId, conversationOrder, setActiveConversation])
+  }, [activeConversationId, conversationOrder, conversationsById, location.state?.conversationId, setActiveConversation])
+
+  useEffect(() => {
+    if (!location.state) return
+    if (location.state.toast || location.state.sharePath) {
+      if (location.state.sharePath) {
+        setSelectedPathId(location.state.sharePath.pathId)
+        setSelectedStudentId(activeConv?.studentId ?? '')
+        setIsShareModalOpen(true)
+      }
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [activeConv?.studentId, location.pathname, location.state, navigate])
 
   useEffect(() => {
     if (!activeConversationId) return
@@ -232,14 +261,26 @@ const MentorChatPage: React.FC = () => {
     setInputValue('')
   }
 
+  const openShareModal = () => {
+    setShareError(null)
+    setSelectedStudentId(activeConv?.studentId ?? '')
+    setSelectedPathId((prev) => prev || sharePaths[0]?.id || '')
+    setIsShareModalOpen(true)
+  }
+
   const handleShare = async () => {
-    if (!shareModal || !selectedStudentId) return
+    if (!selectedStudentId || !selectedPathId) return
     setSharing(true)
     setShareError(null)
     try {
-      await shareToStudent(shareModal.pathId, selectedStudentId)
-      setShareModal(null)
-      setSelectedStudentId('')
+      await shareToStudent(selectedPathId, selectedStudentId)
+      setIsShareModalOpen(false)
+      setToast({ message: t('chat.shareSuccess'), type: 'success' })
+      if (activeConversationId) {
+        const res = await getMessages(activeConversationId)
+        setMessages(activeConversationId, res.items)
+      }
+      hub.requestConversations().catch(() => { })
     } catch (err: any) {
       const code = err?.response?.data?.errorCode
       setShareError(
@@ -271,6 +312,17 @@ const MentorChatPage: React.FC = () => {
   const pickerTheme = theme === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT
 
   const studentContacts = contacts.filter(c => c.roleName === 'Student')
+  const shareCardLabels = {
+    pending: t('chat.pendingInvite', { defaultValue: 'Pending' }),
+    accepted: t('chat.inviteAccepted', { defaultValue: 'Accepted' }),
+    rejected: t('chat.inviteRejected', { defaultValue: 'Rejected' }),
+    accept: '',
+    reject: '',
+    accepting: '',
+    rejecting: '',
+    viewPath: t('chat.viewPath', { defaultValue: 'View learning path' }),
+    shareFrom: (mentorName?: string | null) => t('chat.shareCardFrom', { mentorName: mentorName || otherName || t('chat.title') }),
+  }
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -386,13 +438,9 @@ const MentorChatPage: React.FC = () => {
                 <div className="chat-kit-header-actions">
                   <button
                     title={t('chat.shareTitle')}
-                    onClick={() => {
-                      setShareModal({ pathId: '', pathTitle: t('chat.shareTitle') })
-                      setShareError(null)
-                      setSelectedStudentId(activeConv?.studentId ?? '')
-                    }}
+                    onClick={openShareModal}
                     className="chat-kit-share-btn"
-                    disabled={!activeConversationId}
+                    disabled={!activeConversationId || sharePaths.length === 0}
                   >
                     <Share2 size={14} />
                     {t('chat.sharePathBtn')}
@@ -422,6 +470,7 @@ const MentorChatPage: React.FC = () => {
                   const isLastMine =
                     isMine && !activeMessages.slice(idx + 1).some(m => m.senderId === currentUserId)
                   const displayContent = normalizeMessageContent(msg)
+                  const shareCardData = isLearningPathShareMessage(msg) ? buildLearningPathShareCardData(msg) : null
                   return (
                     <Message
                       key={msg.messageId}
@@ -432,7 +481,18 @@ const MentorChatPage: React.FC = () => {
                       }}
                       type="text"
                     >
-                      <Message.TextContent text={displayContent} />
+                      {shareCardData ? (
+                        <Message.CustomContent>
+                          <div className={`chat-kit-share-message-body ${isMine ? 'chat-kit-share-message-body--outgoing' : 'chat-kit-share-message-body--incoming'}`}>
+                            <LearningPathShareCard
+                              data={shareCardData}
+                              labels={shareCardLabels}
+                            />
+                          </div>
+                        </Message.CustomContent>
+                      ) : (
+                        <Message.TextContent text={displayContent} />
+                      )}
                       <Message.Footer>
                         <span className="chat-kit-message-meta">
                           {formatMessageTime(msg.sentAt)}
@@ -487,45 +547,31 @@ const MentorChatPage: React.FC = () => {
         </MainContainer>
       </div>
 
-      {shareModal && (
-        <div className="chat-kit-modal-backdrop" onClick={() => setShareModal(null)}>
-          <div className="chat-kit-modal" onClick={e => e.stopPropagation()}>
-            <div className="chat-kit-modal-header">
-              <h3 className="chat-kit-modal-title">{t('chat.shareTitle')}</h3>
-              <button onClick={() => setShareModal(null)} className="chat-kit-modal-close">
-                <X size={18} />
-              </button>
-            </div>
-
-            <label className="chat-kit-modal-label">
-              {t('chat.selectStudent')}
-            </label>
-            <select
-              value={selectedStudentId}
-              onChange={e => setSelectedStudentId(e.target.value)}
-              className="chat-kit-modal-select"
-            >
-              <option value="">{t('chat.selectStudent')}</option>
-              {studentContacts.map(c => (
-                <option key={c.userId} value={c.userId}>{c.username}</option>
-              ))}
-            </select>
-
-            {shareError && (
-              <div className="chat-kit-modal-error">{shareError}</div>
-            )}
-
-            <button
-              onClick={handleShare}
-              disabled={sharing || !selectedStudentId || !shareModal.pathId}
-              className="chat-kit-modal-submit"
-            >
-              <Send size={14} />
-              {sharing ? t('chat.sharing') : t('chat.sharePath')}
-            </button>
-          </div>
-        </div>
-      )}
+      <ShareLearningPathModal
+        isOpen={isShareModalOpen}
+        title={t('chat.shareTitle')}
+        studentLabel={t('chat.selectStudent')}
+        pathLabel={t('chat.selectPath', { defaultValue: 'Select learning path' })}
+        selectStudentPlaceholder={t('chat.selectStudent')}
+        selectPathPlaceholder={t('chat.selectPath', { defaultValue: 'Select learning path' })}
+        submitLabel={t('chat.sharePath')}
+        submittingLabel={t('chat.sharing')}
+        closeLabel={tc('actions.close', { defaultValue: 'Close' })}
+        students={studentContacts
+          .filter((contact) => !activeConv || contact.userId === activeConv.studentId)
+          .map((contact) => ({ id: contact.userId, label: contact.username }))}
+        paths={sharePaths}
+        selectedStudentId={selectedStudentId}
+        selectedPathId={selectedPathId}
+        onSelectStudent={setSelectedStudentId}
+        onSelectPath={setSelectedPathId}
+        onClose={() => setIsShareModalOpen(false)}
+        onSubmit={handleShare}
+        error={shareError}
+        submitting={sharing}
+        lockStudent
+      />
+      {toast && <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 120 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div>}
     </Layout>
   )
 }

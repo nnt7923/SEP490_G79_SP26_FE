@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
-import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Loader2, Plus, Save, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Loader2, Plus, Save, Share2, Sparkles, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Layout from '../../../../components/Layout'
 import Toast from '../../../../components/Toast'
@@ -11,6 +11,9 @@ import LearningPathService, { type ManualDraftPayload, type SkeletonResponse } f
 import LessonContent from '../../Plans/components/LessonContent'
 import { useMentorSidebarConfig } from '../components/MentorSideBar'
 import { buildLessonContentFromSections, createEmptyLessonSections, parseLessonSections, SECTION_KEYS, SECTION_LABELS, type LessonSectionKey } from './lessonContentContract'
+import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
+import { shareToStudent } from '../../../../services/LearningPathShareService'
+import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 type Level = 'Beginner' | 'Intermediate' | 'Advanced'
@@ -205,8 +208,15 @@ const MentorDraftFormPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<EditorTab>('structure')
   const [activeChapterId, setActiveChapterId] = useState<string | null>(form.chapters[0]?.id ?? null)
   const [activeLessonId, setActiveLessonId] = useState<string | null>(form.chapters[0]?.lessons[0]?.id ?? null)
+  const [studentOptions, setStudentOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [shareError, setShareError] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const collapseLabel = t('drafts.collapse')
   const expandLabel = t('drafts.expand')
+  const currentPathId = String(pathId ?? location.state?.draft?.pathId ?? '')
+  const canShare = !!currentPathId
 
   useEffect(() => {
     let active = true
@@ -224,6 +234,18 @@ const MentorDraftFormPage: React.FC = () => {
           name: subject?.name ?? 'Subject',
           goals: Array.isArray(subject?.goals) ? subject.goals.map((goal: any) => ({ goalId: String(goal?.goalId ?? goal?.id), title: goal?.title ?? goal?.name ?? 'Goal' })) : [],
         })))
+        getContacts()
+          .then((items) => {
+            if (!active) return
+            setStudentOptions(
+              items
+                .filter((item: any) => item?.roleName === 'Student')
+                .map((item: any) => ({ id: String(item?.userId), label: item?.username ?? 'Student' }))
+            )
+          })
+          .catch(() => {
+            if (active) setStudentOptions([])
+          })
         const hydrated = hydrateDraftForm(draft)
         setForm(hydrated)
         setActiveChapterId(hydrated.chapters[0]?.id ?? null)
@@ -348,6 +370,28 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
+  const handleShareDraft = async () => {
+    const nextPathId = currentPathId
+    if (!nextPathId || !selectedStudentId) return
+    setSharing(true)
+    setShareError(null)
+    try {
+      const conversation = await createOrGetConversation(selectedStudentId)
+      await shareToStudent(nextPathId, selectedStudentId)
+      navigate(ROUTER.MENTOR_CHAT, {
+        state: {
+          conversationId: conversation.conversationId,
+          toast: { message: t('chat.shareSuccess'), type: 'success' } satisfies ToastState,
+        },
+      })
+    } catch (err: any) {
+      const code = err?.response?.data?.errorCode
+      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : (err?.response?.data?.message || err?.message || t('chat.shareError')))
+    } finally {
+      setSharing(false)
+    }
+  }
+
   if (loading) return <Layout sidebar={sidebarConfig}><div style={{ ...shellStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}><Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" /><p>{t('drafts.loading')}</p></div></div></Layout>
   if (loadError) return <Layout sidebar={sidebarConfig}><div style={shellStyle}><Panel title={t('drafts.title')} subtitle={loadError}><button type="button" style={buttonStyle} onClick={() => navigate(ROUTER.MENTOR_DRAFTS)}><ArrowLeft size={14} /> {t('drafts.backToList')}</button></Panel></div></Layout>
 
@@ -360,6 +404,28 @@ const MentorDraftFormPage: React.FC = () => {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button type="button" style={buttonStyle} onClick={() => setActiveTab('structure')}><BookOpen size={14} /> {t('drafts.pathSettings')}</button>
               <button type="button" style={buttonStyle} onClick={() => setActiveTab('lesson')}><Sparkles size={14} /> {t('drafts.lessonStudio')}</button>
+              <button
+                type="button"
+                style={{
+                  ...buttonStyle,
+                  borderColor: 'var(--accent-primary)',
+                  color: 'var(--accent-primary)',
+                  opacity: canShare ? 1 : 0.55,
+                  cursor: canShare ? 'pointer' : 'not-allowed',
+                }}
+                onClick={() => {
+                  if (!canShare) {
+                    setToast({ message: t('drafts.saveBeforeShare', { defaultValue: 'Save the draft before sharing it.' }), type: 'warning' })
+                    return
+                  }
+                  setShareError(null)
+                  setSelectedStudentId('')
+                  setIsShareModalOpen(true)
+                }}
+                disabled={sharing}
+              >
+                <Share2 size={14} /> {t('chat.sharePathBtn')}
+              </button>
               <button type="button" style={{ ...buttonStyle, borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }} onClick={saveDraft} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={14} />}{saving ? t('drafts.saving') : t('drafts.save')}</button>
             </div>
           </div>
@@ -500,6 +566,28 @@ const MentorDraftFormPage: React.FC = () => {
             </main>
           </div>
         </div>
+        <ShareLearningPathModal
+          isOpen={isShareModalOpen}
+          title={t('chat.shareTitle')}
+          studentLabel={t('chat.selectStudent')}
+          pathLabel={t('chat.selectPath', { defaultValue: 'Select learning path' })}
+          selectStudentPlaceholder={t('chat.selectStudent')}
+          selectPathPlaceholder={t('chat.selectPath', { defaultValue: 'Select learning path' })}
+          submitLabel={t('chat.sharePath')}
+          submittingLabel={t('chat.sharing')}
+          closeLabel={t('drafts.close', { defaultValue: 'Close' })}
+          students={studentOptions}
+          paths={canShare ? [{ id: currentPathId, label: form.title.trim() || t('chat.untitledPath', { defaultValue: 'Untitled learning path' }) }] : []}
+          selectedStudentId={selectedStudentId}
+          selectedPathId={currentPathId}
+          onSelectStudent={setSelectedStudentId}
+          onSelectPath={() => {}}
+          onClose={() => setIsShareModalOpen(false)}
+          onSubmit={handleShareDraft}
+          error={shareError}
+          submitting={sharing}
+          lockPath
+        />
         {toast && <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div>}
       </div>
     </Layout>
