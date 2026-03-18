@@ -10,7 +10,6 @@ import Toast from '../../../components/Toast'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../router/ROUTER'
 import StepHeader from './components/StepHeader'
-import { MagneticButton } from '../../../components/ui/MagneticButton'
 import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
@@ -36,13 +35,23 @@ const isGuid = (v: any) => typeof v === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]
 // Step 2: Goals
 type GoalItem = { key: string; label: string };
 type Level = 'Beginner' | 'Intermediate' | 'Advanced'
+export type PlansVariant = 'student' | 'mentorAiDraft'
 
-const PlansPage: React.FC = () => {
+interface PlansPageProps {
+  variant?: PlansVariant
+}
+
+export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1)
   const { t } = useTranslation('student')
+  const { t: tm } = useTranslation('mentor')
+  const isMentorVariant = variant === 'mentorAiDraft'
+  const totalSteps = isMentorVariant ? 6 : 7
+  const storagePrefix = isMentorVariant ? 'mentorAiPlans' : 'plans'
+  const storageKey = (key: string) => `${storagePrefix}.${key}`
   const [language, setLanguage] = useState<string | null>(() => {
     try {
-      const v = sessionStorage.getItem('plans.language') || null
+      const v = sessionStorage.getItem(storageKey('language')) || null
       return isGuid(v) ? v : null
     } catch {
       return null
@@ -50,7 +59,7 @@ const PlansPage: React.FC = () => {
   })
   const [selectedGoals, setSelectedGoals] = useState<string[]>(() => {
     try {
-      const raw = sessionStorage.getItem('plans.goals')
+      const raw = sessionStorage.getItem(storageKey('goals'))
       return raw ? JSON.parse(raw) : []
     } catch {
       return []
@@ -60,7 +69,7 @@ const PlansPage: React.FC = () => {
   // New state for goal priorities (1-100, higher = more important)
   const [goalPriorities, setGoalPriorities] = useState<Record<string, number>>(() => {
     try {
-      const raw = sessionStorage.getItem('plans.goalPriorities')
+      const raw = sessionStorage.getItem(storageKey('goalPriorities'))
       return raw ? JSON.parse(raw) : {}
     } catch {
       return {}
@@ -68,20 +77,19 @@ const PlansPage: React.FC = () => {
   })
   const [level, setLevel] = useState<Level | null>(() => {
     try {
-      return (sessionStorage.getItem('plans.level') as Level | null) || null
+      return (sessionStorage.getItem(storageKey('level')) as Level | null) || null
     } catch {
       return null
     }
   })
   const [languageSelection, setLanguageSelection] = useState<LanguageSelection | null>(() => {
     try {
-      const stored = sessionStorage.getItem('plans.languageSelection')
+      const stored = sessionStorage.getItem(storageKey('languageSelection'))
       return stored ? Number(stored) as LanguageSelection : null
     } catch {
       return null
     }
   })
-  const [planGenerated, setPlanGenerated] = useState(false)
   // Load subjects from API
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(true)
@@ -394,6 +402,122 @@ const PlansPage: React.FC = () => {
     }
   }
 
+  const buildGenerationPayload = () => ({
+    subjectId: language,
+    goals: selectedGoals.map(goalId => ({
+      goalId,
+      weight: goalPriorities[goalId] || (selectedGoals.length === 1 ? 100 : 50),
+    })),
+    complexityLevel: level,
+    languageSelection,
+  })
+
+  const validateGenerationInput = () => {
+    if (!language) {
+      setPlanError(t('plans.selectLanguage'))
+      return false
+    }
+    if (selectedGoals.length === 0) {
+      setPlanError(t('plans.selectAtLeastOneGoal'))
+      return false
+    }
+    if (!level) {
+      setPlanError(t('plans.selectLevel'))
+      return false
+    }
+    if (!languageSelection) {
+      setPlanError(t('plans.selectLanguage'))
+      return false
+    }
+    return true
+  }
+
+  const getGenerationErrorMessage = (e: any) => {
+    const d = e?.response?.data
+    const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
+    const code = d?.errorCode || d?.code
+    let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || t('plans.unableToGenerate'))
+    const lower = String(serverMsg || e?.message || '').toLowerCase()
+    if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
+      msg = t('plans.aiKeyError')
+    }
+    return msg
+  }
+
+  const handleGenerateStudentPlan = async () => {
+    if (!validateGenerationInput()) return
+
+    setPlanError(null)
+    setGenerating(true)
+    setGenerationProgress(0)
+
+    try {
+      const payload = buildGenerationPayload()
+      const sk = await LearningPathService.generateSkeleton(payload, {
+        useSignalR: true,
+        onLoading: () => {
+          setGenerationProgress(10)
+        },
+        onProgress: (progress: number) => {
+          setGenerationProgress(progress)
+        }
+      })
+
+      setSkeleton(sk)
+      setGenerationProgress(100)
+      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
+
+      if (sk?.pathId) {
+        navigate('/my-plans/detail', { state: { pathId: sk.pathId } })
+      } else {
+        navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
+      }
+    } catch (e: any) {
+      setPlanError(getGenerationErrorMessage(e))
+    } finally {
+      setGenerating(false)
+      setGenerationProgress(0)
+    }
+  }
+
+  const handleGenerateMentorDraft = async () => {
+    if (!validateGenerationInput()) return
+
+    setPlanError(null)
+    setGenerating(true)
+    setGenerationProgress(15)
+
+    try {
+      const payload = buildGenerationPayload()
+      const sk = await LearningPathService.generateAiDraft(payload)
+
+      setSkeleton(sk)
+      setGenerationProgress(100)
+
+      if (!sk?.pathId) {
+        setPlanError(tm('aiPlans.missingDraftId'))
+        return
+      }
+
+      navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', sk.pathId), {
+        state: { pathId: sk.pathId, draft: sk },
+      })
+    } catch (e: any) {
+      setPlanError(getGenerationErrorMessage(e))
+    } finally {
+      setGenerating(false)
+      setGenerationProgress(0)
+    }
+  }
+
+  const handleGenerateClick = async () => {
+    if (isMentorVariant) {
+      await handleGenerateMentorDraft()
+      return
+    }
+    await handleGenerateStudentPlan()
+  }
+
   const handleSelectSuggestion = async (suggestion: any) => {
     if (!suggestion?.pathId) {
       setToast({ message: t('plans.invalidSuggestion'), type: 'error' })
@@ -590,33 +714,33 @@ const PlansPage: React.FC = () => {
   useEffect(() => {
     try {
       if (language) {
-        sessionStorage.setItem('plans.language', language)
+        sessionStorage.setItem(storageKey('language'), language)
       } else {
-        sessionStorage.removeItem('plans.language')
+        sessionStorage.removeItem(storageKey('language'))
       }
     } catch { }
-  }, [language])
+  }, [language, storagePrefix])
 
   useEffect(() => {
     try {
-      sessionStorage.setItem('plans.goals', JSON.stringify(selectedGoals))
-      sessionStorage.setItem('plans.goalPriorities', JSON.stringify(goalPriorities))
+      sessionStorage.setItem(storageKey('goals'), JSON.stringify(selectedGoals))
+      sessionStorage.setItem(storageKey('goalPriorities'), JSON.stringify(goalPriorities))
     } catch { }
-  }, [selectedGoals, goalPriorities])
+  }, [selectedGoals, goalPriorities, storagePrefix])
 
   useEffect(() => {
     try {
-      if (level) sessionStorage.setItem('plans.level', level)
-      else sessionStorage.removeItem('plans.level')
+      if (level) sessionStorage.setItem(storageKey('level'), level)
+      else sessionStorage.removeItem(storageKey('level'))
     } catch { }
-  }, [level])
+  }, [level, storagePrefix])
 
   useEffect(() => {
     try {
-      if (languageSelection) sessionStorage.setItem('plans.languageSelection', String(languageSelection))
-      else sessionStorage.removeItem('plans.languageSelection')
+      if (languageSelection) sessionStorage.setItem(storageKey('languageSelection'), String(languageSelection))
+      else sessionStorage.removeItem(storageKey('languageSelection'))
     } catch { }
-  }, [languageSelection])
+  }, [languageSelection, storagePrefix])
 
   // SEO: title, meta description, canonical & JSON-LD
   useEffect(() => {
@@ -744,11 +868,14 @@ const PlansPage: React.FC = () => {
     if (step === 4) return !!level
     if (step === 5) return !!languageSelection
     if (step === 6) return true // Review step
-    if (step === 7) return true // Generation options step
+    if (!isMentorVariant && step === 7) return true // Generation options step
     return true
-  }, [step, language, selectedGoals, level, languageSelection])
+  }, [step, language, selectedGoals, level, languageSelection, isMentorVariant])
 
-  const canGenerate = useMemo(() => !!language && selectedGoals.length > 0 && selectedGoals.length <= 2 && !!level && !!languageSelection, [language, selectedGoals, level, languageSelection])
+  const canGenerate = useMemo(
+    () => !!language && selectedGoals.length > 0 && selectedGoals.length <= 2 && !!level && !!languageSelection && !generating,
+    [language, selectedGoals, level, languageSelection, generating]
+  )
 
   const isStepValid = (s: number) => {
     if (s === 1) return !!language
@@ -757,7 +884,7 @@ const PlansPage: React.FC = () => {
     if (s === 4) return !!level
     if (s === 5) return !!languageSelection
     if (s === 6) return true // Review step
-    if (s === 7) return true // Generation options step
+    if (!isMentorVariant && s === 7) return true // Generation options step
     return true
   }
 
@@ -783,7 +910,7 @@ const PlansPage: React.FC = () => {
     if (currentStep === 2 && selectedGoals.length === 1) {
       return 4 // Skip step 3 (priorities) if only 1 goal
     }
-    return Math.min(currentStep + 1, 7)
+    return Math.min(currentStep + 1, totalSteps)
   }
 
   const getPrevStep = (currentStep: number): number => {
@@ -1029,7 +1156,7 @@ const PlansPage: React.FC = () => {
       <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
         <div style={{ width: '100%' }}>
           {/* Stepper */}
-          <Stepper currentStep={step} totalSteps={7} onChangeStep={handleStepChange} />
+          <Stepper currentStep={step} totalSteps={totalSteps} onChangeStep={handleStepChange} />
 
           {/* Content */}
           <AnimatePresence mode="wait">
@@ -1043,16 +1170,24 @@ const PlansPage: React.FC = () => {
               />
 
               {/* Two-column: Category filter sidebar | Subject cards */}
-              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '180px minmax(0, 1fr)',
+                  gap: 16,
+                  alignItems: 'start',
+                }}
+              >
 
                 {/* Left: Category filter */}
                 <div style={{
                   width: 180,
-                  flexShrink: 0,
                   border: '1px solid var(--border-base)',
                   background: 'var(--bg-surface)',
                   borderRadius: 2,
                   overflow: 'hidden',
+                  alignSelf: 'start',
+                  boxSizing: 'border-box',
                 }}>
                   <div style={{
                     padding: '10px 14px',
@@ -1105,22 +1240,27 @@ const PlansPage: React.FC = () => {
                 </div>
 
                 {/* Right: Subject cards */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }} aria-label="subject-list">
+                <div style={{ minWidth: 0, width: '100%', alignSelf: 'start' }}>
+                  <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, width: '100%', margin: 0 }} aria-label="subject-list">
                     {subjectsLoading ? (
-                      Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="animate-pulse rounded-xl border border-bd-muted bg-th-card p-5">
-                          <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-th-hover rounded-lg" />
-                              <div className="flex-1">
-                                <div className="w-24 h-4 bg-th-hover rounded" />
-                                <div className="w-20 h-3 bg-th-input rounded mt-2" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))
+                      <div
+                        className="col-span-full"
+                        style={{
+                          minHeight: 108,
+                          padding: 24,
+                          border: '1px solid var(--border-base)',
+                          borderRadius: 2,
+                          background: 'var(--bg-surface)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--text-secondary)',
+                          fontSize: 14,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t('plans.loading', { defaultValue: 'Loading...' })}
+                      </div>
                     ) : subjectsError ? (
                       <div className="col-span-full text-center py-6 text-status-red bg-status-red-bg rounded-xl border border-red-200">
                         {t('plans.failedLoadSubjects')}: {subjectsError}
@@ -1884,7 +2024,7 @@ const PlansPage: React.FC = () => {
                 title={t('plans.step5Title')}
                 subtitle={t('plans.step5Subtitle')}
                 icon="$"
-                selectedValue={t('plans.readyToGenerate')}
+                selectedValue={isMentorVariant ? tm('aiPlans.generateByAi') : t('plans.readyToGenerate')}
               />
 
               {/* Summary Cards */}
@@ -1915,10 +2055,25 @@ const PlansPage: React.FC = () => {
                   ))}
                 </div>
               </section>
+
+              {isMentorVariant && generating && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 32, padding: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+                  <div className="animate-spin" style={{ width: 20, height: 20, border: '2px solid var(--text-secondary)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', marginRight: 12 }} />
+                  <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                    {tm('aiPlans.generatingDraft')} ({generationProgress}%)
+                  </span>
+                </div>
+              )}
+
+              {isMentorVariant && planError && (
+                <div style={{ marginTop: 32, maxWidth: 600, margin: '32px auto 0', padding: 16, background: 'var(--bg-red-tint)', border: '1px solid var(--danger-primary)', borderRadius: 4, color: 'var(--danger-primary)', textAlign: 'center' }}>
+                  {planError}
+                </div>
+              )}
               </motion.div>
             )}
 
-          {step === 7 && (
+          {!isMentorVariant && step === 7 && (
             <motion.div key="step7" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
                 title={t('plans.step7Title')}
@@ -1940,62 +2095,7 @@ const PlansPage: React.FC = () => {
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
-                  onClick={async () => {
-                    if (!language) { setPlanError(t('plans.selectLanguage')); return }
-                    if (selectedGoals.length === 0) { setPlanError(t('plans.selectAtLeastOneGoal')); return }
-                    if (!level) { setPlanError(t('plans.selectLevel')); return }
-                    if (!languageSelection) { setPlanError(t('plans.selectLanguage')); return }
-                    setPlanError(null)
-                    setGenerating(true)
-                    setGenerationProgress(0)
-                    try {
-                      const payload: any = {
-                        subjectId: language,
-                        goals: selectedGoals.map(goalId => ({
-                          goalId: goalId,
-                          weight: goalPriorities[goalId] || (selectedGoals.length === 1 ? 100 : 50)
-                        })),
-                        complexityLevel: level,
-                        languageSelection: languageSelection
-                      }
-
-                      // Use SignalR for real-time progress updates
-                      const sk = await LearningPathService.generateSkeleton(payload, {
-                        useSignalR: true,
-                        onLoading: () => {
-                          setGenerationProgress(10) // Initial loading
-                        },
-                        onProgress: (progress: number) => {
-                          setGenerationProgress(progress)
-                        }
-                      })
-
-                      setSkeleton(sk)
-                      setPlanGenerated(true)
-                      setGenerationProgress(100)
-                      try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
-                      
-                      // Navigate to detail page if pathId exists, otherwise to result page
-                      if (sk?.pathId) {
-                        navigate('/my-plans/detail', { state: { pathId: sk.pathId } })
-                      } else {
-                        navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
-                      }
-                    } catch (e: any) {
-                      const d = e?.response?.data
-                      const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
-                      const code = d?.errorCode || d?.code
-                      let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || t('plans.unableToGenerate'))
-                      const lower = String(serverMsg || e?.message || '').toLowerCase()
-                      if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
-                        msg = t('plans.aiKeyError')
-                      }
-                      setPlanError(msg)
-                    } finally {
-                      setGenerating(false)
-                      setGenerationProgress(0)
-                    }
-                  }}
+                  onClick={handleGenerateClick}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
                     <div style={{ fontSize: 32 }}>🤖</div>
@@ -2090,7 +2190,7 @@ const PlansPage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 32, padding: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
                   <div className="animate-spin" style={{ width: 20, height: 20, border: '2px solid var(--text-secondary)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', marginRight: 12 }} />
                   <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>
-                    {t('plans.generatingPath')} ({generationProgress}%)
+                    {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
                   </span>
                 </div>
               )}
@@ -2102,7 +2202,7 @@ const PlansPage: React.FC = () => {
               )}
 
               {/* Suggestions Modal */}
-              {showSuggestions && (
+              {!isMentorVariant && showSuggestions && (
                 <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
                   <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 900, width: '100%', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2264,7 +2364,7 @@ const PlansPage: React.FC = () => {
                 {'<'} {t('plans.back')}
               </button>
             )}
-            {step < 7 && (
+            {step < totalSteps && (
               <button
                 type="button"
                 style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
@@ -2273,6 +2373,18 @@ const PlansPage: React.FC = () => {
                 onClick={() => setStep(getNextStep(step) as any)}
               >
                 {t('plans.continue')} {'>'}
+              </button>
+            )}
+            {isMentorVariant && step === totalSteps && (
+              <button
+                type="button"
+                style={{ padding: '8px 24px', background: !canGenerate ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canGenerate ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={(e) => { if (canGenerate) e.currentTarget.style.background = 'var(--text-strong)' }}
+                onMouseLeave={(e) => { if (canGenerate) e.currentTarget.style.background = 'var(--text-primary)' }}
+                disabled={!canGenerate}
+                onClick={handleGenerateClick}
+              >
+                {tm('aiPlans.generateByAi')}
               </button>
             )}
           </div>
@@ -2292,4 +2404,6 @@ const PlansPage: React.FC = () => {
   )
 }
 
-export default PlansPage
+const StudentPlansPage: React.FC = () => <PlansPage variant="student" />
+
+export default StudentPlansPage

@@ -115,17 +115,29 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
   }
 
   function normalizeMessagesPayload(arg1: any, arg2?: any): { conversationId: string; messages: DirectMessageDto[] } | null {
+    const pickMessages = (payload: any): DirectMessageDto[] | null => {
+      const candidates = [
+        payload,
+        payload?.items,
+        payload?.data?.items,
+        payload?.result?.items,
+        payload?.messages,
+        payload?.data?.messages,
+        payload?.result?.messages,
+        payload?.data,
+        payload?.result,
+      ]
+      const list = candidates.find((value) => Array.isArray(value))
+      return Array.isArray(list) ? list : null
+    }
+
     if (typeof arg1 === 'string') {
-      if (Array.isArray(arg2)) return { conversationId: arg1, messages: arg2 }
-      if (arg2 && Array.isArray(arg2.items)) return { conversationId: arg1, messages: arg2.items }
+      const messages = pickMessages(arg2)
+      if (messages) return { conversationId: arg1, messages }
     }
     if (arg1 && typeof arg1 === 'object') {
-      const conversationId = arg1.conversationId
-      const messages = Array.isArray(arg1.messages)
-        ? arg1.messages
-        : Array.isArray(arg1.items)
-          ? arg1.items
-          : null
+      const conversationId = arg1.conversationId ?? arg1.data?.conversationId ?? arg1.result?.conversationId
+      const messages = pickMessages(arg1)
       if (conversationId && messages) return { conversationId, messages }
     }
     return null

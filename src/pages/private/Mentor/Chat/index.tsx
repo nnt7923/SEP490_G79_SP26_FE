@@ -8,7 +8,7 @@ import useChatStore from '../../../../store/useChatStore'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../router/ROUTER'
 import { useChatHub } from '../../../../hooks/useChatHub'
-import { getContacts, getMessages } from '../../../../services/DirectChatService'
+import { getContacts, getConversations, getMessages } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
 import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
 import type { DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
@@ -95,6 +95,7 @@ const MentorChatPage: React.FC = () => {
     messagesByConversationId,
     activeConversationId,
     setActiveConversation,
+    setConversations,
     setMessages,
   } = useChatStore()
 
@@ -140,9 +141,16 @@ const MentorChatPage: React.FC = () => {
 
   useEffect(() => {
     hub.requestConversations()
+    getConversations().then(setConversations).catch(() => { })
     getContacts().then(setContacts).catch(() => { })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!activeConversationId && conversationOrder.length > 0) {
+      setActiveConversation(conversationOrder[0])
+    }
+  }, [activeConversationId, conversationOrder, setActiveConversation])
 
   useEffect(() => {
     if (!activeConversationId) return

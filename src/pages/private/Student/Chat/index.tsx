@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../router/ROUTER'
 import { useChatHub } from '../../../../hooks/useChatHub'
 import { getPendingShares, acceptShare, rejectShare } from '../../../../services/LearningPathShareService'
-import { getContacts, getMessages } from '../../../../services/DirectChatService'
+import { getContacts, getConversations, getMessages } from '../../../../services/DirectChatService'
 import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
 import type { PendingLearningPathShareSummaryDto, DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
 import { getMessageStatus } from '../../../../types/chat'
@@ -90,6 +90,7 @@ const StudentChatPage: React.FC = () => {
     messagesByConversationId,
     activeConversationId,
     setActiveConversation,
+    setConversations,
     setMessages,
     pendingLearningPathShares,
     setPendingShares,
@@ -135,10 +136,17 @@ const StudentChatPage: React.FC = () => {
 
   useEffect(() => {
     hub.requestConversations()
+    getConversations().then(setConversations).catch(() => { })
     getPendingShares().then(setPendingShares).catch(() => { })
     getContacts().then(c => setContacts(c.filter(u => u.roleName === 'Mentor'))).catch(() => { })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!activeConversationId && conversationOrder.length > 0) {
+      setActiveConversation(conversationOrder[0])
+    }
+  }, [activeConversationId, conversationOrder, setActiveConversation])
 
   useEffect(() => {
     if (!activeConversationId) return

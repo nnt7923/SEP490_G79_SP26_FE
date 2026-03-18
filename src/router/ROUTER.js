@@ -20,6 +20,11 @@ const ROUTER = {
   CHANGE_PASSWORD: "/change-password",
   ADMIN_DASHBOARD: "/admin",
   MENTOR_DASHBOARD: "/mentor",
+  MENTOR_AI_PLANS: "/mentor/ai-plans",
+  MENTOR_AI_PLAN_DETAIL: "/mentor/ai-plans/:pathId",
+  MENTOR_DRAFTS: "/mentor/drafts",
+  MENTOR_DRAFT_CREATE: "/mentor/drafts/new",
+  MENTOR_DRAFT_DETAIL: "/mentor/drafts/:pathId",
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_USERS: "/admin/users",

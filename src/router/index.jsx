@@ -37,6 +37,11 @@ const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
 const MentorClasses = React.lazy(() => import('../pages/private/Mentor/Classes'))
 const MentorStudents = React.lazy(() => import('../pages/private/Mentor/Students'))
+const MentorAIPlans = React.lazy(() => import('../pages/private/Mentor/AIPlans'))
+const MentorAIPlanDetail = React.lazy(() => import('../pages/private/Mentor/AIPlans/Detail'))
+const MentorDrafts = React.lazy(() => import('../pages/private/Mentor/Drafts'))
+const MentorDraftCreate = React.lazy(() => import('../pages/private/Mentor/Drafts/Create'))
+const MentorDraftDetail = React.lazy(() => import('../pages/private/Mentor/Drafts/Detail'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
 const TaskPage = React.lazy(() => import('../pages/private/Task'))
@@ -122,6 +127,11 @@ const router = createBrowserRouter([
       { path: '/mentor/subjects', element: <MentorSubjects /> },
       { path: '/mentor/classes', element: <MentorClasses /> },
       { path: '/mentor/students', element: <MentorStudents /> },
+      { path: ROUTER.MENTOR_AI_PLANS, element: <MentorAIPlans /> },
+      { path: ROUTER.MENTOR_AI_PLAN_DETAIL, element: <MentorAIPlanDetail /> },
+      { path: ROUTER.MENTOR_DRAFTS, element: <MentorDrafts /> },
+      { path: ROUTER.MENTOR_DRAFT_CREATE, element: <MentorDraftCreate /> },
+      { path: ROUTER.MENTOR_DRAFT_DETAIL, element: <MentorDraftDetail /> },
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
       { path: ROUTER.MENTOR_CHAT, element: <MentorChatPage /> },
     ],

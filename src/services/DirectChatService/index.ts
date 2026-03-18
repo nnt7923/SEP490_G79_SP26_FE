@@ -14,6 +14,29 @@ interface PaginationDto<T> {
   pageSize: number
 }
 
+function toMessagePagination(payload: any): PaginationDto<DirectMessageDto> {
+  const candidates = [
+    payload?.items,
+    payload?.data?.items,
+    payload?.result?.items,
+    payload?.messages,
+    payload?.data?.messages,
+    payload?.result?.messages,
+    payload?.data,
+    payload?.result,
+    payload,
+  ]
+
+  const items = candidates.find((value) => Array.isArray(value)) ?? []
+
+  return {
+    items,
+    totalCount: Number(payload?.totalCount ?? payload?.data?.totalCount ?? payload?.result?.totalCount ?? items.length ?? 0),
+    pageNumber: Number(payload?.pageNumber ?? payload?.data?.pageNumber ?? payload?.result?.pageNumber ?? 1),
+    pageSize: Number(payload?.pageSize ?? payload?.data?.pageSize ?? payload?.result?.pageSize ?? items.length ?? 0),
+  }
+}
+
 /** 4.1.1 — Lấy danh sách conversations */
 export async function getConversations(): Promise<DirectConversationDto[]> {
   return api.get('/direct-chats/conversations')
@@ -37,10 +60,11 @@ export async function getMessages(
   pageNumber = 1,
   pageSize = 30
 ): Promise<PaginationDto<DirectMessageDto>> {
-  return api.get(
+  const response = await api.get(
     `/direct-chats/conversations/${conversationId}/messages`,
     { params: { pageNumber, pageSize } }
   )
+  return toMessagePagination(response)
 }
 
 /** 4.1.5 — Gửi tin nhắn qua REST (fallback) */

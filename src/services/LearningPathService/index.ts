@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { skeletonUrl, lessonContentUrl, userLearningPathsUrl } from './url'
+import { skeletonUrl, lessonContentUrl, userLearningPathsUrl, aiDraftUrl, manualDraftUrl, manualDraftDetailUrl, myDraftsUrl, myDraftDetailUrl } from './url'
 import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLearningPathSuggestions } from '../SignalR'
 
 export type Quiz = {
@@ -8,6 +8,8 @@ export type Quiz = {
   quizzId?: string
   title: string
   description?: string | null
+  quizQuestionsJson?: string | null
+  [key: string]: any
 }
 
 export type Lesson = {
@@ -19,6 +21,7 @@ export type Lesson = {
   quizzes?: Quiz[]
   chapters?: Chapter[]
   quizSkeleton?: any
+  [key: string]: any
 }
 
 export type Task = {
@@ -28,6 +31,9 @@ export type Task = {
   priority?: string | null
   taskStatus?: string | null
   dueDate?: string | null
+  taskType?: string | number | null
+  quizQuestionsJson?: string | null
+  [key: string]: any
 }
 
 export type Chapter = {
@@ -35,8 +41,76 @@ export type Chapter = {
   title: string
   content?: string | null
   orderIndex?: number
+  startDate?: string | null
+  endDate?: string | null
+  estimatedDays?: number | null
   lessons?: Lesson[]
   tasks?: Task[]
+  [key: string]: any
+}
+
+export type ManualDraftGoalInput = {
+  goalId: string
+  weight: number
+}
+
+export type ManualDraftQuizInput = {
+  id?: string
+  quizId?: string
+  quizzId?: string
+  title: string
+  description?: string | null
+  quizQuestionsJson?: string | null
+  [key: string]: any
+}
+
+export type ManualDraftLessonInput = {
+  id?: string
+  lessonId?: string
+  title: string
+  lessonDay?: string | null
+  content?: string | null
+  quizzes?: ManualDraftQuizInput[]
+  [key: string]: any
+}
+
+export type ManualDraftTaskInput = {
+  id?: string
+  taskId?: string
+  title: string
+  description?: string | null
+  priority?: string | number | null
+  taskStatus?: string | number | null
+  dueDate?: string | null
+  taskType?: string | number | null
+  quizQuestionsJson?: string | null
+  [key: string]: any
+}
+
+export type ManualDraftChapterInput = {
+  id?: string
+  chapterId?: string
+  title: string
+  content?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  estimatedDays?: number | null
+  lessons: ManualDraftLessonInput[]
+  tasks?: ManualDraftTaskInput[]
+  [key: string]: any
+}
+
+export type ManualDraftPayload = {
+  subjectId: string
+  goals: ManualDraftGoalInput[]
+  complexityLevel: string
+  languageSelection: number | string
+  title: string
+  description?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  chapters: ManualDraftChapterInput[]
+  [key: string]: any
 }
 
 export type SkeletonResponse = {
@@ -55,9 +129,9 @@ export type SkeletonResponse = {
       lessonDay?: string | null
       quizzes?: Array<{ quizzId: string; title: string; description?: string | null }>
     }>
-    tasks?: Array<{ 
-      taskId: string; 
-      title: string; 
+    tasks?: Array<{
+      taskId: string;
+      title: string;
       description?: string | null;
       priority?: string | null;
       taskStatus?: string | null;
@@ -70,6 +144,14 @@ export type SkeletonResponse = {
   lessons?: Lesson[]
   chapters?: Chapter[]
   [key: string]: any
+}
+
+function normalizeLanguageSelectionValue(value: unknown): unknown {
+  if (typeof value === 'number') {
+    if (value === 1) return 'VietNamese'
+    if (value === 2) return 'English'
+  }
+  return value
 }
 
 function unwrap<T>(res: any): T {
@@ -87,34 +169,46 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
   const hasChapterDtos = Array.isArray(payload?.chapterDtos)
   const chapters: Chapter[] | undefined = hasChapterDtos
     ? payload.chapterDtos.map((ch: any) => ({
+      ...ch,
       id: ch?.chapterId ?? ch?.id,
       title: ch?.title,
       content: ch?.content ?? null,
       orderIndex: ch?.orderIndex,
+      startDate: ch?.startDate ?? ch?.StartDate ?? null,
+      endDate: ch?.endDate ?? ch?.EndDate ?? null,
+      estimatedDays: ch?.estimatedDays ?? ch?.EstimatedDays ?? null,
       lessons: Array.isArray(ch?.lessons)
         ? ch.lessons.map((ls: any) => ({
+          ...ls,
           id: ls?.lessonId ?? ls?.id,
           title: ls?.title,
-          description: null,
+          description: ls?.description ?? null,
           content: ls?.content ?? null,
           lessonDay: ls?.lessonDay ?? null,
           quizzes: Array.isArray(ls?.quizzes)
             ? ls.quizzes.map((q: any) => ({
+              ...q,
               id: q?.quizzId ?? q?.id,
+              quizId: q?.quizId ?? q?.id,
+              quizzId: q?.quizzId ?? q?.id,
               title: q?.title,
               description: q?.description ?? null,
+              quizQuestionsJson: q?.quizQuestionsJson ?? q?.QuizQuestionsJson ?? null,
             }))
             : [],
         }))
         : [],
       tasks: Array.isArray(ch?.tasks)
         ? ch.tasks.map((t: any) => ({
+          ...t,
           id: t?.taskId ?? t?.id,
           title: t?.title,
           description: t?.description ?? null,
           priority: t?.priority ?? null,
           taskStatus: t?.taskStatus ?? null,
           dueDate: t?.dueDate ?? null,
+          taskType: t?.taskType ?? t?.TaskType ?? null,
+          quizQuestionsJson: t?.quizQuestionsJson ?? t?.QuizQuestionsJson ?? null,
         }))
         : [],
     }))
@@ -124,6 +218,7 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
     ? (chapters || []).flatMap((ch) => ch.lessons || [])
     : Array.isArray(payload?.lessons)
       ? payload.lessons.map((ls: any) => ({
+        ...ls,
         id: ls?.id ?? ls?.lessonId,
         title: ls?.title,
         description: ls?.description ?? null,
@@ -131,9 +226,13 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
         lessonDay: ls?.lessonDay ?? null,
         quizzes: Array.isArray(ls?.quizzes)
           ? ls.quizzes.map((q: any) => ({
+            ...q,
             id: q?.id ?? q?.quizzId,
+            quizId: q?.quizId ?? q?.id,
+            quizzId: q?.quizzId ?? q?.id,
             title: q?.title,
             description: q?.description ?? null,
+            quizQuestionsJson: q?.quizQuestionsJson ?? q?.QuizQuestionsJson ?? null,
           }))
           : [],
       }))
@@ -161,9 +260,9 @@ export async function generateSkeleton(
     (Array.isArray(payload?.subjects) ? (payload.subjects[0]?.id ?? payload.subjects[0]?.subjectId) : undefined)
 
   // Handle both old goalId format and new goals array format
-  const goals: Array<{ goalId: string; weight: number }> = Array.isArray(payload?.goals) 
-    ? payload.goals 
-    : payload?.goalId 
+  const goals: Array<{ goalId: string; weight: number }> = Array.isArray(payload?.goals)
+    ? payload.goals
+    : payload?.goalId
       ? [{ goalId: payload.goalId, weight: 100 }]
       : []
 
@@ -208,6 +307,59 @@ export async function generateSkeleton(
     languageSelection,
   }
   const res: any = await api.post(skeletonUrl, legacyReqBody)
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function generateAiDraft(payload: any): Promise<SkeletonResponse> {
+  const subjectId: string | undefined =
+    payload?.subjectId ??
+    payload?.SubjectId ??
+    (Array.isArray(payload?.subjectIds) ? payload.subjectIds[0] : undefined) ??
+    (Array.isArray(payload?.subjects) ? (payload.subjects[0]?.id ?? payload.subjects[0]?.subjectId) : undefined)
+
+  const goals: Array<{ goalId: string; weight: number }> = Array.isArray(payload?.goals)
+    ? payload.goals
+    : payload?.goalId
+      ? [{ goalId: payload.goalId, weight: 100 }]
+      : []
+
+  const complexityLevel: string | undefined =
+    payload?.complexityLevel ?? payload?.ComplexityLevel ?? payload?.level ?? payload?.Level
+
+  const languageSelection: number | undefined =
+    payload?.languageSelection ?? payload?.LanguageSelection
+
+  const reqBody = {
+    subjectId,
+    goals,
+    complexityLevel,
+    languageSelection,
+  }
+
+  const res: any = await api.post(aiDraftUrl, reqBody)
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function createManualDraft(payload: ManualDraftPayload): Promise<SkeletonResponse> {
+  const reqBody = {
+    ...payload,
+    languageSelection: normalizeLanguageSelectionValue(payload?.languageSelection),
+  }
+
+  const res: any = await api.post(manualDraftUrl, reqBody)
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function updateManualDraft(pathId: string, payload: ManualDraftPayload): Promise<SkeletonResponse> {
+  const reqBody = {
+    ...payload,
+    languageSelection: normalizeLanguageSelectionValue(payload?.languageSelection),
+  }
+
+  const res: any = await api.put(manualDraftDetailUrl(pathId), reqBody)
   const raw = unwrap<SkeletonResponse>(res)
   return normalizeSkeleton(raw)
 }
@@ -263,6 +415,14 @@ export interface UserLearningPathsResponse {
   pageSize: number
 }
 
+export interface MyDraftsParams {
+  pageNumber?: number
+  pageSize?: number
+  searchTerm?: string
+  subjectId?: string
+  sortDescending?: boolean
+}
+
 export async function getUserLearningPaths(
   userId: string | number,
   params?: UserLearningPathsParams
@@ -277,6 +437,35 @@ export async function getUserLearningPaths(
   if (params?.sortDescending !== undefined) queryParams.append('SortDescending', String(params.sortDescending))
 
   const url = `${userLearningPathsUrl(userId)}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<UserLearningPathsResponse>(res)
+
+  return {
+    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeleton) : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+  }
+}
+
+export async function getMyDraftDetail(pathId: string): Promise<SkeletonResponse> {
+  const res: any = await api.get(myDraftDetailUrl(pathId))
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function getMyDrafts(
+  params?: MyDraftsParams
+): Promise<UserLearningPathsResponse> {
+  const queryParams = new URLSearchParams()
+
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+  if (params?.sortDescending !== undefined) queryParams.append('SortDescending', String(params.sortDescending))
+
+  const url = `${myDraftsUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
   const res: any = await api.get(url)
   const data = unwrap<UserLearningPathsResponse>(res)
 
@@ -303,9 +492,9 @@ export async function getSuggestions(
     (Array.isArray(payload?.subjects) ? (payload.subjects[0]?.id ?? payload.subjects[0]?.subjectId) : undefined)
 
   // Handle both old goalId format and new goals array format
-  const goals: Array<{ goalId: string; weight: number }> = Array.isArray(payload?.goals) 
-    ? payload.goals 
-    : payload?.goalId 
+  const goals: Array<{ goalId: string; weight: number }> = Array.isArray(payload?.goals)
+    ? payload.goals
+    : payload?.goalId
       ? [{ goalId: payload.goalId, weight: 100 }]
       : []
 
@@ -338,4 +527,15 @@ export async function getSuggestions(
   throw new Error('REST API for learning path suggestions not implemented. Use SignalR instead.')
 }
 
-export default { generateSkeleton, generateLessonContent, generateChapterSkeleton, getUserLearningPaths, getSuggestions }
+export default {
+  generateSkeleton,
+  generateAiDraft,
+  createManualDraft,
+  updateManualDraft,
+  generateLessonContent,
+  generateChapterSkeleton,
+  getUserLearningPaths,
+  getMyDrafts,
+  getMyDraftDetail,
+  getSuggestions,
+}
