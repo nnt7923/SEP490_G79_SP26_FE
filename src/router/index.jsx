@@ -48,6 +48,7 @@ const TaskPage = React.lazy(() => import('../pages/private/Task'))
 const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
 const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
+const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
 const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat'))
 
 const Fallback = () => <PageSkeleton />
@@ -95,6 +96,7 @@ const router = createBrowserRouter([
           { path: '/task/:taskId', element: <TaskPage /> },
           { path: ROUTER.FOCUS_SESSION, element: <FocusSession /> },
           { path: ROUTER.CHAT, element: <StudentChatPage /> },
+          { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
         ],
       },
       // Shared routes (Student & Mentor)

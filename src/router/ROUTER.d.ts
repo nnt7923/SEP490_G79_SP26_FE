@@ -27,6 +27,7 @@ declare const ROUTER: {
   TASK: string
   FOCUS_SESSION: string
   CHAT: string
+  CHAT_SHARE_PREVIEW: string
   MENTOR_CHAT: string
 }
 

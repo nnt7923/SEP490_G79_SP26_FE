@@ -5,13 +5,13 @@ import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar'
 import useAuthStore from '../../../../store/useAuthStore'
 import useChatStore from '../../../../store/useChatStore'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../router/ROUTER'
 import { useChatHub } from '../../../../hooks/useChatHub'
-import { getPendingShares, acceptShare, rejectShare } from '../../../../services/LearningPathShareService'
+import { getPendingShares } from '../../../../services/LearningPathShareService'
 import { getContacts, getConversations, getMessages } from '../../../../services/DirectChatService'
 import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
-import type { PendingLearningPathShareSummaryDto, DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
+import type { DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
 import { getMessageStatus } from '../../../../types/chat'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import Toast from '../../../../components/Toast'
@@ -34,6 +34,7 @@ import LearningPathShareCard from '../../../../components/Chat/LearningPathShare
 import { buildLearningPathShareCardData, isLearningPathShareMessage } from '../../../../components/Chat/learningPathShare'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
+type ChatRouteState = { conversationId?: string; activeTab?: 'conversations' | 'invites' | 'contacts'; toast?: ToastState }
 
 function formatConversationTime(iso: string | null): string {
   if (!iso) return ''
@@ -88,6 +89,7 @@ const StudentChatPage: React.FC = () => {
   const { theme } = useTheme()
   const { logout, user } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation() as { state?: ChatRouteState }
 
   const {
     conversationsById,
@@ -99,19 +101,17 @@ const StudentChatPage: React.FC = () => {
     setMessages,
     pendingLearningPathShares,
     setPendingShares,
-    removePendingShare,
-    patchShareMessage,
     reconcilePendingShares,
   } = useChatStore()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'conversations' | 'invites' | 'contacts'>('conversations')
   const [contacts, setContacts] = useState<DirectChatContactDto[]>([])
-  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [showEmoji, setShowEmoji] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [isAtBottom, setIsAtBottom] = useState(true)
-  const [toast, setToast] = useState<ToastState | null>(null)
+  const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
+  const [requestedConversationId, setRequestedConversationId] = useState<string | null>(location.state?.conversationId ?? null)
   const deliveredRef = useRef<Set<string>>(new Set())
   const seenRef = useRef<Set<string>>(new Set())
   const messageListId = 'student-chat-message-list'
@@ -154,10 +154,25 @@ const StudentChatPage: React.FC = () => {
   }, [])
 
   useEffect(() => {
+    if (!location.state) return
+    if (location.state.toast) setToast(location.state.toast)
+    if (location.state.activeTab) setActiveTab(location.state.activeTab)
+    if (location.state.conversationId) setRequestedConversationId(location.state.conversationId)
+    if (location.state.toast || location.state.activeTab || location.state.conversationId) {
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.pathname, location.state, navigate])
+
+  useEffect(() => {
+    if (requestedConversationId && conversationsById[requestedConversationId]) {
+      setActiveConversation(requestedConversationId)
+      setRequestedConversationId(null)
+      return
+    }
     if (!activeConversationId && conversationOrder.length > 0) {
       setActiveConversation(conversationOrder[0])
     }
-  }, [activeConversationId, conversationOrder, setActiveConversation])
+  }, [activeConversationId, conversationOrder, conversationsById, requestedConversationId, setActiveConversation])
 
   useEffect(() => {
     if (!activeConversationId) return
@@ -239,46 +254,13 @@ const StudentChatPage: React.FC = () => {
     setInputValue('')
   }
 
-  const handleAccept = async (share: PendingLearningPathShareSummaryDto) => {
-    setActionLoading(prev => ({ ...prev, [share.shareId]: true }))
-    try {
-      await acceptShare(share.shareId)
-      patchShareMessage(share.shareId, {
-        shareStatus: 'Accepted',
-        respondedAt: new Date().toISOString(),
-        learningPathTitle: share.learningPathTitle,
-        learningPathDescription: share.learningPathDescription,
-        pathId: share.pathId,
-        mentorName: share.mentorName,
-      })
-      removePendingShare(share.shareId)
-      setToast({ message: t('chat.inviteAccepted'), type: 'success' })
-    } catch {
-      setToast({ message: t('chat.inviteError'), type: 'error' })
-    } finally {
-      setActionLoading(prev => ({ ...prev, [share.shareId]: false }))
-    }
-  }
-
-  const handleReject = async (share: PendingLearningPathShareSummaryDto) => {
-    setActionLoading(prev => ({ ...prev, [share.shareId]: true }))
-    try {
-      await rejectShare(share.shareId)
-      patchShareMessage(share.shareId, {
-        shareStatus: 'Rejected',
-        respondedAt: new Date().toISOString(),
-        learningPathTitle: share.learningPathTitle,
-        learningPathDescription: share.learningPathDescription,
-        pathId: share.pathId,
-        mentorName: share.mentorName,
-      })
-      removePendingShare(share.shareId)
-      setToast({ message: t('chat.inviteRejected'), type: 'success' })
-    } catch {
-      setToast({ message: t('chat.inviteError'), type: 'error' })
-    } finally {
-      setActionLoading(prev => ({ ...prev, [share.shareId]: false }))
-    }
+  const openSharePreview = (shareId: string, from: 'chat' | 'invites') => {
+    navigate(ROUTER.CHAT_SHARE_PREVIEW.replace(':shareId', shareId), {
+      state: {
+        from,
+        conversationId: from === 'chat' ? activeConversationId ?? undefined : undefined,
+      },
+    })
   }
 
   const handleLogout = async () => { await logout(); navigate(ROUTER.LOGIN) }
@@ -306,6 +288,7 @@ const StudentChatPage: React.FC = () => {
     reject: t('chat.reject'),
     accepting: t('chat.accepting'),
     rejecting: t('chat.rejecting'),
+    preview: t('chat.previewCta', { defaultValue: 'Preview' }),
     viewPath: t('chat.viewPath', { defaultValue: 'View learning path' }),
     shareFrom: (mentorName?: string | null) => t('chat.inviteFrom', { mentorName: mentorName || otherName || t('chat.title') }),
   }
@@ -437,11 +420,7 @@ const StudentChatPage: React.FC = () => {
                           sentAt: share.sentAt,
                         }}
                         actionMode="invite"
-                        canRespond
-                        acceptLoading={!!actionLoading[share.shareId]}
-                        rejectLoading={!!actionLoading[share.shareId]}
-                        onAccept={() => handleAccept(share)}
-                        onReject={() => handleReject(share)}
+                        onPreview={() => openSharePreview(share.shareId, 'invites')}
                         labels={shareCardLabels}
                       />
                     ))
@@ -485,9 +464,35 @@ const StudentChatPage: React.FC = () => {
                   const shareCardData = isLearningPathShareMessage(msg)
                     ? buildLearningPathShareCardData(msg, pendingLearningPathShares)
                     : null
-                  const pendingShare = shareCardData
-                    ? pendingLearningPathShares.find((share) => share.shareId === shareCardData.shareId)
-                    : null
+                  if (shareCardData) {
+                    return (
+                      <div
+                        key={msg.messageId}
+                        className={`chat-kit-share-row chat-kit-share-row--${isMine ? 'outgoing' : 'incoming'}`}
+                        data-chat-message-id={msg.messageId}
+                        data-chat-share-id={shareCardData.shareId}
+                      >
+                        <div className="chat-kit-share-row__card">
+                          <LearningPathShareCard
+                            data={shareCardData}
+                            onPreview={() => openSharePreview(shareCardData.shareId, 'chat')}
+                            onViewPath={shareCardData.pathId && shareCardData.status === 'Accepted'
+                              ? () => navigate('/my-plans/detail', { state: { pathId: shareCardData.pathId } })
+                              : undefined}
+                            labels={shareCardLabels}
+                          />
+                        </div>
+                        <div className={`chat-kit-share-row__footer chat-kit-share-row__footer--${isMine ? 'outgoing' : 'incoming'}`}>
+                          <span className="chat-kit-message-meta">
+                            {formatMessageTime(msg.sentAt)}
+                            {isMine && isLastMine && (
+                              <MessageStatusIcon status={getMessageStatus(msg)} />
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  }
                   return (
                     <Message
                       key={msg.messageId}
@@ -498,26 +503,7 @@ const StudentChatPage: React.FC = () => {
                       }}
                       type="text"
                     >
-                      {shareCardData ? (
-                        <Message.CustomContent>
-                          <div className={`chat-kit-share-message-body ${isMine ? 'chat-kit-share-message-body--outgoing' : 'chat-kit-share-message-body--incoming'}`}>
-                            <LearningPathShareCard
-                              data={shareCardData}
-                              canRespond={!!pendingShare && shareCardData.status === 'Pending'}
-                              acceptLoading={!!pendingShare && !!actionLoading[pendingShare.shareId]}
-                              rejectLoading={!!pendingShare && !!actionLoading[pendingShare.shareId]}
-                              onAccept={pendingShare ? () => handleAccept(pendingShare) : undefined}
-                              onReject={pendingShare ? () => handleReject(pendingShare) : undefined}
-                              onViewPath={shareCardData.pathId && shareCardData.status === 'Accepted'
-                                ? () => navigate('/my-plans/detail', { state: { pathId: shareCardData.pathId } })
-                                : undefined}
-                              labels={shareCardLabels}
-                            />
-                          </div>
-                        </Message.CustomContent>
-                      ) : (
-                        <Message.TextContent text={displayContent} />
-                      )}
+                      <Message.TextContent text={displayContent} />
                       <Message.Footer>
                         <span className="chat-kit-message-meta">
                           {formatMessageTime(msg.sentAt)}

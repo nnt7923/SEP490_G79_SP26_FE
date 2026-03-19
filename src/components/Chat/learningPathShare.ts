@@ -10,6 +10,27 @@ const asString = (value: unknown): string | null => {
   return null
 }
 
+export const normalizeShareId = (value: string | null | undefined): string =>
+  (value ?? '').trim().toLowerCase()
+
+const extractSharedLearningPathTitle = (content: string | null | undefined): string | null => {
+  const raw = asString(content)
+  if (!raw) return null
+
+  const patterns = [
+    /^shared learning path:\s*(.+)$/i,
+    /^share learning path:\s*(.+)$/i,
+    /^learning path shared:\s*(.+)$/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = raw.match(pattern)
+    if (match?.[1]?.trim()) return match[1].trim()
+  }
+
+  return null
+}
+
 export const getMessageTypeValue = (message: DirectMessageDto | Record<string, any>): string | null =>
   asString(message?.messageType) ??
   asString((message as any)?.MessageType)
@@ -31,13 +52,15 @@ export function buildLearningPathShareCardData(
   if (!shareId) return null
 
   const nested = (message as any)?.learningPathShare ?? (message as any)?.LearningPathShare ?? {}
-  const pendingShare = pendingShares.find((share) => share.shareId === shareId)
+  const normalizedShareId = normalizeShareId(shareId)
+  const pendingShare = pendingShares.find((share) => normalizeShareId(share.shareId) === normalizedShareId)
 
   const title =
     asString(message.learningPathTitle) ??
     asString((message as any)?.LearningPathTitle) ??
     asString(nested?.learningPathTitle) ??
     asString(nested?.title) ??
+    extractSharedLearningPathTitle(message.content) ??
     asString(pendingShare?.learningPathTitle)
 
   if (!title) return null

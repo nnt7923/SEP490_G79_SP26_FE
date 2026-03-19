@@ -10,6 +10,7 @@ type Props = {
   rejectLoading?: boolean
   onAccept?: () => void
   onReject?: () => void
+  onPreview?: () => void
   onViewPath?: () => void
   labels: {
     pending: string
@@ -19,6 +20,7 @@ type Props = {
     reject: string
     accepting: string
     rejecting: string
+    preview: string
     viewPath: string
     shareFrom: (mentorName?: string | null) => string
   }
@@ -44,14 +46,38 @@ const LearningPathShareCard: React.FC<Props> = ({
   rejectLoading = false,
   onAccept,
   onReject,
+  onPreview,
   onViewPath,
   labels,
 }) => {
   const isInviteMode = actionMode === 'invite'
   const wrapperClassName = isInviteMode ? 'chat-kit-invite-card' : 'chat-kit-share-card'
+  const isClickable = !!onPreview
+  const previewOnly = isClickable && !canRespond && !onViewPath
+
+  const handleCardClick = () => {
+    if (onPreview) onPreview()
+  }
+
+  const stopAndRun = (event: React.MouseEvent<HTMLButtonElement>, handler?: () => void) => {
+    event.stopPropagation()
+    if (handler) handler()
+  }
 
   return (
-    <div className={wrapperClassName}>
+    <div
+      className={`${wrapperClassName} ${isClickable ? 'chat-kit-share-card--clickable' : ''}`}
+      onClick={handleCardClick}
+      onKeyDown={(event) => {
+        if (!isClickable) return
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          handleCardClick()
+        }
+      }}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+    >
       <div className="chat-kit-share-header">
         <div className="chat-kit-share-icon">
           <Map size={14} />
@@ -75,12 +101,12 @@ const LearningPathShareCard: React.FC<Props> = ({
         </div>
       )}
 
-      {(canRespond || onViewPath) && (
+      {(canRespond || onViewPath || previewOnly) && (
         <div className={isInviteMode ? 'chat-kit-invite-actions' : 'chat-kit-share-actions'}>
           {canRespond && onAccept && (
             <button
               type="button"
-              onClick={onAccept}
+              onClick={(event) => stopAndRun(event, onAccept)}
               disabled={acceptLoading || rejectLoading}
               className="chat-kit-invite-btn chat-kit-invite-btn--accept"
             >
@@ -91,7 +117,7 @@ const LearningPathShareCard: React.FC<Props> = ({
           {canRespond && onReject && (
             <button
               type="button"
-              onClick={onReject}
+              onClick={(event) => stopAndRun(event, onReject)}
               disabled={acceptLoading || rejectLoading}
               className="chat-kit-invite-btn chat-kit-invite-btn--reject"
             >
@@ -99,10 +125,20 @@ const LearningPathShareCard: React.FC<Props> = ({
               {rejectLoading ? labels.rejecting : labels.reject}
             </button>
           )}
+          {previewOnly && (
+            <button
+              type="button"
+              onClick={(event) => stopAndRun(event, onPreview)}
+              className="chat-kit-share-view-btn"
+            >
+              <Eye size={14} />
+              {labels.preview}
+            </button>
+          )}
           {!canRespond && onViewPath && (
             <button
               type="button"
-              onClick={onViewPath}
+              onClick={(event) => stopAndRun(event, onViewPath)}
               className="chat-kit-share-view-btn"
             >
               <Eye size={14} />
@@ -112,7 +148,7 @@ const LearningPathShareCard: React.FC<Props> = ({
           {canRespond && data.status === 'Accepted' && onViewPath && (
             <button
               type="button"
-              onClick={onViewPath}
+              onClick={(event) => stopAndRun(event, onViewPath)}
               className="chat-kit-share-view-btn"
             >
               <Eye size={14} />

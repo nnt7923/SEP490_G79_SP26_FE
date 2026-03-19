@@ -42,6 +42,7 @@ const ROUTER = {
   FOCUS_SESSION: "/focus-session",
   // Chat
   CHAT: "/chat",
+  CHAT_SHARE_PREVIEW: "/chat/share-preview/:shareId",
   MENTOR_CHAT: "/mentor/chat",
 };
 
