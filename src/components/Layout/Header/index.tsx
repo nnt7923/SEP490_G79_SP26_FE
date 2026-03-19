@@ -62,7 +62,7 @@ const Header: React.FC = () => {
   const mdLines = [`- [${t('userMenu.dashboard')}](${dashboardPath})`]
   if (profilePath) mdLines.push(`- [${t('userMenu.profile')}](${profilePath})`)
   if (isStudent) mdLines.push(`- [${t('userMenu.myPlans')}](${ROUTER.MY_PLANS})`)
-  mdLines.push(`- [${t('userMenu.changePassword')}](${ROUTER.CHANGE_PASSWORD})`)
+  if (isStudent || isMentor) mdLines.push(`- [${t('userMenu.changePassword')}](${ROUTER.CHANGE_PASSWORD})`)
   mdLines.push(`- [${t('userMenu.logout')}](#logout)`)
   const md = mdLines.join('\n')
 
