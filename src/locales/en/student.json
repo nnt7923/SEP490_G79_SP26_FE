@@ -196,6 +196,7 @@
     "typeMessage": "Type your question...",
     "sendMessage": "Send message",
     "thinking": "Thinking...",
+    "loadingHistory": "Loading chat history...",
     "clearChat": "Clear chat",
     "errorSendingMessage": "Error sending message",
     "matchScore": "Match Score"

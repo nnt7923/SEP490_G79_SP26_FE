@@ -196,6 +196,7 @@
     "typeMessage": "Nhập câu hỏi của bạn...",
     "sendMessage": "Gửi tin nhắn",
     "thinking": "Đang suy nghĩ...",
+    "loadingHistory": "Đang tải lịch sử trò chuyện...",
     "clearChat": "Xóa cuộc trò chuyện",
     "errorSendingMessage": "Lỗi khi gửi tin nhắn",
     "matchScore": "Độ phù hợp"
