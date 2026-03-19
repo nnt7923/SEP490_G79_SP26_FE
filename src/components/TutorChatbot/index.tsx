@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Send, X, Minimize2, Maximize2, Bot, User, Loader2 } from 'lucide-react'
-import { sendTutorMessage } from '../../services/SignalR'
+import { sendTutorMessage, requestTutorMessages } from '../../services/SignalR'
 import { useTranslation } from 'react-i18next'
 
 interface Message {
@@ -31,6 +31,8 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId)
+  const [messagesLoaded, setMessagesLoaded] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -47,6 +49,70 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
       inputRef.current.focus()
     }
   }, [isOpen, isMinimized])
+
+  // Update conversation ID when prop changes
+  useEffect(() => {
+    setCurrentConversationId(conversationId)
+    // Reset messages loaded state when conversation changes
+    if (conversationId !== currentConversationId) {
+      setMessagesLoaded(false)
+      setMessages([])
+    }
+  }, [conversationId])
+
+  // Load message history when chat is opened and we have a conversation ID
+  useEffect(() => {
+    if (isOpen && currentConversationId && !messagesLoaded && !loadingHistory) {
+      loadMessageHistory()
+    }
+  }, [isOpen, currentConversationId, messagesLoaded, loadingHistory])
+
+  const loadMessageHistory = async () => {
+    if (!currentConversationId || messagesLoaded || loadingHistory) return
+
+    setLoadingHistory(true)
+    try {
+      const result = await requestTutorMessages(
+        currentConversationId,
+        1, // pageNumber
+        30, // pageSize
+        () => {
+          // onLoading - already set loading above
+        },
+        (data) => {
+          // onMessagesLoaded
+          if (data?.items && Array.isArray(data.items)) {
+            const historyMessages: Message[] = data.items.map((item: any) => ({
+              id: item.messageId || `msg-${Date.now()}-${Math.random()}`,
+              type: item.role === 'user' ? 'user' : 'assistant',
+              content: item.content || '',
+              timestamp: new Date(item.createdAt || Date.now())
+            }))
+            setMessages(historyMessages)
+          }
+        }
+      )
+
+      // Set messages from result if not set via callback
+      if (result?.items && Array.isArray(result.items) && messages.length === 0) {
+        const historyMessages: Message[] = result.items.map((item: any) => ({
+          id: item.messageId || `msg-${Date.now()}-${Math.random()}`,
+          type: item.role === 'user' ? 'user' : 'assistant',
+          content: item.content || '',
+          timestamp: new Date(item.createdAt || Date.now())
+        }))
+        setMessages(historyMessages)
+      }
+
+      setMessagesLoaded(true)
+    } catch (error: any) {
+      console.warn('Failed to load message history:', error.message)
+      // Don't show error to user, just continue with empty history
+      setMessagesLoaded(true)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
 
   const handleSendMessage = async () => {
     const message = inputMessage.trim()
@@ -363,7 +429,23 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
                 gap: 12
               }}
             >
-              {messages.length === 0 && (
+              {loadingHistory && (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    color: 'var(--text-secondary)',
+                    fontSize: 13,
+                    padding: '20px 0'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>{t('tutorChat.loadingHistory')}</span>
+                  </div>
+                </div>
+              )}
+
+              {messages.length === 0 && !loadingHistory && (
                 <div
                   style={{
                     textAlign: 'center',

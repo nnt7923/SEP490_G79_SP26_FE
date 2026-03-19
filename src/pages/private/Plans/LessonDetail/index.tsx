@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import Header from '../../../../components/Layout/Header'
 import Footer from '../../../../components/Layout/Footer'
 import TutorChatbot from '../../../../components/TutorChatbot'
-import { requestLessonContent } from '../../../../services/SignalR'
+import { requestLessonContent, requestResolveTutorConversation } from '../../../../services/SignalR'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
 import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, Award, Clock, Target, Loader2, ArrowUp, ArrowDown } from 'lucide-react'
@@ -143,6 +143,11 @@ const LessonDetailPage: React.FC = () => {
   
   const [isFocusMode, setIsFocusMode] = useState(false)
 
+  // Tutor conversation state
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [conversationCreated, setConversationCreated] = useState<boolean>(false)
+  const [conversationLoading, setConversationLoading] = useState<boolean>(false)
+
   const toggleFocusMode = async () => {
     if (!isFocusMode) {
       if (document.documentElement.requestFullscreen) {
@@ -245,6 +250,45 @@ const LessonDetailPage: React.FC = () => {
     }
     return false
   }
+
+  // Resolve tutor conversation when entering lesson
+  useEffect(() => {
+    if (!lessonId || !skeleton?.pathId) return
+
+    const resolveConversation = async () => {
+      setConversationLoading(true)
+      try {
+        const result = await requestResolveTutorConversation(
+          skeleton.pathId, // learningPathId
+          currentChapterId, // chapterId
+          lessonId, // lessonId
+          true, // createIfMissing
+          () => {
+            // onLoading - already set loading above
+          },
+          (data) => {
+            // onResolved
+            console.log('Tutor conversation resolved:', data)
+            setConversationId(data.conversationId)
+            setConversationCreated(data.created || false)
+          }
+        )
+
+        // Set conversation data from result
+        if (result?.conversationId) {
+          setConversationId(result.conversationId)
+          setConversationCreated(result.created || false)
+        }
+      } catch (error: any) {
+        console.warn('Failed to resolve tutor conversation:', error.message)
+        // Don't show error to user, just continue without conversation
+      } finally {
+        setConversationLoading(false)
+      }
+    }
+
+    resolveConversation()
+  }, [lessonId, skeleton?.pathId, currentChapterId])
 
   // Fetch lesson content
   useEffect(() => {
@@ -751,7 +795,7 @@ const LessonDetailPage: React.FC = () => {
       
       {/* AI Tutor Chatbot - Only show in lesson pages */}
       <TutorChatbot
-        conversationId={null}
+        conversationId={conversationId}
         learningPathId={skeleton?.pathId || null}
         chapterId={currentChapterId || null}
         lessonId={lessonId || null}

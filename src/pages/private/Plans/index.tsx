@@ -2205,23 +2205,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   }}
                   onClick={handleGenerateClick}
                 >
-                  {/* Recommended Badge */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 16,
-                    right: 16,
-                    background: 'var(--accent-primary)',
-                    color: 'var(--bg-surface)',
-                    padding: '4px 12px',
-                    borderRadius: 16,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {t('plans.recommended')}
-                  </div>
-
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
                     <div style={{ 
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',

@@ -44,6 +44,8 @@ const inflightQuizSkeleton = new Map<string, Promise<any>>()
 const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
 const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
 const inflightTutorMessages = new Map<string, Promise<any>>()
+const inflightTutorMessageHistory = new Map<string, Promise<any>>()
+const inflightTutorConversationResolve = new Map<string, Promise<any>>()
 
 // ==== Utils ====
 function getToken(): string | undefined {
@@ -1160,6 +1162,233 @@ export async function sendTutorMessage(
   return p
 }
 
+// ==== Request tutor message history (pure SignalR) ====
+export async function requestTutorMessages(
+  conversationId: string,
+  pageNumber: number = 1,
+  pageSize: number = 30,
+  onLoading?: () => void,
+  onMessagesLoaded?: (data: any) => void
+): Promise<any> {
+  if (!conversationId) {
+    return Promise.reject(new Error('conversationId is required for requesting tutor messages'))
+  }
+
+  // single-flight: return running promise for same conversationId-page
+  const key = `messages-${conversationId}-${pageNumber}-${pageSize}`
+  if (inflightTutorMessageHistory.has(key)) {
+    return inflightTutorMessageHistory.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorMessagesLoading', handleLoading)
+        hub.off('TutorMessagesLoaded', handleLoaded)
+        hub.off('TutorMessagesError', handleError)
+        inflightTutorMessageHistory.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleLoaded = (data: any) => {
+        if (data) {
+          onMessagesLoaded?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to load tutor messages'
+        
+        switch (errorCode) {
+          case 'CONVERSATION_NOT_FOUND':
+            errorMessage = 'Conversation not found'
+            break
+          case 'UNAUTHORIZED':
+            errorMessage = 'You are not authorized to view this conversation'
+            break
+          case 'INVALID_PAGE_NUMBER':
+            errorMessage = 'Invalid page number'
+            break
+          case 'INVALID_PAGE_SIZE':
+            errorMessage = 'Invalid page size'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor messages request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleLoadedWrap = (data: any) => { clearTo(); handleLoaded(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorMessagesLoading', handleLoading)
+      hub.on('TutorMessagesLoaded', handleLoadedWrap)
+      hub.on('TutorMessagesError', handleErrorWrap)
+
+      try {
+        // Backend expects conversationId, pageNumber, pageSize
+        hub.invoke('RequestTutorMessages',
+          conversationId,
+          pageNumber,
+          pageSize
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorMessageHistory.set(key, p)
+  return p
+}
+
+// ==== Request resolve tutor conversation (pure SignalR) ====
+export async function requestResolveTutorConversation(
+  learningPathId: string | null,
+  chapterId: string | null,
+  lessonId: string | null,
+  createIfMissing: boolean = true,
+  onLoading?: () => void,
+  onResolved?: (data: any) => void
+): Promise<any> {
+  // single-flight: return running promise for same context
+  const key = `resolve-${learningPathId || 'null'}-${chapterId || 'null'}-${lessonId || 'null'}`
+  if (inflightTutorConversationResolve.has(key)) {
+    return inflightTutorConversationResolve.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorConversationResolveStarted', handleStarted)
+        hub.off('TutorConversationResolved', handleResolved)
+        hub.off('TutorConversationResolveError', handleError)
+        inflightTutorConversationResolve.delete(key)
+      }
+
+      const handleStarted = () => {
+        onLoading?.()
+      }
+
+      const handleResolved = (data: any) => {
+        if (data) {
+          onResolved?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to resolve tutor conversation'
+        
+        switch (errorCode) {
+          case 'LEARNING_PATH_NOT_FOUND':
+            errorMessage = 'Learning path not found'
+            break
+          case 'CHAPTER_NOT_FOUND':
+            errorMessage = 'Chapter not found'
+            break
+          case 'LESSON_NOT_FOUND':
+            errorMessage = 'Lesson not found'
+            break
+          case 'UNAUTHORIZED':
+            errorMessage = 'You are not authorized to access this conversation'
+            break
+          case 'CONVERSATION_CREATION_FAILED':
+            errorMessage = 'Failed to create conversation'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor conversation resolve request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleResolvedWrap = (data: any) => { clearTo(); handleResolved(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorConversationResolveStarted', handleStarted)
+      hub.on('TutorConversationResolved', handleResolvedWrap)
+      hub.on('TutorConversationResolveError', handleErrorWrap)
+
+      try {
+        // Backend expects learningPathId, chapterId, lessonId, createIfMissing
+        hub.invoke('RequestResolveTutorConversation',
+          learningPathId,
+          chapterId,
+          lessonId,
+          createIfMissing
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorConversationResolve.set(key, p)
+  return p
+}
+
 // ==== Request chapter skeleton generation (pure SignalR) ====
 export async function requestChapterSkeleton(
   pathId: string,
@@ -1293,6 +1522,8 @@ export async function disconnectHubs(): Promise<void> {
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()
     inflightTutorMessages.clear()
+    inflightTutorMessageHistory.clear()
+    inflightTutorConversationResolve.clear()
   } catch {
     // ignore
   }
