@@ -181,7 +181,10 @@
     "noSuggestionsFound": "Không tìm thấy đề xuất nào phù hợp với tiêu chí của bạn.",
     "unableToGetSuggestions": "Không thể lấy đề xuất lộ trình",
     "invalidSuggestion": "Đề xuất không hợp lệ",
-    "errorSelectingSuggestion": "Lỗi khi chọn đề xuất"
+    "errorSelectingSuggestion": "Lỗi khi chọn đề xuất",
+    "suggestionAdoptedSuccess": "Đã áp dụng lộ trình đề xuất thành công!",
+    "suggestionAdoptedButNoPath": "Đã áp dụng đề xuất nhưng không nhận được pathId",
+    "errorAdoptingSuggestion": "Lỗi khi áp dụng lộ trình đề xuất"
   },
   "tutorChat": {
     "aiTutor": "AI Tutor",
@@ -374,7 +377,7 @@
     "sessionDetails": "Chi tiết phiên",
     "sessionName": "Tên phiên",
     "defaultSessionName": "Phiên học tập",
-    "startTime": "Thời gian bắt đầu (UTC+7)",
+    "startTime": "Thời gian bắt đầu",
     "plannedDuration": "Thời gian dự kiến",
     "minutes": "phút",
     "status": "Trạng thái",

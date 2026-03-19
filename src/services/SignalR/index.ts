@@ -42,6 +42,7 @@ const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
 const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
+const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
 const inflightTutorMessages = new Map<string, Promise<any>>()
 
 // ==== Utils ====
@@ -60,8 +61,7 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
   }
 
   // If connecting or reconnecting, wait for it to complete
-  const isConnectingOrReconnecting = conn.state === signalR.HubConnectionState.Connecting || conn.state === signalR.HubConnectionState.Reconnecting
-  if (isConnectingOrReconnecting) {
+  if (conn.state === signalR.HubConnectionState.Connecting || conn.state === signalR.HubConnectionState.Reconnecting) {
     // Wait up to 10 seconds for connection to be established
     const maxWait = 10000
     const startTime = Date.now()
@@ -75,7 +75,7 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
       }
       await new Promise(resolve => setTimeout(resolve, 100))
     }
-    if ((conn.state as signalR.HubConnectionState) !== signalR.HubConnectionState.Connected) {
+    if (conn.state !== signalR.HubConnectionState.Connected) {
       throw new Error(`Connection timeout: ${_name} hub failed to connect`)
     }
     return
@@ -90,13 +90,17 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
 function buildConnection(url: string): signalR.HubConnection {
   return new signalR.HubConnectionBuilder()
     .withUrl(url, {
-      accessTokenFactory: () => getToken() || '',
+      accessTokenFactory: () => {
+        const token = getToken()
+        console.log('SignalR accessTokenFactory called, token:', token ? `${token.substring(0, 20)}...` : 'null')
+        return token || ''
+      },
       withCredentials: true,
     } as signalR.IHttpConnectionOptions)
     .withAutomaticReconnect({
       nextRetryDelayInMilliseconds: (ctx) => ctx.previousRetryCount === 0 ? 0 : Math.min(1000 << ctx.previousRetryCount, 30000),
     })
-    .configureLogging(signalR.LogLevel.None)
+    .configureLogging(signalR.LogLevel.Information) // Tăng log level để debug
     .build()
 }
 
@@ -876,6 +880,154 @@ export async function requestLearningPathSuggestions(
   return p
 }
 
+// ==== Request adopt suggested learning path (pure SignalR) ====
+export async function requestAdoptSuggestedLearningPath(
+  suggestedPathId: string,
+  subjectId: string,
+  goals: Array<{ goalId: string; weight: number }>,
+  complexityLevel: string,
+  languageSelection: number,
+  onLoading?: () => void,
+  onAdopted?: (data: any) => void
+): Promise<any> {
+  if (!suggestedPathId || !subjectId || !goals || !Array.isArray(goals) || goals.length === 0 || !complexityLevel || languageSelection === undefined) {
+    return Promise.reject(new Error('Missing required parameters for adopting suggested learning path'))
+  }
+
+  // Debug: Log current token
+  const currentToken = getToken()
+  console.log('requestAdoptSuggestedLearningPath - Current token:', currentToken ? `${currentToken.substring(0, 20)}...` : 'null')
+
+  // Convert languageSelection number to string for backend
+  const languageSelectionString = languageSelection === 1 ? 'VietNamese' : 'English'
+
+  // single-flight: return running promise for same suggestedPathId
+  const key = `adopt-${suggestedPathId}-${subjectId}`
+  if (inflightAdoptSuggestedPath.has(key)) {
+    return inflightAdoptSuggestedPath.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getLearningPathHub()
+    
+    // Debug: Log hub connection state
+    console.log('requestAdoptSuggestedLearningPath - Hub connection state:', hub.state)
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('AdoptSuggestedLearningPathStarted', handleLoading)
+        hub.off('SuggestedLearningPathAdopted', handleAdopted)
+        hub.off('AdoptSuggestedLearningPathError', handleError)
+        inflightAdoptSuggestedPath.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleAdopted = (data: any) => {
+        if (data) {
+          onAdopted?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to adopt suggested learning path'
+        
+        switch (errorCode) {
+          case 'SUBJECT_NOT_FOUND':
+            errorMessage = 'Subject not found'
+            break
+          case 'GOALS_REQUIRED':
+            errorMessage = 'Goals are required'
+            break
+          case 'GOALS_LIMIT_EXCEEDED':
+            errorMessage = 'Too many goals selected'
+            break
+          case 'DUPLICATE_GOALS':
+            errorMessage = 'Duplicate goals detected'
+            break
+          case 'INVALID_GOAL_WEIGHT':
+            errorMessage = 'Invalid goal weight provided'
+            break
+          case 'GOAL_NOT_FOUND':
+            errorMessage = 'One or more goals not found'
+            break
+          case 'GOAL_SUBJECT_MISMATCH':
+            errorMessage = 'Goals do not match the selected subject'
+            break
+          case 'LEARNING_PATH_NOT_FOUND':
+            errorMessage = 'Suggested learning path not found'
+            break
+          case 'SUGGESTION_CONTEXT_MISMATCH':
+            errorMessage = 'Suggestion context does not match current selection'
+            break
+          case 'INVALID_COMPLEXITY':
+            errorMessage = 'Invalid complexity level provided'
+            break
+          case 'INVALID_LANGUAGE':
+            errorMessage = 'Invalid language selection'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Adopt suggested learning path request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleAdoptedWrap = (data: any) => { clearTo(); handleAdopted(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('AdoptSuggestedLearningPathStarted', handleLoading)
+      hub.on('SuggestedLearningPathAdopted', handleAdoptedWrap)
+      hub.on('AdoptSuggestedLearningPathError', handleErrorWrap)
+
+      try {
+        // Backend expects suggestedPathId, subjectId, goals array, complexityLevel, languageSelection
+        hub.invoke('RequestAdoptSuggestedLearningPath',
+          suggestedPathId,
+          subjectId,
+          goals,
+          complexityLevel,
+          languageSelectionString
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightAdoptSuggestedPath.set(key, p)
+  return p
+}
+
 // ==== Send tutor message (pure SignalR) ====
 export async function sendTutorMessage(
   conversationId: string | null,
@@ -1120,6 +1272,15 @@ export async function disconnectHubs(): Promise<void> {
       await tutorHub.stop()
     }
 
+    // Reset all hub references to null so they get recreated with new token
+    lessonHub = null
+    chapterHub = null
+    taskHub = null
+    quizHub = null
+    summaryHub = null
+    learningPathHub = null
+    tutorHub = null
+
     // Clear all inflight requests
     inflightLesson.clear()
     inflightChapter.clear()
@@ -1130,8 +1291,16 @@ export async function disconnectHubs(): Promise<void> {
     inflightChapterSkeleton.clear()
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
+    inflightAdoptSuggestedPath.clear()
     inflightTutorMessages.clear()
   } catch {
     // ignore
   }
+}
+
+// Function to force reconnect all hubs (useful when token changes)
+export async function reconnectHubs(): Promise<void> {
+  console.log('Reconnecting all SignalR hubs...')
+  await disconnectHubs()
+  // Hubs will be recreated automatically on next use with new token
 }

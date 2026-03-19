@@ -149,6 +149,14 @@ const useAuthStore = create<AuthState>((set, get) => ({
         // Use setUser to persist role to localStorage
         get().setUser(loginUser)
 
+        // Reconnect SignalR hubs with new token
+        try {
+          const { reconnectHubs } = await import('../services/SignalR')
+          await reconnectHubs()
+        } catch (e) {
+          console.warn('Failed to reconnect SignalR hubs:', e)
+        }
+
         // Load full profile after token; preserve role if profile lacks it
         await get().fetchProfile()
         return { isOk: true }
@@ -168,6 +176,15 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await AuthService.logout()
     } catch { }
+    
+    // Disconnect SignalR hubs before clearing state
+    try {
+      const { disconnectHubs } = await import('../services/SignalR')
+      await disconnectHubs()
+    } catch (e) {
+      console.warn('Failed to disconnect SignalR hubs:', e)
+    }
+    
     get().clearState()
     useChatStore.getState().reset()
     set({ loading: false })

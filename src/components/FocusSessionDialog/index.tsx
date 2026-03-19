@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Book, Timer } from 'lucide-react'
+import { Book, Timer, X } from 'lucide-react'
 import { SessionType } from '../../services/FocusSessionService'
 
 interface FocusSessionDialogProps {
@@ -50,118 +50,184 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
   return (
     <div style={{ 
       position: 'fixed', 
-      inset: 0, 
-      background: 'var(--overlay-dark)', 
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.7)', 
+      backdropFilter: 'blur(3px)',
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center', 
       zIndex: 50, 
-      padding: 16 
+      padding: 20 
     }}>
       <div style={{ 
-        background: 'var(--bg-surface-short)', 
-        border: '1px solid var(--border-base)', 
-        borderRadius: 2, 
-        maxWidth: 500, 
-        width: '100%', 
-        display: 'flex', 
-        flexDirection: 'column' 
+        background: 'white', 
+        borderRadius: 12, 
+        width: '100%',
+        maxWidth: 420, 
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        overflow: 'hidden'
       }}>
-        <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            {t('focusSession.createSession')}
-          </h3>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '8px 0 0 0' }}>
-            {t('focusSession.createSessionPrompt')} <strong>{taskTitle}</strong>?
-          </p>
+        {/* Header */}
+        <div style={{ 
+          padding: '20px 20px 16px 20px', 
+          borderBottom: '1px solid #f1f5f9',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between'
+        }}>
+          <div style={{ flex: 1, paddingRight: 12 }}>
+            <h3 style={{ 
+              fontSize: 18, 
+              fontWeight: 600, 
+              color: '#1e293b', 
+              margin: 0,
+              marginBottom: 4,
+              lineHeight: 1.3
+            }}>
+              Tạo phiên học tập
+            </h3>
+            <p style={{ 
+              fontSize: 13, 
+              color: '#64748b', 
+              margin: 0,
+              lineHeight: 1.4
+            }}>
+              Bạn có muốn tạo phiên học tập cho bài tập: <br/>
+              <span style={{ fontWeight: 500, color: '#1e293b' }}>{taskTitle}</span>?
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: 6,
+              border: 'none',
+              background: 'transparent',
+              color: '#64748b',
+              cursor: 'pointer',
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => { 
+              e.currentTarget.style.background = '#f1f5f9'
+              e.currentTarget.style.color = '#475569'
+            }}
+            onMouseLeave={(e) => { 
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = '#64748b'
+            }}
+          >
+            <X size={18} />
+          </button>
         </div>
         
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: '20px' }}>
           {/* Session Type */}
-          <div>
+          <div style={{ marginBottom: 18 }}>
             <label style={{ 
               display: 'block', 
-              fontSize: 11, 
+              fontSize: 13, 
               fontWeight: 600, 
-              color: 'var(--text-secondary)', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.5px', 
-              marginBottom: 8 
+              color: '#374151', 
+              marginBottom: 12
             }}>
-              {t('focusSession.sessionType')}
+              Loại phiên học tập
             </label>
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <button
                 type="button"
                 onClick={() => handleSessionTypeChange(SessionType.Pomodoro)}
                 style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  border: '1px solid var(--border-base)',
-                  borderRadius: 2,
-                  background: sessionType === SessionType.Pomodoro ? 'var(--bg-surface-short)' : 'var(--bg-surface)',
-                  borderColor: sessionType === SessionType.Pomodoro ? 'var(--danger-primary)' : 'var(--border-base)',
-                  color: sessionType === SessionType.Pomodoro ? 'var(--danger-primary)' : 'var(--text-primary)',
+                  padding: '14px 12px',
+                  border: sessionType === SessionType.Pomodoro ? '2px solid #ef4444' : '2px solid #e2e8f0',
+                  borderRadius: 8,
+                  background: sessionType === SessionType.Pomodoro ? '#fef2f2' : 'white',
+                  color: sessionType === SessionType.Pomodoro ? '#dc2626' : '#64748b',
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.2s ease',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 4
+                  gap: 6,
+                  textAlign: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  if (sessionType !== SessionType.Pomodoro) {
+                    e.currentTarget.style.borderColor = '#cbd5e1'
+                    e.currentTarget.style.background = '#f8fafc'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sessionType !== SessionType.Pomodoro) {
+                    e.currentTarget.style.borderColor = '#e2e8f0'
+                    e.currentTarget.style.background = 'white'
+                  }
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Timer size={14} /> {t('focusSession.pomodoro')}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  {t('focusSession.durationRange', { min: 1, max: 120 })}
+                <Timer size={18} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Pomodoro</div>
+                  <div style={{ fontSize: 11, marginTop: 2, opacity: 0.8 }}>Từ 1 đến 120 phút</div>
                 </div>
               </button>
               <button
                 type="button"
                 onClick={() => handleSessionTypeChange(SessionType.Study)}
                 style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  border: '1px solid var(--border-base)',
-                  borderRadius: 2,
-                  background: sessionType === SessionType.Study ? 'var(--bg-surface-short)' : 'var(--bg-surface)',
-                  borderColor: sessionType === SessionType.Study ? 'var(--accent-primary)' : 'var(--border-base)',
-                  color: sessionType === SessionType.Study ? 'var(--accent-primary)' : 'var(--text-primary)',
+                  padding: '14px 12px',
+                  border: sessionType === SessionType.Study ? '2px solid #3b82f6' : '2px solid #e2e8f0',
+                  borderRadius: 8,
+                  background: sessionType === SessionType.Study ? '#eff6ff' : 'white',
+                  color: sessionType === SessionType.Study ? '#2563eb' : '#64748b',
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.2s ease',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 4
+                  gap: 6,
+                  textAlign: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  if (sessionType !== SessionType.Study) {
+                    e.currentTarget.style.borderColor = '#cbd5e1'
+                    e.currentTarget.style.background = '#f8fafc'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sessionType !== SessionType.Study) {
+                    e.currentTarget.style.borderColor = '#e2e8f0'
+                    e.currentTarget.style.background = 'white'
+                  }
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Book size={14} /> {t('focusSession.study')}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  {t('focusSession.durationRange', { min: 1, max: 480 })}
+                <Book size={18} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Học tập</div>
+                  <div style={{ fontSize: 11, marginTop: 2, opacity: 0.8 }}>Từ 1 đến 480 phút</div>
                 </div>
               </button>
             </div>
           </div>
 
           {/* Duration */}
-          <div>
+          <div style={{ marginBottom: 18 }}>
             <label style={{ 
               display: 'block', 
-              fontSize: 11, 
+              fontSize: 13, 
               fontWeight: 600, 
-              color: 'var(--text-secondary)', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.5px', 
-              marginBottom: 6 
+              color: '#374151', 
+              marginBottom: 8
             }}>
-              {t('focusSession.duration')}
+              Thời gian (phút)
             </label>
             <input
               type="number"
@@ -171,87 +237,98 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
               max={getMaxDuration()}
               style={{ 
                 width: '100%', 
-                padding: '8px 12px', 
-                fontSize: 13, 
-                border: '1px solid var(--border-base)', 
-                borderRadius: 2, 
-                background: 'var(--bg-main)', 
-                color: 'var(--text-primary)', 
+                padding: '10px 12px', 
+                fontSize: 14, 
+                border: '2px solid #e2e8f0', 
+                borderRadius: 6, 
+                background: 'white', 
+                color: '#1e293b', 
                 outline: 'none', 
-                boxSizing: 'border-box' 
+                boxSizing: 'border-box',
+                transition: 'border-color 0.2s ease'
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              onFocus={(e) => { 
+                e.currentTarget.style.borderColor = '#3b82f6'
+              }} 
+              onBlur={(e) => { 
+                e.currentTarget.style.borderColor = '#e2e8f0'
+              }}
             />
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-              {t('focusSession.durationRange', { min: getMinDuration(), max: getMaxDuration() })}
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+              Từ {getMinDuration()} đến {getMaxDuration()} phút
             </div>
           </div>
 
           {/* Title (Optional) */}
-          <div>
+          <div style={{ marginBottom: 20 }}>
             <label style={{ 
               display: 'block', 
-              fontSize: 11, 
+              fontSize: 13, 
               fontWeight: 600, 
-              color: 'var(--text-secondary)', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.5px', 
-              marginBottom: 6 
+              color: '#374151', 
+              marginBottom: 8
             }}>
-              {t('focusSession.titleOptional')}
+              Tiêu đề (tùy chọn)
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={t('focusSession.titlePlaceholder')}
+              placeholder="Nhập tiêu đề cho phiên học tập..."
               style={{ 
                 width: '100%', 
-                padding: '8px 12px', 
-                fontSize: 13, 
-                border: '1px solid var(--border-base)', 
-                borderRadius: 2, 
-                background: 'var(--bg-main)', 
-                color: 'var(--text-primary)', 
+                padding: '10px 12px', 
+                fontSize: 14, 
+                border: '2px solid #e2e8f0', 
+                borderRadius: 6, 
+                background: 'white', 
+                color: '#1e293b', 
                 outline: 'none', 
-                boxSizing: 'border-box' 
+                boxSizing: 'border-box',
+                transition: 'border-color 0.2s ease'
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} 
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              onFocus={(e) => { 
+                e.currentTarget.style.borderColor = '#3b82f6'
+              }} 
+              onBlur={(e) => { 
+                e.currentTarget.style.borderColor = '#e2e8f0'
+              }}
             />
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: 12, paddingTop: 16 }}>
+          <div style={{ display: 'flex', gap: 12 }}>
             <button
               type="button"
               onClick={onCancel}
               disabled={loading}
               style={{ 
                 flex: 1, 
-                padding: '8px 16px', 
-                border: '1px solid var(--border-base)', 
-                borderRadius: 2, 
-                background: 'var(--bg-surface-short)', 
-                color: 'var(--text-primary)', 
-                fontSize: 12, 
-                fontWeight: 600, 
+                padding: '10px 16px', 
+                border: '2px solid #e2e8f0', 
+                borderRadius: 6, 
+                background: 'white', 
+                color: '#64748b', 
+                fontSize: 13, 
+                fontWeight: 500, 
                 cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1
+                opacity: loading ? 0.6 : 1,
+                transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => { 
                 if (!loading) {
-                  e.currentTarget.style.background = 'var(--gray-100)' 
+                  e.currentTarget.style.background = '#f8fafc'
+                  e.currentTarget.style.borderColor = '#cbd5e1'
                 }
               }} 
               onMouseLeave={(e) => { 
                 if (!loading) {
-                  e.currentTarget.style.background = 'var(--bg-surface-short)' 
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#e2e8f0'
                 }
               }}
             >
-              {t('focusSession.cancel')}
+              Hủy
             </button>
             <button
               type="button"
@@ -259,40 +336,41 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
               onClick={handleConfirm}
               style={{ 
                 flex: 1, 
-                padding: '8px 16px', 
-                background: loading ? 'var(--text-secondary)' : 'var(--text-primary)', 
-                color: 'var(--bg-surface-short)', 
+                padding: '10px 16px', 
+                background: loading ? '#94a3b8' : '#1e293b', 
+                color: 'white', 
                 border: 'none', 
-                borderRadius: 2, 
-                fontSize: 12, 
-                fontWeight: 600, 
+                borderRadius: 6, 
+                fontSize: 13, 
+                fontWeight: 500, 
                 cursor: loading ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8
+                gap: 8,
+                transition: 'background-color 0.2s ease'
               }}
               onMouseEnter={(e) => { 
                 if (!loading) {
-                  e.currentTarget.style.background = 'var(--text-strong)' 
+                  e.currentTarget.style.background = '#0f172a'
                 }
               }} 
               onMouseLeave={(e) => { 
                 if (!loading) {
-                  e.currentTarget.style.background = 'var(--text-primary)' 
+                  e.currentTarget.style.background = '#1e293b'
                 }
               }}
             >
               {loading && (
-                <div className="animate-spin" style={{ 
+                <div className="spinner" style={{ 
                   width: 14, 
                   height: 14, 
-                  border: '2px solid var(--bg-surface-short)', 
-                  borderTopColor: 'transparent', 
-                  borderRadius: '50%' 
+                  border: '2px solid rgba(255, 255, 255, 0.3)', 
+                  borderTopColor: 'white', 
+                  borderRadius: '50%'
                 }} />
               )}
-              {loading ? t('focusSession.creating') : t('focusSession.create')}
+              {loading ? 'Đang tạo...' : 'Tạo phiên'}
             </button>
           </div>
         </div>
