@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { startSessionUrl, sessionUrl, stopSessionUrl, reviewUrl, completeUrl, mySessionsUrl } from './url'
+import { startSessionUrl, sessionUrl, stopSessionUrl, pauseSessionUrl, resumeSessionUrl, reviewUrl, completeUrl, mySessionsUrl, serverTimeUrl, activeSessionUrl, activeSessionsUrl } from './url'
 
 export const SessionType = {
   Pomodoro: 0,
@@ -7,6 +7,51 @@ export const SessionType = {
 } as const
 
 export type SessionType = typeof SessionType[keyof typeof SessionType]
+
+// Helper function to parse SessionType from backend
+export function parseSessionType(value: any): SessionType {
+  console.log('Parsing SessionType:', value, 'type:', typeof value)
+  
+  // Handle string values from backend
+  if (typeof value === 'string') {
+    const lowerValue = value.toLowerCase()
+    if (lowerValue === 'pomodoro') {
+      console.log('Matched Pomodoro (lowercase)')
+      return SessionType.Pomodoro
+    }
+    if (lowerValue === 'study') {
+      console.log('Matched Study (lowercase)')
+      return SessionType.Study
+    }
+  }
+  
+  // Handle number values
+  if (typeof value === 'number') {
+    if (value === 0) {
+      console.log('Matched Pomodoro (number 0)')
+      return SessionType.Pomodoro
+    }
+    if (value === 1) {
+      console.log('Matched Study (number 1)')
+      return SessionType.Study
+    }
+  }
+  
+  // Handle exact string matches (case sensitive)
+  if (value === 'Pomodoro') {
+    console.log('Matched Pomodoro (exact case)')
+    return SessionType.Pomodoro
+  }
+  if (value === 'Study') {
+    console.log('Matched Study (exact case)')
+    return SessionType.Study
+  }
+  
+  console.warn('Unknown SessionType value:', value, 'defaulting to Pomodoro')
+  
+  // Default fallback
+  return SessionType.Pomodoro
+}
 
 export interface FocusSession {
   id: string
@@ -18,6 +63,14 @@ export interface FocusSession {
   endTime?: string | null
   isActive: boolean
   createdAt: string
+  serverCurrentTime?: string // Add server current time for offset calculation
+  // Pause/Resume specific fields
+  sessionStatus?: string // "Paused", "Running", etc.
+  elapsedMinutes?: number
+  remainingMinutes?: number
+  elapsedSeconds?: number
+  remainingSeconds?: number
+  isOvertime?: boolean
   [key: string]: any
 }
 
@@ -32,18 +85,34 @@ export async function startSession(payload: StartSessionRequest): Promise<FocusS
   const res: any = await api.post(startSessionUrl, payload)
   const data: any = res?.data ?? res
 
-  return {
+  // Debug: Log để kiểm tra SessionType từ backend
+  console.log('Backend response data:', data)
+  console.log('SessionType from backend:', data?.sessionType)
+  console.log('SessionType from payload:', payload.sessionType)
+
+  // Parse SessionType properly
+  const sessionType = data?.sessionType !== undefined 
+    ? parseSessionType(data.sessionType) 
+    : payload.sessionType
+
+  console.log('Final parsed SessionType:', sessionType)
+
+  const result = {
     id: data?.id ?? data?.sessionId,
     taskId: data?.taskId,
-    sessionType: data?.sessionType,
+    sessionType: sessionType,
     plannedDurationMinutes: data?.plannedDurationMinutes,
     title: data?.title ?? null,
     startTime: data?.startTime,
     endTime: data?.endTime ?? null,
     isActive: data?.isActive ?? true,
     createdAt: data?.createdAt,
-    ...data,
+    serverCurrentTime: data?.serverCurrentTime || data?.currentTime,
+    // Don't spread ...data to avoid overriding parsed sessionType
   }
+
+  console.log('Final session object:', result)
+  return result
 }
 
 export async function stopSession(id: string | number): Promise<FocusSession> {
@@ -52,7 +121,7 @@ export async function stopSession(id: string | number): Promise<FocusSession> {
   return {
     id: data?.id ?? data?.sessionId ?? String(id),
     taskId: data?.taskId,
-    sessionType: data?.sessionType,
+    sessionType: parseSessionType(data?.sessionType),
     plannedDurationMinutes: data?.plannedDurationMinutes,
     title: data?.title ?? null,
     startTime: data?.startTime,
@@ -69,7 +138,7 @@ export async function getSession(id: string | number): Promise<FocusSession> {
   return {
     id: data?.id ?? data?.sessionId ?? String(id),
     taskId: data?.taskId,
-    sessionType: data?.sessionType,
+    sessionType: parseSessionType(data?.sessionType),
     plannedDurationMinutes: data?.plannedDurationMinutes,
     title: data?.title ?? null,
     startTime: data?.startTime,
@@ -98,7 +167,7 @@ export async function getMySessions(): Promise<FocusSession[]> {
   return items.map((s: any) => ({
     id: s?.id ?? s?.sessionId,
     taskId: s?.taskId,
-    sessionType: s?.sessionType,
+    sessionType: parseSessionType(s?.sessionType),
     plannedDurationMinutes: s?.plannedDurationMinutes,
     title: s?.title ?? null,
     startTime: s?.startTime,
@@ -123,4 +192,115 @@ export async function completeSession(sessionId: string | number, payload: any):
   return data
 }
 
-export default { startSession, stopSession, getSession, getMySessions, getAiReview, completeSession, SessionType }
+export async function getServerTime(): Promise<string> {
+  const res: any = await api.get(serverTimeUrl)
+  const data: any = res?.data ?? res
+  return data?.currentTime || data?.serverTime || new Date().toISOString()
+}
+
+export async function getActiveSession(taskId: string): Promise<FocusSession | null> {
+  try {
+    const res: any = await api.get(activeSessionUrl(taskId))
+    const data: any = res?.data ?? res
+    
+    if (!data) return null
+    
+    return {
+      id: data?.id ?? data?.sessionId,
+      taskId: data?.taskId,
+      sessionType: parseSessionType(data?.sessionType),
+      plannedDurationMinutes: data?.plannedDurationMinutes,
+      title: data?.title ?? null,
+      startTime: data?.startTime,
+      endTime: data?.endTime ?? null,
+      isActive: data?.isActive ?? true,
+      createdAt: data?.createdAt,
+      ...data,
+    }
+  } catch (error: any) {
+    // Return null if no active session found (404) or other errors
+    console.log('No active session found for task:', taskId)
+    return null
+  }
+}
+
+export async function getActiveSessions(): Promise<FocusSession[]> {
+  try {
+    const res: any = await api.get(activeSessionsUrl)
+    const data: any = res?.data ?? res
+    
+    let items: any[] = []
+    if (Array.isArray(data)) items = data
+    else if (Array.isArray(data?.items)) items = data.items
+    else if (Array.isArray(data?.sessions)) items = data.sessions
+    else if (Array.isArray(data?.value)) items = data.value
+    else if (Array.isArray(data?.data)) items = data.data
+    else items = []
+
+    return items.map((s: any) => ({
+      id: s?.id ?? s?.sessionId,
+      taskId: s?.taskId,
+      sessionType: parseSessionType(s?.sessionType),
+      plannedDurationMinutes: s?.plannedDurationMinutes,
+      title: s?.title ?? null,
+      startTime: s?.startTime,
+      endTime: s?.endTime ?? null,
+      isActive: s?.isActive ?? true,
+      createdAt: s?.createdAt,
+      ...s,
+    }))
+  } catch (error: any) {
+    console.log('Error getting active sessions:', error)
+    return []
+  }
+}
+
+export async function pauseSession(sessionId: string | number): Promise<FocusSession> {
+  const res: any = await api.post(pauseSessionUrl(sessionId))
+  const data: any = res?.data ?? res
+  return {
+    id: data?.id ?? data?.sessionId ?? String(sessionId),
+    taskId: data?.taskId,
+    sessionType: parseSessionType(data?.sessionType),
+    plannedDurationMinutes: data?.plannedDurationMinutes,
+    title: data?.title ?? null,
+    startTime: data?.startTime,
+    endTime: data?.endTime ?? null,
+    isActive: data?.isActive ?? false,
+    createdAt: data?.createdAt,
+    // Add pause/resume specific fields
+    sessionStatus: data?.sessionStatus,
+    elapsedMinutes: data?.elapsedMinutes,
+    remainingMinutes: data?.remainingMinutes,
+    elapsedSeconds: data?.elapsedSeconds,
+    remainingSeconds: data?.remainingSeconds,
+    isOvertime: data?.isOvertime,
+    ...data,
+  }
+}
+
+export async function resumeSession(sessionId: string | number): Promise<FocusSession> {
+  const res: any = await api.post(resumeSessionUrl(sessionId))
+  const data: any = res?.data ?? res
+  return {
+    id: data?.id ?? data?.sessionId ?? String(sessionId),
+    taskId: data?.taskId,
+    sessionType: parseSessionType(data?.sessionType),
+    plannedDurationMinutes: data?.plannedDurationMinutes,
+    title: data?.title ?? null,
+    startTime: data?.startTime,
+    endTime: data?.endTime ?? null,
+    isActive: data?.isActive ?? true,
+    createdAt: data?.createdAt,
+    // Add pause/resume specific fields
+    sessionStatus: data?.sessionStatus,
+    elapsedMinutes: data?.elapsedMinutes,
+    remainingMinutes: data?.remainingMinutes,
+    elapsedSeconds: data?.elapsedSeconds,
+    remainingSeconds: data?.remainingSeconds,
+    isOvertime: data?.isOvertime,
+    ...data,
+  }
+}
+
+export default { startSession, stopSession, getSession, getMySessions, getAiReview, completeSession, getServerTime, getActiveSession, getActiveSessions, pauseSession, resumeSession, SessionType, parseSessionType }

@@ -31,6 +31,40 @@ const FocusSessionPage: React.FC = () => {
 
   const [session] = useState<FocusSession | null>(sessionData || null)
   const [task] = useState<TaskData | null>(taskData || null)
+
+  // Debug: Log session data
+  React.useEffect(() => {
+    if (session) {
+      console.log('FocusSession component - session data:', session)
+      console.log('FocusSession component - sessionType:', session.sessionType)
+      console.log('FocusSession component - sessionType type:', typeof session.sessionType)
+      console.log('SessionType.Pomodoro:', SessionType.Pomodoro)
+      console.log('SessionType.Study:', SessionType.Study)
+      console.log('session.sessionType === SessionType.Pomodoro:', session.sessionType === SessionType.Pomodoro)
+      console.log('session.sessionType === SessionType.Study:', session.sessionType === SessionType.Study)
+    }
+  }, [session])
+
+  // Scroll to top when component mounts
+  React.useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }, [])
+
+  // Auto-pause session when leaving the page (component unmounts)
+  React.useEffect(() => {
+    return () => {
+      // Cleanup function - called when component unmounts
+      if (session && session.isActive) {
+        // Call pause API when user leaves the focus session page
+        FocusSessionService.pauseSession(session.id).catch((error) => {
+          console.warn('Failed to pause session on unmount:', error)
+        })
+      }
+    }
+  }, [session])
   const [timeRemaining, setTimeRemaining] = useState<number>(0)
   const [isRunning, setIsRunning] = useState<boolean>(true)
   const [loading, setLoading] = useState<boolean>(false)
@@ -154,13 +188,55 @@ const FocusSessionPage: React.FC = () => {
 
   // Calculate initial time remaining
   useEffect(() => {
-    if (session) {
+    const calculateTimeRemaining = async () => {
+      if (!session) return
+
+      // Priority 1: Use remainingSeconds from backend (most accurate for resumed sessions)
+      if (session.remainingSeconds !== undefined) {
+        console.log('Using remainingSeconds from backend:', session.remainingSeconds)
+        setTimeRemaining(session.remainingSeconds)
+        return
+      }
+
+      // Priority 2: Use remainingMinutes from backend (fallback)
+      if (session.remainingMinutes !== undefined) {
+        console.log('Using remainingMinutes from backend:', session.remainingMinutes)
+        setTimeRemaining(session.remainingMinutes * 60)
+        return
+      }
+
+      // Priority 3: Calculate from start time (for new sessions)
+      let serverTimeOffset = 0
+
+      // Try to get server time offset
+      if (session.serverCurrentTime) {
+        // Use server time from session response
+        const serverTime = new Date(session.serverCurrentTime).getTime()
+        const clientTimeWhenReceived = Date.now()
+        serverTimeOffset = serverTime - clientTimeWhenReceived
+      } else {
+        // Fallback: get current server time
+        try {
+          const serverTime = await FocusSessionService.getServerTime()
+          const serverTimeMs = new Date(serverTime).getTime()
+          const clientTimeMs = Date.now()
+          serverTimeOffset = serverTimeMs - clientTimeMs
+        } catch (error) {
+          console.warn('Could not get server time, using client time:', error)
+        }
+      }
+
+      // Calculate remaining time using server time
       const startTime = new Date(session.startTime).getTime()
       const plannedEndTime = startTime + (session.plannedDurationMinutes * 60 * 1000)
-      const now = Date.now()
-      const remaining = Math.max(0, plannedEndTime - now)
+      const currentServerTime = Date.now() + serverTimeOffset
+      const remaining = Math.max(0, plannedEndTime - currentServerTime)
+      
+      console.log('Calculated remaining time from startTime:', Math.floor(remaining / 1000), 'seconds')
       setTimeRemaining(Math.floor(remaining / 1000))
     }
+
+    calculateTimeRemaining()
   }, [session])
 
   // Timer countdown
@@ -206,9 +282,8 @@ const FocusSessionPage: React.FC = () => {
 
   const formatDateTime = (dateString: string): string => {
     const date = new Date(dateString)
-    // Convert to UTC+7
-    const utc7Date = new Date(date.getTime() + (7 * 60 * 60 * 1000))
-    return utc7Date.toLocaleString('vi-VN', {
+    // Hiển thị thời gian từ server mà không thay đổi múi giờ
+    return date.toLocaleString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -676,7 +751,7 @@ const FocusSessionPage: React.FC = () => {
     return (
       <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Header />
-        <main style={{ flex: 1, padding: '40px 24px', maxWidth: 800, margin: '0 auto', width: '100%', textAlign: 'center' }}>
+        <main style={{ flex: 1, padding: '40px 24px 80px 24px', maxWidth: 800, margin: '0 auto', width: '100%', textAlign: 'center' }}>
           <div style={{ padding: 40 }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
               {t('focusSession.sessionNotFound')}
@@ -734,7 +809,7 @@ const FocusSessionPage: React.FC = () => {
         </button>
       )}
 
-      <main style={{ flex: 1, display: 'flex', gap: 0 }}>
+      <main style={{ flex: 1, display: 'flex', gap: 0, marginBottom: '40px' }}>
         {/* Left Panel - Task Info */}
         <div style={{
           width: 300,
@@ -953,35 +1028,56 @@ const FocusSessionPage: React.FC = () => {
           </div>
 
           <div style={{ flex: 1, padding: 16 }}>
-            <div style={{ marginBottom: 16 }}>
+            {/* Session Type Badge */}
+            <div style={{ marginBottom: 20 }}>
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
+                gap: 8,
+                padding: '12px 20px',
                 background: 'transparent',
-                border: '1px solid currentColor',
+                border: `2px solid ${getSessionTypeColor(session.sessionType)}`,
                 color: getSessionTypeColor(session.sessionType),
-                borderRadius: 4,
-                marginBottom: 12
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600
               }}>
-                <span style={{ fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {getSessionTypeIcon(session.sessionType)}
-                  {getSessionTypeLabel(session.sessionType)}
-                </span>
+                {getSessionTypeIcon(session.sessionType)}
+                {getSessionTypeLabel(session.sessionType)}
+              </div>
+            </div>
+
+            {/* Session Name */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ 
+                padding: '16px 20px', 
+                background: 'var(--bg-surface)', 
+                borderRadius: 8, 
+                border: '1px solid var(--border-base)' 
+              }}>
+                <div style={{ 
+                  fontSize: 11, 
+                  fontWeight: 600, 
+                  color: 'var(--text-secondary)', 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.5px', 
+                  marginBottom: 8 
+                }}>
+                  SESSION NAME
+                </div>
+                <div style={{ 
+                  fontSize: 16, 
+                  color: 'var(--text-primary)', 
+                  fontWeight: 600, 
+                  wordBreak: 'break-word', 
+                  lineHeight: 1.4 
+                }}>
+                  {session.title || t('focusSession.defaultSessionName')}
+                </div>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ padding: 12, background: 'var(--bg-surface)', borderRadius: 6, border: '1px solid var(--border-base)' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                  {t('focusSession.sessionName')}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, wordBreak: 'break-word', lineHeight: 1.4 }}>
-                  {session.title || t('focusSession.defaultSessionName')}
-                </div>
-              </div>
-
               <div style={{ padding: 12, background: 'var(--bg-surface)', borderRadius: 6, border: '1px solid var(--border-base)' }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                   {t('focusSession.startTime')}

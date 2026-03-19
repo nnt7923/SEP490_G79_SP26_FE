@@ -181,7 +181,10 @@
     "noSuggestionsFound": "No suggestions found matching your criteria.",
     "unableToGetSuggestions": "Unable to get learning path suggestions",
     "invalidSuggestion": "Invalid suggestion",
-    "errorSelectingSuggestion": "Error selecting suggestion"
+    "errorSelectingSuggestion": "Error selecting suggestion",
+    "suggestionAdoptedSuccess": "Successfully adopted suggested learning path!",
+    "suggestionAdoptedButNoPath": "Suggestion adopted but no pathId received",
+    "errorAdoptingSuggestion": "Error adopting suggested learning path"
   },
   "tutorChat": {
     "aiTutor": "AI Tutor",

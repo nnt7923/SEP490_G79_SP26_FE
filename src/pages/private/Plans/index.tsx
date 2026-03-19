@@ -8,7 +8,7 @@ import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import Toast from '../../../components/Toast'
 import { useNavigate } from 'react-router-dom'
-import ROUTER from '../../../router/ROUTER'
+import ROUTER from '../../../router/ROUTER.js'
 import StepHeader from './components/StepHeader'
 import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
@@ -107,7 +107,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [generating, setGenerating] = useState<boolean>(false)
   
   // Toast state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
   const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
@@ -499,7 +499,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
         return
       }
 
-      navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', sk.pathId), {
+      navigate('/mentor/drafts/' + sk.pathId, {
         state: { pathId: sk.pathId, draft: sk },
       })
     } catch (e: any) {
@@ -524,11 +524,93 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       return
     }
 
+    // Validate required data
+    if (!language) {
+      setToast({ message: t('plans.selectSubject'), type: 'error' })
+      return
+    }
+    if (selectedGoals.length === 0) {
+      setToast({ message: t('plans.selectAtLeastOneGoal'), type: 'error' })
+      return
+    }
+    if (!level) {
+      setToast({ message: t('plans.selectLevel'), type: 'error' })
+      return
+    }
+    if (languageSelection === null || languageSelection === undefined) {
+      setToast({ message: t('plans.selectLanguage'), type: 'error' })
+      return
+    }
+
+    setGenerating(true)
+    setGenerationProgress(0)
+    setPlanError(null)
+    setShowSuggestions(false) // Close suggestions modal
+
     try {
-      // Navigate to the suggested learning path
-      navigate('/my-plans/detail', { state: { pathId: suggestion.pathId } })
+      // Prepare goals array with weights using goalPriorities
+      const goalsWithWeights = selectedGoals.map(goalId => {
+        // Use goalPriorities for weight, or calculate equal weight if not set
+        const priority = goalPriorities[goalId] || 50 // Default to 50 if not set
+        // Convert priority (1-100) to weight (0.0-1.0), normalize across all goals
+        const weight = priority / 100
+        return {
+          goalId: goalId,
+          weight: weight
+        }
+      })
+
+      // Normalize weights so they sum to 1.0
+      const totalWeight = goalsWithWeights.reduce((sum, g) => sum + g.weight, 0)
+      if (totalWeight > 0) {
+        goalsWithWeights.forEach(g => {
+          g.weight = g.weight / totalWeight
+        })
+      } else {
+        // Fallback to equal weights
+        const equalWeight = 1.0 / goalsWithWeights.length
+        goalsWithWeights.forEach(g => {
+          g.weight = equalWeight
+        })
+      }
+
+      // Import SignalR function
+      const { requestAdoptSuggestedLearningPath } = await import('../../../services/SignalR')
+
+      const result = await requestAdoptSuggestedLearningPath(
+        suggestion.pathId, // suggestedPathId
+        language, // subjectId
+        goalsWithWeights, // goals with weights
+        level, // complexityLevel
+        languageSelection, // languageSelection (0 = English, 1 = Vietnamese)
+        () => {
+          // onLoading
+          setGenerationProgress(20)
+        },
+        (data: any) => {
+          // onAdopted
+          setGenerationProgress(90)
+          console.log('Suggested learning path adopted:', data)
+        }
+      )
+
+      setGenerationProgress(100)
+      setGenerating(false)
+
+      // Navigate to the adopted learning path
+      if (result?.pathId) {
+        navigate('/my-plans/detail', { state: { pathId: result.pathId } })
+        setToast({ message: t('plans.suggestionAdoptedSuccess'), type: 'success' })
+      } else {
+        setToast({ message: t('plans.suggestionAdoptedButNoPath'), type: 'warning' })
+      }
+
     } catch (e: any) {
-      setToast({ message: e?.message || t('plans.errorSelectingSuggestion'), type: 'error' })
+      setGenerating(false)
+      setGenerationProgress(0)
+      const errorMessage = e?.message || t('plans.errorAdoptingSuggestion')
+      setPlanError(errorMessage)
+      setToast({ message: errorMessage, type: 'error' })
     }
   }
 
@@ -2083,102 +2165,314 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               />
 
               {/* Generation Options */}
-              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, maxWidth: 1000, margin: '0 auto' }} aria-label="generation-options">
+              <section style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', 
+                gap: 24, 
+                maxWidth: 1200, 
+                margin: '0 auto',
+                padding: '0 16px'
+              }} aria-label="generation-options">
                 
                 {/* Option 1: AI Generation */}
-                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
                 <div
                   style={{
-                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
-                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
-                    height: '100%', display: 'flex', flexDirection: 'column'
+                    padding: '32px 28px',
+                    border: '2px solid var(--border-base)',
+                    borderRadius: 12,
+                    background: 'var(--bg-surface)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)'
+                    e.currentTarget.style.background = 'var(--bg-main)'
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                    e.currentTarget.style.background = 'var(--bg-surface)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
                   onClick={handleGenerateClick}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-                    <div style={{ fontSize: 32 }}>🤖</div>
-                    <div>
-                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  {/* Recommended Badge */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    background: 'var(--accent-primary)',
+                    color: 'var(--bg-surface)',
+                    padding: '4px 12px',
+                    borderRadius: 16,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    {t('plans.recommended')}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: 16,
+                      padding: 16,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 72,
+                      height: 72
+                    }}>
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 12l2 2 4-4"/>
+                        <path d="M21 12c.552 0 1-.448 1-1V5c0-.552-.448-1-1-1H3c-.552 0-1 .448-1 1v6c0 .552.448 1 1 1"/>
+                        <path d="M3 12v6c0 .552.448 1 1 1h16c.552 0 1-.448 1-1v-6"/>
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ 
+                        fontSize: 20, 
+                        fontWeight: 700, 
+                        color: 'var(--text-primary)', 
+                        margin: '0 0 8px 0',
+                        lineHeight: 1.3
+                      }}>
                         {t('plans.aiGeneration')}
                       </h3>
-                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                        {t('plans.recommended')}
+                      <p style={{ 
+                        fontSize: 14, 
+                        color: 'var(--text-secondary)', 
+                        margin: 0,
+                        lineHeight: 1.4
+                      }}>
+                        {t('plans.aiGenerationDesc')}
                       </p>
                     </div>
                   </div>
-                  <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.5, flex: 1 }}>
-                    {t('plans.aiGenerationDesc')}
-                  </p>
-                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-base)', fontSize: 12, color: 'var(--text-secondary)' }}>
-                    ⚡ {t('plans.fastAndPersonalized')}
+
+                  <div style={{ 
+                    marginTop: 'auto',
+                    paddingTop: 20,
+                    borderTop: '1px solid var(--border-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 13,
+                    color: 'var(--accent-primary)',
+                    fontWeight: 600
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                    {t('plans.fastAndPersonalized')}
                   </div>
                 </div>
                 </Tilt>
 
                 {/* Option 2: Similar Learning Paths */}
-                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
                 <div
                   style={{
-                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
-                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
-                    height: '100%', display: 'flex', flexDirection: 'column'
+                    padding: '32px 28px',
+                    border: '2px solid var(--border-base)',
+                    borderRadius: 12,
+                    background: 'var(--bg-surface)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--success-primary)'
+                    e.currentTarget.style.background = 'var(--bg-main)'
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                    e.currentTarget.style.background = 'var(--bg-surface)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
                   onClick={handleGetSuggestions}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-                    <div style={{ fontSize: 32 }}>📚</div>
-                    <div>
-                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                      borderRadius: 16,
+                      padding: 16,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 72,
+                      height: 72
+                    }}>
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ 
+                        fontSize: 20, 
+                        fontWeight: 700, 
+                        color: 'var(--text-primary)', 
+                        margin: '0 0 8px 0',
+                        lineHeight: 1.3
+                      }}>
                         {t('plans.similarPaths')}
                       </h3>
-                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                        {t('plans.getRecommendations')}
+                      <p style={{ 
+                        fontSize: 14, 
+                        color: 'var(--text-secondary)', 
+                        margin: 0,
+                        lineHeight: 1.4
+                      }}>
+                        {t('plans.similarPathsDesc')}
                       </p>
                     </div>
                   </div>
-                  <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.5, flex: 1 }}>
-                    {t('plans.similarPathsDesc')}
-                  </p>
-                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-base)', fontSize: 12, color: 'var(--text-secondary)' }}>
-                    🔍 {t('plans.browseExisting')}
+
+                  <div style={{ 
+                    marginTop: 'auto',
+                    paddingTop: 20,
+                    borderTop: '1px solid var(--border-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 13,
+                    color: 'var(--success-primary)',
+                    fontWeight: 600
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/>
+                      <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    {t('plans.browseExisting')}
                   </div>
                 </div>
                 </Tilt>
 
                 {/* Option 3: Ask Mentor */}
-                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
                 <div
                   style={{
-                    padding: 24, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
-                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
-                    height: '100%', display: 'flex', flexDirection: 'column', opacity: 0.7
+                    padding: '32px 28px',
+                    border: '2px solid var(--border-base)',
+                    borderRadius: 12,
+                    background: 'var(--bg-surface)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    opacity: 0.75
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--warning-primary)'
+                    e.currentTarget.style.background = 'var(--bg-main)'
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
+                    e.currentTarget.style.opacity = '1'
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                    e.currentTarget.style.background = 'var(--bg-surface)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                    e.currentTarget.style.opacity = '0.75'
+                  }}
                   onClick={() => {
                     setToast({ message: t('plans.comingSoon'), type: 'success' })
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-                    <div style={{ fontSize: 32 }}>👨‍🏫</div>
-                    <div>
-                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  {/* Coming Soon Badge */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    background: 'var(--warning-primary)',
+                    color: 'var(--bg-surface)',
+                    padding: '4px 12px',
+                    borderRadius: 16,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    {t('plans.comingSoon')}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                      borderRadius: 16,
+                      padding: 16,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 72,
+                      height: 72
+                    }}>
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="m22 2-5 10-5-5 10-5z"/>
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ 
+                        fontSize: 20, 
+                        fontWeight: 700, 
+                        color: 'var(--text-primary)', 
+                        margin: '0 0 8px 0',
+                        lineHeight: 1.3
+                      }}>
                         {t('plans.askMentor')}
                       </h3>
-                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                        {t('plans.comingSoon')}
+                      <p style={{ 
+                        fontSize: 14, 
+                        color: 'var(--text-secondary)', 
+                        margin: 0,
+                        lineHeight: 1.4
+                      }}>
+                        {t('plans.askMentorDesc')}
                       </p>
                     </div>
                   </div>
-                  <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.5, flex: 1 }}>
-                    {t('plans.askMentorDesc')}
-                  </p>
-                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-base)', fontSize: 12, color: 'var(--text-secondary)' }}>
-                    💬 {t('plans.personalGuidance')}
+
+                  <div style={{ 
+                    marginTop: 'auto',
+                    paddingTop: 20,
+                    borderTop: '1px solid var(--border-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 13,
+                    color: 'var(--warning-primary)',
+                    fontWeight: 600
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    {t('plans.personalGuidance')}
                   </div>
                 </div>
                 </Tilt>
@@ -2187,16 +2481,46 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
               {/* Loading and Error States */}
               {generating && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 32, padding: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
-                  <div className="animate-spin" style={{ width: 20, height: 20, border: '2px solid var(--text-secondary)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', marginRight: 12 }} />
-                  <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  marginTop: 40, 
+                  padding: 24, 
+                  background: 'var(--bg-surface)', 
+                  border: '2px solid var(--border-base)', 
+                  borderRadius: 12,
+                  maxWidth: 500,
+                  margin: '40px auto 0'
+                }}>
+                  <div className="animate-spin" style={{ 
+                    width: 24, 
+                    height: 24, 
+                    border: '3px solid var(--border-base)', 
+                    borderTopColor: 'var(--accent-primary)', 
+                    borderRadius: '50%', 
+                    marginRight: 16 
+                  }} />
+                  <span style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>
                     {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
                   </span>
                 </div>
               )}
 
               {planError && (
-                <div style={{ marginTop: 32, maxWidth: 600, margin: '32px auto 0', padding: 16, background: 'var(--bg-red-tint)', border: '1px solid var(--danger-primary)', borderRadius: 4, color: 'var(--danger-primary)', textAlign: 'center' }}>
+                <div style={{ 
+                  marginTop: 40, 
+                  maxWidth: 600, 
+                  margin: '40px auto 0', 
+                  padding: 20, 
+                  background: 'var(--bg-red-tint)', 
+                  border: '2px solid var(--danger-primary)', 
+                  borderRadius: 12, 
+                  color: 'var(--danger-primary)', 
+                  textAlign: 'center',
+                  fontSize: 14,
+                  lineHeight: 1.5
+                }}>
                   {planError}
                 </div>
               )}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { requestChapterTasks } from '../../../../../services/SignalR'
 import { FocusSessionService, SessionType } from '../../../../../services'
+import type { FocusSession } from '../../../../../services/FocusSessionService'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../../router/ROUTER'
 import { BookOpen, Code, HelpCircle, Play } from 'lucide-react'
@@ -49,6 +50,28 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   const [selectedTask, setSelectedTask] = useState<{ id: string; title: string; fullTask?: Task } | null>(null)
   const [creatingSession, setCreatingSession] = useState<boolean>(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
+  const [activeSessions, setActiveSessions] = useState<Record<string, FocusSession>>({})
+
+  // Check for active sessions for all tasks
+  const checkActiveSessions = async (taskList: Task[]) => {
+    const activeSessionsMap: Record<string, FocusSession> = {}
+    
+    for (const task of taskList) {
+      const taskId = task.id || task.taskId || task.TaskId
+      if (taskId) {
+        try {
+          const activeSession = await FocusSessionService.getActiveSession(taskId)
+          if (activeSession) {
+            activeSessionsMap[taskId] = activeSession
+          }
+        } catch (error) {
+          // Ignore errors - no active session
+        }
+      }
+    }
+    
+    setActiveSessions(activeSessionsMap)
+  }
 
   // Handle focus session creation
   const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
@@ -83,6 +106,14 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
           }
         } 
       })
+      
+      // Scroll to top when navigating to focus session
+      setTimeout(() => {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        })
+      }, 100)
     } catch (error: any) {
       const msg = error?.response?.data?.message || error?.message || t('task.createSessionError')
       setToast({ message: msg, type: 'error' })
@@ -96,8 +127,8 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     setSelectedTask(null)
   }
 
-  // Handle task click - show focus session dialog
-  const handleTaskClick = (task: Task, taskIdx: number) => {
+  // Handle task click - show focus session dialog or navigate to active session
+  const handleTaskClick = async (task: Task, taskIdx: number) => {
     // Try both id and taskId fields from API
     const taskId = task.id || task.taskId || task.TaskId
     if (!taskId) {
@@ -107,13 +138,72 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     
     const taskTitle = task.title || task.Title || task.description || task.Description || `Task ${taskIdx + 1}`
     
-    // Store the full task data for later use
+    // Check if there's an active session for this task
+    const activeSession = activeSessions[taskId]
+    if (activeSession) {
+      // Resume the session before navigating
+      try {
+        console.log('Resuming session:', activeSession.id)
+        const resumedSession = await FocusSessionService.resumeSession(activeSession.id)
+        console.log('Resumed session data:', resumedSession)
+        
+        // Navigate to the resumed session
+        navigate(ROUTER.FOCUS_SESSION, { 
+          state: { 
+            session: resumedSession,
+            task: {
+              id: taskId,
+              title: taskTitle,
+              description: task.description || task.Description,
+              taskType: task.taskType || task.TaskType,
+              quizQuestionsJson: task.QuizQuestionsJson || task.quizQuestionsJson
+            }
+          } 
+        })
+      } catch (error: any) {
+        // If resume fails, still navigate but show error
+        console.warn('Failed to resume session:', error)
+        setToast({ message: 'Không thể tiếp tục phiên, nhưng vẫn có thể truy cập', type: 'warning' })
+        
+        navigate(ROUTER.FOCUS_SESSION, { 
+          state: { 
+            session: activeSession,
+            task: {
+              id: taskId,
+              title: taskTitle,
+              description: task.description || task.Description,
+              taskType: task.taskType || task.TaskType,
+              quizQuestionsJson: task.QuizQuestionsJson || task.quizQuestionsJson
+            }
+          } 
+        })
+      }
+      
+      // Scroll to top when navigating to focus session
+      setTimeout(() => {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        })
+      }, 100)
+      return
+    }
+    
+    // No active session, show create dialog
     setSelectedTask({ 
       id: taskId, 
       title: taskTitle,
       fullTask: task // Store full task object
     })
     setShowFocusDialog(true)
+    
+    // Scroll to center of screen for better modal positioning
+    setTimeout(() => {
+      window.scrollTo({
+        top: window.innerHeight / 2 - 30,
+        behavior: 'smooth'
+      })
+    }, 100)
   }
 
   const loadTasks = async (retryCount = 0, forceReload = false) => {
@@ -142,6 +232,9 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
       
       setTasks(taskArray)
       setLoaded(true)
+      
+      // Check for active sessions after loading tasks
+      checkActiveSessions(taskArray)
     } catch (e: any) {
       loadingRef.current = false
       if (retryCount < 1) {
@@ -281,16 +374,22 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                           transition: 'all 0.2s ease'
                         }}
                         onMouseEnter={(e) => { 
-                          e.currentTarget.style.background = 'var(--accent-secondary)'
+                          e.currentTarget.style.background = '#2563eb'
                           e.currentTarget.style.transform = 'translateY(-1px)'
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)'
                         }}
                         onMouseLeave={(e) => { 
                           e.currentTarget.style.background = 'var(--accent-primary)'
                           e.currentTarget.style.transform = 'translateY(0)'
+                          e.currentTarget.style.boxShadow = 'none'
                         }}
                       >
                         <Play size={14} />
-                        {t('task.focus')}
+                        {(() => {
+                          const taskId = task.id || task.taskId || task.TaskId
+                          const hasActiveSession = taskId && activeSessions[taskId]
+                          return hasActiveSession ? 'Quay trở lại phiên' : t('task.focus')
+                        })()}
                       </button>
                     </div>
                     {(task.description || task.Description) && (task.title || task.Title) && (
