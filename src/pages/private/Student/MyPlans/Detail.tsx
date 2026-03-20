@@ -54,15 +54,17 @@ const getProgressStatusLabel = (
 const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
   const pathId = location.state?.pathId
+  const initialSkeleton = location.state?.skeleton
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { t } = useTranslation('student')
-  const [plan, setPlan] = useState<SkeletonResponse | null>(null)
-  const [progress, setProgress] = useState<LearningPathProgressResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [plan, setPlan] = useState<SkeletonResponse | null>(() => {
+    return initialSkeleton ? mergeSkeletonWithCachedQuizzes(initialSkeleton) : null
+  })
+  const [loading, setLoading] = useState(!initialSkeleton)
   const [error, setError] = useState<string | null>(null)
 
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(null)
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(location.state?.activeChapterId || null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
   // Track chapter completion status
   const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
@@ -80,7 +82,7 @@ const MyPlansDetailPage: React.FC = () => {
   const fetchPlanDetail = async () => {
     if (!user?.id || !pathId) return
 
-    setLoading(true)
+    if (!initialSkeleton && !plan) setLoading(true)
     setError(null)
     setProgress(null)
     try {
@@ -104,16 +106,18 @@ const MyPlansDetailPage: React.FC = () => {
       if (foundPlan) {
         const merged = mergeSkeletonWithCachedQuizzes(foundPlan)
         setPlan(merged)
-        if (foundPlan.chapters && foundPlan.chapters.length > 0) {
-          setActiveChapterId(foundPlan.chapters[0].id)
-        }
+        setActiveChapterId(prev => prev || (foundPlan.chapters && foundPlan.chapters.length > 0 ? foundPlan.chapters[0].id : null))
       } else {
         setError('Learning path not found')
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to load learning path'
-      setError(msg)
+      if (!initialSkeleton && !plan) {
+        const msg = err?.response?.data?.message || err?.message || 'Failed to load learning path'
+        setError(msg)
+      }
     } finally {
+      if (!initialSkeleton && !plan) setLoading(false)
+      // Always turn off loading at the end anyway just to be safe
       setLoading(false)
     }
   }

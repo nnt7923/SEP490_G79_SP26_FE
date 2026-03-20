@@ -198,6 +198,21 @@ const LessonDetailPage: React.FC = () => {
   const nextLesson = currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
   const currentChapterId = currentLesson?.chapterId
 
+  const handleBack = () => {
+    if (skeleton?.pathId || skeleton?.id) {
+      navigate('/my-plans/detail', { 
+        state: { 
+          pathId: skeleton.pathId || skeleton.id, 
+          selectedLessonId: lessonId, 
+          activeChapterId: currentChapterId,
+          skeleton: skeleton
+        } 
+      })
+    } else {
+      navigate(ROUTER.PLANS_RESULT, { state: { skeleton, selectedLessonId: lessonId, activeChapterId: currentChapterId } })
+    }
+  }
+
   // Table of Contents
   const tocSource = useMemo(() => buildTocSource(md), [md])
   const headings = useMemo(() => extractHeadings(tocSource || md), [tocSource, md])
@@ -475,7 +490,7 @@ const LessonDetailPage: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 text-center">
             <p style={{ color: 'var(--error-primary)' }} className="mb-4">{t('lessonDetail.lessonNotFound', 'Lesson not found.')}</p>
             <button
-              onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton, selectedLessonId: lessonId, activeChapterId: currentChapterId } })}
+              onClick={handleBack}
               style={{
                 background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)',
                 padding: '8px 16px', borderRadius: 4, fontWeight: 600, cursor: 'pointer'
@@ -499,8 +514,8 @@ const LessonDetailPage: React.FC = () => {
         <div style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-base)', position: 'sticky', top: 0, zIndex: 40 }}>
           <div style={{ maxWidth: 1280, margin: '0 auto', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
-              onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton, selectedLessonId: lessonId, activeChapterId: currentChapterId } })}
-              style={{ 
+              onClick={handleBack}
+              style={{
                 display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent',
                 border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700 
               }}
@@ -688,7 +703,7 @@ const LessonDetailPage: React.FC = () => {
                     </button>
                   ) : (
                     <button
-                      onClick={() => navigate(ROUTER.PLANS_RESULT, { state: { skeleton, selectedLessonId: lessonId, activeChapterId: currentChapterId } })}
+                      onClick={handleBack}
                       style={{
                         flex: 1, padding: 24, background: 'var(--success-primary)', border: '1px solid var(--success-primary)',
                         borderRadius: 6, cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8,
