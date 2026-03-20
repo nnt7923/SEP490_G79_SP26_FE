@@ -224,6 +224,7 @@
   "task": {
     "title": "Bài tập Chương",
     "description": "Hoàn thành tất cả các bài tập để nắm vững chương này.",
+    "taskLabel": "Bài tập",
     "notFound": "Không tìm thấy bài tập chương",
     "noTasks": "Không có bài tập nào cho chương này.",
     "progress": "Tiến độ",
@@ -340,6 +341,7 @@
   "quizStatus": {
     "NotStarted": "CHƯA LÀM",
     "InProgress": "ĐANG LÀM",
+    "Completed": "HOÀN THÀNH",
     "NotPassed": "KHÔNG ĐẠT",
     "Passed": "ĐẠT",
     "loading": "..."

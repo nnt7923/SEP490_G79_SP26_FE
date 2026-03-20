@@ -11,6 +11,45 @@ import ChapterTasks from '../../Plans/components/ChapterTasks'
 import { motion } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
 import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
+import type { LearningPathProgressResponse } from '../../../../services/LearningPathService'
+
+const clampPercent = (value: unknown) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 0
+  return Math.min(100, Math.max(0, numeric))
+}
+
+const getProgressStatusStyles = (status?: string) => {
+  if (status === 'Completed') {
+    return {
+      color: 'var(--success-primary)',
+      background: 'rgba(34, 197, 94, 0.08)',
+      borderColor: 'rgba(34, 197, 94, 0.3)',
+    }
+  }
+
+  if (status === 'InProgress') {
+    return {
+      color: 'var(--accent-primary)',
+      background: 'rgba(59, 130, 246, 0.08)',
+      borderColor: 'rgba(59, 130, 246, 0.3)',
+    }
+  }
+
+  return {
+    color: 'var(--text-secondary)',
+    background: 'var(--bg-main)',
+    borderColor: 'var(--border-base)',
+  }
+}
+
+const getProgressStatusLabel = (
+  t: (key: string, defaultValue?: string) => string,
+  status?: string | null
+) => {
+  if (!status) return 'N/A'
+  return t(`quizStatus.${status}`, status)
+}
 
 const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
@@ -19,6 +58,7 @@ const MyPlansDetailPage: React.FC = () => {
   const { user } = useAuthStore()
   const { t } = useTranslation('student')
   const [plan, setPlan] = useState<SkeletonResponse | null>(null)
+  const [progress, setProgress] = useState<LearningPathProgressResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,13 +82,25 @@ const MyPlansDetailPage: React.FC = () => {
 
     setLoading(true)
     setError(null)
+    setProgress(null)
     try {
-      const response = await LearningPathService.getUserLearningPaths(user.id, {
-        pageNumber: 1,
-        pageSize: 100,
-      })
+      const [plansResult, progressResult] = await Promise.allSettled([
+        LearningPathService.getUserLearningPaths(user.id, {
+          pageNumber: 1,
+          pageSize: 100,
+        }),
+        LearningPathService.getLearningPathProgress(pathId),
+      ])
 
-      const foundPlan = response.items.find(p => (p.pathId || p.id) === pathId)
+      if (progressResult.status === 'fulfilled') {
+        setProgress(progressResult.value)
+      }
+
+      if (plansResult.status !== 'fulfilled') {
+        throw plansResult.reason
+      }
+
+      const foundPlan = plansResult.value.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         const merged = mergeSkeletonWithCachedQuizzes(foundPlan)
         setPlan(merged)
@@ -79,6 +131,10 @@ const MyPlansDetailPage: React.FC = () => {
       [chapterId]: completed
     }))
   }
+
+  const hasProgress = progress !== null
+  const progressPercent = clampPercent(progress?.progressPercent)
+  const progressStatusStyles = getProgressStatusStyles(progress?.status)
 
   if (loading) {
     return (
@@ -199,9 +255,13 @@ const MyPlansDetailPage: React.FC = () => {
                   {t('plansResult.lessonsFormat', { count: plan.lessons?.length || 0 })}
                 </span>
                 <span style={{
-                  background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)', color: 'var(--success-primary)'
+                  background: progressStatusStyles.background,
+                  padding: '6px 12px',
+                  borderRadius: 2,
+                  border: `1px dashed ${progressStatusStyles.borderColor}`,
+                  color: progressStatusStyles.color
                 }}>
-                  0% PROGRESS
+                  {hasProgress ? `${progressPercent.toFixed(2)}%` : '--'} {t('task.progress').toUpperCase()}
                 </span>
                 {plan.createdAt && (
                   <span style={{
@@ -210,6 +270,44 @@ const MyPlansDetailPage: React.FC = () => {
                     {new Date(plan.createdAt).toLocaleDateString()}
                   </span>
                 )}
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <div style={{
+                  height: 10,
+                  background: 'var(--bg-main)',
+                  borderRadius: 999,
+                  border: '1px solid var(--border-base)',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${progressPercent}%`,
+                    background: progress?.status === 'Completed'
+                      ? 'var(--success-primary)'
+                      : 'var(--accent-primary)',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+
+                <div style={{
+                  marginTop: 12,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  fontSize: 12,
+                  color: 'var(--text-secondary)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <span>{t('task.quiz')}: {hasProgress ? `${progress?.completedQuizzes ?? 0}/${progress?.totalQuizzes ?? 0}` : '--/--'}</span>
+                    <span>{t('task.taskLabel')}: {hasProgress ? `${progress?.completedTasks ?? 0}/${progress?.totalTasks ?? 0}` : '--/--'}</span>
+                  </div>
+                  <span style={{ color: progressStatusStyles.color, fontWeight: 700 }}>
+                    {getProgressStatusLabel(t, progress?.status)}
+                  </span>
+                </div>
               </div>
             </motion.section>
           </Tilt>

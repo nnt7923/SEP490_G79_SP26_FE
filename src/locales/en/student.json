@@ -224,6 +224,7 @@
   "task": {
     "title": "Chapter Tasks",
     "description": "Complete all tasks to master this chapter.",
+    "taskLabel": "Task",
     "notFound": "Chapter tasks not found",
     "noTasks": "No tasks available for this chapter.",
     "progress": "Progress",
@@ -340,6 +341,7 @@
   "quizStatus": {
     "NotStarted": "NOT STARTED",
     "InProgress": "IN PROGRESS",
+    "Completed": "COMPLETED",
     "NotPassed": "NOT PASSED",
     "Passed": "PASSED",
     "loading": "..."

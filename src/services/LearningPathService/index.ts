@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { skeletonUrl, lessonContentUrl, userLearningPathsUrl, aiDraftUrl, manualDraftUrl, manualDraftDetailUrl, myDraftsUrl, myDraftDetailUrl } from './url'
+import { skeletonUrl, lessonContentUrl, userLearningPathsUrl, aiDraftUrl, manualDraftUrl, manualDraftDetailUrl, myDraftsUrl, myDraftDetailUrl, learningPathProgressUrl } from './url'
 import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLearningPathSuggestions } from '../SignalR'
 
 export type Quiz = {
@@ -415,6 +415,16 @@ export interface UserLearningPathsResponse {
   pageSize: number
 }
 
+export interface LearningPathProgressResponse {
+  pathId: string
+  completedQuizzes: number
+  totalQuizzes: number
+  completedTasks: number
+  totalTasks: number
+  progressPercent: number
+  status: string
+}
+
 export interface MyDraftsParams {
   pageNumber?: number
   pageSize?: number
@@ -445,6 +455,21 @@ export async function getUserLearningPaths(
     totalCount: data?.totalCount ?? 0,
     pageNumber: data?.pageNumber ?? 1,
     pageSize: data?.pageSize ?? 10,
+  }
+}
+
+export async function getLearningPathProgress(pathId: string): Promise<LearningPathProgressResponse> {
+  const res: any = await api.get(learningPathProgressUrl(pathId))
+  const data = unwrap<LearningPathProgressResponse>(res)
+
+  return {
+    pathId: data?.pathId ?? pathId,
+    completedQuizzes: Number(data?.completedQuizzes ?? 0),
+    totalQuizzes: Number(data?.totalQuizzes ?? 0),
+    completedTasks: Number(data?.completedTasks ?? 0),
+    totalTasks: Number(data?.totalTasks ?? 0),
+    progressPercent: Number(data?.progressPercent ?? 0),
+    status: data?.status ?? 'NotStarted',
   }
 }
 
@@ -535,6 +560,7 @@ export default {
   generateLessonContent,
   generateChapterSkeleton,
   getUserLearningPaths,
+  getLearningPathProgress,
   getMyDrafts,
   getMyDraftDetail,
   getSuggestions,
