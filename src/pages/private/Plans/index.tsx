@@ -1834,7 +1834,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               <StepHeader
                 title="Set Goal Priorities"
                 subtitle="Balance the importance of your learning goals"
-                icon="⚖️"
                 selectedValue={selectedGoals.length === 2 ? 'Priorities set' : undefined}
               />
               
