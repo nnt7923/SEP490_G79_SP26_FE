@@ -44,7 +44,7 @@ const getProgressStatusStyles = (status?: string) => {
 }
 
 const getProgressStatusLabel = (
-  t: (key: string, defaultValue?: string) => string,
+  t: any,
   status?: string | null
 ) => {
   if (!status) return 'N/A'
@@ -61,6 +61,7 @@ const MyPlansDetailPage: React.FC = () => {
   const [plan, setPlan] = useState<SkeletonResponse | null>(() => {
     return initialSkeleton ? mergeSkeletonWithCachedQuizzes(initialSkeleton) : null
   })
+  const [progress, setProgress] = useState<LearningPathProgressResponse | null>(null)
   const [loading, setLoading] = useState(!initialSkeleton)
   const [error, setError] = useState<string | null>(null)
 
