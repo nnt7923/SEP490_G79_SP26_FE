@@ -342,6 +342,55 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     setUpdateGoalError(null)
   }
 
+  // Handle next click from step 6 (summary)
+  const handleNextFromSummary = async () => {
+    // Basic validation
+    if (!language || selectedGoals.length === 0 || !level || !languageSelection) {
+      setStep(getNextStep(step) as any)
+      return
+    }
+
+    setLoadingSuggestions(true)
+    try {
+      const payload = {
+        subjectId: language,
+        goals: selectedGoals.map(goalId => ({
+          goalId: goalId,
+          weight: goalPriorities[goalId] || (selectedGoals.length === 1 ? 100 : 50)
+        })),
+        complexityLevel: level,
+        languageSelection: languageSelection
+      }
+
+      let tempSuggestions: any[] = []
+
+      const result = await LearningPathService.getSuggestions(payload, {
+        useSignalR: true,
+        onLoading: () => {},
+        onSuggestionsLoaded: (suggestionsData: any[]) => {
+          tempSuggestions = suggestionsData
+        }
+      })
+
+      const finalSuggestions = (result?.suggestions && result.suggestions.length > 0) 
+          ? result.suggestions 
+          : tempSuggestions
+
+      if (finalSuggestions && finalSuggestions.length > 0) {
+        setSuggestions(finalSuggestions)
+        setStep(getNextStep(step) as any)
+        setShowSuggestions(true) // Automatically pop it open
+      } else {
+        setStep(getNextStep(step) as any)
+      }
+    } catch (e: any) {
+      console.error('Auto-suggestion failed:', e)
+      setStep(getNextStep(step) as any)
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
   // Handle learning path suggestions
   const handleGetSuggestions = async () => {
     if (!language) {
@@ -2673,12 +2722,39 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
             {step < totalSteps && (
               <button
                 type="button"
-                style={{ padding: '8px 24px', background: !canNext ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: !canNext ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
-                onMouseEnter={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-strong)' }} onMouseLeave={(e) => { if (canNext) e.currentTarget.style.background = 'var(--text-primary)' }}
-                disabled={!canNext}
-                onClick={() => setStep(getNextStep(step) as any)}
+                style={{ 
+                  padding: '8px 24px', 
+                  background: !canNext || (step === 6 && loadingSuggestions) ? 'var(--text-secondary)' : 'var(--text-primary)', 
+                  color: 'var(--bg-surface-short)', 
+                  border: 'none', 
+                  borderRadius: 2, 
+                  fontSize: 13, 
+                  fontWeight: 600, 
+                  cursor: !canNext || (step === 6 && loadingSuggestions) ? 'not-allowed' : 'pointer', 
+                  transition: 'background 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8 
+                }}
+                onMouseEnter={(e) => { if (canNext && !(step === 6 && loadingSuggestions)) e.currentTarget.style.background = 'var(--text-strong)' }} 
+                onMouseLeave={(e) => { if (canNext && !(step === 6 && loadingSuggestions)) e.currentTarget.style.background = 'var(--text-primary)' }}
+                disabled={!canNext || (step === 6 && loadingSuggestions)}
+                onClick={() => {
+                  if (step === 6 && !isMentorVariant) {
+                    handleNextFromSummary()
+                  } else {
+                    setStep(getNextStep(step) as any)
+                  }
+                }}
               >
-                {t('plans.continue')} {'>'}
+                {(step === 6 && loadingSuggestions) ? (
+                  <>
+                    <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid var(--bg-surface-short)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                    {t('plans.checkingSuggestions') || 'Checking...'}
+                  </>
+                ) : (
+                  <>{t('plans.continue')} {'>'}</>
+                )}
               </button>
             )}
             {isMentorVariant && step === totalSteps && (

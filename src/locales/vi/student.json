@@ -184,7 +184,9 @@
     "errorSelectingSuggestion": "Lỗi khi chọn đề xuất",
     "suggestionAdoptedSuccess": "Đã áp dụng lộ trình đề xuất thành công!",
     "suggestionAdoptedButNoPath": "Đã áp dụng đề xuất nhưng không nhận được pathId",
-    "errorAdoptingSuggestion": "Lỗi khi áp dụng lộ trình đề xuất"
+    "errorAdoptingSuggestion": "Lỗi khi áp dụng lộ trình đề xuất",
+    "matchScore": "Độ tương thích",
+    "checkingSuggestions": "Đang tìm lộ trình phù hợp..."
   },
   "tutorChat": {
     "aiTutor": "AI Tutor",

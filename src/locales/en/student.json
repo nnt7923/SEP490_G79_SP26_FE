@@ -184,7 +184,9 @@
     "errorSelectingSuggestion": "Error selecting suggestion",
     "suggestionAdoptedSuccess": "Successfully adopted suggested learning path!",
     "suggestionAdoptedButNoPath": "Suggestion adopted but no pathId received",
-    "errorAdoptingSuggestion": "Error adopting suggested learning path"
+    "errorAdoptingSuggestion": "Error adopting suggested learning path",
+    "matchScore": "Match Level",
+    "checkingSuggestions": "Finding suitable paths..."
   },
   "tutorChat": {
     "aiTutor": "AI Tutor",
