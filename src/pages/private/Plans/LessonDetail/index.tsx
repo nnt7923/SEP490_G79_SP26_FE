@@ -283,7 +283,6 @@ const LessonDetailPage: React.FC = () => {
           },
           (data) => {
             // onResolved
-            console.log('Tutor conversation resolved:', data)
             setConversationId(data.conversationId)
             setConversationCreated(data.created || false)
           }

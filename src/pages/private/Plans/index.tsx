@@ -639,7 +639,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
         (data: any) => {
           // onAdopted
           setGenerationProgress(90)
-          console.log('Suggested learning path adopted:', data)
         }
       )
 

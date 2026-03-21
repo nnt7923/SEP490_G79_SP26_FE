@@ -143,9 +143,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     if (activeSession) {
       // Resume the session before navigating
       try {
-        console.log('Resuming session:', activeSession.id)
         const resumedSession = await FocusSessionService.resumeSession(activeSession.id)
-        console.log('Resumed session data:', resumedSession)
         
         // Navigate to the resumed session
         navigate(ROUTER.FOCUS_SESSION, { 

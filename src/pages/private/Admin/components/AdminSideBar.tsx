@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 import ROUTER from '../../../../router/ROUTER'
-import { LayoutDashboard, Users, FileText, Key, Activity } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Key, Activity, CreditCard } from 'lucide-react'
 
 export const getAdminSidebarConfig = (): SidebarNavItem[] => {
   return [
@@ -9,6 +9,7 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
     { label: 'Users', path: ROUTER.ADMIN_USERS, icon: <Users size={18} /> },
     { label: 'Reports', path: '/admin/reports', icon: <FileText size={18} /> },
     { label: 'API Key', path: ROUTER.ADMIN_API_KEY, icon: <Key size={18} /> },
+    { label: 'Subscription Plans', path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
     { label: 'Audit Logs', path: ROUTER.ADMIN_AUDIT_LOGS, icon: <Activity size={18} /> },
   ]
 }
@@ -21,6 +22,7 @@ export const useAdminSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.users'), path: ROUTER.ADMIN_USERS, icon: <Users size={18} /> },
     { label: t('sidebar.reports'), path: '/admin/reports', icon: <FileText size={18} /> },
     { label: t('sidebar.apiKey'), path: ROUTER.ADMIN_API_KEY, icon: <Key size={18} /> },
+    { label: t('sidebar.subscriptionPlans'), path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
     { label: t('sidebar.auditLogs'), path: ROUTER.ADMIN_AUDIT_LOGS, icon: <Activity size={18} /> },
   ]
 }

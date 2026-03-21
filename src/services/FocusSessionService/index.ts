@@ -10,17 +10,13 @@ export type SessionType = typeof SessionType[keyof typeof SessionType]
 
 // Helper function to parse SessionType from backend
 export function parseSessionType(value: any): SessionType {
-  console.log('Parsing SessionType:', value, 'type:', typeof value)
-  
   // Handle string values from backend
   if (typeof value === 'string') {
     const lowerValue = value.toLowerCase()
     if (lowerValue === 'pomodoro') {
-      console.log('Matched Pomodoro (lowercase)')
       return SessionType.Pomodoro
     }
     if (lowerValue === 'study') {
-      console.log('Matched Study (lowercase)')
       return SessionType.Study
     }
   }
@@ -28,22 +24,18 @@ export function parseSessionType(value: any): SessionType {
   // Handle number values
   if (typeof value === 'number') {
     if (value === 0) {
-      console.log('Matched Pomodoro (number 0)')
       return SessionType.Pomodoro
     }
     if (value === 1) {
-      console.log('Matched Study (number 1)')
       return SessionType.Study
     }
   }
   
   // Handle exact string matches (case sensitive)
   if (value === 'Pomodoro') {
-    console.log('Matched Pomodoro (exact case)')
     return SessionType.Pomodoro
   }
   if (value === 'Study') {
-    console.log('Matched Study (exact case)')
     return SessionType.Study
   }
   
@@ -85,17 +77,10 @@ export async function startSession(payload: StartSessionRequest): Promise<FocusS
   const res: any = await api.post(startSessionUrl, payload)
   const data: any = res?.data ?? res
 
-  // Debug: Log để kiểm tra SessionType từ backend
-  console.log('Backend response data:', data)
-  console.log('SessionType from backend:', data?.sessionType)
-  console.log('SessionType from payload:', payload.sessionType)
-
   // Parse SessionType properly
   const sessionType = data?.sessionType !== undefined 
     ? parseSessionType(data.sessionType) 
     : payload.sessionType
-
-  console.log('Final parsed SessionType:', sessionType)
 
   const result = {
     id: data?.id ?? data?.sessionId,
@@ -110,8 +95,6 @@ export async function startSession(payload: StartSessionRequest): Promise<FocusS
     serverCurrentTime: data?.serverCurrentTime || data?.currentTime,
     // Don't spread ...data to avoid overriding parsed sessionType
   }
-
-  console.log('Final session object:', result)
   return result
 }
 
@@ -219,7 +202,6 @@ export async function getActiveSession(taskId: string): Promise<FocusSession | n
     }
   } catch (error: any) {
     // Return null if no active session found (404) or other errors
-    console.log('No active session found for task:', taskId)
     return null
   }
 }
@@ -250,7 +232,6 @@ export async function getActiveSessions(): Promise<FocusSession[]> {
       ...s,
     }))
   } catch (error: any) {
-    console.log('Error getting active sessions:', error)
     return []
   }
 }

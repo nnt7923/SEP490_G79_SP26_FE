@@ -27,6 +27,7 @@ const ROUTER = {
   MENTOR_DRAFT_DETAIL: "/mentor/drafts/:pathId",
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
+  ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",
   ADMIN_USERS: "/admin/users",
   ADMIN_REPORTS: "/admin/reports",
   ADMIN_AUDIT_LOGS: "/admin/audit-logs",
@@ -44,6 +45,10 @@ const ROUTER = {
   CHAT: "/chat",
   CHAT_SHARE_PREVIEW: "/chat/share-preview/:shareId",
   MENTOR_CHAT: "/mentor/chat",
+  // Subscription
+  SUBSCRIPTION: "/subscription",
+  SUBSCRIPTION_CURRENT: "/subscription/current",
+  SUBSCRIPTION_SUCCESS: "/subscription/success",
 };
 
 export default ROUTER;

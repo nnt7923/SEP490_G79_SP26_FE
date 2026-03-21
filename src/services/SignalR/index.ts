@@ -94,7 +94,6 @@ function buildConnection(url: string): signalR.HubConnection {
     .withUrl(url, {
       accessTokenFactory: () => {
         const token = getToken()
-        console.log('SignalR accessTokenFactory called, token:', token ? `${token.substring(0, 20)}...` : 'null')
         return token || ''
       },
       withCredentials: true,
@@ -896,10 +895,6 @@ export async function requestAdoptSuggestedLearningPath(
     return Promise.reject(new Error('Missing required parameters for adopting suggested learning path'))
   }
 
-  // Debug: Log current token
-  const currentToken = getToken()
-  console.log('requestAdoptSuggestedLearningPath - Current token:', currentToken ? `${currentToken.substring(0, 20)}...` : 'null')
-
   // Convert languageSelection number to string for backend
   const languageSelectionString = languageSelection === 1 ? 'VietNamese' : 'English'
 
@@ -912,9 +907,6 @@ export async function requestAdoptSuggestedLearningPath(
   // Create and store the promise immediately to prevent race conditions
   const p = (async () => {
     const hub = await getLearningPathHub()
-    
-    // Debug: Log hub connection state
-    console.log('requestAdoptSuggestedLearningPath - Hub connection state:', hub.state)
 
     return new Promise<any>((resolve, reject) => {
       let done = false
@@ -1531,7 +1523,6 @@ export async function disconnectHubs(): Promise<void> {
 
 // Function to force reconnect all hubs (useful when token changes)
 export async function reconnectHubs(): Promise<void> {
-  console.log('Reconnecting all SignalR hubs...')
   await disconnectHubs()
   // Hubs will be recreated automatically on next use with new token
 }

@@ -209,8 +209,7 @@ const AdminApiKeyPage: React.FC = () => {
         isEnabled: isActive, // Backend uses isEnabled instead of isActive
         aiUsageType: getUsageTypeString(aiUsageType), // Send as string
       }
-      
-      console.log('Sending payload:', payload)
+
       await AIConfigService.updateAIConfig(payload as any)
       setShowForm(false)
       resetForm()
@@ -299,8 +298,7 @@ const AdminApiKeyPage: React.FC = () => {
         usageType: getUsageTypeString(aiUsageType), // Backend uses usageType for update
         isActive, // Keep isActive for update
       }
-      
-      console.log('Updating with payload:', payload)
+
       await AIConfigService.putAIConfigById(configId, payload as any)
       setShowForm(false)
       resetForm()

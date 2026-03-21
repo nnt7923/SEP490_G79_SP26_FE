@@ -29,6 +29,7 @@ const MyResources = React.lazy(() => import('../pages/private/MyResources'))
 const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
+const AdminSubscriptionPlans = React.lazy(() => import('../pages/private/Admin/SubscriptionPlans'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
 const AdminAuditLogs = React.lazy(() => import('../pages/private/Admin/AuditLogs'))
@@ -49,7 +50,10 @@ const StudentOverview = React.lazy(() => import('../pages/private/Student/Overvi
 const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
-const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat'))
+const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat')) 
+const SubscriptionPage = React.lazy(() => import('../pages/private/Subscription'))
+const CurrentSubscriptionPage = React.lazy(() => import('../pages/private/Subscription/CurrentSubscription'))
+const SubscriptionPaymentSuccessPage = React.lazy(() => import('../pages/private/Subscription/PaymentSuccess'))
 
 const Fallback = () => <PageSkeleton />
 
@@ -97,6 +101,9 @@ const router = createBrowserRouter([
           { path: ROUTER.FOCUS_SESSION, element: <FocusSession /> },
           { path: ROUTER.CHAT, element: <StudentChatPage /> },
           { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
+          { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
+          { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },
+          { path: ROUTER.SUBSCRIPTION_SUCCESS, element: <SubscriptionPaymentSuccessPage /> },
         ],
       },
       // Shared routes (Student & Mentor)
@@ -115,6 +122,7 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
+      { path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, element: <AdminSubscriptionPlans /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
       { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },
       { path: ROUTER.ADMIN_AUDIT_LOGS, element: <AdminAuditLogs /> },

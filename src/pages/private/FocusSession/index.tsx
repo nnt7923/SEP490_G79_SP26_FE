@@ -32,19 +32,6 @@ const FocusSessionPage: React.FC = () => {
   const [session] = useState<FocusSession | null>(sessionData || null)
   const [task] = useState<TaskData | null>(taskData || null)
 
-  // Debug: Log session data
-  React.useEffect(() => {
-    if (session) {
-      console.log('FocusSession component - session data:', session)
-      console.log('FocusSession component - sessionType:', session.sessionType)
-      console.log('FocusSession component - sessionType type:', typeof session.sessionType)
-      console.log('SessionType.Pomodoro:', SessionType.Pomodoro)
-      console.log('SessionType.Study:', SessionType.Study)
-      console.log('session.sessionType === SessionType.Pomodoro:', session.sessionType === SessionType.Pomodoro)
-      console.log('session.sessionType === SessionType.Study:', session.sessionType === SessionType.Study)
-    }
-  }, [session])
-
   // Scroll to top when component mounts
   React.useEffect(() => {
     window.scrollTo({
@@ -193,14 +180,12 @@ const FocusSessionPage: React.FC = () => {
 
       // Priority 1: Use remainingSeconds from backend (most accurate for resumed sessions)
       if (session.remainingSeconds !== undefined) {
-        console.log('Using remainingSeconds from backend:', session.remainingSeconds)
         setTimeRemaining(session.remainingSeconds)
         return
       }
 
       // Priority 2: Use remainingMinutes from backend (fallback)
       if (session.remainingMinutes !== undefined) {
-        console.log('Using remainingMinutes from backend:', session.remainingMinutes)
         setTimeRemaining(session.remainingMinutes * 60)
         return
       }
@@ -231,8 +216,7 @@ const FocusSessionPage: React.FC = () => {
       const plannedEndTime = startTime + (session.plannedDurationMinutes * 60 * 1000)
       const currentServerTime = Date.now() + serverTimeOffset
       const remaining = Math.max(0, plannedEndTime - currentServerTime)
-      
-      console.log('Calculated remaining time from startTime:', Math.floor(remaining / 1000), 'seconds')
+
       setTimeRemaining(Math.floor(remaining / 1000))
     }
 
