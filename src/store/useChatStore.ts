@@ -3,7 +3,6 @@ import type {
   DirectConversationDto,
   DirectMessageDto,
   PendingLearningPathShareSummaryDto,
-  ReceivedLearningPathShareSummaryDto,
   ShareStatus,
 } from '../types/chat'
 
@@ -20,8 +19,6 @@ interface ChatState {
   activeConversationId: string | null
   // Pending learning path shares (Student only)
   pendingLearningPathShares: PendingLearningPathShareSummaryDto[]
-  // Received learning path shares with status (Student only)
-  receivedLearningPathShares: ReceivedLearningPathShareSummaryDto[]
 
   // === Actions ===
 
@@ -48,7 +45,6 @@ interface ChatState {
   incrementGlobalUnreadCount(by: number): void
   setActiveConversation(id: string | null): void
   setPendingShares(shares: PendingLearningPathShareSummaryDto[]): void
-  upsertReceivedShare(share: ReceivedLearningPathShareSummaryDto): void
   removePendingShare(shareId: string): void
   patchShareMessage(
     shareId: string,
@@ -74,7 +70,6 @@ const useChatStore = create<ChatState>((set, get) => ({
   globalUnreadCount: 0,
   activeConversationId: null,
   pendingLearningPathShares: [],
-  receivedLearningPathShares: [],
 
   setConversations(list) {
     const map: Record<string, DirectConversationDto> = {}
@@ -143,27 +138,6 @@ const useChatStore = create<ChatState>((set, get) => ({
     set({ pendingLearningPathShares: shares })
   },
 
-  upsertReceivedShare(share) {
-    set((state) => {
-      const index = state.receivedLearningPathShares.findIndex((item) => item.shareId === share.shareId)
-      if (index < 0) {
-        return {
-          receivedLearningPathShares: [share, ...state.receivedLearningPathShares],
-        }
-      }
-
-      const next = [...state.receivedLearningPathShares]
-      next[index] = {
-        ...next[index],
-        ...share,
-      }
-
-      return {
-        receivedLearningPathShares: next,
-      }
-    })
-  },
-
   removePendingShare(shareId) {
     set(state => ({
       pendingLearningPathShares: state.pendingLearningPathShares.filter(
@@ -206,30 +180,12 @@ const useChatStore = create<ChatState>((set, get) => ({
       }
 
       if (!changed) return state
-
-      const nextReceivedShares = state.receivedLearningPathShares.map((share) => {
-        if (share.shareId !== shareId) return share
-        return {
-          ...share,
-          status: (patch.shareStatus ?? share.status) as ShareStatus,
-          respondedAt: patch.respondedAt ?? share.respondedAt,
-          pathId: patch.pathId ?? share.pathId,
-          learningPathTitle: patch.learningPathTitle ?? share.learningPathTitle,
-          learningPathDescription: patch.learningPathDescription ?? share.learningPathDescription,
-          mentorName: patch.mentorName ?? share.mentorName,
-        }
-      })
-
-      return {
-        messagesByConversationId: nextMessagesByConversationId,
-        receivedLearningPathShares: nextReceivedShares,
-      }
+      return { messagesByConversationId: nextMessagesByConversationId }
     })
   },
 
   reconcilePendingShares(shares) {
     const patchShareMessage = get().patchShareMessage
-    const upsertReceivedShare = get().upsertReceivedShare
     shares.forEach((share) => {
       patchShareMessage(share.shareId, {
         shareStatus: 'Pending',
@@ -237,17 +193,6 @@ const useChatStore = create<ChatState>((set, get) => ({
         learningPathDescription: share.learningPathDescription,
         pathId: share.pathId,
         mentorName: share.mentorName,
-        respondedAt: null,
-      })
-      upsertReceivedShare({
-        shareId: share.shareId,
-        pathId: share.pathId,
-        learningPathTitle: share.learningPathTitle,
-        learningPathDescription: share.learningPathDescription,
-        mentorId: share.mentorId,
-        mentorName: share.mentorName,
-        status: 'Pending',
-        sentAt: share.sentAt,
         respondedAt: null,
       })
     })
@@ -261,7 +206,6 @@ const useChatStore = create<ChatState>((set, get) => ({
       globalUnreadCount: 0,
       activeConversationId: null,
       pendingLearningPathShares: [],
-      receivedLearningPathShares: [],
     })
   },
 }))

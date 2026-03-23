@@ -85,18 +85,6 @@ export interface SentLearningPathShareSummaryDto {
   respondedAt: string | null
 }
 
-export interface ReceivedLearningPathShareSummaryDto {
-  shareId: string
-  pathId: string
-  learningPathTitle: string
-  learningPathDescription: string | null
-  mentorId: string
-  mentorName: string
-  status: ShareStatus
-  sentAt: string
-  respondedAt: string | null
-}
-
 export interface LearningPathSharePreviewGoalDto {
   goalId: string
   title: string
