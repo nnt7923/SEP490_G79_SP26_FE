@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Layout from '../../../components/Layout'
 import ROUTER from '../../../router/ROUTER'
 import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
+import { clearSubscriptionCaches } from '../../../services/SubscriptionService'
 
 const PaymentSuccess: React.FC = () => {
   const { t } = useTranslation('student')
@@ -20,6 +21,12 @@ const PaymentSuccess: React.FC = () => {
 
   const responseCode = searchParams.get('vnp_ResponseCode')
   const isSuccess = !responseCode || responseCode === '00'
+
+  useEffect(() => {
+    if (isSuccess) {
+      clearSubscriptionCaches()
+    }
+  }, [isSuccess])
 
   return (
     <Layout sidebar={sidebarConfig}>

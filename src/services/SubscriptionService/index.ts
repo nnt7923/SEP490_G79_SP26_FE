@@ -1,5 +1,22 @@
 import axiosInstance from '../Axios'
 
+type SubscriptionPlansCacheEntry = {
+  expiresAt: number
+  data: SubscriptionPlan[]
+}
+
+type CurrentSubscriptionCacheEntry = {
+  expiresAt: number
+  data: CurrentSubscriptionPlan | null
+}
+
+const SUBSCRIPTION_PLANS_CACHE_KEY = 'subscription:plans'
+const SUBSCRIPTION_PLANS_CACHE_TTL_MS = 2 * 60 * 1000
+let subscriptionPlansMemoryCache: SubscriptionPlansCacheEntry | null = null
+const CURRENT_SUBSCRIPTION_CACHE_KEY = 'subscription:current'
+const CURRENT_SUBSCRIPTION_CACHE_TTL_MS = 2 * 60 * 1000
+let currentSubscriptionMemoryCache: CurrentSubscriptionCacheEntry | null = null
+
 export interface SubscriptionPlanLimit {
   featureKey: number
   limitCount: number
@@ -137,10 +154,108 @@ function unwrapPlansResponse(raw: unknown): unknown[] {
   return []
 }
 
+function readSubscriptionPlansStorageCache(): SubscriptionPlansCacheEntry | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = window.sessionStorage.getItem(SUBSCRIPTION_PLANS_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as SubscriptionPlansCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now() || !Array.isArray(parsed.data)) {
+      window.sessionStorage.removeItem(SUBSCRIPTION_PLANS_CACHE_KEY)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeSubscriptionPlansStorageCache(entry: SubscriptionPlansCacheEntry): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(SUBSCRIPTION_PLANS_CACHE_KEY, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
+export function clearSubscriptionPlansCache(): void {
+  subscriptionPlansMemoryCache = null
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.removeItem(SUBSCRIPTION_PLANS_CACHE_KEY)
+  } catch {
+    // ignore cache clear errors
+  }
+}
+
+function readCurrentSubscriptionStorageCache(): CurrentSubscriptionCacheEntry | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = window.sessionStorage.getItem(CURRENT_SUBSCRIPTION_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as CurrentSubscriptionCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now()) {
+      window.sessionStorage.removeItem(CURRENT_SUBSCRIPTION_CACHE_KEY)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeCurrentSubscriptionStorageCache(entry: CurrentSubscriptionCacheEntry): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(CURRENT_SUBSCRIPTION_CACHE_KEY, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
+export function clearCurrentSubscriptionCache(): void {
+  currentSubscriptionMemoryCache = null
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.removeItem(CURRENT_SUBSCRIPTION_CACHE_KEY)
+  } catch {
+    // ignore cache clear errors
+  }
+}
+
+export function clearSubscriptionCaches(): void {
+  clearSubscriptionPlansCache()
+  clearCurrentSubscriptionCache()
+}
+
 class SubscriptionService {
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    if (subscriptionPlansMemoryCache && subscriptionPlansMemoryCache.expiresAt > Date.now()) {
+      return subscriptionPlansMemoryCache.data
+    }
+
+    const storageEntry = readSubscriptionPlansStorageCache()
+    if (storageEntry) {
+      subscriptionPlansMemoryCache = storageEntry
+      return storageEntry.data
+    }
+
     const response = await axiosInstance.get('/subscription-plans')
-    return unwrapPlansResponse(response).map(normalizePlan)
+    const normalizedPlans = unwrapPlansResponse(response).map(normalizePlan)
+    const cacheEntry: SubscriptionPlansCacheEntry = {
+      data: normalizedPlans,
+      expiresAt: Date.now() + SUBSCRIPTION_PLANS_CACHE_TTL_MS,
+    }
+
+    subscriptionPlansMemoryCache = cacheEntry
+    writeSubscriptionPlansStorageCache(cacheEntry)
+
+    return normalizedPlans
   }
 
   async createVnpayPayment(payload: CreateVnpayPaymentRequest): Promise<CreateVnpayPaymentResponse> {
@@ -149,20 +264,38 @@ class SubscriptionService {
   }
 
   async getCurrentSubscription(): Promise<CurrentSubscriptionPlan | null> {
+    if (currentSubscriptionMemoryCache && currentSubscriptionMemoryCache.expiresAt > Date.now()) {
+      return currentSubscriptionMemoryCache.data
+    }
+
+    const storageEntry = readCurrentSubscriptionStorageCache()
+    if (storageEntry) {
+      currentSubscriptionMemoryCache = storageEntry
+      return storageEntry.data
+    }
+
     const response = await axiosInstance.get('/subscription-plans/me') as unknown
+    let normalizedData: CurrentSubscriptionPlan | null = null
 
-    if (!response || typeof response !== 'object') {
-      return null
+    if (response && typeof response === 'object') {
+      const record = response as Record<string, unknown>
+      const nestedData = record.data
+
+      if (nestedData && typeof nestedData === 'object') {
+        normalizedData = nestedData as CurrentSubscriptionPlan
+      } else {
+        normalizedData = record as CurrentSubscriptionPlan
+      }
     }
 
-    const record = response as Record<string, unknown>
-    const nestedData = record.data
-
-    if (nestedData && typeof nestedData === 'object') {
-      return nestedData as CurrentSubscriptionPlan
+    const cacheEntry: CurrentSubscriptionCacheEntry = {
+      data: normalizedData,
+      expiresAt: Date.now() + CURRENT_SUBSCRIPTION_CACHE_TTL_MS,
     }
+    currentSubscriptionMemoryCache = cacheEntry
+    writeCurrentSubscriptionStorageCache(cacheEntry)
 
-    return record as CurrentSubscriptionPlan
+    return normalizedData
   }
 }
 

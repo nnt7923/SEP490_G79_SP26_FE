@@ -24,6 +24,7 @@ const Subscription: React.FC = () => {
 
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingCurrentSubscription, setLoadingCurrentSubscription] = useState(true)
   const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscriptionPlan | null>(null)
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null)
 
@@ -56,6 +57,8 @@ const Subscription: React.FC = () => {
         setCurrentSubscription(response)
       } catch {
         setCurrentSubscription(null)
+      } finally {
+        setLoadingCurrentSubscription(false)
       }
     }
 
@@ -282,7 +285,7 @@ const Subscription: React.FC = () => {
           </p>
         </motion.div>
 
-        {loading ? (
+        {loading || loadingCurrentSubscription ? (
           <div
             style={{
               border: '1px solid var(--border-base)',

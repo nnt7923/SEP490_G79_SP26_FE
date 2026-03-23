@@ -107,6 +107,17 @@ const Login: React.FC = () => {
     return navigate(ROUTER.HOME)
   }
 
+  const resolveLoginErrorMessage = (errorCode?: string) => {
+    const normalized = (errorCode || '').trim().toUpperCase()
+    if (!normalized) {
+      return t('login.invalidCredentials')
+    }
+
+    return t(`login.errorCodes.${normalized}`, {
+      defaultValue: t('login.invalidCredentials'),
+    })
+  }
+
   const handleGoogleCredential = async (response: any) => {
     try {
       const credential: string | undefined = response?.credential
@@ -135,8 +146,7 @@ const Login: React.FC = () => {
       const result = await authStore.login(username.trim(), password)
       
       if (!result.isOk) {
-        // Login failed, show error message from backend
-        const errorMsg = result.msg || t('login.invalidCredentials')
+        const errorMsg = resolveLoginErrorMessage(result.errorCode)
         setError(errorMsg)
         return false
       }
