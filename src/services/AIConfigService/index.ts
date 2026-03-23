@@ -23,6 +23,7 @@ export type AIConfig = {
   providerName?: string
   isEnabled?: boolean
   aiUsageType?: AIUsageType
+  accessTier?: number
   lastUpdated?: string
   configJson?: ConfigJson
   provider?: string // fallback field
@@ -80,8 +81,12 @@ export async function deleteAIConfig(providerName: string): Promise<any> {
 }
 
 // POST /admin/ai-configs/{configId}/set-active
-export async function setActiveAIConfig(configId: string, usageType: string): Promise<any> {
-  const res: any = await api.post(setActiveUrl(configId), { usageType })
+export async function setActiveAIConfig(configId: string, usageType: string, accessTier?: number): Promise<any> {
+  const payload: Record<string, unknown> = { usageType }
+  if (accessTier !== undefined) {
+    payload.accessTier = accessTier
+  }
+  const res: any = await api.post(setActiveUrl(configId), payload)
   return unwrap<any>(res)
 }
 

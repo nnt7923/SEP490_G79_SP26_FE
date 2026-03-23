@@ -464,6 +464,7 @@
     "rejecting": "Rejecting...",
     "pendingInvite": "Awaiting response",
     "inviteFrom": "Invite from {{mentorName}}",
+    "invitesAll": "All",
     "noInvites": "No invites",
     "inviteAccepted": "Invite accepted",
     "inviteRejected": "Invite rejected",
