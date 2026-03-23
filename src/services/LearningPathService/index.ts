@@ -296,6 +296,7 @@ export async function generateSkeleton(
       options.onProgress
     )
     const normalized = normalizeSkeleton(raw)
+    clearUserLearningPathsCache()
     return normalized
   }
 
@@ -308,6 +309,7 @@ export async function generateSkeleton(
   }
   const res: any = await api.post(skeletonUrl, legacyReqBody)
   const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
 }
 
@@ -339,6 +341,7 @@ export async function generateAiDraft(payload: any): Promise<SkeletonResponse> {
 
   const res: any = await api.post(aiDraftUrl, reqBody)
   const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
 }
 
@@ -350,6 +353,7 @@ export async function createManualDraft(payload: ManualDraftPayload): Promise<Sk
 
   const res: any = await api.post(manualDraftUrl, reqBody)
   const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
 }
 
@@ -361,6 +365,7 @@ export async function updateManualDraft(pathId: string, payload: ManualDraftPayl
 
   const res: any = await api.put(manualDraftDetailUrl(pathId), reqBody)
   const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
 }
 
@@ -406,6 +411,7 @@ export interface UserLearningPathsParams {
   subjectId?: string
   status?: string
   sortDescending?: boolean
+  useCache?: boolean
 }
 
 export interface UserLearningPathsResponse {
@@ -433,10 +439,110 @@ export interface MyDraftsParams {
   sortDescending?: boolean
 }
 
+type UserLearningPathsCacheEntry = {
+  expiresAt: number
+  data: UserLearningPathsResponse
+}
+
+const USER_LEARNING_PATHS_CACHE_PREFIX = 'learningPath:userPaths:'
+const USER_LEARNING_PATHS_CACHE_TTL_MS = 2 * 60 * 1000
+const userLearningPathsMemoryCache = new Map<string, UserLearningPathsCacheEntry>()
+
+function buildUserLearningPathsCacheKey(
+  userId: string | number,
+  params?: UserLearningPathsParams
+): string {
+  const normalized = {
+    pageNumber: params?.pageNumber ?? 1,
+    pageSize: params?.pageSize ?? 10,
+    searchTerm: params?.searchTerm ?? '',
+    subjectId: params?.subjectId ?? '',
+    status: params?.status ?? '',
+    sortDescending: params?.sortDescending ?? false,
+  }
+  return `${userId}:${JSON.stringify(normalized)}`
+}
+
+function readUserLearningPathsStorageCache(key: string): UserLearningPathsCacheEntry | null {
+  try {
+    const raw = sessionStorage.getItem(`${USER_LEARNING_PATHS_CACHE_PREFIX}${key}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as UserLearningPathsCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now()) {
+      sessionStorage.removeItem(`${USER_LEARNING_PATHS_CACHE_PREFIX}${key}`)
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeUserLearningPathsStorageCache(key: string, entry: UserLearningPathsCacheEntry): void {
+  try {
+    sessionStorage.setItem(`${USER_LEARNING_PATHS_CACHE_PREFIX}${key}`, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
+export function clearUserLearningPathsCache(userId?: string | number): void {
+  if (userId !== undefined) {
+    const userKeyPrefix = `${userId}:`
+    Array.from(userLearningPathsMemoryCache.keys())
+      .filter((key) => key.startsWith(userKeyPrefix))
+      .forEach((key) => userLearningPathsMemoryCache.delete(key))
+
+    try {
+      const storageKeys: string[] = []
+      for (let index = 0; index < sessionStorage.length; index++) {
+        const storageKey = sessionStorage.key(index)
+        if (storageKey) storageKeys.push(storageKey)
+      }
+      storageKeys
+        .filter((storageKey) => storageKey.startsWith(`${USER_LEARNING_PATHS_CACHE_PREFIX}${userKeyPrefix}`))
+        .forEach((storageKey) => sessionStorage.removeItem(storageKey))
+    } catch {
+      // ignore cache clear errors
+    }
+    return
+  }
+
+  userLearningPathsMemoryCache.clear()
+  try {
+    const storageKeys: string[] = []
+    for (let index = 0; index < sessionStorage.length; index++) {
+      const storageKey = sessionStorage.key(index)
+      if (storageKey) storageKeys.push(storageKey)
+    }
+    storageKeys
+      .filter((storageKey) => storageKey.startsWith(USER_LEARNING_PATHS_CACHE_PREFIX))
+      .forEach((storageKey) => sessionStorage.removeItem(storageKey))
+  } catch {
+    // ignore cache clear errors
+  }
+}
+
 export async function getUserLearningPaths(
   userId: string | number,
   params?: UserLearningPathsParams
 ): Promise<UserLearningPathsResponse> {
+  const useCache = params?.useCache !== false
+  const cacheKey = buildUserLearningPathsCacheKey(userId, params)
+
+  if (useCache) {
+    const memoryEntry = userLearningPathsMemoryCache.get(cacheKey)
+    if (memoryEntry && memoryEntry.expiresAt > Date.now()) {
+      return memoryEntry.data
+    }
+
+    const storageEntry = readUserLearningPathsStorageCache(cacheKey)
+    if (storageEntry) {
+      userLearningPathsMemoryCache.set(cacheKey, storageEntry)
+      return storageEntry.data
+    }
+  }
+
   const queryParams = new URLSearchParams()
 
   if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
@@ -450,12 +556,23 @@ export async function getUserLearningPaths(
   const res: any = await api.get(url)
   const data = unwrap<UserLearningPathsResponse>(res)
 
-  return {
+  const normalizedResponse = {
     items: Array.isArray(data?.items) ? data.items.map(normalizeSkeleton) : [],
     totalCount: data?.totalCount ?? 0,
     pageNumber: data?.pageNumber ?? 1,
     pageSize: data?.pageSize ?? 10,
   }
+
+  if (useCache) {
+    const entry: UserLearningPathsCacheEntry = {
+      data: normalizedResponse,
+      expiresAt: Date.now() + USER_LEARNING_PATHS_CACHE_TTL_MS,
+    }
+    userLearningPathsMemoryCache.set(cacheKey, entry)
+    writeUserLearningPathsStorageCache(cacheKey, entry)
+  }
+
+  return normalizedResponse
 }
 
 export async function getLearningPathProgress(pathId: string): Promise<LearningPathProgressResponse> {
@@ -560,6 +677,7 @@ export default {
   generateLessonContent,
   generateChapterSkeleton,
   getUserLearningPaths,
+  clearUserLearningPathsCache,
   getLearningPathProgress,
   getMyDrafts,
   getMyDraftDetail,

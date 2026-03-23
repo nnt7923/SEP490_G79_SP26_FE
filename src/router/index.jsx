@@ -13,6 +13,7 @@ const RequireRole = React.lazy(() => import('../components/Authorization/Require
 
 // Pages
 const Home = React.lazy(() => import('../pages/public/Home'))
+const About = React.lazy(() => import('../pages/public/About'))
 const Login = React.lazy(() => import('../pages/public/Login'))
 const Register = React.lazy(() => import('../pages/public/Register'))
 const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
@@ -64,7 +65,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, path: ROUTER.HOME, element: <Home /> },
       { path: ROUTER.CLASSES, element: <div>Classes</div> },
-      { path: ROUTER.ABOUT, element: <div>About Us</div> },
+      { path: ROUTER.ABOUT, element: <About /> },
     ],
   },
   {

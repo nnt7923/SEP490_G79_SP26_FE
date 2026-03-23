@@ -11,7 +11,7 @@ import { useChatHub } from '../../../../hooks/useChatHub'
 import { getPendingShares } from '../../../../services/LearningPathShareService'
 import { getContacts, getConversations, getMessages } from '../../../../services/DirectChatService'
 import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
-import type { DirectChatContactDto, DirectMessageDto } from '../../../../types/chat'
+import type { DirectChatContactDto, DirectMessageDto, ShareStatus } from '../../../../types/chat'
 import { getMessageStatus } from '../../../../types/chat'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import Toast from '../../../../components/Toast'
@@ -100,12 +100,15 @@ const StudentChatPage: React.FC = () => {
     setConversations,
     setMessages,
     pendingLearningPathShares,
+    receivedLearningPathShares,
     setPendingShares,
     reconcilePendingShares,
+    upsertReceivedShare,
   } = useChatStore()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'conversations' | 'invites' | 'contacts'>('conversations')
+  const [inviteStatusFilter, setInviteStatusFilter] = useState<'' | ShareStatus>('')
   const [contacts, setContacts] = useState<DirectChatContactDto[]>([])
   const [showEmoji, setShowEmoji] = useState(false)
   const [inputValue, setInputValue] = useState('')
@@ -135,6 +138,18 @@ const StudentChatPage: React.FC = () => {
       return name.toLowerCase().includes(q)
     })
   }, [conversations, currentUserId, searchQuery])
+
+  const filteredReceivedShares = useMemo(() => {
+    const items = inviteStatusFilter
+      ? receivedLearningPathShares.filter((share) => share.status === inviteStatusFilter)
+      : receivedLearningPathShares
+
+    return [...items].sort((left, right) => {
+      const rightTime = Date.parse(right.sentAt || '') || 0
+      const leftTime = Date.parse(left.sentAt || '') || 0
+      return rightTime - leftTime
+    })
+  }, [inviteStatusFilter, receivedLearningPathShares])
 
   const hub = useChatHub({
     onError: (code) => {
@@ -182,6 +197,30 @@ const StudentChatPage: React.FC = () => {
       .catch(() => { })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId])
+
+  useEffect(() => {
+    if (!activeConv?.mentorId) return
+
+    activeMessages.forEach((message) => {
+      const shareCardData = isLearningPathShareMessage(message)
+        ? buildLearningPathShareCardData(message, pendingLearningPathShares)
+        : null
+
+      if (!shareCardData) return
+
+      upsertReceivedShare({
+        shareId: shareCardData.shareId,
+        pathId: shareCardData.pathId ?? '',
+        learningPathTitle: shareCardData.title,
+        learningPathDescription: shareCardData.description ?? null,
+        mentorId: activeConv.mentorId,
+        mentorName: shareCardData.mentorName || activeConv.mentorName,
+        status: shareCardData.status,
+        sentAt: shareCardData.sentAt || message.sentAt,
+        respondedAt: shareCardData.respondedAt ?? null,
+      })
+    })
+  }, [activeConv?.mentorId, activeConv?.mentorName, activeMessages, pendingLearningPathShares, upsertReceivedShare])
 
   useEffect(() => {
     deliveredRef.current.clear()
@@ -292,6 +331,13 @@ const StudentChatPage: React.FC = () => {
     viewPath: t('chat.viewPath', { defaultValue: 'View learning path' }),
     shareFrom: (mentorName?: string | null) => t('chat.inviteFrom', { mentorName: mentorName || otherName || t('chat.title') }),
   }
+
+  const inviteStatusFilters: Array<{ value: '' | ShareStatus; label: string }> = [
+    { value: '', label: t('chat.invitesAll', { defaultValue: 'Tất cả' }) },
+    { value: 'Pending', label: t('chat.pendingInvite') },
+    { value: 'Accepted', label: t('chat.inviteAcceptedStatus', { defaultValue: 'Đã chấp nhận' }) },
+    { value: 'Rejected', label: t('chat.inviteRejectedStatus', { defaultValue: 'Đã từ chối' }) },
+  ]
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -404,10 +450,23 @@ const StudentChatPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="chat-kit-invite-list">
-                  {pendingLearningPathShares.length === 0 ? (
+                  <div className="chat-kit-sent-shares-chips" style={{ marginBottom: 10 }}>
+                    {inviteStatusFilters.map((filter) => (
+                      <button
+                        key={filter.value || 'all'}
+                        type="button"
+                        className={`chat-kit-sent-shares-chip ${inviteStatusFilter === filter.value ? 'is-active' : ''}`}
+                        onClick={() => setInviteStatusFilter(filter.value)}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {filteredReceivedShares.length === 0 ? (
                     <div className="chat-kit-empty">{t('chat.noInvites')}</div>
                   ) : (
-                    pendingLearningPathShares.map(share => (
+                    filteredReceivedShares.map(share => (
                       <LearningPathShareCard
                         key={share.shareId}
                         data={{
@@ -416,11 +475,15 @@ const StudentChatPage: React.FC = () => {
                           title: share.learningPathTitle,
                           description: share.learningPathDescription,
                           mentorName: share.mentorName,
-                          status: 'Pending',
+                          status: share.status,
                           sentAt: share.sentAt,
+                          respondedAt: share.respondedAt,
                         }}
                         actionMode="invite"
                         onPreview={() => openSharePreview(share.shareId, 'invites')}
+                        onViewPath={share.pathId && share.status === 'Accepted'
+                          ? () => navigate('/my-plans/detail', { state: { pathId: share.pathId } })
+                          : undefined}
                         labels={shareCardLabels}
                       />
                     ))

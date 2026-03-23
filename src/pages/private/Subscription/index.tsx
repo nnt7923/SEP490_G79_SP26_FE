@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
-import SubscriptionService, { type CurrentSubscriptionPlan, type SubscriptionPlan } from '../../../services/SubscriptionService'
+import SubscriptionService, {
+  type CurrentSubscriptionPlan,
+  type SubscriptionPlan,
+  type SubscriptionPlanLimit,
+} from '../../../services/SubscriptionService'
 import ROUTER from '../../../router/ROUTER'
 
 const Subscription: React.FC = () => {
@@ -63,22 +67,56 @@ const Subscription: React.FC = () => {
     return new Intl.NumberFormat('vi-VN').format(priceVnd)
   }
 
-  const getFeatureKeys = (planType: string) => {
-    const normalizedType = planType.toLowerCase()
+  const getFeatureLabel = (featureKey: unknown) => {
+    const normalized = String(featureKey)
+    switch (normalized) {
+      case '1':
+      case 'LearningPathCreation':
+        return t('subscription.featureLearningPathCreation')
+      case '2':
+      case 'TutorMessages':
+        return t('subscription.featureTutorMessages')
+      case '3':
+      case 'FocusSessionReview':
+        return t('subscription.featureFocusSessionReview')
+      default:
+        return t('subscription.featureUsage')
+    }
+  }
 
-    if (normalizedType === 'free') {
-      return ['featureAiBasic', 'featureSystemGoals']
+  const getWindowLabel = (windowType: unknown) => {
+    const normalized = String(windowType)
+    switch (normalized) {
+      case '1':
+      case 'Daily':
+        return t('subscription.windowDay')
+      case '2':
+      case 'Monthly':
+        return t('subscription.windowMonth')
+      case '3':
+      case 'Lifetime':
+        return t('subscription.windowLifetime')
+      default:
+        return t('subscription.windowMonth')
+    }
+  }
+
+  const formatLimitLabel = (limit: SubscriptionPlanLimit) => {
+    const feature = getFeatureLabel(limit.featureKey)
+    const windowType = String(limit.windowType)
+
+    if (windowType === '3' || windowType === 'Lifetime') {
+      return t('subscription.limitLifetime', {
+        count: limit.limitCount,
+        feature,
+      })
     }
 
-    if (normalizedType === 'standard') {
-      return ['featureAiAdvanced', 'featureStandardLimits']
-    }
-
-    if (normalizedType === 'pro') {
-      return ['featureAiAdvanced', 'featureProLimits', 'featureUnlimitedMentorQa']
-    }
-
-    return ['featureAiAdvanced']
+    return t('subscription.limitPeriod', {
+      count: limit.limitCount,
+      feature,
+      period: getWindowLabel(limit.windowType),
+    })
   }
 
   const getCurrentPlanId = () => {
@@ -103,6 +141,41 @@ const Subscription: React.FC = () => {
   }
 
   const currentPlanId = getCurrentPlanId()
+  const getCurrentPlanType = () => {
+    if (!currentSubscription || typeof currentSubscription !== 'object') {
+      return ''
+    }
+
+    const directType = currentSubscription.planType
+    if (typeof directType === 'string' && directType.length > 0) {
+      return directType
+    }
+
+    const nestedPlan = currentSubscription.subscriptionPlan
+    if (nestedPlan && typeof nestedPlan === 'object') {
+      const nestedType = (nestedPlan as { planType?: string }).planType
+      if (typeof nestedType === 'string' && nestedType.length > 0) {
+        return nestedType
+      }
+    }
+
+    return ''
+  }
+
+  const getPlanTier = (planType: string) => {
+    const normalized = planType.trim().toLowerCase()
+    if (normalized === 'free') return 1
+    if (normalized === 'standard') return 2
+    if (normalized === 'pro') return 3
+    return 0
+  }
+
+  const currentPlanType = getCurrentPlanType()
+  const currentPlanTier = getPlanTier(currentPlanType)
+  const visiblePlans = currentPlanTier > 0
+    ? plans.filter((plan) => getPlanTier(plan.planType) >= currentPlanTier)
+    : plans
+
   const currentPlanName =
     (typeof currentSubscription?.name === 'string' && currentSubscription?.name)
     || (typeof currentSubscription?.planType === 'string' && currentSubscription?.planType)
@@ -226,7 +299,7 @@ const Subscription: React.FC = () => {
             <Loader2 size={18} className="animate-spin" />
             <span>{t('subscription.loading')}</span>
           </div>
-        ) : plans.length === 0 ? (
+        ) : visiblePlans.length === 0 ? (
           <div
             style={{
               border: '1px solid var(--border-base)',
@@ -249,12 +322,16 @@ const Subscription: React.FC = () => {
               gap: 16,
             }}
           >
-            {plans.map((plan, index) => {
+            {visiblePlans.map((plan, index) => {
               const type = plan.planType.toLowerCase()
               const isPro = type === 'pro'
               const isStandard = type === 'standard'
               const isPaid = plan.priceVnd > 0
               const isCurrentPlan = Boolean(currentPlanId) && currentPlanId === plan.subscriptionPlanId
+              const isButtonDisabled = Boolean(processingPlanId) || !isPaid || isCurrentPlan
+              const visibleLimits = Array.isArray(plan.limits)
+                ? plan.limits.filter((limit) => limit.isEnabled)
+                : []
 
               return (
                 <motion.div
@@ -325,10 +402,6 @@ const Subscription: React.FC = () => {
                     ) : null}
                   </div>
 
-                  <p style={{ margin: '0 0 14px', color: 'var(--text-secondary)', minHeight: 40, fontSize: 13 }}>
-                    {plan.description}
-                  </p>
-
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
                       <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
@@ -347,36 +420,47 @@ const Subscription: React.FC = () => {
                     </div>
                   </div>
 
+                  <p style={{ margin: '0 0 14px', color: 'var(--text-secondary)', minHeight: 40, fontSize: 13 }}>
+                    {plan.description}
+                  </p>
+
                   <div style={{ borderTop: '1px solid var(--border-base)', paddingTop: 12, marginBottom: 14, flex: 1 }}>
-                    {getFeatureKeys(plan.planType).map((featureKey) => (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10 }}>
+                      {t('subscription.usageLimitsTitle')}
+                    </div>
+                    {visibleLimits.length > 0 ? visibleLimits.map((limit, limitIndex) => (
                       <div
-                        key={featureKey}
+                        key={`${plan.subscriptionPlanId}-${String(limit.featureKey)}-${String(limit.windowType)}-${limitIndex}`}
                         style={{ display: 'flex', alignItems: 'start', gap: 8, marginBottom: 10, color: 'var(--text-primary)' }}
                       >
                         <CheckCircle2 size={16} color="var(--success-primary)" style={{ marginTop: 2, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13 }}>{t(`subscription.${featureKey}`)}</span>
+                        <span style={{ fontSize: 13 }}>{formatLimitLabel(limit)}</span>
                       </div>
-                    ))}
+                    )) : (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                        {t('subscription.noLimitInfo')}
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="button"
                     onClick={() => handleUpgrade(plan)}
-                    disabled={Boolean(processingPlanId) || !isPaid || isCurrentPlan}
+                    disabled={isButtonDisabled}
                     style={{
                       width: '100%',
                       borderRadius: 8,
                       padding: '10px 12px',
-                      border: `1px solid ${isPaid ? 'var(--accent-primary)' : 'var(--border-base)'}`,
-                      background: isPaid ? 'var(--accent-primary)' : 'var(--bg-main)',
-                      color: isPaid ? 'var(--bg-surface)' : 'var(--text-primary)',
+                      border: `1px solid ${isCurrentPlan ? 'var(--border-base)' : (isPaid ? 'var(--accent-primary)' : 'var(--border-base)')}`,
+                      background: isCurrentPlan ? 'var(--border-base)' : (isPaid ? 'var(--accent-primary)' : 'var(--bg-main)'),
+                      color: isCurrentPlan ? 'var(--text-secondary)' : (isPaid ? 'var(--bg-surface)' : 'var(--text-primary)'),
                       fontWeight: 700,
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 8,
-                      cursor: Boolean(processingPlanId) ? 'not-allowed' : 'pointer',
-                      opacity: Boolean(processingPlanId) && isPaid ? 0.8 : 1,
+                      cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
+                      opacity: Boolean(processingPlanId) && isPaid && !isCurrentPlan ? 0.8 : 1,
                     }}
                   >
                     {isPaid

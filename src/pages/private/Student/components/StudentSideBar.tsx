@@ -32,11 +32,6 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
       icon: <Library size={18} />,
     },
     {
-      label: 'Upgrade',
-      path: '/subscription',
-      icon: <Crown size={18} className="text-yellow-500" />,
-    },
-    {
       label: 'Profile',
       path: '/profile',
       icon: <User size={18} />,
@@ -45,6 +40,11 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
       label: 'Chat',
       path: '/chat',
       icon: <MessageSquare size={18} />,
+    },
+    {
+      label: 'Upgrade',
+      path: '/subscription',
+      icon: <Crown size={18} className="text-yellow-500" />,
     },
   ]
 }
@@ -58,8 +58,8 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.goals'), path: '/goals', icon: <Target size={18} /> },
     { label: t('sidebar.progress'), path: '/plans', icon: <TrendingUp size={18} /> },
     { label: t('sidebar.resources'), path: '/my-resources', icon: <Library size={18} /> },
-    { label: t('sidebar.upgrade'), path: '/subscription', icon: <Crown size={18} className="text-yellow-500" /> },
     { label: t('sidebar.profile'), path: '/profile', icon: <User size={18} /> },
     { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} /> },
+    { label: t('sidebar.upgrade'), path: '/subscription', icon: <Crown size={18} className="text-yellow-500" /> },
   ]
 }

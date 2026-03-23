@@ -62,5 +62,39 @@
     "feature2": "Curate real-world programming learning resources",
     "feature3": "Progress tracking tools and visual dashboard",
     "feature4": "Rich resource library and practice exercises"
+  },
+  "about": {
+    "badge": "About CodeNexus",
+    "title": "A website that supports programming study",
+    "subtitle": "CodeNexus is a capstone project built by a 5-member team. The product is designed to support learners during self-study in programming subjects, with core support through tasks, quizzes, and schedule reminders. Lessons are provided as additional supporting resources.",
+    "mission": {
+      "title": "Our mission",
+      "description": "Build a practical support platform that helps learners stay consistent, follow their targets, and track progress in short, manageable steps."
+    },
+    "values": {
+      "title": "Core values",
+      "aiFirst": {
+        "title": "Context-aware AI assistance",
+        "description": "AI assists with roadmap and content suggestions based on subject, goals, and current learner level."
+      },
+      "goalDriven": {
+        "title": "Task and quiz focused",
+        "description": "Learners build momentum through continuous task and quiz practice to reinforce knowledge and execution skills."
+      },
+      "reliable": {
+        "title": "Reminder-based scheduling",
+        "description": "Schedule reminders support steady learning habits and help learners stay on track with their personal plans."
+      },
+      "community": {
+        "title": "Lessons as supplementary support",
+        "description": "Lessons are included as additional reference material when learners need quick concept review or examples."
+      }
+    },
+    "contact": {
+      "title": "Contact",
+      "email": "team5-codenexus-demo@edu.local",
+      "website": "www.codenexus-demo.local",
+      "note": "Contact details are temporary demo data for the capstone project and will be updated once official team info is finalized."
+    }
   }
 }
