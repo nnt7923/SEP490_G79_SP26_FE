@@ -16,7 +16,17 @@
     "aiModels": "Mô_Hình_AI",
     "ok": "OK",
     "connected": "Đã kết nối",
-    "allSystemsOperational": "tất_cả_hệ_thống_hoạt_động()"
+    "allSystemsOperational": "tất_cả_hệ_thống_hoạt_động()",
+    "billingOverview": "Tổng quan thanh toán",
+    "loadingBilling": "Đang tải dữ liệu thanh toán...",
+    "billingRangeHint": "14 ngày gần nhất (VNPAY)",
+    "totalTransactions": "Tổng số giao dịch",
+    "successfulTransactions": "Giao dịch thành công",
+    "failedTransactions": "Giao dịch thất bại",
+    "totalRevenue": "Tổng doanh thu",
+    "revenueTrend": "Xu hướng doanh thu",
+    "transactionsByDay": "Số giao dịch theo ngày",
+    "noBillingData": "Không có dữ liệu thanh toán"
   },
   "users": {
     "title": "quản_lý_người_dùng",
@@ -271,6 +281,16 @@
     "orderInfo": "Thông tin đơn hàng",
     "bankCode": "Mã ngân hàng",
     "createdAt": "Thời gian tạo",
-    "updatedAt": "Thời gian cập nhật"
+    "updatedAt": "Thời gian cập nhật",
+    "summaryTitle": "Tổng quan",
+    "summarySubtitle": "Thống kê theo khoảng thời gian đã chọn",
+    "totalTransactions": "Tổng giao dịch",
+    "successfulTransactions": "Giao dịch thành công",
+    "pendingTransactions": "Giao dịch chờ xử lý",
+    "failedTransactions": "Giao dịch thất bại",
+    "canceledTransactions": "Giao dịch đã hủy",
+    "totalRevenue": "Tổng doanh thu",
+    "dailyRevenue": "Doanh thu theo ngày",
+    "date": "Ngày"
   }
 }

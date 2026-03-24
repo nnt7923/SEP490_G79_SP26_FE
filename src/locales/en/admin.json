@@ -16,7 +16,17 @@
     "aiModels": "AI_Models",
     "ok": "OK",
     "connected": "Connected",
-    "allSystemsOperational": "all_systems_operational()"
+    "allSystemsOperational": "all_systems_operational()",
+    "billingOverview": "Billing Overview",
+    "loadingBilling": "Loading billing data...",
+    "billingRangeHint": "Latest 14 days (VNPAY)",
+    "totalTransactions": "Total Transactions",
+    "successfulTransactions": "Successful Transactions",
+    "failedTransactions": "Failed Transactions",
+    "totalRevenue": "Total Revenue",
+    "revenueTrend": "Revenue Trend",
+    "transactionsByDay": "Transactions by Day",
+    "noBillingData": "No billing data"
   },
   "users": {
     "title": "admin_users",
@@ -271,6 +281,16 @@
     "orderInfo": "Order Info",
     "bankCode": "Bank Code",
     "createdAt": "Created At",
-    "updatedAt": "Updated At"
+    "updatedAt": "Updated At",
+    "summaryTitle": "Summary",
+    "summarySubtitle": "Overview by selected date range",
+    "totalTransactions": "Total Transactions",
+    "successfulTransactions": "Successful Transactions",
+    "pendingTransactions": "Pending Transactions",
+    "failedTransactions": "Failed Transactions",
+    "canceledTransactions": "Canceled Transactions",
+    "totalRevenue": "Total Revenue",
+    "dailyRevenue": "Daily Revenue",
+    "date": "Date"
   }
 }

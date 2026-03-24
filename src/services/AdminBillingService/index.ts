@@ -51,6 +51,31 @@ export interface BillingTransactionsPage {
   hasNextPage: boolean
 }
 
+export interface BillingSummaryQuery {
+  fromUtc?: string
+  toUtc?: string
+  provider?: string
+}
+
+export interface BillingSummaryDailyRevenue {
+  date: string
+  transactions: number
+  successfulTransactions: number
+  revenueVnd: number
+}
+
+export interface BillingSummary {
+  fromUtc: string | null
+  toUtc: string | null
+  totalTransactions: number
+  pendingTransactions: number
+  successfulTransactions: number
+  failedTransactions: number
+  canceledTransactions: number
+  totalRevenueVnd: number
+  dailyRevenue: BillingSummaryDailyRevenue[]
+}
+
 type BillingTransactionsListCacheEntry = {
   expiresAt: number
   data: BillingTransactionsPage
@@ -61,12 +86,19 @@ type BillingTransactionDetailCacheEntry = {
   data: BillingTransaction
 }
 
+type BillingSummaryCacheEntry = {
+  expiresAt: number
+  data: BillingSummary
+}
+
 const BILLING_LIST_CACHE_PREFIX = 'admin:billing:transactions:list:'
 const BILLING_DETAIL_CACHE_PREFIX = 'admin:billing:transactions:detail:'
+const BILLING_SUMMARY_CACHE_PREFIX = 'admin:billing:summary:'
 const BILLING_CACHE_TTL_MS = 2 * 60 * 1000
 
 const billingListMemoryCache = new Map<string, BillingTransactionsListCacheEntry>()
 const billingDetailMemoryCache = new Map<string, BillingTransactionDetailCacheEntry>()
+const billingSummaryMemoryCache = new Map<string, BillingSummaryCacheEntry>()
 
 function normalizeStatus(value: unknown): PaymentStatus {
   const numeric = Number(value)
@@ -144,6 +176,37 @@ function unwrapObject(raw: unknown): unknown {
   return data
 }
 
+function toSafeNumber(value: unknown, fallback = 0): number {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : fallback
+}
+
+function normalizeSummary(raw: unknown): BillingSummary {
+  const source = unwrapObject(raw)
+  const record = (source && typeof source === 'object') ? source as Record<string, unknown> : {}
+  const dailyRevenueRaw = Array.isArray(record.dailyRevenue) ? record.dailyRevenue : []
+
+  return {
+    fromUtc: record.fromUtc ? String(record.fromUtc) : null,
+    toUtc: record.toUtc ? String(record.toUtc) : null,
+    totalTransactions: toSafeNumber(record.totalTransactions),
+    pendingTransactions: toSafeNumber(record.pendingTransactions),
+    successfulTransactions: toSafeNumber(record.successfulTransactions),
+    failedTransactions: toSafeNumber(record.failedTransactions),
+    canceledTransactions: toSafeNumber(record.canceledTransactions),
+    totalRevenueVnd: toSafeNumber(record.totalRevenueVnd),
+    dailyRevenue: dailyRevenueRaw.map((item) => {
+      const row = (item && typeof item === 'object') ? item as Record<string, unknown> : {}
+      return {
+        date: String(row.date ?? ''),
+        transactions: toSafeNumber(row.transactions),
+        successfulTransactions: toSafeNumber(row.successfulTransactions),
+        revenueVnd: toSafeNumber(row.revenueVnd),
+      }
+    }),
+  }
+}
+
 function readBillingListStorageCache(cacheKey: string): BillingTransactionsListCacheEntry | null {
   try {
     if (typeof window === 'undefined') return null
@@ -198,6 +261,33 @@ function writeBillingDetailStorageCache(transactionId: string, entry: BillingTra
   }
 }
 
+function readBillingSummaryStorageCache(cacheKey: string): BillingSummaryCacheEntry | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = window.sessionStorage.getItem(`${BILLING_SUMMARY_CACHE_PREFIX}${cacheKey}`)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as BillingSummaryCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now()) {
+      window.sessionStorage.removeItem(`${BILLING_SUMMARY_CACHE_PREFIX}${cacheKey}`)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeBillingSummaryStorageCache(cacheKey: string, entry: BillingSummaryCacheEntry): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(`${BILLING_SUMMARY_CACHE_PREFIX}${cacheKey}`, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
 function writeBillingDetailCache(transaction: BillingTransaction): void {
   const transactionId = String(transaction.paymentTransactionId || '')
   if (!transactionId) return
@@ -214,6 +304,7 @@ function writeBillingDetailCache(transaction: BillingTransaction): void {
 export function clearAdminBillingCache(): void {
   billingListMemoryCache.clear()
   billingDetailMemoryCache.clear()
+  billingSummaryMemoryCache.clear()
   try {
     if (typeof window === 'undefined') return
     const keys: string[] = []
@@ -222,11 +313,21 @@ export function clearAdminBillingCache(): void {
       if (key) keys.push(key)
     }
     keys
-      .filter((key) => key.startsWith(BILLING_LIST_CACHE_PREFIX) || key.startsWith(BILLING_DETAIL_CACHE_PREFIX))
+      .filter((key) => key.startsWith(BILLING_LIST_CACHE_PREFIX) || key.startsWith(BILLING_DETAIL_CACHE_PREFIX) || key.startsWith(BILLING_SUMMARY_CACHE_PREFIX))
       .forEach((key) => window.sessionStorage.removeItem(key))
   } catch {
     // ignore cache clear errors
   }
+}
+
+function buildSummaryQueryParams(query: BillingSummaryQuery): URLSearchParams {
+  const params = new URLSearchParams()
+
+  if (query.fromUtc) params.set('FromUtc', query.fromUtc)
+  if (query.toUtc) params.set('ToUtc', query.toUtc)
+  if (query.provider) params.set('Provider', query.provider)
+
+  return params
 }
 
 function buildQueryParams(query: BillingTransactionsQuery): URLSearchParams {
@@ -303,6 +404,36 @@ class AdminBillingService {
     const response = await api.get(`/admin/billing/transactions/${transactionId}`)
     const data = normalizeTransaction(unwrapObject(response))
     writeBillingDetailCache(data)
+    return data
+  }
+
+  async getSummary(query: BillingSummaryQuery): Promise<BillingSummary> {
+    const params = buildSummaryQueryParams(query)
+    const cacheKey = params.toString() || 'default'
+
+    const memoryEntry = billingSummaryMemoryCache.get(cacheKey)
+    if (memoryEntry && memoryEntry.expiresAt > Date.now()) {
+      return memoryEntry.data
+    }
+
+    const storageEntry = readBillingSummaryStorageCache(cacheKey)
+    if (storageEntry) {
+      billingSummaryMemoryCache.set(cacheKey, storageEntry)
+      return storageEntry.data
+    }
+
+    const queryString = params.toString()
+    const response = await api.get(queryString ? `/admin/billing/summary?${queryString}` : '/admin/billing/summary')
+    const data = normalizeSummary(response)
+
+    const cacheEntry: BillingSummaryCacheEntry = {
+      data,
+      expiresAt: Date.now() + BILLING_CACHE_TTL_MS,
+    }
+
+    billingSummaryMemoryCache.set(cacheKey, cacheEntry)
+    writeBillingSummaryStorageCache(cacheKey, cacheEntry)
+
     return data
   }
 }
