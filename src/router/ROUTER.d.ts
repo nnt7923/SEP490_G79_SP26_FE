@@ -21,6 +21,7 @@ declare const ROUTER: {
   ADMIN_API_KEY: string
   ADMIN_SUBSCRIPTION_PLANS: string
   ADMIN_BILLING_TRANSACTIONS: string
+  ADMIN_MENTOR_AI_USAGE: string
   ADMIN_USERS: string
   ADMIN_REPORTS: string
   ADMIN_AUDIT_LOGS: string

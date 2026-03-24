@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 import ROUTER from '../../../../router/ROUTER'
-import { LayoutDashboard, Users, FileText, Key, Activity, CreditCard, ReceiptText } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Key, Activity, CreditCard, ReceiptText, Bot } from 'lucide-react'
 
 export const getAdminSidebarConfig = (): SidebarNavItem[] => {
   return [
@@ -11,6 +11,7 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
     { label: 'API Key', path: ROUTER.ADMIN_API_KEY, icon: <Key size={18} /> },
     { label: 'Subscription Plans', path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
     { label: 'Billing', path: ROUTER.ADMIN_BILLING_TRANSACTIONS, icon: <ReceiptText size={18} /> },
+    { label: 'Mentor AI Usage', path: ROUTER.ADMIN_MENTOR_AI_USAGE, icon: <Bot size={18} /> },
     { label: 'Audit Logs', path: ROUTER.ADMIN_AUDIT_LOGS, icon: <Activity size={18} /> },
   ]
 }
@@ -25,6 +26,7 @@ export const useAdminSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.apiKey'), path: ROUTER.ADMIN_API_KEY, icon: <Key size={18} /> },
     { label: t('sidebar.subscriptionPlans'), path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
     { label: t('sidebar.billing', { defaultValue: 'Billing' }), path: ROUTER.ADMIN_BILLING_TRANSACTIONS, icon: <ReceiptText size={18} /> },
+    { label: t('sidebar.mentorAiUsage', { defaultValue: 'Mentor AI Usage' }), path: ROUTER.ADMIN_MENTOR_AI_USAGE, icon: <Bot size={18} /> },
     { label: t('sidebar.auditLogs'), path: ROUTER.ADMIN_AUDIT_LOGS, icon: <Activity size={18} /> },
   ]
 }

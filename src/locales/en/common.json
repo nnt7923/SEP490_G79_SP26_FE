@@ -89,6 +89,7 @@
     "apiKey": "API Key",
     "subscriptionPlans": "Subscription Plans",
     "billing": "Billing",
+    "mentorAiUsage": "Mentor AI Usage",
     "auditLogs": "Audit Logs",
     "logout": "Logout"
   },

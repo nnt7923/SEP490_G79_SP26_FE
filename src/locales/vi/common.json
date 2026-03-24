@@ -89,6 +89,7 @@
     "apiKey": "API Key",
     "subscriptionPlans": "Gói Subscription",
     "billing": "Quản lý hóa đơn",
+    "mentorAiUsage": "Hạn mức AI Mentor",
     "auditLogs": "Nhật ký hệ thống",
     "logout": "Đăng xuất"
   },

@@ -29,6 +29,7 @@ const ROUTER = {
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",
   ADMIN_BILLING_TRANSACTIONS: "/admin/billing/transactions",
+  ADMIN_MENTOR_AI_USAGE: "/admin/mentor-ai-usage",
   ADMIN_USERS: "/admin/users",
   ADMIN_REPORTS: "/admin/reports",
   ADMIN_AUDIT_LOGS: "/admin/audit-logs",
