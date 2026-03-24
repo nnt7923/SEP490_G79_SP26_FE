@@ -1,6 +1,15 @@
 import api from '../Axios'
 import { configUrl, addConfigUrl, providerConfigUrl, configIdUrl, setActiveUrl } from './url'
 
+type AIConfigCacheEntry = {
+  expiresAt: number
+  data: AIConfig | AIConfig[]
+}
+
+const AI_CONFIG_CACHE_KEY = 'admin:ai-configs:list'
+const AI_CONFIG_CACHE_TTL_MS = 2 * 60 * 1000
+let aiConfigMemoryCache: AIConfigCacheEntry | null = null
+
 export type ConfigJson = {
   Model?: string
   MaxTokens?: number
@@ -52,31 +61,89 @@ function unwrap<T>(res: any): T {
   return data as T
 }
 
+function readAIConfigStorageCache(): AIConfigCacheEntry | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = window.sessionStorage.getItem(AI_CONFIG_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as AIConfigCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now()) {
+      window.sessionStorage.removeItem(AI_CONFIG_CACHE_KEY)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeAIConfigStorageCache(entry: AIConfigCacheEntry): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(AI_CONFIG_CACHE_KEY, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
+export function clearAIConfigCache(): void {
+  aiConfigMemoryCache = null
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.removeItem(AI_CONFIG_CACHE_KEY)
+  } catch {
+    // ignore cache clear errors
+  }
+}
+
 export async function getAIConfig(): Promise<AIConfig | AIConfig[]> {
+  if (aiConfigMemoryCache && aiConfigMemoryCache.expiresAt > Date.now()) {
+    return aiConfigMemoryCache.data
+  }
+
+  const storageEntry = readAIConfigStorageCache()
+  if (storageEntry) {
+    aiConfigMemoryCache = storageEntry
+    return storageEntry.data
+  }
+
   const res: any = await api.get(configUrl)
-  return unwrap<AIConfig | AIConfig[]>(res)
+  const data = unwrap<AIConfig | AIConfig[]>(res)
+  const cacheEntry: AIConfigCacheEntry = {
+    data,
+    expiresAt: Date.now() + AI_CONFIG_CACHE_TTL_MS,
+  }
+  aiConfigMemoryCache = cacheEntry
+  writeAIConfigStorageCache(cacheEntry)
+  return data
 }
 
 export async function updateAIConfig(payload: Partial<AIConfig>): Promise<AIConfig | AIConfig[]> {
   const res: any = await api.post(addConfigUrl, payload)
+  clearAIConfigCache()
   return unwrap<AIConfig | AIConfig[]>(res)
 }
 
 // PUT /admin/ai-configs/{providerName}
 export async function putAIConfig(providerName: string, payload: Partial<AIConfig>): Promise<AIConfig> {
   const res: any = await api.put(providerConfigUrl(providerName), payload)
+  clearAIConfigCache()
   return unwrap<AIConfig>(res)
 }
 
 // PUT /admin/ai-configs/{configId}
 export async function putAIConfigById(configId: string, payload: Partial<AIConfig>): Promise<AIConfig> {
   const res: any = await api.put(configIdUrl(configId), payload)
+  clearAIConfigCache()
   return unwrap<AIConfig>(res)
 }
 
 // DELETE /admin/ai-configs/{providerName}
 export async function deleteAIConfig(providerName: string): Promise<any> {
   const res: any = await api.delete(providerConfigUrl(providerName))
+  clearAIConfigCache()
   return unwrap<any>(res)
 }
 
@@ -87,7 +154,8 @@ export async function setActiveAIConfig(configId: string, usageType: string, acc
     payload.accessTier = accessTier
   }
   const res: any = await api.post(setActiveUrl(configId), payload)
+  clearAIConfigCache()
   return unwrap<any>(res)
 }
 
-export default { getAIConfig, updateAIConfig, putAIConfig, putAIConfigById, deleteAIConfig, setActiveAIConfig }
+export default { getAIConfig, updateAIConfig, putAIConfig, putAIConfigById, deleteAIConfig, setActiveAIConfig, clearAIConfigCache }

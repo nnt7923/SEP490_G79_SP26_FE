@@ -88,6 +88,7 @@
     "reports": "Báo cáo",
     "apiKey": "API Key",
     "subscriptionPlans": "Gói Subscription",
+    "billing": "Quản lý hóa đơn",
     "auditLogs": "Nhật ký hệ thống",
     "logout": "Đăng xuất"
   },

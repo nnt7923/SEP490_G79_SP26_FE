@@ -88,6 +88,7 @@
     "reports": "Reports",
     "apiKey": "API Key",
     "subscriptionPlans": "Subscription Plans",
+    "billing": "Billing",
     "auditLogs": "Audit Logs",
     "logout": "Logout"
   },

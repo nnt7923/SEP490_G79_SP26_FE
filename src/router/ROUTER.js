@@ -28,6 +28,7 @@ const ROUTER = {
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",
+  ADMIN_BILLING_TRANSACTIONS: "/admin/billing/transactions",
   ADMIN_USERS: "/admin/users",
   ADMIN_REPORTS: "/admin/reports",
   ADMIN_AUDIT_LOGS: "/admin/audit-logs",

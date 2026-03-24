@@ -20,6 +20,7 @@ declare const ROUTER: {
   MENTOR_DASHBOARD: string
   ADMIN_API_KEY: string
   ADMIN_SUBSCRIPTION_PLANS: string
+  ADMIN_BILLING_TRANSACTIONS: string
   ADMIN_USERS: string
   ADMIN_REPORTS: string
   ADMIN_AUDIT_LOGS: string

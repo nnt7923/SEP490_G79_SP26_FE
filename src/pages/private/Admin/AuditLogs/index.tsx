@@ -42,6 +42,63 @@ interface PaginatedResult<T> {
   hasNextPage: boolean;
 }
 
+type AuditLogsCacheEntry = {
+  expiresAt: number
+  data: PaginatedResult<AuditLogResponse>
+}
+
+const AUDIT_LOGS_CACHE_PREFIX = 'admin:audit-logs:'
+const AUDIT_LOGS_CACHE_TTL_MS = 2 * 60 * 1000
+const auditLogsMemoryCache = new Map<string, AuditLogsCacheEntry>()
+
+function isTransientAuditConnectionMessage(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return normalized.includes('disconnected')
+    || normalized.includes('retrying')
+    || normalized.includes('reconnecting')
+    || normalized.includes('connection')
+}
+
+function buildAuditLogsCacheKey(params: {
+  page: number
+  pageSize: number
+  actionFilter: string
+  tableFilter: string
+  fromDate: string
+  toDate: string
+  sortBy: number
+  sortDescending: boolean
+}): string {
+  return JSON.stringify(params)
+}
+
+function readAuditLogsStorageCache(cacheKey: string): AuditLogsCacheEntry | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = window.sessionStorage.getItem(`${AUDIT_LOGS_CACHE_PREFIX}${cacheKey}`)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as AuditLogsCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now() || !Array.isArray(parsed?.data?.items)) {
+      window.sessionStorage.removeItem(`${AUDIT_LOGS_CACHE_PREFIX}${cacheKey}`)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeAuditLogsStorageCache(cacheKey: string, entry: AuditLogsCacheEntry): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(`${AUDIT_LOGS_CACHE_PREFIX}${cacheKey}`, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
 const AuditLogs: React.FC = () => {
   const { t } = useTranslation('admin')
   const { token } = useAuthStore()
@@ -73,11 +130,54 @@ const AuditLogs: React.FC = () => {
 
   // SignalR Connection Ref
   const connectionRef = useRef<signalR.HubConnection | null>(null)
+  const lastRequestCacheKeyRef = useRef<string>('')
+  const hasReceivedLogsRef = useRef<boolean>(false)
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (forceRefresh: boolean = false) => {
+    const cacheKey = buildAuditLogsCacheKey({
+      page,
+      pageSize,
+      actionFilter,
+      tableFilter,
+      fromDate,
+      toDate,
+      sortBy,
+      sortDescending,
+    })
+
+    let hasCachedData = false
+
+    if (!forceRefresh) {
+      const memoryEntry = auditLogsMemoryCache.get(cacheKey)
+      if (memoryEntry && memoryEntry.expiresAt > Date.now()) {
+        hasCachedData = true
+        setLogs(memoryEntry.data.items)
+        setTotalPages(memoryEntry.data.totalPages)
+        setTotalItems(memoryEntry.data.totalCount)
+        setLoading(false)
+        setError(null)
+      }
+
+      if (!hasCachedData) {
+        const storageEntry = readAuditLogsStorageCache(cacheKey)
+        if (storageEntry) {
+          hasCachedData = true
+          auditLogsMemoryCache.set(cacheKey, storageEntry)
+          setLogs(storageEntry.data.items)
+          setTotalPages(storageEntry.data.totalPages)
+          setTotalItems(storageEntry.data.totalCount)
+          setLoading(false)
+          setError(null)
+        }
+      }
+    }
+
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
-        setLoading(true)
+        lastRequestCacheKeyRef.current = cacheKey
+        if (forceRefresh || !hasCachedData) {
+          setLoading(true)
+        }
         // param signature: pageNumber, pageSize, action, tableName, userId, fromDate, toDate, sortBy, sortDescending
         await connectionRef.current.invoke(
           "RequestAuditLogs",
@@ -93,7 +193,9 @@ const AuditLogs: React.FC = () => {
         )
       } catch (err) {
         setError(t('auditLogs.error'))
-        setLoading(false)
+        if (!hasCachedData || forceRefresh) {
+          setLoading(false)
+        }
       }
     }
   }, [page, pageSize, actionFilter, tableFilter, fromDate, toDate, sortBy, sortDescending, t])
@@ -117,15 +219,30 @@ const AuditLogs: React.FC = () => {
 
     newConnection.on("ReceiveAuditLogs", (data: PaginatedResult<AuditLogResponse>) => {
       setLoading(false)
+      hasReceivedLogsRef.current = true
       setLogs(data.items)
       setTotalPages(data.totalPages)
       setTotalItems(data.totalCount)
       setError(null)
+
+      const cacheKey = lastRequestCacheKeyRef.current
+      if (cacheKey) {
+        const cacheEntry: AuditLogsCacheEntry = {
+          data,
+          expiresAt: Date.now() + AUDIT_LOGS_CACHE_TTL_MS,
+        }
+        auditLogsMemoryCache.set(cacheKey, cacheEntry)
+        writeAuditLogsStorageCache(cacheKey, cacheEntry)
+      }
     })
 
     newConnection.on("AuditLogsError", (err: { errorCode: string; errorMessage: string }) => {
       setLoading(false)
-      setError(err.errorMessage)
+      const message = String(err?.errorMessage || t('auditLogs.error'))
+      if (isTransientAuditConnectionMessage(message) && !hasReceivedLogsRef.current) {
+        return
+      }
+      setError(message)
     })
 
     newConnection.on("ReceiveNewAuditLog", (newLog: AuditLogResponse) => {
@@ -167,7 +284,7 @@ const AuditLogs: React.FC = () => {
   }, [fetchLogs])
 
   const handleRefresh = () => {
-    fetchLogs()
+    fetchLogs(true)
   }
 
   const resetFilters = () => {
