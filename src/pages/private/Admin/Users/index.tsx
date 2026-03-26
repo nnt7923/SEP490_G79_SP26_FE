@@ -1,11 +1,13 @@
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { UserService } from '../../../../services'
-import { Search, RefreshCw, Ban, CheckCircle, Users as UsersIcon, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Search, RefreshCw, Ban, CheckCircle, Users as UsersIcon, ChevronDown, ChevronUp, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatDateTimeVN } from '../../../../utils/dateUtils'
 import { useTranslation } from 'react-i18next'
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
 const AdminUsersPage: React.FC = () => {
   const adminNavItems = useAdminSidebarConfig()
@@ -25,31 +27,42 @@ const AdminUsersPage: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [roleFilter, setRoleFilter] = useState<string>('all')
 
-  const unwrapUsers = (raw: any): any[] => {
-    const value = raw?.data ?? raw
-    if (Array.isArray(value)) return value
-    if (Array.isArray(value?.items)) return value.items
-    if (Array.isArray(value?.results)) return value.results
-    if (Array.isArray(value?.records)) return value.records
-    return []
-  }
+  const [pageNumber, setPageNumber] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(10)
+  const [totalCount, setTotalCount] = useState<number>(0)
+  const [totalPages, setTotalPages] = useState<number>(1)
 
   const fetchUsers = async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await UserService.listUsers()
-      const list = unwrapUsers(data)
-      setUsers(list)
+      const response = await UserService.listUsersPaged({
+        pageNumber,
+        pageSize,
+        role: roleFilter === 'all' ? undefined : roleFilter,
+        searchTerm: query.trim() || undefined,
+        sortBy: 'CreatedAt',
+        sortDescending: true,
+      })
+
+      setUsers(response.items)
+      setTotalCount(response.totalCount)
+      setTotalPages(response.totalPages || 1)
+      setExpandedId(null)
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || t('users.failedToLoad')
       setError(msg)
+      setUsers([])
+      setTotalCount(0)
+      setTotalPages(1)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => {
+    fetchUsers()
+  }, [pageNumber, pageSize, roleFilter, query])
 
   const handleBanUser = async (userId: string, currentlyBanned: boolean) => {
     setActionLoading(userId)
@@ -72,31 +85,8 @@ const AdminUsersPage: React.FC = () => {
     }
   }
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    let result = users
-    
-    // Filter by role
-    if (roleFilter !== 'all') {
-      result = result.filter((u) => {
-        const role = (u?.role?.name || u?.roleName || '').toLowerCase()
-        return role === roleFilter.toLowerCase()
-      })
-    }
-    
-    // Filter by search query
-    if (q) {
-      result = result.filter((u) => {
-        const name = (u?.name || `${u?.firstName || ''} ${u?.lastName || ''}` || '').toLowerCase()
-        const email = (u?.email || '').toLowerCase()
-        const username = (u?.username || '').toLowerCase()
-        const role = (u?.role?.name || u?.roleName || '').toLowerCase()
-        return name.includes(q) || email.includes(q) || username.includes(q) || role.includes(q)
-      })
-    }
-    
-    return result
-  }, [users, query, roleFilter])
+  const showingStart = users.length === 0 ? 0 : (pageNumber - 1) * pageSize + 1
+  const showingEnd = Math.min(pageNumber * pageSize, totalCount)
 
   const getInitials = (name: string) => {
     return name
@@ -147,7 +137,10 @@ const AdminUsersPage: React.FC = () => {
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-placeholder" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setPageNumber(1)
+              }}
               placeholder={t('users.searchPlaceholder')}
               className="pl-11 pr-4 py-3 w-full bg-th-card border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
             />
@@ -160,7 +153,10 @@ const AdminUsersPage: React.FC = () => {
              {['all', 'Student', 'Mentor', 'Admin'].map((role) => (
                <button
                  key={role}
-                 onClick={() => setRoleFilter(role)}
+                 onClick={() => {
+                   setRoleFilter(role)
+                   setPageNumber(1)
+                 }}
                  className={`px-3 py-1 text-sm font-bold transition-colors border cursor-pointer rounded-sm ${
                    roleFilter === role
                      ? 'bg-status-blue-solid text-white border-blue-600'
@@ -192,13 +188,13 @@ const AdminUsersPage: React.FC = () => {
              </div>
            )}
 
-           {!loading && filtered.length === 0 && (
+            {!loading && users.length === 0 && (
              <div className="text-center py-12 bg-th-card rounded-lg border border-[var(--gray-200)]">
                 <p className="text-[var(--text-secondary)]">{t('users.noUsersFound')}</p>
              </div>
            )}
 
-           {!loading && filtered.map((u) => {
+            {!loading && users.map((u) => {
               const name = u?.name || [u?.firstName, u?.lastName].filter(Boolean).join(' ') || '—'
               const role = u?.role?.name || u?.roleName || '—'
               const uid = String(u?.id ?? u?.userId ?? u?.username ?? u?.email ?? '')
@@ -333,9 +329,46 @@ const AdminUsersPage: React.FC = () => {
          </div>
 
           {/* Summary */}
-          {!loading && filtered.length > 0 && (
-            <div className="mt-6 text-sm text-muted font-bold">
-              Showing: {filtered.length}/{users.length}
+            {!loading && (
+              <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-muted font-bold">
+                  {t('users.showing', { filtered: `${showingStart}-${showingEnd}`, total: totalCount })}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <select
+                    value={pageSize}
+                    onChange={(event) => {
+                      setPageSize(Number(event.target.value))
+                      setPageNumber(1)
+                    }}
+                    className="px-2 py-1 border border-bd-input bg-white text-sm focus:outline-none"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>{size} / page</option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => setPageNumber((previous) => Math.max(1, previous - 1))}
+                    disabled={pageNumber <= 1 || loading}
+                    className="p-1 text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 transition-all"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  <span className="text-sm font-medium text-heading min-w-[5rem] text-center">
+                    {pageNumber} / {Math.max(1, totalPages)}
+                  </span>
+
+                  <button
+                    onClick={() => setPageNumber((previous) => Math.min(Math.max(1, totalPages), previous + 1))}
+                    disabled={pageNumber >= Math.max(1, totalPages) || loading}
+                    className="p-1 text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 transition-all"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
             </div>
           )}
 

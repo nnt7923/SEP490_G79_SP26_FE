@@ -31,7 +31,7 @@ const SharePreviewPage: React.FC = () => {
   const location = useLocation() as { state?: PreviewLocationState }
   const navigate = useNavigate()
   const { t } = useTranslation('student')
-  const { patchShareMessage, removePendingShare } = useChatStore()
+  const { patchShareMessage, removePendingShare, upsertReceivedShare } = useChatStore()
   const [preview, setPreview] = useState<LearningPathSharePreviewDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,15 +53,30 @@ const SharePreviewPage: React.FC = () => {
   )
 
   const syncShareState = (source: LearningPathSharePreviewDto, nextStatus: ShareStatus, respondedAt?: string | null) => {
+    const normalizedRespondedAt = respondedAt ?? source.respondedAt ?? null
+
     patchShareMessage(source.shareId, {
       shareStatus: nextStatus,
-      respondedAt: respondedAt ?? source.respondedAt ?? null,
+      respondedAt: normalizedRespondedAt,
       learningPathTitle: source.learningPath?.title ?? null,
       learningPathDescription: source.learningPath?.description ?? null,
       pathId: source.learningPath?.pathId ?? null,
       mentorName: source.mentorName,
       studentName: source.studentName,
     })
+
+    upsertReceivedShare({
+      shareId: source.shareId,
+      pathId: source.learningPath?.pathId ?? '',
+      learningPathTitle: source.learningPath?.title ?? t('myPlans.untitled'),
+      learningPathDescription: source.learningPath?.description ?? null,
+      mentorId: source.mentorId,
+      mentorName: source.mentorName,
+      status: nextStatus,
+      sentAt: source.sentAt,
+      respondedAt: normalizedRespondedAt,
+    })
+
     if (nextStatus !== 'Pending') removePendingShare(source.shareId)
   }
 

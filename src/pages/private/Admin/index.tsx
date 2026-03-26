@@ -6,55 +6,95 @@ import Layout from '../../../components/Layout'
 import { useAdminSidebarConfig } from './components/AdminSideBar'
 import { UserService } from '../../../services'
 import { AIConfigService } from '../../../services'
+import AdminBillingService, { type BillingSummaryDailyRevenue } from '../../../services/AdminBillingService'
 import { useTranslation } from 'react-i18next'
-import { Shield, Users, Key, PieChart, Activity, CheckCircle2, Server, KeySquare, ChevronRight } from 'lucide-react'
+import { Shield, Users, Key, PieChart, Activity, CheckCircle2, Server, KeySquare, ChevronRight, ReceiptText, BarChart3, TrendingUp } from 'lucide-react'
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuthStore()
   const name = user?.name || user?.username || 'Admin'
   const { t } = useTranslation('admin')
   const [studentCount, setStudentCount] = useState(0)
+  const [mentorCount, setMentorCount] = useState(0)
+  const [adminCount, setAdminCount] = useState(0)
   const [apiKeyCount, setApiKeyCount] = useState(0)
+  const [billingLoading, setBillingLoading] = useState(true)
+  const [billingTotalTransactions, setBillingTotalTransactions] = useState(0)
+  const [billingSuccessTransactions, setBillingSuccessTransactions] = useState(0)
+  const [billingFailedTransactions, setBillingFailedTransactions] = useState(0)
+  const [billingTotalRevenue, setBillingTotalRevenue] = useState(0)
+  const [billingDailyRevenue, setBillingDailyRevenue] = useState<BillingSummaryDailyRevenue[]>([])
   const [loading, setLoading] = useState(true)
 
-  const unwrapUsers = (raw: any): any[] => {
-    const value = raw?.data ?? raw
-    if (Array.isArray(value)) return value
-    if (Array.isArray(value?.items)) return value.items
-    if (Array.isArray(value?.results)) return value.results
-    if (Array.isArray(value?.records)) return value.records
-    return []
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    }).format(value || 0)
+  }
+
+  const formatDateOnly = (date: string | null | undefined): string => {
+    if (!date) return '-'
+    const dateObj = new Date(date)
+    if (isNaN(dateObj.getTime())) return String(date)
+    return dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
   }
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true)
-        const [usersData, configData] = await Promise.all([
-          UserService.listUsers(),
+        setBillingLoading(true)
+        const [studentsPage, mentorsPage, adminsPage, configData] = await Promise.all([
+          UserService.listUsersPaged({ pageNumber: 1, pageSize: 1, role: 'Student' }),
+          UserService.listUsersPaged({ pageNumber: 1, pageSize: 1, role: 'Mentor' }),
+          UserService.listUsersPaged({ pageNumber: 1, pageSize: 1, role: 'Admin' }),
           AIConfigService.getAIConfig(),
         ])
 
-        // Extract student count (only role=Student and status≠Banned)
-        const users = unwrapUsers(usersData)
-        const activeStudents = users.filter((u) => {
-          const userRole = (u?.role?.name || u?.roleName || '').toLowerCase()
-          const userStatus = (u?.status || '').toLowerCase()
-          return userRole === 'student' && userStatus !== 'banned'
-        })
-        setStudentCount(activeStudents.length)
+        setStudentCount(Number(studentsPage?.totalCount || 0))
+        setMentorCount(Number(mentorsPage?.totalCount || 0))
+        setAdminCount(Number(adminsPage?.totalCount || 0))
 
         // Extract API key count
         const configs = Array.isArray(configData) ? configData : [configData]
         setApiKeyCount(configs.filter(c => c).length)
       } catch (error) {
         // Removed console.error in admin stats load
+        setStudentCount(0)
+        setMentorCount(0)
+        setAdminCount(0)
       } finally {
         setLoading(false)
       }
     }
 
+    const fetchBillingSummary = async () => {
+      try {
+        setBillingLoading(true)
+        const summary = await AdminBillingService.getSummary({ provider: 'VNPAY' })
+        setBillingTotalTransactions(summary.totalTransactions)
+        setBillingSuccessTransactions(summary.successfulTransactions)
+        setBillingFailedTransactions(summary.failedTransactions)
+        setBillingTotalRevenue(summary.totalRevenueVnd)
+
+        const dailyRows = Array.isArray(summary.dailyRevenue) ? summary.dailyRevenue : []
+        dailyRows.sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
+        setBillingDailyRevenue(dailyRows.slice(-14))
+      } catch {
+        setBillingTotalTransactions(0)
+        setBillingSuccessTransactions(0)
+        setBillingFailedTransactions(0)
+        setBillingTotalRevenue(0)
+        setBillingDailyRevenue([])
+      } finally {
+        setBillingLoading(false)
+      }
+    }
+
     fetchStats()
+    fetchBillingSummary()
   }, [])
 
   const sidebarConfig = {
@@ -63,14 +103,29 @@ const AdminDashboard: React.FC = () => {
     brand: { name: 'Admin', subtitle: 'Overview' },
   }
 
-  // Simple pie chart for user distribution (mock data)
+  // Role distribution from real API totals
   const roleDistribution = [
-    { name: 'Students', count: Math.max(1, Math.floor(studentCount * 0.7)), color: 'var(--brand-blue)' },
-    { name: 'Mentors', count: Math.max(1, Math.floor(studentCount * 0.2)), color: 'var(--accent-purple)' },
-    { name: 'Admins', count: Math.max(1, Math.ceil(studentCount * 0.1)), color: 'var(--color-amber-500)' },
+    { name: 'Students', count: studentCount, color: 'var(--brand-blue)' },
+    { name: 'Mentors', count: mentorCount, color: 'var(--accent-purple)' },
+    { name: 'Admins', count: adminCount, color: 'var(--color-amber-500)' },
   ]
 
-  const totalForChart = roleDistribution.reduce((sum, item) => sum + item.count, 0)
+  const totalForChart = Math.max(roleDistribution.reduce((sum, item) => sum + item.count, 0), 1)
+  const maxRevenue = Math.max(...billingDailyRevenue.map((item) => item.revenueVnd), 1)
+  const lineChartWidth = 560
+  const lineChartHeight = 240
+  const lineChartPadding = 24
+
+  const revenuePoints = billingDailyRevenue.map((item, index) => {
+    const x = billingDailyRevenue.length <= 1
+      ? lineChartWidth / 2
+      : lineChartPadding + (index * (lineChartWidth - (lineChartPadding * 2))) / (billingDailyRevenue.length - 1)
+
+    const y = lineChartHeight - lineChartPadding - ((item.revenueVnd / maxRevenue) * (lineChartHeight - (lineChartPadding * 2)))
+    return { x, y, item }
+  })
+
+  const linePath = revenuePoints.map((point) => `${point.x},${point.y}`).join(' ')
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -85,6 +140,98 @@ const AdminDashboard: React.FC = () => {
             <p className="text-muted mt-2">
               {t('dashboard.welcome', { name })}
             </p>
+          </div>
+
+          <div className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-base font-bold text-heading flex items-center gap-2">
+                <ReceiptText size={20} className="text-status-blue-muted" />
+                {t('dashboard.billingOverview')}
+              </h2>
+              <span className="text-xs text-muted">
+                {billingLoading ? t('dashboard.loadingBilling') : t('dashboard.billingRangeHint')}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+              <div className="border border-bd p-3 bg-th-card">
+                <div className="text-xs text-muted">{t('dashboard.totalTransactions')}</div>
+                <div className="text-xl font-bold text-heading mt-1">{billingLoading ? '...' : billingTotalTransactions}</div>
+              </div>
+              <div className="border border-bd p-3 bg-th-card">
+                <div className="text-xs text-muted">{t('dashboard.successfulTransactions')}</div>
+                <div className="text-xl font-bold text-green-700 mt-1">{billingLoading ? '...' : billingSuccessTransactions}</div>
+              </div>
+              <div className="border border-bd p-3 bg-th-card">
+                <div className="text-xs text-muted">{t('dashboard.failedTransactions')}</div>
+                <div className="text-xl font-bold text-red-700 mt-1">{billingLoading ? '...' : billingFailedTransactions}</div>
+              </div>
+              <div className="border border-bd p-3 bg-th-card">
+                <div className="text-xs text-muted">{t('dashboard.totalRevenue')}</div>
+                <div className="text-xl font-bold text-status-blue mt-1 truncate" title={formatCurrency(billingTotalRevenue)}>{billingLoading ? '...' : formatCurrency(billingTotalRevenue)}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="border border-bd p-3 bg-th-card">
+                <div className="text-sm font-bold text-heading mb-3 flex items-center gap-2">
+                  <TrendingUp size={16} className="text-status-blue-muted" />
+                  {t('dashboard.revenueTrend')}
+                </div>
+
+                {billingDailyRevenue.length === 0 ? (
+                  <div className="h-[220px] flex items-center justify-center text-sm text-muted">{t('dashboard.noBillingData')}</div>
+                ) : (
+                  <div className="w-full overflow-x-auto">
+                    <svg viewBox={`0 0 ${lineChartWidth} ${lineChartHeight}`} className="w-full min-w-[520px] h-[220px]">
+                      <line x1={lineChartPadding} y1={lineChartHeight - lineChartPadding} x2={lineChartWidth - lineChartPadding} y2={lineChartHeight - lineChartPadding} stroke="var(--border)" strokeWidth="1" />
+                      <line x1={lineChartPadding} y1={lineChartPadding} x2={lineChartPadding} y2={lineChartHeight - lineChartPadding} stroke="var(--border)" strokeWidth="1" />
+
+                      <polyline fill="none" stroke="var(--brand-blue)" strokeWidth="3" points={linePath} />
+
+                      {revenuePoints.map((point) => (
+                        <g key={`${point.item.date}-${point.x}`}>
+                          <circle cx={point.x} cy={point.y} r="4" fill="var(--brand-blue)" />
+                        </g>
+                      ))}
+                    </svg>
+                    <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(billingDailyRevenue.length, 1)}, minmax(0, 1fr))` }}>
+                      {billingDailyRevenue.map((item) => (
+                        <div key={`label-${item.date}`} className="text-[10px] text-muted text-center truncate" title={`${formatDateOnly(item.date)} - ${formatCurrency(item.revenueVnd)}`}>
+                          {formatDateOnly(item.date)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border border-bd p-3 bg-th-card">
+                <div className="text-sm font-bold text-heading mb-3 flex items-center gap-2">
+                  <BarChart3 size={16} className="text-status-blue-muted" />
+                  {t('dashboard.transactionsByDay')}
+                </div>
+
+                {billingDailyRevenue.length === 0 ? (
+                  <div className="h-[220px] flex items-center justify-center text-sm text-muted">{t('dashboard.noBillingData')}</div>
+                ) : (
+                  <div className="space-y-2 max-h-[230px] overflow-y-auto pr-1">
+                    {billingDailyRevenue.map((item) => {
+                      const ratio = Math.max(6, Math.round((item.transactions / Math.max(...billingDailyRevenue.map((x) => x.transactions), 1)) * 100))
+                      return (
+                        <div key={`bar-${item.date}`} className="grid grid-cols-[56px_1fr_auto] items-center gap-2">
+                          <span className="text-xs text-muted whitespace-nowrap">{formatDateOnly(item.date)}</span>
+                          <div className="h-3 bg-th-page border border-bd overflow-hidden">
+                            <div className="h-full bg-status-blue" style={{ width: `${ratio}%` }} />
+                          </div>
+                          <span className="text-xs font-bold text-heading whitespace-nowrap">{item.transactions}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Stats Grid */}
@@ -228,7 +375,7 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
         </div>
       </div>
     </Layout>

@@ -1,5 +1,14 @@
 import api from '../Axios'
 
+type AdminSubscriptionPlansCacheEntry = {
+  expiresAt: number
+  data: AdminSubscriptionPlan[]
+}
+
+const ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY = 'admin:subscription-plans:list'
+const ADMIN_SUBSCRIPTION_PLANS_CACHE_TTL_MS = 2 * 60 * 1000
+let adminSubscriptionPlansMemoryCache: AdminSubscriptionPlansCacheEntry | null = null
+
 export const SubscriptionFeatureKey = {
   LearningPathCreation: 1,
   TutorMessages: 2,
@@ -47,6 +56,43 @@ export interface UpsertAdminSubscriptionPlanPayload {
 }
 
 const baseUrl = '/admin/subscription-plans'
+
+function readAdminSubscriptionPlansStorageCache(): AdminSubscriptionPlansCacheEntry | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = window.sessionStorage.getItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as AdminSubscriptionPlansCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now() || !Array.isArray(parsed?.data)) {
+      window.sessionStorage.removeItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeAdminSubscriptionPlansStorageCache(entry: AdminSubscriptionPlansCacheEntry): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
+export function clearAdminSubscriptionPlansCache(): void {
+  adminSubscriptionPlansMemoryCache = null
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.removeItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY)
+  } catch {
+    // ignore cache clear errors
+  }
+}
 
 function unwrapCollection<T>(raw: unknown): T[] {
   const data = (raw as { data?: unknown })?.data ?? raw
@@ -138,22 +184,43 @@ function normalizePlan(raw: any): AdminSubscriptionPlan {
 
 class AdminSubscriptionService {
   async getPlans(): Promise<AdminSubscriptionPlan[]> {
+    if (adminSubscriptionPlansMemoryCache && adminSubscriptionPlansMemoryCache.expiresAt > Date.now()) {
+      return adminSubscriptionPlansMemoryCache.data
+    }
+
+    const storageEntry = readAdminSubscriptionPlansStorageCache()
+    if (storageEntry) {
+      adminSubscriptionPlansMemoryCache = storageEntry
+      return storageEntry.data
+    }
+
     const response = await api.get(baseUrl)
-    return unwrapCollection<any>(response).map(normalizePlan)
+    const plans = unwrapCollection<any>(response).map(normalizePlan)
+    const cacheEntry: AdminSubscriptionPlansCacheEntry = {
+      data: plans,
+      expiresAt: Date.now() + ADMIN_SUBSCRIPTION_PLANS_CACHE_TTL_MS,
+    }
+    adminSubscriptionPlansMemoryCache = cacheEntry
+    writeAdminSubscriptionPlansStorageCache(cacheEntry)
+
+    return plans
   }
 
   async createPlan(payload: UpsertAdminSubscriptionPlanPayload): Promise<AdminSubscriptionPlan> {
     const response = await api.post(baseUrl, payload)
+    clearAdminSubscriptionPlansCache()
     return normalizePlan(unwrapObject<any>(response))
   }
 
   async updatePlan(subscriptionPlanId: string, payload: UpsertAdminSubscriptionPlanPayload): Promise<AdminSubscriptionPlan> {
     const response = await api.put(`${baseUrl}/${subscriptionPlanId}`, payload)
+    clearAdminSubscriptionPlansCache()
     return normalizePlan(unwrapObject<any>(response))
   }
 
   async deletePlan(subscriptionPlanId: string): Promise<void> {
     await api.delete(`${baseUrl}/${subscriptionPlanId}`)
+    clearAdminSubscriptionPlansCache()
   }
 }
 
