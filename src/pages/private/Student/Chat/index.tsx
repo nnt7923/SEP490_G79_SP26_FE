@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Gift, LogOut, MessageSquare, Reply, Smile, Users } from 'lucide-react'
 import Layout from '../../../../components/Layout'
@@ -8,10 +8,10 @@ import useChatStore from '../../../../store/useChatStore'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ROUTER from '../../../../router/ROUTER'
 import { useChatHub } from '../../../../hooks/useChatHub'
-import { getPendingShares } from '../../../../services/LearningPathShareService'
+import { getPendingShares, getSharePreview } from '../../../../services/LearningPathShareService'
 import { getContacts, getConversations, getMessages } from '../../../../services/DirectChatService'
 import MessageStatusIcon from '../../../../components/Chat/MessageStatusIcon'
-import type { DirectChatContactDto, DirectMessageDto, ShareStatus } from '../../../../types/chat'
+import type { DirectChatContactDto, DirectMessageDto, LearningPathShareCardData, ShareStatus } from '../../../../types/chat'
 import { getMessageStatus } from '../../../../types/chat'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import Toast from '../../../../components/Toast'
@@ -32,7 +32,7 @@ import {
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react'
 import ChatReplyPreview from '../../../../components/Chat/ChatReplyPreview'
 import LearningPathShareCard from '../../../../components/Chat/LearningPathShareCard'
-import { buildLearningPathShareCardData, isLearningPathShareMessage } from '../../../../components/Chat/learningPathShare'
+import { buildLearningPathShareCardData, isLearningPathShareMessage, normalizeShareId } from '../../../../components/Chat/learningPathShare'
 import {
   buildReplyDraft,
   buildReplyPreviewForMessage,
@@ -100,6 +100,8 @@ const StudentChatPage: React.FC = () => {
     receivedLearningPathShares,
     setPendingShares,
     reconcilePendingShares,
+    patchShareMessage,
+    removePendingShare,
     upsertReceivedShare,
   } = useChatStore()
 
@@ -115,6 +117,8 @@ const StudentChatPage: React.FC = () => {
   const [requestedConversationId, setRequestedConversationId] = useState<string | null>(location.state?.conversationId ?? null)
   const deliveredRef = useRef<Set<string>>(new Set())
   const seenRef = useRef<Set<string>>(new Set())
+  const hydratedShareIdsRef = useRef<Set<string>>(new Set())
+  const hydratingShareIdsRef = useRef<Set<string>>(new Set())
   const messageListId = 'student-chat-message-list'
   const messageInputRef = useRef<any>(null)
 
@@ -128,6 +132,30 @@ const StudentChatPage: React.FC = () => {
   const otherName = activeConv
     ? (activeConv.mentorId === currentUserId ? activeConv.studentName : activeConv.mentorName)
     : ''
+  const receivedShareById = useMemo(
+    () => new Map(receivedLearningPathShares.map((share) => [normalizeShareId(share.shareId), share])),
+    [receivedLearningPathShares]
+  )
+
+  const resolveStudentShareCardData = useCallback((message: DirectMessageDto): LearningPathShareCardData | null => {
+    const directShareCardData = buildLearningPathShareCardData(message, pendingLearningPathShares)
+    if (!directShareCardData) return null
+
+    const latestShare = receivedShareById.get(normalizeShareId(directShareCardData.shareId))
+    if (!latestShare) return directShareCardData
+
+    return {
+      ...directShareCardData,
+      pathId: latestShare.pathId ?? directShareCardData.pathId,
+      title: latestShare.learningPathTitle ?? directShareCardData.title,
+      description: latestShare.learningPathDescription ?? directShareCardData.description,
+      mentorName: latestShare.mentorName ?? directShareCardData.mentorName,
+      status: latestShare.status ?? directShareCardData.status,
+      sentAt: latestShare.sentAt ?? directShareCardData.sentAt,
+      respondedAt: latestShare.respondedAt ?? directShareCardData.respondedAt,
+    }
+  }, [pendingLearningPathShares, receivedShareById])
+
   const replyContext = {
     currentUserId,
     otherParticipantName: otherName || t('chat.title'),
@@ -137,6 +165,7 @@ const StudentChatPage: React.FC = () => {
     }),
     sharedLearningPathLabel: t('chat.sharedLearningPath', { defaultValue: 'Learning path share' }),
     pendingShares: pendingLearningPathShares,
+    resolveShareCardData: resolveStudentShareCardData,
   }
   const composerPlaceholder = replyDraft
     ? `${t('chat.replyingTo', { name: replyDraft.preview.senderLabel })}: ${getReplyPreviewText(replyDraft.preview)}`
@@ -214,10 +243,24 @@ const StudentChatPage: React.FC = () => {
 
     activeMessages.forEach((message) => {
       const shareCardData = isLearningPathShareMessage(message)
-        ? buildLearningPathShareCardData(message, pendingLearningPathShares)
+        ? resolveStudentShareCardData(message)
         : null
 
       if (!shareCardData) return
+
+      const currentShare = receivedShareById.get(normalizeShareId(shareCardData.shareId))
+      if (
+        currentShare &&
+        currentShare.pathId === (shareCardData.pathId ?? '') &&
+        currentShare.learningPathTitle === shareCardData.title &&
+        currentShare.learningPathDescription === (shareCardData.description ?? null) &&
+        currentShare.mentorName === (shareCardData.mentorName || activeConv.mentorName) &&
+        currentShare.status === shareCardData.status &&
+        currentShare.sentAt === (shareCardData.sentAt || message.sentAt) &&
+        currentShare.respondedAt === (shareCardData.respondedAt ?? null)
+      ) {
+        return
+      }
 
       upsertReceivedShare({
         shareId: shareCardData.shareId,
@@ -231,7 +274,72 @@ const StudentChatPage: React.FC = () => {
         respondedAt: shareCardData.respondedAt ?? null,
       })
     })
-  }, [activeConv?.mentorId, activeConv?.mentorName, activeMessages, pendingLearningPathShares, upsertReceivedShare])
+  }, [activeConv?.mentorId, activeConv?.mentorName, activeMessages, receivedShareById, resolveStudentShareCardData, upsertReceivedShare])
+
+  useEffect(() => {
+    if (!activeMessages.length) return
+
+    const pendingShareIds = new Set(pendingLearningPathShares.map((share) => normalizeShareId(share.shareId)))
+    const candidateShareIds = Array.from(new Set(
+      activeMessages
+        .filter(isLearningPathShareMessage)
+        .map((message) => resolveStudentShareCardData(message))
+        .filter((share): share is LearningPathShareCardData => !!share)
+        .filter((share) => share.status === 'Pending' && !pendingShareIds.has(normalizeShareId(share.shareId)))
+        .map((share) => share.shareId)
+    ))
+
+    candidateShareIds.forEach((shareId) => {
+      const normalizedShareId = normalizeShareId(shareId)
+      if (!normalizedShareId) return
+      if (hydratedShareIdsRef.current.has(normalizedShareId) || hydratingShareIdsRef.current.has(normalizedShareId)) return
+
+      hydratingShareIdsRef.current.add(normalizedShareId)
+
+      getSharePreview(shareId)
+        .then((preview) => {
+          patchShareMessage(preview.shareId, {
+            shareStatus: preview.status,
+            respondedAt: preview.respondedAt ?? null,
+            learningPathTitle: preview.learningPath?.title ?? null,
+            learningPathDescription: preview.learningPath?.description ?? null,
+            pathId: preview.learningPath?.pathId ?? null,
+            mentorName: preview.mentorName,
+            studentName: preview.studentName,
+          })
+
+          upsertReceivedShare({
+            shareId: preview.shareId,
+            pathId: preview.learningPath?.pathId ?? '',
+            learningPathTitle: preview.learningPath?.title ?? t('myPlans.untitled'),
+            learningPathDescription: preview.learningPath?.description ?? null,
+            mentorId: preview.mentorId,
+            mentorName: preview.mentorName,
+            status: preview.status,
+            sentAt: preview.sentAt,
+            respondedAt: preview.respondedAt ?? null,
+          })
+
+          if (preview.status !== 'Pending') {
+            removePendingShare(preview.shareId)
+          }
+
+          hydratedShareIdsRef.current.add(normalizedShareId)
+        })
+        .catch(() => { })
+        .finally(() => {
+          hydratingShareIdsRef.current.delete(normalizedShareId)
+        })
+    })
+  }, [
+    activeMessages,
+    patchShareMessage,
+    pendingLearningPathShares,
+    removePendingShare,
+    resolveStudentShareCardData,
+    t,
+    upsertReceivedShare,
+  ])
 
   useEffect(() => {
     deliveredRef.current.clear()
@@ -548,7 +656,7 @@ const StudentChatPage: React.FC = () => {
                     isMine && !activeMessages.slice(idx + 1).some(m => m.senderId === currentUserId)
                   const displayContent = normalizeChatMessageContent(msg.content)
                   const shareCardData = isLearningPathShareMessage(msg)
-                    ? buildLearningPathShareCardData(msg, pendingLearningPathShares)
+                    ? resolveStudentShareCardData(msg)
                     : null
                   const replyPreview = buildReplyPreviewForMessage(msg, activeMessages, replyContext)
                   if (shareCardData) {
