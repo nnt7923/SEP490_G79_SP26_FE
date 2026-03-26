@@ -19,6 +19,26 @@ const clampPercent = (value: unknown) => {
   return Math.min(100, Math.max(0, numeric))
 }
 
+const formatPercent = (value: unknown) => `${clampPercent(value).toFixed(2)}%`
+
+const calculateRatioPercent = (completed: unknown, total: unknown) => {
+  const completedValue = Number(completed)
+  const totalValue = Number(total)
+  if (!Number.isFinite(completedValue) || !Number.isFinite(totalValue) || totalValue <= 0) return 0
+  return clampPercent((completedValue / totalValue) * 100)
+}
+
+const progressMetricCardStyle: React.CSSProperties = {
+  padding: '14px 16px',
+  background: 'var(--bg-main)',
+  border: '1px dashed var(--border-base)',
+  borderRadius: 4,
+  minHeight: 104,
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+}
+
 const getProgressStatusStyles = (status?: string) => {
   if (status === 'Completed') {
     return {
@@ -139,7 +159,36 @@ const MyPlansDetailPage: React.FC = () => {
 
   const hasProgress = progress !== null
   const progressPercent = clampPercent(progress?.progressPercent)
+  const contentProgressPercent = clampPercent(progress?.contentProgressPercent)
+  const quizProgressPercent = clampPercent(progress?.quizProgressPercent)
+  const taskProgressPercent = calculateRatioPercent(progress?.completedTasks, progress?.totalTasks)
   const progressStatusStyles = getProgressStatusStyles(progress?.status)
+  const progressMetrics = [
+    {
+      key: 'content-progress',
+      label: t('plansResult.contentProgress'),
+      value: hasProgress ? formatPercent(contentProgressPercent) : '--',
+      meta: hasProgress ? `${progress?.completedLessonContents ?? 0}/${progress?.totalLessonContents ?? 0}` : '--/--',
+    },
+    {
+      key: 'quiz-progress',
+      label: t('plansResult.quizProgress'),
+      value: hasProgress ? formatPercent(quizProgressPercent) : '--',
+      meta: hasProgress ? `${progress?.completedQuizzes ?? 0}/${progress?.totalQuizzes ?? 0}` : '--/--',
+    },
+    {
+      key: 'quiz-count',
+      label: t('task.quiz'),
+      value: hasProgress ? formatPercent(quizProgressPercent) : '--',
+      meta: hasProgress ? `${progress?.completedQuizzes ?? 0}/${progress?.totalQuizzes ?? 0}` : '--/--',
+    },
+    {
+      key: 'task-count',
+      label: t('task.taskLabel'),
+      value: hasProgress ? formatPercent(taskProgressPercent) : '--',
+      meta: hasProgress ? `${progress?.completedTasks ?? 0}/${progress?.totalTasks ?? 0}` : '--/--',
+    },
+  ]
 
   if (loading) {
     return (
@@ -305,13 +354,31 @@ const MyPlansDetailPage: React.FC = () => {
                   fontSize: 12,
                   color: 'var(--text-secondary)'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <span>{t('task.quiz')}: {hasProgress ? `${progress?.completedQuizzes ?? 0}/${progress?.totalQuizzes ?? 0}` : '--/--'}</span>
-                    <span>{t('task.taskLabel')}: {hasProgress ? `${progress?.completedTasks ?? 0}/${progress?.totalTasks ?? 0}` : '--/--'}</span>
-                  </div>
+                  <span>{t('plansResult.overallProgress')}</span>
                   <span style={{ color: progressStatusStyles.color, fontWeight: 700 }}>
                     {getProgressStatusLabel(t, progress?.status)}
                   </span>
+                </div>
+
+                <div style={{
+                  marginTop: 16,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 12
+                }}>
+                  {progressMetrics.map((metric) => (
+                    <div key={metric.key} style={progressMetricCardStyle}>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                        {metric.label}
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                        {metric.value}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        {metric.meta}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </motion.section>

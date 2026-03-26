@@ -1,5 +1,17 @@
 import api from '../Axios'
-import { skeletonUrl, lessonContentUrl, userLearningPathsUrl, aiDraftUrl, manualDraftUrl, manualDraftDetailUrl, myDraftsUrl, myDraftDetailUrl, learningPathProgressUrl } from './url'
+import {
+  skeletonUrl,
+  lessonContentUrl,
+  lessonReadUrl,
+  lessonReadStatusUrl,
+  userLearningPathsUrl,
+  aiDraftUrl,
+  manualDraftUrl,
+  manualDraftDetailUrl,
+  myDraftsUrl,
+  myDraftDetailUrl,
+  learningPathProgressUrl,
+} from './url'
 import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLearningPathSuggestions } from '../SignalR'
 
 export type Quiz = {
@@ -152,6 +164,11 @@ function normalizeLanguageSelectionValue(value: unknown): unknown {
     if (value === 2) return 'English'
   }
   return value
+}
+
+function normalizeNumber(value: unknown, fallback = 0): number {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : fallback
 }
 
 function unwrap<T>(res: any): T {
@@ -423,12 +440,22 @@ export interface UserLearningPathsResponse {
 
 export interface LearningPathProgressResponse {
   pathId: string
+  completedLessonContents: number
+  totalLessonContents: number
+  contentProgressPercent: number
   completedQuizzes: number
   totalQuizzes: number
+  quizProgressPercent: number
   completedTasks: number
   totalTasks: number
   progressPercent: number
   status: string
+}
+
+export interface LessonReadStatusResponse {
+  lessonId: string
+  isLessonContentRead: boolean
+  readAt: string | null
 }
 
 export interface MyDraftsParams {
@@ -581,13 +608,33 @@ export async function getLearningPathProgress(pathId: string): Promise<LearningP
 
   return {
     pathId: data?.pathId ?? pathId,
-    completedQuizzes: Number(data?.completedQuizzes ?? 0),
-    totalQuizzes: Number(data?.totalQuizzes ?? 0),
-    completedTasks: Number(data?.completedTasks ?? 0),
-    totalTasks: Number(data?.totalTasks ?? 0),
-    progressPercent: Number(data?.progressPercent ?? 0),
+    completedLessonContents: normalizeNumber(data?.completedLessonContents),
+    totalLessonContents: normalizeNumber(data?.totalLessonContents),
+    contentProgressPercent: normalizeNumber(data?.contentProgressPercent),
+    completedQuizzes: normalizeNumber(data?.completedQuizzes),
+    totalQuizzes: normalizeNumber(data?.totalQuizzes),
+    quizProgressPercent: normalizeNumber(data?.quizProgressPercent),
+    completedTasks: normalizeNumber(data?.completedTasks),
+    totalTasks: normalizeNumber(data?.totalTasks),
+    progressPercent: normalizeNumber(data?.progressPercent),
     status: data?.status ?? 'NotStarted',
   }
+}
+
+export async function getLessonReadStatus(lessonId: string): Promise<LessonReadStatusResponse> {
+  const res: any = await api.get(lessonReadStatusUrl(lessonId))
+  const data = unwrap<LessonReadStatusResponse>(res)
+
+  return {
+    lessonId: data?.lessonId ?? lessonId,
+    isLessonContentRead: Boolean(data?.isLessonContentRead),
+    readAt: data?.readAt ?? null,
+  }
+}
+
+export async function markLessonContentRead(lessonId: string): Promise<string | unknown> {
+  const res: any = await api.post(lessonReadUrl(lessonId))
+  return unwrap<string | unknown>(res)
 }
 
 export async function getMyDraftDetail(pathId: string): Promise<SkeletonResponse> {
@@ -679,6 +726,8 @@ export default {
   getUserLearningPaths,
   clearUserLearningPathsCache,
   getLearningPathProgress,
+  getLessonReadStatus,
+  markLessonContentRead,
   getMyDrafts,
   getMyDraftDetail,
   getSuggestions,

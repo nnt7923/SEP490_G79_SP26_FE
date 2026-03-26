@@ -4,11 +4,11 @@ import Header from '../../../../components/Layout/Header'
 import Footer from '../../../../components/Layout/Footer'
 import TutorChatbot from '../../../../components/TutorChatbot'
 import { requestLessonContent, requestResolveTutorConversation } from '../../../../services/SignalR'
+import LearningPathService from '../../../../services/LearningPathService'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
-import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, Award, Clock, Target, Loader2, ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { clearQuizSkeletonCache, normalizeQuizList, readQuizSkeletonCache, writeQuizSkeletonCache } from '../../../../utils/quizCache'
 
 // Helper to extract headings (## and ###) from markdown
 const extractHeadings = (md: string) => {
@@ -136,10 +136,11 @@ const LessonDetailPage: React.FC = () => {
   const [md, setMd] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  
-  const [quizLoading, setQuizLoading] = useState<boolean>(false)
-  const [quizSkeleton, setQuizSkeleton] = useState<any>(null)
-  const [quizError, setQuizError] = useState<string | null>(null)
+  const [lessonReadStatusLoading, setLessonReadStatusLoading] = useState(false)
+  const [markLessonReadLoading, setMarkLessonReadLoading] = useState(false)
+  const [isLessonRead, setIsLessonRead] = useState(false)
+  const [lessonReadAt, setLessonReadAt] = useState<string | null>(null)
+  const [lessonReadError, setLessonReadError] = useState<string | null>(null)
   
   const [isFocusMode, setIsFocusMode] = useState(false)
 
@@ -197,6 +198,10 @@ const LessonDetailPage: React.FC = () => {
   const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null
   const nextLesson = currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
   const currentChapterId = currentLesson?.chapterId
+  const canShowMarkRead = !loading && !error && md.trim().length > 0
+  const lessonReadLabel = isLessonRead
+    ? t('lessonDetail.readCompleted', 'Marked as completed')
+    : t('lessonDetail.markRead', 'Mark lesson as completed')
 
   const handleBack = () => {
     if (skeleton?.pathId || skeleton?.id) {
@@ -210,6 +215,55 @@ const LessonDetailPage: React.FC = () => {
       })
     } else {
       navigate(ROUTER.PLANS_RESULT, { state: { skeleton, selectedLessonId: lessonId, activeChapterId: currentChapterId } })
+    }
+  }
+
+  useEffect(() => {
+    if (!lessonId || !currentLesson) return
+
+    let cancelled = false
+
+    const loadLessonReadStatus = async () => {
+      setLessonReadStatusLoading(true)
+      setLessonReadError(null)
+      setIsLessonRead(false)
+      setLessonReadAt(null)
+
+      try {
+        const result = await LearningPathService.getLessonReadStatus(lessonId)
+        if (cancelled) return
+        setIsLessonRead(result.isLessonContentRead)
+        setLessonReadAt(result.readAt)
+      } catch (error: any) {
+        if (cancelled) return
+        const message = error?.response?.data?.message || error?.message || t('lessonDetail.readStatusError', 'Unable to check lesson completion status.')
+        setLessonReadError(message)
+      } finally {
+        if (!cancelled) setLessonReadStatusLoading(false)
+      }
+    }
+
+    loadLessonReadStatus()
+    return () => {
+      cancelled = true
+    }
+  }, [lessonId, currentLesson, t])
+
+  const handleMarkLessonRead = async () => {
+    if (!lessonId || isLessonRead || markLessonReadLoading) return
+
+    setMarkLessonReadLoading(true)
+    setLessonReadError(null)
+    try {
+      await LearningPathService.markLessonContentRead(lessonId)
+      const now = new Date().toISOString()
+      setIsLessonRead(true)
+      setLessonReadAt((prev) => prev ?? now)
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || t('lessonDetail.markReadError', 'Unable to mark this lesson as completed.')
+      setLessonReadError(message)
+    } finally {
+      setMarkLessonReadLoading(false)
     }
   }
 
@@ -251,19 +305,6 @@ const LessonDetailPage: React.FC = () => {
       ) as string
     }
     return ''
-  }
-
-  const quizItems = useMemo(() => normalizeQuizList(quizSkeleton), [quizSkeleton])
-  const seedQuizFromLesson = (lesson: any) => {
-    const fromLesson = normalizeQuizList(lesson?.quizzes)
-    if (fromLesson.length > 0) {
-      const payload = lesson?.quizSkeleton || { quizzes: fromLesson }
-      setQuizSkeleton(payload)
-      setQuizLoading(false)
-      writeQuizSkeletonCache(lessonId as string, payload)
-      return true
-    }
-    return false
   }
 
   // Resolve tutor conversation when entering lesson
@@ -311,77 +352,17 @@ const LessonDetailPage: React.FC = () => {
     // Scroll to top when lesson changes
     window.scrollTo({ top: 0, behavior: 'smooth' })
 
-    // Reset quiz UI state for new lesson
-    setQuizSkeleton(null)
-    setQuizError(null)
-
-    // Restore quiz from cache immediately so it doesn't disappear after navigation
-    const cachedQuiz = readQuizSkeletonCache(lessonId)
-    if (cachedQuiz) {
-      setQuizSkeleton(cachedQuiz)
-      setQuizLoading(false)
-    } else {
-      setQuizLoading(true)
-    }
-
     let disposed = false
-    let quizResolved = false
     const run = async () => {
       setLoading(true)
       setError(null)
-      if (!cachedQuiz) {
-        // Only show loading if we don't have cached data
-        setQuizLoading(true)
-        setQuizError(null)
-      }
 
       // 1) Check if content is in skeleton
       const found = allLessons.find((l: any) => l.id === lessonId)
       const fromSkeleton = extractMarkdown(found?.content)
-      if (!cachedQuiz) {
-        seedQuizFromLesson(found)
-      }
       if (!disposed && fromSkeleton && fromSkeleton.trim().length > 0) {
         setMd(fromSkeleton)
         setLoading(false)
-        // If no cached quiz, request via SignalR to get quiz for this lesson
-        if (!cachedQuiz) {
-          // Still need to fetch quiz even if lesson content came from skeleton
-          try {
-            const result = await requestLessonContent(
-              lessonId,
-              undefined,
-              {
-                onLoading: () => { if (!disposed) setQuizLoading(true) },
-                onSuccess: (qs) => {
-                  if (!disposed) {
-                    quizResolved = true
-                    setQuizSkeleton(qs)
-                    setQuizLoading(false)
-                    writeQuizSkeletonCache(lessonId, qs)
-                  }
-                },
-                onError: (err) => {
-                  if (!disposed) {
-                    setQuizError(err?.message || 'Failed to load quiz')
-                    setQuizLoading(false)
-                  }
-                }
-              }
-            )
-            if (!disposed && !quizResolved) {
-              const qs = result?.quizSkeleton ?? null
-              setQuizSkeleton(qs)
-              setQuizLoading(false)
-              if (qs) {
-                writeQuizSkeletonCache(lessonId, qs)
-              } else {
-                clearQuizSkeletonCache(lessonId)
-              }
-              quizResolved = true
-            }
-          } catch { /* lesson content request failed, quiz stays loading */ }
-        }
         return
       }
 
@@ -391,51 +372,14 @@ const LessonDetailPage: React.FC = () => {
           lessonId,
           () => {
             if (!disposed) setLoading(true)
-          },
-          {
-            onLoading: () => {
-               if (!disposed && !cachedQuiz) setQuizLoading(true)
-            },
-            onSuccess: (qs) => {
-               if (!disposed) {
-                 quizResolved = true
-                 setQuizSkeleton(qs)
-                 setQuizLoading(false)
-                 writeQuizSkeletonCache(lessonId, qs)
-               }
-            },
-            onError: (err) => {
-               if (!disposed) {
-                 setQuizError(err?.message || 'Failed to load quiz')
-                 setQuizLoading(false)
-               }
-            }
           }
         )
         if (disposed) return
         setMd(extractMarkdown(content))
-        if (content.quizSkeleton !== undefined && !disposed) {
-           setQuizSkeleton(content.quizSkeleton)
-           setQuizLoading(false)
-           writeQuizSkeletonCache(lessonId, content.quizSkeleton)
-           quizResolved = true
-        }
-        if (!quizResolved && !disposed) {
-          const cacheAfter = readQuizSkeletonCache(lessonId)
-          if (cacheAfter) {
-            setQuizSkeleton(cacheAfter)
-            setQuizLoading(false)
-          } else {
-            setQuizSkeleton(null)
-            setQuizLoading(false)
-            clearQuizSkeletonCache(lessonId)
-          }
-        }
       } catch (e: any) {
         if (disposed) return
         const msg = e?.message || 'Unable to load lesson content.'
         setError(msg)
-        if (!cachedQuiz) setQuizLoading(false)
       } finally {
         if (!disposed) setLoading(false)
       }
@@ -597,75 +541,78 @@ const LessonDetailPage: React.FC = () => {
             {/* Lesson Content Render */}
             <LessonContent content={md} loading={loading} error={error || undefined} isFocusMode={isFocusMode} />
 
-            {/* Quiz Block */}
-            <div style={{ marginTop: 40, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
-               <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                 <Award className="w-5 h-5 text-[var(--accent-primary)]" /> {t('lessonDetail.quizTitle', 'Lesson Quiz')}
-               </h3>
-               {quizLoading ? (
-                 <div style={{ padding: 24, border: '1px dashed var(--border-base)', borderRadius: 6, background: 'var(--bg-surface)' }}>
-                   <div className="flex justify-center items-center gap-2 text-[var(--accent-primary)] font-medium text-sm">
-                     <Loader2 className="w-5 h-5 animate-spin" />
-                     {t('lessonDetail.loadingQuiz', 'Loading quiz details...')}
-                   </div>
-                 </div>
-               ) : quizError ? (
-                 <div style={{ padding: 24, border: '1px solid var(--danger-primary)', borderRadius: 6, background: 'var(--bg-surface)' }}>
-                   <div className="flex items-center gap-2 text-sm text-[var(--danger-primary)] font-medium">
-                     <AlertCircle className="w-5 h-5" /> {quizError}
-                   </div>
-                 </div>
-               ) : quizItems.length === 0 ? (
-                 <div style={{ padding: 24, border: '1px dashed var(--border-base)', borderRadius: 6, background: 'var(--bg-surface)' }}>
-                   <div className="flex justify-center items-center gap-2 text-sm text-[var(--text-secondary)] font-medium">
-                     {t('lessonDetail.noQuiz', 'No quiz available for this lesson.')}
-                   </div>
-                 </div>
-               ) : (
-                 <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-                   {quizItems.map((quiz: any) => {
-                     const quizId = quiz?.quizId ?? quiz?.id
-                     return (
-                     <div key={quizId || quiz.title} style={{ padding: 20, border: '1px solid var(--border-base)', borderRadius: 4, background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column' }}>
-                       <div style={{ marginBottom: 16, flex: 1 }}>
-                         <h4 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>{quiz.title}</h4>
-                         {quiz.description && <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{quiz.description}</p>}
-                         
-                         <div style={{ display: 'flex', gap: 16, marginTop: 16, fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-                           {quiz.timeLimit != null && (
-                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                               <Clock className="w-3.5 h-3.5" />
-                               {quiz.timeLimit} {t('lessonDetail.minutes', 'min')}
-                             </div>
-                           )}
-                           {quiz.passingScore != null && (
-                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                               <Target className="w-3.5 h-3.5" />
-                               {quiz.passingScore}% {t('lessonDetail.passingScore', 'to pass')}
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                       <button
-                         onClick={() => {
-                           if (!quizId) return
-                           navigate(ROUTER.QUIZ.replace(':quizId', quizId))
-                         }}
-                         style={{
-                           width: '100%', padding: '10px 16px', background: 'var(--bg-main)', border: '1px solid var(--accent-primary)',
-                           color: 'var(--accent-primary)', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                           transition: 'all 0.2s ease'
-                         }}
-                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--bg-surface)' }}
-                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-main)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
-                       >
-                         {t('lessonDetail.startQuiz', 'Start Quiz')}
-                       </button>
-                     </div>
-                   )})}
-                 </div>
-               )}
-            </div>
+            {canShowMarkRead && (
+              <div style={{ marginTop: 24, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
+                <div style={{
+                  background: 'var(--bg-surface)',
+                  border: `1px solid ${isLessonRead ? 'var(--success-primary)' : 'var(--border-base)'}`,
+                  borderRadius: 6,
+                  padding: '16px 18px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 16,
+                  flexWrap: 'wrap'
+                }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+                      {t('lessonDetail.readProgress', 'Lesson reading progress')}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: isLessonRead ? 'var(--success-primary)' : 'var(--text-primary)', fontWeight: 700 }}>
+                      {isLessonRead && <CheckCircle2 className="w-4 h-4" />}
+                      <span>
+                        {lessonReadStatusLoading
+                          ? t('lessonDetail.readStatusLoading', 'Checking completion status...')
+                          : lessonReadLabel}
+                      </span>
+                    </div>
+                    {isLessonRead && lessonReadAt && (
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
+                        {t('lessonDetail.readAt', {
+                          defaultValue: 'Completed at {{date}}',
+                          date: new Date(lessonReadAt).toLocaleString(),
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleMarkLessonRead}
+                    disabled={lessonReadStatusLoading || markLessonReadLoading || isLessonRead}
+                    style={{
+                      background: isLessonRead ? 'rgba(34, 197, 94, 0.12)' : 'var(--accent-primary)',
+                      color: isLessonRead ? 'var(--success-primary)' : 'white',
+                      border: isLessonRead ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid var(--accent-primary)',
+                      padding: '10px 16px',
+                      borderRadius: 4,
+                      cursor: lessonReadStatusLoading || markLessonReadLoading || isLessonRead ? 'not-allowed' : 'pointer',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      opacity: lessonReadStatusLoading ? 0.7 : 1,
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {markLessonReadLoading
+                      ? t('lessonDetail.markReadLoading', 'Saving completion...')
+                      : lessonReadLabel}
+                  </button>
+                </div>
+
+                {lessonReadError && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: '10px 12px',
+                    background: 'var(--error-surface)',
+                    border: '1px solid var(--error-primary)',
+                    borderRadius: 4,
+                    color: 'var(--error-primary)',
+                    fontSize: 13
+                  }}>
+                    {lessonReadError}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Interactive Footer & Actions */}
             <div style={{ marginTop: 64, borderTop: '1px solid var(--border-base)', paddingTop: 32, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
