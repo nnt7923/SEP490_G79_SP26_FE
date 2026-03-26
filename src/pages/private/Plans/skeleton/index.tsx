@@ -9,26 +9,44 @@ import LessonContent from '../components/LessonContent'
 import ChapterTasks from '../components/ChapterTasks'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
+import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
 
 const ResultPage: React.FC = () => {
   const location = useLocation() as any
   const navigate = useNavigate()
   const { t } = useTranslation('student')
 
-  const [skeleton] = useState<any | null>(() => {
-    const fromState = location?.state?.skeleton
-    if (fromState) return fromState
+  const readStoredSkeleton = () => {
     try {
       const raw = sessionStorage.getItem('learningPathSkeleton')
       return raw ? JSON.parse(raw) : null
     } catch {
       return null
     }
+  }
+  const readStoredActiveChapter = () => {
+    try {
+      return sessionStorage.getItem('plansResult.activeChapterId')
+    } catch {
+      return null
+    }
+  }
+
+  const [skeleton, setSkeleton] = useState<any | null>(() => {
+    const fromState = location?.state?.skeleton
+    const base = fromState || readStoredSkeleton()
+    return mergeSkeletonWithCachedQuizzes(base)
   })
 
   useEffect(() => {
     if (!skeleton) navigate(ROUTER.PLANS)
   }, [skeleton, navigate])
+
+  useEffect(() => {
+    const fromState = location?.state?.skeleton
+    const base = fromState || readStoredSkeleton()
+    setSkeleton(mergeSkeletonWithCachedQuizzes(base))
+  }, [location?.key])
 
   // Dev-only: initialize hubs and generate content in background
   useEffect(() => {
@@ -59,6 +77,8 @@ const ResultPage: React.FC = () => {
   }, [skeleton])
 
   const selectedFromNav: string | undefined = location?.state?.selectedLessonId
+  const activeChapterFromNav: string | undefined = location?.state?.activeChapterId
+  const storedActiveChapter = readStoredActiveChapter() || undefined
   const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>(() => selectedFromNav || lessons?.[0]?.id)
   useEffect(() => {
     if (!selectedLessonId && lessons?.[0]?.id) setSelectedLessonId(lessons[0].id)
@@ -143,10 +163,37 @@ const ResultPage: React.FC = () => {
   const detailScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (chapters.length > 0 && !activeChapterId) {
+    if (chapters.length === 0) return
+
+    if (activeChapterFromNav && chapters.some((c: any) => c.id === activeChapterFromNav)) {
+      setActiveChapterId(activeChapterFromNav)
+      return
+    }
+
+    if (selectedFromNav) {
+      const fromLesson = chapters.find((c: any) =>
+        Array.isArray(c.lessons) && c.lessons.some((l: any) => (l?.id ?? l?.lessonId ?? l?.LessonId) === selectedFromNav)
+      )
+      if (fromLesson?.id) {
+        setActiveChapterId(fromLesson.id)
+        return
+      }
+    }
+
+    if (storedActiveChapter && chapters.some((c: any) => c.id === storedActiveChapter)) {
+      setActiveChapterId(storedActiveChapter)
+      return
+    }
+
+    if (!activeChapterId) {
       setActiveChapterId(chapters[0].id)
     }
-  }, [chapters, activeChapterId])
+  }, [chapters, activeChapterId, activeChapterFromNav, selectedFromNav, storedActiveChapter])
+
+  useEffect(() => {
+    if (!activeChapterId) return
+    try { sessionStorage.setItem('plansResult.activeChapterId', activeChapterId) } catch { }
+  }, [activeChapterId])
 
   // Scroll details pane to top when chapter changes
   useEffect(() => {
@@ -155,16 +202,13 @@ const ResultPage: React.FC = () => {
     }
   }, [activeChapterId])
 
-  // Track chapter completion status based on tasks
-  const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
-
-  const handleChapterTasksCompleted = (chapterId: string, completed: boolean) => {
-    setChapterCompletionStatus(prev => ({
-      ...prev,
-      [chapterId]: completed
-    }))
+  // Handle lesson click - navigate to lesson detail page
+  const handleLessonClick = (lessonId: string) => {
+    // Navigate to lesson detail page with skeleton data
+    navigate(`/lesson/${lessonId}`, { state: { skeleton } })
   }
 
+  // Focus session dialog states - removed, using ChapterTasks component for focus sessions
   const [showLessonContent, setShowLessonContent] = useState(false)
 
   const navItems = useStudentSidebarConfig()
@@ -265,7 +309,6 @@ const ResultPage: React.FC = () => {
 
                 {chapters.map((chapter: any, chapterIdx: number) => {
                   const isActive = activeChapterId === chapter.id
-                  const isCompleted = chapterCompletionStatus[chapter.id] === true
 
                   return (
                     <button
@@ -282,12 +325,12 @@ const ResultPage: React.FC = () => {
                     >
                       <div style={{
                         width: 28, height: 28, borderRadius: 2, flexShrink: 0,
-                        background: isCompleted ? 'var(--success-primary)' : 'var(--bg-main)',
-                        border: `1px solid ${isCompleted ? 'transparent' : 'var(--border-base)'}`,
-                        color: isCompleted ? 'var(--bg-surface)' : 'var(--text-primary)',
+                        background: 'var(--bg-main)',
+                        border: '1px solid var(--border-base)',
+                        color: 'var(--text-primary)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12
                       }}>
-                        {isCompleted ? '✓' : (chapterIdx + 1)}
+                        {chapterIdx + 1}
                       </div>
                       <div style={{ flex: 1, overflow: 'hidden' }}>
                         <h3 style={{ margin: 0, fontSize: 14, fontWeight: isActive ? 700 : 600, color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -346,7 +389,7 @@ const ResultPage: React.FC = () => {
                                 <div style={{ flex: 1 }}>
                                   <button
                                     className="lesson-link"
-                                    onClick={() => navigate(`/lesson/${lesson.id}`, { state: { skeleton } })}
+                                    onClick={() => handleLessonClick(lesson.id)}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
                                       fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
@@ -355,6 +398,23 @@ const ResultPage: React.FC = () => {
                                   >
                                     {lesson.title}
                                   </button>
+                                  
+                                  {/* Lesson Day */}
+                                  {lesson.lessonDay && (
+                                    <div style={{ 
+                                      display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+                                      fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600
+                                    }}>
+                                      <span>📅</span>
+                                      <span>{new Date(lesson.lessonDay).toLocaleDateString('vi-VN', { 
+                                        weekday: 'short', 
+                                        year: 'numeric', 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                      })}</span>
+                                    </div>
+                                  )}
+                                  
                                   {lesson.description && (
                                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                                       {'>'} {lesson.description}
@@ -367,26 +427,32 @@ const ResultPage: React.FC = () => {
                                         {t('plansResult.quizzes')}
                                       </span>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                                        {lesson.quizzes.map((quiz: any, quizIdx: number) => (
-                                          <button
-                                            key={quiz.id || quizIdx}
-                                            onClick={() => navigate(`/quiz/${quiz.id}`, {
-                                              state: { quizTitle: quiz.title, skeleton }
-                                            })}
-                                            style={{
-                                              background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
-                                              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
-                                            }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
-                                          >
-                                            <span style={{ color: 'var(--success-primary)' }}>➔</span>
-                                            <span style={{ display: 'flex', alignItems: 'center' }}>
-                                              {quiz.title}
-                                              {quiz.id && <QuizStatusBadge quizId={quiz.id} />}
-                                            </span>
-                                          </button>
-                                        ))}
+                                        {lesson.quizzes.map((quiz: any, quizIdx: number) => {
+                                          const quizId = quiz?.id ?? quiz?.quizId ?? quiz?.quizzId
+                                          return (
+                                            <button
+                                              key={quizId || quizIdx}
+                                              onClick={() => {
+                                                if (!quizId) return
+                                                navigate(`/quiz/${quizId}`, {
+                                                  state: { quizTitle: quiz.title, skeleton }
+                                                })
+                                              }}
+                                              style={{
+                                                background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
+                                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
+                                              }}
+                                              onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                                              onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
+                                            >
+                                              <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                              <span style={{ display: 'flex', alignItems: 'center' }}>
+                                                {quiz.title}
+                                                {quizId && <QuizStatusBadge quizId={quizId} />}
+                                              </span>
+                                            </button>
+                                          )
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -399,10 +465,7 @@ const ResultPage: React.FC = () => {
 
                       {/* Chapter Tasks */}
                       <div style={{ marginTop: 'auto' }}>
-                        <ChapterTasks
-                          chapterId={chapter.id}
-                          onAllTasksCompleted={handleChapterTasksCompleted}
-                        />
+                        <ChapterTasks chapterId={chapter.id} />
                       </div>
                     </>
                   )

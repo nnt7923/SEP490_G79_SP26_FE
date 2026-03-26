@@ -18,6 +18,9 @@ const ROUTER_META = {
   [ROUTER.ADMIN_DASHBOARD]: { breadcrumb: 'Admin', title: 'Admin Dashboard' },
   [ROUTER.MENTOR_DASHBOARD]: { breadcrumb: 'Mentor', title: 'Mentor Dashboard' },
   [ROUTER.ADMIN_API_KEY]: { breadcrumb: 'API Key', title: 'Admin API Key' },
+  [ROUTER.ADMIN_SUBSCRIPTION_PLANS]: { breadcrumb: 'Subscription Plans', title: 'Admin Subscription Plans' },
+  [ROUTER.ADMIN_BILLING_TRANSACTIONS]: { breadcrumb: 'Billing', title: 'Admin Billing Transactions' },
+  [ROUTER.ADMIN_MENTOR_AI_USAGE]: { breadcrumb: 'Mentor AI Usage', title: 'Admin Mentor AI Usage' },
   [ROUTER.ADMIN_USERS]: { breadcrumb: 'Users', title: 'Admin Users' },
   [ROUTER.ADMIN_REPORTS]: { breadcrumb: 'Reports', title: 'Admin Reports' },
 }

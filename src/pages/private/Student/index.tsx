@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
@@ -53,7 +54,12 @@ const StudentIndex: React.FC = () => {
     <Layout sidebar={sidebarConfig}>
       <div className="page-fade-in" style={{ padding: 16, background: 'var(--bg-surface)', minHeight: '100vh' }}>
         {/* Profile Header */}
-        <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '16px 20px', marginBottom: 16 }}>
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+          style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '16px 20px', marginBottom: 16 }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 56, height: 56, borderRadius: 2, border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
               {getInitials(displayName)}
@@ -63,30 +69,34 @@ const StudentIndex: React.FC = () => {
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>{user?.email ?? '—'}</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <span style={{ color: 'var(--accent-primary)', display: 'flex' }}><Target size={20} /></span>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', margin: 0 }}>{t('dashboard.goals')}</p>
-                <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{loading ? '—' : goals.length}</p>
+          {[
+            { icon: <Target size={20} />, label: t('dashboard.goals'), value: loading ? '—' : goals.length, sub: t('dashboard.learningObjectives') },
+            { icon: <Map size={20} />, label: t('dashboard.plans'), value: loading ? '—' : plans.length, sub: t('dashboard.learningPaths') },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+              whileHover={{ y: -3 }}
+              style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, transition: 'border-color 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                <span style={{ color: 'var(--accent-primary)', display: 'flex' }}>{stat.icon}</span>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', margin: 0 }}>{stat.label}</p>
+                  <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{stat.value}</p>
+                </div>
               </div>
-            </div>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{t('dashboard.learningObjectives')}</p>
-          </div>
-          <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <span style={{ color: 'var(--accent-primary)', display: 'flex' }}><Map size={20} /></span>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', margin: 0 }}>{t('dashboard.plans')}</p>
-                <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{loading ? '—' : plans.length}</p>
-              </div>
-            </div>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{t('dashboard.learningPaths')}</p>
-          </div>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{stat.sub}</p>
+            </motion.div>
+          ))}
         </div>
 
         {/* Recent Goals */}
@@ -111,8 +121,17 @@ const StudentIndex: React.FC = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {goals.map((goal) => (
-                <div key={goal.goalId} onClick={() => navigate(`${ROUTER.GOALS}/${goal.goalId}`)} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, cursor: 'pointer', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
+              {goals.map((goal, i) => (
+                <motion.div
+                  key={goal.goalId}
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.07 }}
+                  whileHover={{ x: 4 }}
+                  onClick={() => navigate(`${ROUTER.GOALS}/${goal.goalId}`)}
+                  style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, cursor: 'pointer', transition: 'border-color 0.2s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.title}</h3>
@@ -121,7 +140,7 @@ const StudentIndex: React.FC = () => {
                     </div>
                     <span style={{ fontSize: 14, color: 'var(--text-secondary)', flexShrink: 0, marginLeft: 8 }}>→</span>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
@@ -153,8 +172,18 @@ const StudentIndex: React.FC = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {plans.map((plan) => (
-                <div key={plan.pathId} onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, cursor: 'pointer', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} role="button" tabIndex={0}>
+              {plans.map((plan, i) => (
+                <motion.div
+                  key={plan.pathId}
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.07 }}
+                  whileHover={{ x: 4 }}
+                  onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })}
+                  style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, cursor: 'pointer', transition: 'border-color 0.2s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                  role="button" tabIndex={0}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.title || 'Learning Path'}</h3>
@@ -166,7 +195,7 @@ const StudentIndex: React.FC = () => {
                     </div>
                     <span style={{ fontSize: 14, color: 'var(--text-secondary)', flexShrink: 0, marginLeft: 8 }}>→</span>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
@@ -176,14 +205,27 @@ const StudentIndex: React.FC = () => {
         <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 12px' }}>{t('dashboard.quickActions')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <button type="button" onClick={() => navigate(ROUTER.PLANS)} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, textAlign: 'left', cursor: 'pointer', background: 'var(--bg-surface-short)', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}><Map size={16} /> {t('dashboard.newPath')}</span>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{t('dashboard.generateLearningPath')}</p>
-            </button>
-            <button type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, textAlign: 'left', cursor: 'pointer', background: 'var(--bg-surface-short)', transition: 'border-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}><Target size={16} /> {t('dashboard.newGoal')}</span>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{t('dashboard.setLearningObjective')}</p>
-            </button>
+            {[
+              { label: t('dashboard.newPath'), sub: t('dashboard.generateLearningPath'), icon: <Map size={16} />, route: ROUTER.PLANS },
+              { label: t('dashboard.newGoal'), sub: t('dashboard.setLearningObjective'), icon: <Target size={16} />, route: ROUTER.GOALS },
+            ].map((action, i) => (
+              <motion.button
+                key={action.label}
+                type="button"
+                onClick={() => navigate(action.route)}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.3 + i * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12, textAlign: 'left', cursor: 'pointer', background: 'var(--bg-surface-short)', transition: 'border-color 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>{action.icon} {action.label}</span>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{action.sub}</p>
+              </motion.button>
+            ))}
           </div>
         </div>
       </div>

@@ -19,6 +19,7 @@ const TASK_HUB_URL = `${HUB_BASE}/hubs/task`
 const QUIZ_HUB_URL = `${HUB_BASE}/hubs/quiz`
 const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
+const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
 
@@ -29,6 +30,7 @@ let taskHub: signalR.HubConnection | null = null
 let quizHub: signalR.HubConnection | null = null
 let summaryHub: signalR.HubConnection | null = null
 let learningPathHub: signalR.HubConnection | null = null
+let tutorHub: signalR.HubConnection | null = null
 
 // single-flight guards (avoid duplicate invokes for the same id)
 const inflightLesson = new Map<string, Promise<any>>()
@@ -39,6 +41,11 @@ const inflightSummary = new Map<string, Promise<any>>()
 const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
+const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
+const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
+const inflightTutorMessages = new Map<string, Promise<any>>()
+const inflightTutorMessageHistory = new Map<string, Promise<any>>()
+const inflightTutorConversationResolve = new Map<string, Promise<any>>()
 
 // ==== Utils ====
 function getToken(): string | undefined {
@@ -56,8 +63,7 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
   }
 
   // If connecting or reconnecting, wait for it to complete
-  const isConnectingOrReconnecting = conn.state === signalR.HubConnectionState.Connecting || conn.state === signalR.HubConnectionState.Reconnecting
-  if (isConnectingOrReconnecting) {
+  if (conn.state === signalR.HubConnectionState.Connecting || conn.state === signalR.HubConnectionState.Reconnecting) {
     // Wait up to 10 seconds for connection to be established
     const maxWait = 10000
     const startTime = Date.now()
@@ -71,7 +77,7 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
       }
       await new Promise(resolve => setTimeout(resolve, 100))
     }
-    if ((conn.state as signalR.HubConnectionState) !== signalR.HubConnectionState.Connected) {
+    if (conn.state !== signalR.HubConnectionState.Connected) {
       throw new Error(`Connection timeout: ${_name} hub failed to connect`)
     }
     return
@@ -86,13 +92,16 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
 function buildConnection(url: string): signalR.HubConnection {
   return new signalR.HubConnectionBuilder()
     .withUrl(url, {
-      accessTokenFactory: () => getToken() || '',
+      accessTokenFactory: () => {
+        const token = getToken()
+        return token || ''
+      },
       withCredentials: true,
     } as signalR.IHttpConnectionOptions)
     .withAutomaticReconnect({
       nextRetryDelayInMilliseconds: (ctx) => ctx.previousRetryCount === 0 ? 0 : Math.min(1000 << ctx.previousRetryCount, 30000),
     })
-    .configureLogging(signalR.LogLevel.None)
+    .configureLogging(signalR.LogLevel.Information) // Tăng log level để debug
     .build()
 }
 
@@ -144,11 +153,23 @@ export async function getLearningPathHub(): Promise<signalR.HubConnection> {
   return learningPathHub
 }
 
+export async function getTutorHub(): Promise<signalR.HubConnection> {
+  if (!tutorHub) {
+    tutorHub = buildConnection(TUTOR_HUB_URL)
+  }
+  await ensureStarted(tutorHub, 'tutor')
+  return tutorHub
+}
+
 // ==== Request lesson content (pure SignalR, per spec) ====
 export async function requestLessonContent(
   lessonId: string,
   onLoading?: () => void,
-  onQuizSkeleton?: (quizSkeleton: any) => void
+  onQuizEvent?: {
+    onLoading?: () => void
+    onSuccess?: (quizSkeleton: any) => void
+    onError?: (err: any) => void
+  }
 ): Promise<any> {
   if (!isGuid(lessonId)) {
     return Promise.reject(new Error('lessonId phải là GUID hợp lệ'))
@@ -165,6 +186,7 @@ export async function requestLessonContent(
 
     return new Promise<any>((resolve, reject) => {
       let done = false
+      let isResolved = false
       let lessonContent: any = null
       let quizSkeleton: any = null
 
@@ -179,12 +201,9 @@ export async function requestLessonContent(
         inflightLesson.delete(lessonId)
       }
 
-      const checkComplete = () => {
-        // Complete when we have lesson content (quiz skeleton is optional)
-        if (lessonContent) {
-          if (done) return
-          done = true
-          cleanup()
+      const resolveEarly = () => {
+        if (!isResolved && lessonContent) {
+          isResolved = true
           resolve({
             ...lessonContent,
             quizSkeleton: quizSkeleton === false ? null : quizSkeleton
@@ -199,45 +218,46 @@ export async function requestLessonContent(
       const handleContent = (content: any) => {
         if (content?.LessonId === lessonId || content?.lessonId === lessonId) {
           lessonContent = content
-          checkComplete()
+          resolveEarly()
         }
       }
 
       const handleQuizLoading = (data: any) => {
         // Quiz skeleton loading started
+        if (data?.LessonId === lessonId || data?.lessonId === lessonId) {
+          onQuizEvent?.onLoading?.()
+        }
       }
 
       const handleQuizSkeleton = (quizData: any) => {
         if (quizData?.LessonId === lessonId || quizData?.lessonId === lessonId) {
           quizSkeleton = quizData
-          // Call the callback if provided, even if we already resolved
-          onQuizSkeleton?.(quizData)
-          // If we haven't resolved yet, check if we can complete
-          if (!done) {
-            checkComplete()
-          }
+          onQuizEvent?.onSuccess?.(quizData)
         }
       }
 
       const handleQuizError = (err: any) => {
         if (err?.LessonId === lessonId || err?.lessonId === lessonId) {
           quizSkeleton = false // Mark as failed but don't fail the whole request
-          checkComplete()
+          onQuizEvent?.onError?.(err)
         }
       }
 
       const handleCompleted = (result: any) => {
         if (result?.LessonId === lessonId || result?.lessonId === lessonId) {
-          // If we haven't resolved yet, resolve with whatever we have
-          if (!done) {
-            done = true
-            cleanup()
+          if (!isResolved) {
+            isResolved = true
             resolve({
               lessonId,
               content: lessonContent?.content || result?.content,
               quizSkeleton: quizSkeleton === false ? null : (quizSkeleton || result?.quizSkeleton),
               ...result
             })
+          }
+          if (!done) {
+            done = true
+            cleanup()
+            clearTo()
           }
         }
       }
@@ -246,7 +266,11 @@ export async function requestLessonContent(
         if (done) return
         done = true
         cleanup()
-        reject(new Error(err?.message || 'Failed to load lesson content'))
+        clearTo()
+        if (!isResolved) {
+          isResolved = true
+          reject(new Error(err?.message || 'Failed to load lesson content'))
+        }
       }
 
       // timeout safety
@@ -254,23 +278,23 @@ export async function requestLessonContent(
         if (done) return
         done = true
         cleanup()
-        reject(new Error('Lesson content request timeout'))
+        if (!isResolved) {
+          isResolved = true
+          reject(new Error('Lesson content request timeout'))
+        }
       }, REQUEST_TIMEOUT)
 
-      // ensure timeout cleared in all paths
       const clearTo = () => { try { clearTimeout(to) } catch { } }
 
-      // rewrap to clear timeout then delegate
-      const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
-      const handleQuizSkeletonWrap = (qs: any) => { clearTo(); handleQuizSkeleton(qs) }
-      const handleCompletedWrap = (r: any) => { clearTo(); handleCompleted(r) }
-      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+      // rewrap to clear timeout on completion/error ONLY
+      const handleCompletedWrap = (r: any) => { handleCompleted(r) }
+      const handleErrorWrap = (e: any) => { handleError(e) }
 
       hub.on('LessonContentLoading', handleLoading)
-      hub.on('ReceiveLessonContent', handleContentWrap)
+      hub.on('ReceiveLessonContent', handleContent)
       hub.on('LessonContentError', handleErrorWrap)
       hub.on('QuizSkeletonLoading', handleQuizLoading)
-      hub.on('ReceiveQuizSkeleton', handleQuizSkeletonWrap)
+      hub.on('ReceiveQuizSkeleton', handleQuizSkeleton)
       hub.on('QuizSkeletonError', handleQuizError)
       hub.on('LessonGenerationCompleted', handleCompletedWrap)
 
@@ -620,14 +644,14 @@ export interface LearningPathError {
 export async function requestLearningPathGeneration(
   payload: {
     subjectId: string
-    goalId: string
+    goals: Array<{ goalId: string; weight: number }>
     complexityLevel: string
     languageSelection: number
   },
   onLoading?: () => void,
   onProgress?: (progress: number) => void
 ): Promise<any> {
-  if (!payload.subjectId || !payload.goalId || !payload.complexityLevel || !payload.languageSelection) {
+  if (!payload.subjectId || !payload.goals || !Array.isArray(payload.goals) || payload.goals.length === 0 || !payload.complexityLevel || payload.languageSelection === undefined) {
     return Promise.reject(new Error('Missing required parameters for learning path generation'))
   }
 
@@ -635,7 +659,7 @@ export async function requestLearningPathGeneration(
   const languageSelectionString = payload.languageSelection === 1 ? 'VietNamese' : 'English'
 
   // single-flight: return running promise for same payload
-  const key = `${payload.subjectId}-${payload.goalId}-${payload.complexityLevel}-${payload.languageSelection}`
+  const key = `${payload.subjectId}-${JSON.stringify(payload.goals)}-${payload.complexityLevel}-${payload.languageSelection}`
   if (inflightLearningPath.has(key)) {
     return inflightLearningPath.get(key)!
   }
@@ -708,10 +732,10 @@ export async function requestLearningPathGeneration(
       hub.on('LearningPathGenerationError', handleErrorWrap)
 
       try {
-        // Backend expects 4 separate parameters, not an object
+        // Backend expects subjectId, goals array, complexityLevel, languageSelection
         hub.invoke('RequestLearningPathGeneration',
           payload.subjectId,
-          payload.goalId,
+          payload.goals,
           payload.complexityLevel,
           languageSelectionString
         ).catch(handleErrorWrap)
@@ -722,6 +746,638 @@ export async function requestLearningPathGeneration(
   })()
 
   inflightLearningPath.set(key, p)
+  return p
+}
+
+// ==== Request learning path suggestions (pure SignalR) ====
+export async function requestLearningPathSuggestions(
+  payload: {
+    subjectId: string
+    goals: Array<{ goalId: string; weight: number }>
+    complexityLevel: string
+    languageSelection: number
+  },
+  onLoading?: () => void,
+  onSuggestionsLoaded?: (suggestions: any[]) => void
+): Promise<any> {
+  if (!payload.subjectId || !payload.goals || !Array.isArray(payload.goals) || payload.goals.length === 0 || !payload.complexityLevel || payload.languageSelection === undefined) {
+    return Promise.reject(new Error('Missing required parameters for learning path suggestions'))
+  }
+
+  // Convert languageSelection number to string for backend
+  const languageSelectionString = payload.languageSelection === 1 ? 'VietNamese' : 'English'
+
+  // single-flight: return running promise for same payload
+  const key = `suggestions-${payload.subjectId}-${JSON.stringify(payload.goals)}-${payload.complexityLevel}-${payload.languageSelection}`
+  if (inflightLearningPathSuggestions.has(key)) {
+    return inflightLearningPathSuggestions.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getLearningPathHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('LearningPathSuggestionsStarted', handleLoading)
+        hub.off('LearningPathSuggestionsLoaded', handleSuggestions)
+        hub.off('LearningPathSuggestionsError', handleError)
+        inflightLearningPathSuggestions.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleSuggestions = (data: any) => {
+        if (data && data.suggestions) {
+          onSuggestionsLoaded?.(data.suggestions)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to get learning path suggestions'
+        
+        switch (errorCode) {
+          case 'INVALID_COMPLEXITY':
+            errorMessage = 'Invalid complexity level provided'
+            break
+          case 'INVALID_LANGUAGE':
+            errorMessage = 'Invalid language selection'
+            break
+          case 'SUBJECT_NOT_FOUND':
+            errorMessage = 'Subject not found'
+            break
+          case 'GOALS_REQUIRED':
+            errorMessage = 'Goals are required'
+            break
+          case 'GOALS_LIMIT_EXCEEDED':
+            errorMessage = 'Too many goals selected'
+            break
+          case 'DUPLICATE_GOALS':
+            errorMessage = 'Duplicate goals detected'
+            break
+          case 'GOAL_NOT_FOUND':
+            errorMessage = 'One or more goals not found'
+            break
+          case 'GOAL_SUBJECT_MISMATCH':
+            errorMessage = 'Goals do not match the selected subject'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Learning path suggestions request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleSuggestionsWrap = (data: any) => { clearTo(); handleSuggestions(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('LearningPathSuggestionsStarted', handleLoading)
+      hub.on('LearningPathSuggestionsLoaded', handleSuggestionsWrap)
+      hub.on('LearningPathSuggestionsError', handleErrorWrap)
+
+      try {
+        // Backend expects subjectId, goals array, complexityLevel, languageSelection
+        hub.invoke('RequestLearningPathSuggestions',
+          payload.subjectId,
+          payload.goals,
+          payload.complexityLevel,
+          languageSelectionString
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightLearningPathSuggestions.set(key, p)
+  return p
+}
+
+// ==== Request adopt suggested learning path (pure SignalR) ====
+export async function requestAdoptSuggestedLearningPath(
+  suggestedPathId: string,
+  subjectId: string,
+  goals: Array<{ goalId: string; weight: number }>,
+  complexityLevel: string,
+  languageSelection: number,
+  onLoading?: () => void,
+  onAdopted?: (data: any) => void
+): Promise<any> {
+  if (!suggestedPathId || !subjectId || !goals || !Array.isArray(goals) || goals.length === 0 || !complexityLevel || languageSelection === undefined) {
+    return Promise.reject(new Error('Missing required parameters for adopting suggested learning path'))
+  }
+
+  // Convert languageSelection number to string for backend
+  const languageSelectionString = languageSelection === 1 ? 'VietNamese' : 'English'
+
+  // single-flight: return running promise for same suggestedPathId
+  const key = `adopt-${suggestedPathId}-${subjectId}`
+  if (inflightAdoptSuggestedPath.has(key)) {
+    return inflightAdoptSuggestedPath.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getLearningPathHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('AdoptSuggestedLearningPathStarted', handleLoading)
+        hub.off('SuggestedLearningPathAdopted', handleAdopted)
+        hub.off('AdoptSuggestedLearningPathError', handleError)
+        inflightAdoptSuggestedPath.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleAdopted = (data: any) => {
+        if (data) {
+          onAdopted?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to adopt suggested learning path'
+        
+        switch (errorCode) {
+          case 'SUBJECT_NOT_FOUND':
+            errorMessage = 'Subject not found'
+            break
+          case 'GOALS_REQUIRED':
+            errorMessage = 'Goals are required'
+            break
+          case 'GOALS_LIMIT_EXCEEDED':
+            errorMessage = 'Too many goals selected'
+            break
+          case 'DUPLICATE_GOALS':
+            errorMessage = 'Duplicate goals detected'
+            break
+          case 'INVALID_GOAL_WEIGHT':
+            errorMessage = 'Invalid goal weight provided'
+            break
+          case 'GOAL_NOT_FOUND':
+            errorMessage = 'One or more goals not found'
+            break
+          case 'GOAL_SUBJECT_MISMATCH':
+            errorMessage = 'Goals do not match the selected subject'
+            break
+          case 'LEARNING_PATH_NOT_FOUND':
+            errorMessage = 'Suggested learning path not found'
+            break
+          case 'SUGGESTION_CONTEXT_MISMATCH':
+            errorMessage = 'Suggestion context does not match current selection'
+            break
+          case 'INVALID_COMPLEXITY':
+            errorMessage = 'Invalid complexity level provided'
+            break
+          case 'INVALID_LANGUAGE':
+            errorMessage = 'Invalid language selection'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Adopt suggested learning path request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleAdoptedWrap = (data: any) => { clearTo(); handleAdopted(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('AdoptSuggestedLearningPathStarted', handleLoading)
+      hub.on('SuggestedLearningPathAdopted', handleAdoptedWrap)
+      hub.on('AdoptSuggestedLearningPathError', handleErrorWrap)
+
+      try {
+        // Backend expects suggestedPathId, subjectId, goals array, complexityLevel, languageSelection
+        hub.invoke('RequestAdoptSuggestedLearningPath',
+          suggestedPathId,
+          subjectId,
+          goals,
+          complexityLevel,
+          languageSelectionString
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightAdoptSuggestedPath.set(key, p)
+  return p
+}
+
+// ==== Send tutor message (pure SignalR) ====
+export async function sendTutorMessage(
+  conversationId: string | null,
+  learningPathId: string | null,
+  chapterId: string | null,
+  lessonId: string | null,
+  message: string,
+  onMessageStarted?: () => void,
+  onMessageReceived?: (data: any) => void
+): Promise<any> {
+  if (!message || message.trim().length === 0) {
+    return Promise.reject(new Error('Message cannot be empty'))
+  }
+
+  // single-flight: return running promise for same message
+  const key = `tutor-${conversationId || 'new'}-${Date.now()}`
+  if (inflightTutorMessages.has(key)) {
+    return inflightTutorMessages.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorMessageStarted', handleStarted)
+        hub.off('TutorMessageReceived', handleReceived)
+        hub.off('TutorMessageError', handleError)
+        inflightTutorMessages.delete(key)
+      }
+
+      const handleStarted = () => {
+        onMessageStarted?.()
+      }
+
+      const handleReceived = (data: any) => {
+        if (data) {
+          onMessageReceived?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to send tutor message'
+        
+        switch (errorCode) {
+          case 'UNAUTHORIZED':
+            errorMessage = 'You are not authorized to use the tutor'
+            break
+          case 'EMPTY_MESSAGE':
+            errorMessage = 'Message cannot be empty'
+            break
+          case 'AI_CONFIG_NOT_FOUND':
+            errorMessage = 'AI configuration not found'
+            break
+          case 'CONVERSATION_NOT_FOUND':
+            errorMessage = 'Conversation not found'
+            break
+          case 'LEARNING_PATH_NOT_FOUND':
+            errorMessage = 'Learning path not found'
+            break
+          case 'CHAPTER_NOT_FOUND':
+            errorMessage = 'Chapter not found'
+            break
+          case 'LESSON_NOT_FOUND':
+            errorMessage = 'Lesson not found'
+            break
+          case 'ACCESS_DENIED':
+            errorMessage = 'Access denied to this resource'
+            break
+          case 'AI_RESPONSE_FAILED':
+            errorMessage = 'AI failed to generate response'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor message request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleReceivedWrap = (data: any) => { clearTo(); handleReceived(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorMessageStarted', handleStarted)
+      hub.on('TutorMessageReceived', handleReceivedWrap)
+      hub.on('TutorMessageError', handleErrorWrap)
+
+      try {
+        // Backend expects conversationId, learningPathId, chapterId, lessonId, message
+        hub.invoke('SendTutorMessage',
+          conversationId,
+          learningPathId,
+          chapterId,
+          lessonId,
+          message.trim()
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorMessages.set(key, p)
+  return p
+}
+
+// ==== Request tutor message history (pure SignalR) ====
+export async function requestTutorMessages(
+  conversationId: string,
+  pageNumber: number = 1,
+  pageSize: number = 30,
+  onLoading?: () => void,
+  onMessagesLoaded?: (data: any) => void
+): Promise<any> {
+  if (!conversationId) {
+    return Promise.reject(new Error('conversationId is required for requesting tutor messages'))
+  }
+
+  // single-flight: return running promise for same conversationId-page
+  const key = `messages-${conversationId}-${pageNumber}-${pageSize}`
+  if (inflightTutorMessageHistory.has(key)) {
+    return inflightTutorMessageHistory.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorMessagesLoading', handleLoading)
+        hub.off('TutorMessagesLoaded', handleLoaded)
+        hub.off('TutorMessagesError', handleError)
+        inflightTutorMessageHistory.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleLoaded = (data: any) => {
+        if (data) {
+          onMessagesLoaded?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to load tutor messages'
+        
+        switch (errorCode) {
+          case 'CONVERSATION_NOT_FOUND':
+            errorMessage = 'Conversation not found'
+            break
+          case 'UNAUTHORIZED':
+            errorMessage = 'You are not authorized to view this conversation'
+            break
+          case 'INVALID_PAGE_NUMBER':
+            errorMessage = 'Invalid page number'
+            break
+          case 'INVALID_PAGE_SIZE':
+            errorMessage = 'Invalid page size'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor messages request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleLoadedWrap = (data: any) => { clearTo(); handleLoaded(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorMessagesLoading', handleLoading)
+      hub.on('TutorMessagesLoaded', handleLoadedWrap)
+      hub.on('TutorMessagesError', handleErrorWrap)
+
+      try {
+        // Backend expects conversationId, pageNumber, pageSize
+        hub.invoke('RequestTutorMessages',
+          conversationId,
+          pageNumber,
+          pageSize
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorMessageHistory.set(key, p)
+  return p
+}
+
+// ==== Request resolve tutor conversation (pure SignalR) ====
+export async function requestResolveTutorConversation(
+  learningPathId: string | null,
+  chapterId: string | null,
+  lessonId: string | null,
+  createIfMissing: boolean = true,
+  onLoading?: () => void,
+  onResolved?: (data: any) => void
+): Promise<any> {
+  // single-flight: return running promise for same context
+  const key = `resolve-${learningPathId || 'null'}-${chapterId || 'null'}-${lessonId || 'null'}`
+  if (inflightTutorConversationResolve.has(key)) {
+    return inflightTutorConversationResolve.get(key)!
+  }
+
+  // Create and store the promise immediately to prevent race conditions
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorConversationResolveStarted', handleStarted)
+        hub.off('TutorConversationResolved', handleResolved)
+        hub.off('TutorConversationResolveError', handleError)
+        inflightTutorConversationResolve.delete(key)
+      }
+
+      const handleStarted = () => {
+        onLoading?.()
+      }
+
+      const handleResolved = (data: any) => {
+        if (data) {
+          onResolved?.(data)
+          
+          if (done) return
+          done = true
+          cleanup()
+          resolve(data)
+        }
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        
+        // Handle specific error codes
+        const errorCode = err?.errorCode
+        let errorMessage = err?.errorMessage || err?.message || 'Failed to resolve tutor conversation'
+        
+        switch (errorCode) {
+          case 'LEARNING_PATH_NOT_FOUND':
+            errorMessage = 'Learning path not found'
+            break
+          case 'CHAPTER_NOT_FOUND':
+            errorMessage = 'Chapter not found'
+            break
+          case 'LESSON_NOT_FOUND':
+            errorMessage = 'Lesson not found'
+            break
+          case 'UNAUTHORIZED':
+            errorMessage = 'You are not authorized to access this conversation'
+            break
+          case 'CONVERSATION_CREATION_FAILED':
+            errorMessage = 'Failed to create conversation'
+            break
+          case 'UNEXPECTED_ERROR':
+          default:
+            errorMessage = errorMessage || 'An unexpected error occurred'
+            break
+        }
+        
+        reject(new Error(errorMessage))
+      }
+
+      // timeout safety
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor conversation resolve request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      // ensure timeout cleared in all paths
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+      // rewrap to clear timeout then delegate
+      const handleResolvedWrap = (data: any) => { clearTo(); handleResolved(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorConversationResolveStarted', handleStarted)
+      hub.on('TutorConversationResolved', handleResolvedWrap)
+      hub.on('TutorConversationResolveError', handleErrorWrap)
+
+      try {
+        // Backend expects learningPathId, chapterId, lessonId, createIfMissing
+        hub.invoke('RequestResolveTutorConversation',
+          learningPathId,
+          chapterId,
+          lessonId,
+          createIfMissing
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorConversationResolve.set(key, p)
   return p
 }
 
@@ -833,6 +1489,18 @@ export async function disconnectHubs(): Promise<void> {
     if (learningPathHub && learningPathHub.state !== signalR.HubConnectionState.Disconnected) {
       await learningPathHub.stop()
     }
+    if (tutorHub && tutorHub.state !== signalR.HubConnectionState.Disconnected) {
+      await tutorHub.stop()
+    }
+
+    // Reset all hub references to null so they get recreated with new token
+    lessonHub = null
+    chapterHub = null
+    taskHub = null
+    quizHub = null
+    summaryHub = null
+    learningPathHub = null
+    tutorHub = null
 
     // Clear all inflight requests
     inflightLesson.clear()
@@ -843,7 +1511,18 @@ export async function disconnectHubs(): Promise<void> {
     inflightLearningPath.clear()
     inflightChapterSkeleton.clear()
     inflightQuizSkeleton.clear()
+    inflightLearningPathSuggestions.clear()
+    inflightAdoptSuggestedPath.clear()
+    inflightTutorMessages.clear()
+    inflightTutorMessageHistory.clear()
+    inflightTutorConversationResolve.clear()
   } catch {
     // ignore
   }
+}
+
+// Function to force reconnect all hubs (useful when token changes)
+export async function reconnectHubs(): Promise<void> {
+  await disconnectHubs()
+  // Hubs will be recreated automatically on next use with new token
 }

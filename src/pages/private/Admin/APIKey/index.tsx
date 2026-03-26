@@ -2,9 +2,16 @@
 import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
-import { AIConfigService, AIUsageType } from '../../../../services'
-import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key } from 'lucide-react'
+import { AIConfigService, AIUsageService, AIUsageType } from '../../../../services'
+import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key, BarChart3, TrendingUp, Zap, DollarSign } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+const AccessTier = {
+  Free: 0,
+  Paid: 1,
+} as const
+
+type AccessTier = typeof AccessTier[keyof typeof AccessTier]
 
 const AdminApiKeyPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
@@ -16,6 +23,11 @@ const AdminApiKeyPage: React.FC = () => {
   // List of configs from backend
   const [items, setItems] = useState<any[]>([])
   const [expandedIndex, setExpandedIndex] = useState<string | null>(null)
+  
+  // AI Usage Statistics
+  const [usageStats, setUsageStats] = useState<any[]>([])
+  const [loadingStats, setLoadingStats] = useState(false)
+  const [showStats, setShowStats] = useState(true)
   
   // Collapsible groups by AI Usage Type
   const [expandedGroups, setExpandedGroups] = useState<Set<AIUsageType>>(new Set([
@@ -34,9 +46,8 @@ const AdminApiKeyPage: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>('')
   const [isActive, setIsActive] = useState<boolean>(true)
   const [aiUsageType, setAiUsageType] = useState<AIUsageType>(AIUsageType.StructureGeneration)
+  const [accessTier, setAccessTier] = useState<AccessTier>(AccessTier.Free)
   const [additionalProps, setAdditionalProps] = useState<Array<{ key: string; value: string }>>([])
-
-  const maskKey = (key?: string) => (key ? key.replace(/.(?=.{4})/g, '*') : '')
   
   // Map string usageType from backend to enum
   const mapUsageTypeToEnum = (usageType: any): AIUsageType => {
@@ -49,6 +60,13 @@ const AdminApiKeyPage: React.FC = () => {
     if (typeStr.includes('assistant')) return AIUsageType.Assistant
     
     return AIUsageType.StructureGeneration
+  }
+
+  const mapAccessTier = (tier: any): AccessTier => {
+    if (typeof tier === 'number') return tier === AccessTier.Paid ? AccessTier.Paid : AccessTier.Free
+    const tierStr = String(tier || '').toLowerCase()
+    if (tierStr.includes('paid') || tierStr === '1') return AccessTier.Paid
+    return AccessTier.Free
   }
   
   const toggleGroup = (usageType: AIUsageType) => {
@@ -78,14 +96,34 @@ const AdminApiKeyPage: React.FC = () => {
   
   const groupedItems = items.reduce((acc, item) => {
     const usageType = mapUsageTypeToEnum(item.usageType ?? item.aiUsageType)
-    if (!acc[usageType]) acc[usageType] = []
-    acc[usageType].push(item)
+    if (!acc[usageType]) acc[usageType] = { free: [], paid: [] }
+    const tier = mapAccessTier(item.accessTier)
+    if (tier === AccessTier.Paid) acc[usageType].paid.push(item)
+    else acc[usageType].free.push(item)
     return acc
-  }, {} as Record<AIUsageType, any[]>)
+  }, {} as Record<AIUsageType, { free: any[]; paid: any[] }>)
   
-  const handleSelectKey = async (providerName: string) => {
-    // TODO: Call API to select this key
-    setNotice(`Selected: ${providerName}`)
+  const handleSelectKey = async (configId: string, usageType: AIUsageType, selectedAccessTier: AccessTier) => {
+    setError('')
+    setNotice('')
+    try {
+      // Map aiUsageType enum to string for backend
+      const getUsageTypeString = (type: AIUsageType): string => {
+        switch (type) {
+          case AIUsageType.StructureGeneration: return 'StructureGeneration'
+          case AIUsageType.ContentGeneration: return 'ContentGeneration'
+          case AIUsageType.Verification: return 'Verification'
+          case AIUsageType.Assistant: return 'Assistant'
+          default: return 'StructureGeneration'
+        }
+      }
+      
+      await AIConfigService.setActiveAIConfig(configId, getUsageTypeString(usageType), selectedAccessTier)
+      await fetchList()
+      setNotice(t('apiKey.setActiveSuccess'))
+    } catch (e: any) {
+      setError(e?.message || t('apiKey.setActiveFailed'))
+    }
   }
 
   const resetForm = () => {
@@ -94,6 +132,7 @@ const AdminApiKeyPage: React.FC = () => {
     setApiKey('')
     setIsActive(true)
     setAiUsageType(AIUsageType.StructureGeneration)
+    setAccessTier(AccessTier.Free)
     setAdditionalProps([])
     setIsEditMode(false)
   }
@@ -113,8 +152,22 @@ const AdminApiKeyPage: React.FC = () => {
     }
   }
 
+  const fetchUsageStats = async () => {
+    setLoadingStats(true)
+    try {
+      const stats = await AIUsageService.getAIUsageSummary()
+      setUsageStats(stats)
+    } catch (e: any) {
+      console.warn('Failed to load usage stats:', e?.message)
+      setUsageStats([])
+    } finally {
+      setLoadingStats(false)
+    }
+  }
+
   useEffect(() => {
     fetchList()
+    fetchUsageStats()
   }, [])
 
   const addAdditionalProp = () => {
@@ -137,13 +190,43 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
+      // Convert additionalProps array to configJson object with proper types
+      const configJson: Record<string, any> = {}
+      additionalProps.forEach(prop => {
+        if (prop.key && prop.value) {
+          // Try to parse numbers
+          if (!isNaN(Number(prop.value)) && prop.value.trim() !== '') {
+            configJson[prop.key] = Number(prop.value)
+          } else if (prop.value.toLowerCase() === 'true') {
+            configJson[prop.key] = true
+          } else if (prop.value.toLowerCase() === 'false') {
+            configJson[prop.key] = false
+          } else {
+            configJson[prop.key] = prop.value
+          }
+        }
+      })
+      
+      // Map aiUsageType enum to string for backend
+      const getUsageTypeString = (type: AIUsageType): string => {
+        switch (type) {
+          case AIUsageType.StructureGeneration: return 'StructureGeneration'
+          case AIUsageType.ContentGeneration: return 'ContentGeneration'
+          case AIUsageType.Verification: return 'Verification'
+          case AIUsageType.Assistant: return 'Assistant'
+          default: return 'StructureGeneration'
+        }
+      }
+      
       const payload = {
         providerName,
         apiKey,
-        aiUsageType,
-        isActive,
-        additionalProps,
+        configJson,
+        isEnabled: isActive, // Backend uses isEnabled instead of isActive
+        aiUsageType: getUsageTypeString(aiUsageType), // Send as string
+        accessTier,
       }
+
       await AIConfigService.updateAIConfig(payload as any)
       setShowForm(false)
       resetForm()
@@ -163,11 +246,12 @@ const AdminApiKeyPage: React.FC = () => {
 
     setConfigId(it.configId ?? it.id ?? '')
     setProviderName(name)
-    setApiKey(it.apiKey ?? it.ApiKey ?? '')
+    setApiKey('')
     
     // Set aiUsageType - use mapUsageTypeToEnum to handle backend response
     const usageType = mapUsageTypeToEnum(it.usageType ?? it.aiUsageType)
     setAiUsageType(usageType)
+    setAccessTier(mapAccessTier(it.accessTier))
     
     // Convert additionalProps or configJson to additionalProps
     const props = it.additionalProps ?? (it.configJson ?? it.GroqSettings ?? {})
@@ -197,11 +281,20 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
-      // Convert additionalProps array to configJson object
-      const configJson: Record<string, string> = {}
+      // Convert additionalProps array to configJson object with proper types
+      const configJson: Record<string, any> = {}
       additionalProps.forEach(prop => {
         if (prop.key && prop.value) {
-          configJson[prop.key] = prop.value
+          // Try to parse numbers
+          if (!isNaN(Number(prop.value)) && prop.value.trim() !== '') {
+            configJson[prop.key] = Number(prop.value)
+          } else if (prop.value.toLowerCase() === 'true') {
+            configJson[prop.key] = true
+          } else if (prop.value.toLowerCase() === 'false') {
+            configJson[prop.key] = false
+          } else {
+            configJson[prop.key] = prop.value
+          }
         }
       })
       
@@ -216,13 +309,18 @@ const AdminApiKeyPage: React.FC = () => {
         }
       }
       
-      const payload = {
-        apiKey,
+      const payload: Record<string, any> = {
         providerName,
         configJson,
-        usageType: getUsageTypeString(aiUsageType),
-        isActive,
+        usageType: getUsageTypeString(aiUsageType), // Backend uses usageType for update
+        accessTier,
+        isActive, // Keep isActive for update
       }
+
+      if (apiKey.trim()) {
+        payload.apiKey = apiKey.trim()
+      }
+
       await AIConfigService.putAIConfigById(configId, payload as any)
       setShowForm(false)
       resetForm()
@@ -308,6 +406,117 @@ const AdminApiKeyPage: React.FC = () => {
           </div>
         )}
 
+        {/* ========== AI USAGE STATISTICS ========== */}
+        {showStats && (
+          <div className="mb-8 bg-th-card border border-bd-strong">
+            <div className="bg-th-input px-6 py-4 border-b border-bd-strong flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="text-status-blue" size={20} />
+                <h2 className="text-lg font-bold text-heading">AI Usage Statistics</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowStats(false)}
+                className="text-muted hover:text-heading transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {loadingStats ? (
+                <div className="text-center py-8">
+                  <span className="text-sm font-bold text-muted">Loading usage statistics...</span>
+                </div>
+              ) : usageStats.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted">No usage data available</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {usageStats.map((stat, idx) => {
+                    const typeInfo = getUsageTypeInfo(stat.usageType === 'StructureGeneration' ? AIUsageType.StructureGeneration :
+                                                     stat.usageType === 'ContentGeneration' ? AIUsageType.ContentGeneration :
+                                                     stat.usageType === 'Verification' ? AIUsageType.Verification :
+                                                     AIUsageType.Assistant)
+                    
+                    return (
+                      <div key={idx} className="bg-th-page border border-bd p-4 hover:border-bd-strong transition-colors">
+                        <div className="flex items-center gap-3 mb-3">
+                          <typeInfo.icon className="w-5 h-5 flex-shrink-0" style={{ color: typeInfo.color }} />
+                          <h3 className="text-sm font-bold text-heading truncate">{typeInfo.label}</h3>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="w-4 h-4 text-muted" />
+                              <span className="text-xs font-bold text-muted">Requests</span>
+                            </div>
+                            <span className="text-sm font-bold text-heading">{stat.totalRequests?.toLocaleString() || 0}</span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Zap className="w-4 h-4 text-muted" />
+                              <span className="text-xs font-bold text-muted">Tokens</span>
+                            </div>
+                            <span className="text-sm font-bold text-heading">{stat.totalTokens?.toLocaleString() || 0}</span>
+                          </div>
+                          
+                          <div className="text-xs text-muted space-y-1">
+                            <div className="flex justify-between">
+                              <span>Input:</span>
+                              <span>{stat.totalInputTokens?.toLocaleString() || 0}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Output:</span>
+                              <span>{stat.totalOutputTokens?.toLocaleString() || 0}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-2 border-t border-bd">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-status-green-dark" />
+                              <span className="text-xs font-bold text-muted">Cost</span>
+                            </div>
+                            <span className="text-sm font-bold text-status-green-dark">
+                              ${(stat.totalCostUsd || 0).toFixed(4)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              
+              <div className="mt-4 pt-4 border-t border-bd">
+                <button
+                  type="button"
+                  onClick={fetchUsageStats}
+                  className="px-4 py-2 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
+                >
+                  Refresh Statistics
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!showStats && (
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => setShowStats(true)}
+              className="px-4 py-2 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm flex items-center gap-2"
+            >
+              <BarChart3 size={16} />
+              Show AI Usage Statistics
+            </button>
+          </div>
+        )}
+
         {/* ========== ADD/EDIT FORM ========== */}
         {showForm && (
           <div className="mb-8 bg-th-card border border-bd-strong">
@@ -327,8 +536,6 @@ const AdminApiKeyPage: React.FC = () => {
                     placeholder="e.g. Groq, OpenAI"
                     value={providerName}
                     onChange={(e) => setProviderName(e.target.value)}
-                    disabled={isEditMode}
-                    readOnly={isEditMode}
                   />
                 </div>
 
@@ -337,10 +544,13 @@ const AdminApiKeyPage: React.FC = () => {
                   <input
                     type="password"
                     className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                    placeholder="secret_key"
+                    placeholder={isEditMode ? t('apiKey.apiKeyUpdatePlaceholder', 'Enter new API key (optional)') : 'secret_key'}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                   />
+                  {isEditMode && (
+                    <p className="text-xs text-muted mt-2">{t('apiKey.apiKeyNotShownHint', 'Current API key is hidden. Leave empty to keep existing key.')}</p>
+                  )}
                 </div>
               </div>
 
@@ -357,6 +567,19 @@ const AdminApiKeyPage: React.FC = () => {
                   <option value={AIUsageType.Assistant}>Assistant</option>
                 </select>
                 <p className="text-xs text-muted mt-2">{t('apiKey.selectUsageType')}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-body mb-2">{t('apiKey.accessTier')}</label>
+                <select
+                  className="w-full px-4 py-2 border border-bd-strong focus:outline-none focus:border-blue-500 transition-colors bg-th-card font-mono"
+                  value={accessTier}
+                  onChange={(e) => setAccessTier(Number(e.target.value) as AccessTier)}
+                >
+                  <option value={AccessTier.Free}>{t('apiKey.tierFree')}</option>
+                  <option value={AccessTier.Paid}>{t('apiKey.tierPaid')}</option>
+                </select>
+                <p className="text-xs text-muted mt-2">{t('apiKey.selectTier')}</p>
               </div>
 
               <div>
@@ -456,8 +679,13 @@ const AdminApiKeyPage: React.FC = () => {
           <div className="space-y-3">
             {[AIUsageType.StructureGeneration, AIUsageType.ContentGeneration, AIUsageType.Verification, AIUsageType.Assistant].map((usageType) => {
               const typeInfo = getUsageTypeInfo(usageType)
-              const groupItems = groupedItems[usageType] || []
+              const tieredItems = groupedItems[usageType] || { free: [], paid: [] }
+              const totalConfigs = tieredItems.free.length + tieredItems.paid.length
               const isExpanded = expandedGroups.has(usageType)
+              const tierSections: Array<{ key: 'free' | 'paid'; label: string; value: AccessTier; items: any[] }> = [
+                { key: 'free', label: t('apiKey.tierFree'), value: AccessTier.Free, items: tieredItems.free },
+                { key: 'paid', label: t('apiKey.tierPaid'), value: AccessTier.Paid, items: tieredItems.paid },
+              ]
               
               return (
                 <div key={usageType} className="bg-th-card border border-bd-strong mb-4 transition-colors">
@@ -472,7 +700,7 @@ const AdminApiKeyPage: React.FC = () => {
                       <div className="text-left flex items-center gap-2">
                         <h3 className="text-sm font-bold text-heading uppercase">{typeInfo.label}</h3>
                         <p className="text-xs text-muted">
-                           [{groupItems.length} cfg]
+                           [{totalConfigs} cfg]
                         </p>
                       </div>
                     </div>
@@ -484,104 +712,108 @@ const AdminApiKeyPage: React.FC = () => {
                   </button>
 
                   {/* Group Content */}
-                  {isExpanded && groupItems.length > 0 && (
+                  {isExpanded && totalConfigs > 0 && (
                     <div className="border-t border-bd bg-th-page">
                       <div className="p-4 space-y-3">
-                        {groupItems.map((it: any, idx: number) => {
-                          const name = it.providerName ?? it.provider ?? '—'
-                          const key = it.apiKey ?? it.ApiKey ?? ''
-                          const masked = maskKey(key)
-                          const cj = it.configJson ?? it.GroqSettings ?? {}
-                          const itemExpanded = expandedIndex === `${usageType}-${idx}`
-                          const enabled = typeof it.isActive === 'boolean' ? it.isActive : false
-                          
-                          return (
-                            <div key={`${name}-${idx}`} className="bg-th-card border border-bd-strong transition-all">
-                              <div className="p-3">
-                                <div className="flex flex-wrap items-center justify-between gap-4">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2">
-                                      <typeInfo.icon className="w-4 h-4 text-placeholder" />
-                                      <h4 className="text-sm font-bold text-heading truncate">{name}</h4>
-                                      <span className={`px-2 py-0.5 text-xs font-bold border rounded-sm ${enabled ? 'border-green-600 text-status-green-dark bg-status-green-bg' : 'border-bd-strong text-muted bg-th-input'}`}>
-                                        {enabled ? t('apiKey.active') : t('apiKey.inactive')}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSelectKey(name)}
-                                      disabled={enabled}
-                                      className={`px-3 py-1 text-xs font-bold border transition-colors rounded-sm flex items-center gap-1 ${
-                                        enabled 
-                                          ? 'border-bd-strong text-placeholder bg-th-input cursor-not-allowed' 
-                                          : 'border-blue-600 text-status-blue hover:bg-status-blue-bg cursor-pointer'
-                                      }`}
-                                    >
-                                      {enabled ? <CheckCircle size={14} /> : <ChevronRight size={14} />}
-                                      {enabled ? t('apiKey.selected') : t('apiKey.select')}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setExpandedIndex(itemExpanded ? null : `${usageType}-${idx}`)}
-                                      className="px-3 py-1 border border-bd-strong text-label text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
-                                    >
-                                      {itemExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                      {t('apiKey.details', 'Details')}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => startEdit(it)}
-                                      className="px-3 py-1 border border-bd-strong text-body text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
-                                    >
-                                      <Edit size={14} />
-                                      {t('apiKey.edit')}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => name !== '—' && onDelete(name)}
-                                      className="px-3 py-1 border border-red-500 text-status-red text-xs font-bold hover:bg-status-red-bg cursor-pointer transition-colors rounded-sm flex items-center gap-1"
-                                    >
-                                      <Trash2 size={14} />
-                                      {t('apiKey.delete')}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {itemExpanded && (
-                                <div className="border-t border-bd bg-th-card px-4 py-3">
-                                  <div className="space-y-4">
-                                    {/* API Key Section */}
-                                    <div>
-                                      <div className="text-xs font-bold text-muted uppercase mb-1">api_key:</div>
-                                      <div className="bg-th-page px-3 py-2 border border-bd">
-                                        <div className="font-mono text-xs text-heading break-all">{masked || '—'}</div>
+                        {tierSections.map((tierSection) => (
+                          <div key={tierSection.key} className="bg-th-card border border-bd-strong">
+                            <div className="px-3 py-2 border-b border-bd flex items-center justify-between bg-th-input">
+                              <h4 className="text-xs font-bold text-heading uppercase">{tierSection.label}</h4>
+                              <span className="text-xs text-muted">[{tierSection.items.length} cfg]</span>
+                            </div>
+
+                            <div className="p-3 space-y-3">
+                              {tierSection.items.length === 0 && (
+                                <p className="text-xs text-muted">{t('apiKey.noConfigsInTier', 'No configurations in this tier')}</p>
+                              )}
+
+                              {tierSection.items.map((it: any, idx: number) => {
+                                const name = it.providerName ?? it.provider ?? '—'
+                                const cj = it.configJson ?? it.GroqSettings ?? {}
+                                const itemExpanded = expandedIndex === `${usageType}-${tierSection.key}-${idx}`
+                                const enabled = typeof it.isActive === 'boolean' ? it.isActive : false
+
+                                return (
+                                  <div key={`${tierSection.key}-${name}-${idx}`} className="bg-th-card border border-bd-strong transition-all">
+                                    <div className="p-3">
+                                      <div className="flex flex-wrap items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex items-center gap-2">
+                                            <typeInfo.icon className="w-4 h-4 text-placeholder" />
+                                            <h4 className="text-sm font-bold text-heading truncate">{name}</h4>
+                                            <span className={`px-2 py-0.5 text-xs font-bold border rounded-sm ${enabled ? 'border-green-600 text-status-green-dark bg-status-green-bg' : 'border-bd-strong text-muted bg-th-input'}`}>
+                                              {enabled ? t('apiKey.active') : t('apiKey.inactive')}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSelectKey(it.configId ?? it.id ?? '', usageType, tierSection.value)}
+                                            disabled={enabled}
+                                            className={`px-3 py-1 text-xs font-bold border transition-colors rounded-sm flex items-center gap-1 ${
+                                              enabled
+                                                ? 'border-bd-strong text-placeholder bg-th-input cursor-not-allowed'
+                                                : 'border-blue-600 text-status-blue hover:bg-status-blue-bg cursor-pointer'
+                                            }`}
+                                          >
+                                            {enabled ? <CheckCircle size={14} /> : <ChevronRight size={14} />}
+                                            {enabled ? t('apiKey.selected') : t('apiKey.select')}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setExpandedIndex(itemExpanded ? null : `${usageType}-${tierSection.key}-${idx}`)}
+                                            className="px-3 py-1 border border-bd-strong text-label text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
+                                          >
+                                            {itemExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                            {t('apiKey.details', 'Details')}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => startEdit(it)}
+                                            className="px-3 py-1 border border-bd-strong text-body text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
+                                          >
+                                            <Edit size={14} />
+                                            {t('apiKey.edit')}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => name !== '—' && onDelete(name)}
+                                            className="px-3 py-1 border border-red-500 text-status-red text-xs font-bold hover:bg-status-red-bg cursor-pointer transition-colors rounded-sm flex items-center gap-1"
+                                          >
+                                            <Trash2 size={14} />
+                                            {t('apiKey.delete')}
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
-                                    
-                                    {/* Configuration Section */}
-                                    {Object.keys(cj).length > 0 && (
-                                      <div>
-                                        <div className="text-xs font-bold text-muted uppercase mb-1">config_json:</div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                          {Object.entries(cj).map(([key, value]) => (
-                                            <div key={key} className="bg-th-page px-3 py-2 border border-bd">
-                                              <div className="text-xs font-bold text-muted mb-0.5">{key}:</div>
-                                              <div className="text-sm font-bold text-heading truncate">{String(value)}</div>
+
+                                    {itemExpanded && (
+                                      <div className="border-t border-bd bg-th-card px-4 py-3">
+                                        <div className="space-y-4">
+                                          {Object.keys(cj).length > 0 && (
+                                            <div>
+                                              <div className="text-xs font-bold text-muted uppercase mb-1">config_json:</div>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                {Object.entries(cj).map(([key, value]) => (
+                                                  <div key={key} className="bg-th-page px-3 py-2 border border-bd">
+                                                    <div className="text-xs font-bold text-muted mb-0.5">{key}:</div>
+                                                    <div className="text-sm font-bold text-heading truncate">{String(value)}</div>
+                                                  </div>
+                                                ))}
+                                              </div>
                                             </div>
-                                          ))}
+                                          )}
                                         </div>
                                       </div>
                                     )}
                                   </div>
-                                </div>
-                              )}
+                                )
+                              })}
                             </div>
-                          )
-                        })}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

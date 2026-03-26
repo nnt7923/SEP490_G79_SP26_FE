@@ -5,7 +5,8 @@ import rehypeRaw from 'rehype-raw'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
-import { AlertTriangle, Info, Lightbulb, AlertCircle } from 'lucide-react'
+import { AlertTriangle, Info, Lightbulb, AlertCircle, Loader2, Copy } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface LessonContentProps {
   content: string
@@ -14,104 +15,207 @@ interface LessonContentProps {
   isFocusMode?: boolean
 }
 
+const SECTION_KEYS = [
+  'overview',
+  'core-concepts',
+  'code-examples',
+  'common-mistakes',
+  'best-practices',
+  'summary',
+] as const
+
+type LessonSectionKey = (typeof SECTION_KEYS)[number]
+
+const HEADING: Record<LessonSectionKey, string> = {
+  overview: '## Overview',
+  'core-concepts': '## Core Concepts',
+  'code-examples': '## Code Examples',
+  'common-mistakes': '## Common Mistakes',
+  'best-practices': '## Best Practices',
+  summary: '## Summary',
+}
+
+const ORDER: LessonSectionKey[] = [
+  'overview',
+  'core-concepts',
+  'code-examples',
+  'common-mistakes',
+  'best-practices',
+  'summary',
+]
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+const extractSectionByMarkers = (markdown: string, key: LessonSectionKey): string => {
+  const start = `<!-- SECTION:${key}:start -->`
+  const end = `<!-- SECTION:${key}:end -->`
+
+  const startIndex = markdown.indexOf(start)
+  const endIndex = markdown.indexOf(end)
+
+  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) return ''
+
+  return markdown.slice(startIndex + start.length, endIndex).trim()
+}
+
+const extractSectionByHeading = (markdown: string, heading: string): string => {
+  const pattern = new RegExp(`^${escapeRegExp(heading)}\\s*\\n([\\s\\S]*?)(?=^##\\s|\\Z)`, 'im')
+  const match = markdown.match(pattern)
+  return match ? match[1].trim() : ''
+}
+
+const normalizeSectionContent = (section: string, key: LessonSectionKey): string => {
+  const heading = HEADING[key]
+  const pattern = new RegExp(`^${escapeRegExp(heading)}\\s*\\n+`, 'i')
+  return section.replace(pattern, '').trim()
+}
+
+const parseLessonContent = (markdown: string) => {
+  const hasAnyMarker = SECTION_KEYS.some((key) =>
+    markdown.includes(`<!-- SECTION:${key}:start -->`)
+  )
+
+  const sections = {} as Record<LessonSectionKey, string>
+  SECTION_KEYS.forEach((key) => {
+    const markerContent = hasAnyMarker ? extractSectionByMarkers(markdown, key) : ''
+    if (markerContent) {
+      sections[key] = normalizeSectionContent(markerContent, key)
+      return
+    }
+
+    sections[key] = extractSectionByHeading(markdown, HEADING[key])
+  })
+
+  const hasAnySection = SECTION_KEYS.some((key) => sections[key]?.trim())
+  return { sections, hasAnySection }
+}
+
+type ParsedCommonMistake = {
+  title: string
+  wrongCode: string
+  correctCode: string
+  wrongLang?: string
+  correctLang?: string
+}
+
+const parseCommonMistakes = (sectionMarkdown: string): ParsedCommonMistake[] => {
+  const pattern =
+    /####\s*Mistake\s+\d+\s*:\s*(.+?)\s*\n\*\*Wrong\*\*\s*\n```([\w#+.-]*)\n([\s\S]*?)\n```\s*\n\*\*Correct\*\*\s*\n```([\w#+.-]*)\n([\s\S]*?)\n```/gi
+
+  const items: ParsedCommonMistake[] = []
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(sectionMarkdown)) !== null) {
+    items.push({
+      title: match[1].trim(),
+      wrongLang: match[2]?.trim() || undefined,
+      wrongCode: match[3].trim(),
+      correctLang: match[4]?.trim() || undefined,
+      correctCode: match[5].trim(),
+    })
+  }
+
+  return items
+}
+
+const buildCommonMistakesTable = (items: ParsedCommonMistake[]) => {
+  const rows = items.map((item, index) => {
+    const title = escapeHtml(item.title || `Mistake ${index + 1}`)
+    const wrong = escapeHtml(item.wrongCode)
+    const correct = escapeHtml(item.correctCode)
+    const wrongLang = escapeHtml(item.wrongLang || 'text')
+    const correctLang = escapeHtml(item.correctLang || item.wrongLang || 'text')
+
+    return [
+      '<tr>',
+      `  <td><strong>${title}</strong></td>`,
+      `  <td><pre><code class="language-${wrongLang}">${wrong}</code></pre></td>`,
+      `  <td><pre><code class="language-${correctLang}">${correct}</code></pre></td>`,
+      '</tr>',
+    ].join('\n')
+  })
+
+  return [
+    '## Common Mistakes',
+    '',
+    '<div class="table-breakout">',
+    '<table>',
+    '  <thead>',
+    '    <tr>',
+    '      <th>Mistake</th>',
+    '      <th>Wrong</th>',
+    '      <th>Correct</th>',
+    '    </tr>',
+    '  </thead>',
+    '  <tbody>',
+    rows.join('\n'),
+    '  </tbody>',
+    '</table>',
+    '</div>',
+  ].join('\n')
+}
+
+const buildDisplayMarkdown = (sections: Record<LessonSectionKey, string>) => {
+  const commonMistakes = sections['common-mistakes']?.trim()
+  const commonMistakeItems = commonMistakes ? parseCommonMistakes(commonMistakes) : []
+
+  return ORDER.map((key) => {
+    const content = sections[key]?.trim()
+    if (!content) return null
+
+    if (key === 'common-mistakes' && commonMistakeItems.length > 0) {
+      return buildCommonMistakesTable(commonMistakeItems)
+    }
+
+    return `${HEADING[key]}\n\n${content}`
+  })
+    .filter(Boolean)
+    .join('\n\n')
+}
+
 const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, isFocusMode = false }) => {
+  const { t } = useTranslation('student')
   const [processedContent, setProcessedContent] = React.useState<string>(content)
 
   React.useEffect(() => {
     if (!content) return
 
-    let processed = content
-
-    // Find Common Mistakes section and extract code blocks, then render as a 3-column HTML table with multiline code blocks
-    const commonMistakesRegex = /## Common Mistakes\n([\s\S]*?)(?=\n## |\n# |$)/
-    const match = content.match(commonMistakesRegex)
-
-    if (match) {
-      const mistakesContent = match[1]
-      
-      // Extract all code blocks with positions
-      const codeBlockRegex = /```([\w]*)\n([\s\S]*?)```/g
-      const codeBlocks: Array<{ lang: string; code: string; start: number; end: number }> = []
-      let codeMatch: RegExpExecArray | null
-      
-      while ((codeMatch = codeBlockRegex.exec(mistakesContent)) !== null) {
-        codeBlocks.push({
-          lang: codeMatch[1] || 'text',
-          code: codeMatch[2],
-          start: codeMatch.index,
-          end: codeMatch.index + codeMatch[0].length,
-        })
-      }
-      
-      if (codeBlocks.length >= 2) {
-        const escapeHtml = (s: string) =>
-          s
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-
-        const escapeText = (s: string) =>
-          s
-            .replace(/<br\s*\/?\>/gi, '\n')
-            .replace(/&nbsp;/gi, ' ')
-            .trim()
-
-        const rowsHtml: string[] = []
-        for (let i = 0; i < codeBlocks.length; i += 2) {
-          const left = codeBlocks[i]
-          const right = codeBlocks[i + 1]
-          if (!right) break
-
-          const noteRaw = mistakesContent.slice(left.end, right.start)
-          const noteEscaped = escapeHtml(escapeText(noteRaw)).replace(/\n/g, '<br/>')
-
-          const leftCode = escapeHtml(left.code.trim())
-          const rightCode = escapeHtml(right.code.trim())
-
-          rowsHtml.push(`
-<tr>
-  <td><pre><code class="language-${left.lang}">${leftCode}</code></pre></td>
-  <td><pre><code class="language-${right.lang}">${rightCode}</code></pre></td>
-  <td><div>${noteEscaped}</div></td>
-</tr>`)
-        }
-
-        const tableHtml = `## Common Mistakes\n\n<div class="table-breakout">\n<table>\n  <thead>\n    <tr>\n      <th>❌ Wrong Approach</th>\n      <th>✅ Correct Approach</th>\n      <th>📝 Notes</th>\n    </tr>\n  </thead>\n  <tbody>\n    ${rowsHtml.join('\n')}\n  </tbody>\n</table>\n</div>`
-
-        processed = content.replace(commonMistakesRegex, tableHtml)
-      }
-    }
+    const { sections, hasAnySection } = parseLessonContent(content)
+    const processed = hasAnySection ? buildDisplayMarkdown(sections) : content
 
     setProcessedContent(processed)
   }, [content])
 
   if (loading) {
     return (
-      <div className="flex items-center gap-3 text-heading bg-[var(--gray-100)] px-4 py-3 border border-bd font-mono text-sm">
-        <span className="font-bold text-status-blue">{'>_'}</span>
-        <span className="font-medium inline-block relative pr-3">
-          loading_lesson_content()
-          <span className="absolute right-0 top-0 bottom-0 w-2 bg-status-blue-solid animate-[blink_1s_step-end_infinite]"></span>
-        </span>
+      <div className="flex justify-center items-center py-12">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--accent-primary)]">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          {t('lessonDetail.loadingContent', 'Loading lesson content...')}
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-status-red-dark bg-[var(--gray-100)] px-4 py-3 border border-red-300 font-mono text-sm">
-        <div className="flex items-start gap-2">
-          <span className="font-bold">{'>_'}</span>
-          <span className="font-medium">[ERROR]: {error}</span>
-        </div>
+      <div className="flex items-center gap-2 p-4 my-6 bg-[var(--error-primary-muted)] border border-[var(--danger-primary)] rounded-md text-sm font-medium text-[var(--danger-primary)]">
+        <AlertCircle className="w-5 h-5" />
+        {error}
       </div>
     )
   }
 
   if (!content || content.trim().length === 0) {
     return (
-      <div className="text-muted text-center py-8 bg-[var(--gray-100)] border border-dashed border-bd-strong font-mono text-sm">
-        <p className="font-medium">// no_content_found_for_selected_lesson</p>
+      <div className="flex justify-center items-center py-12 my-6 bg-[var(--bg-surface)] border border-dashed border-[var(--border-base)] rounded-md text-sm font-medium text-[var(--text-secondary)]">
+        {t('lessonDetail.noContent', 'No content found for this lesson.')}
       </div>
     )
   }
@@ -191,7 +295,7 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, 
             
             return (
               <li className="leading-relaxed relative pl-5 text-base" {...props}>
-                <span className="absolute left-0 top-0 text-status-blue-muted">{'*'}</span>
+                <span className="absolute left-1 top-2.5 w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></span>
                 <span>{children}</span>
               </li>
             )
@@ -272,11 +376,9 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, 
 
             // Default blockquote
             return (
-              <blockquote className="border border-bd bg-[var(--gray-100)] pl-4 pr-4 py-3 my-6 text-body font-mono relative">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-th-skeleton"></div>
+              <blockquote className="border border-[var(--border-base)] bg-[var(--bg-surface)] pl-4 pr-4 py-3 my-6 text-body font-mono relative rounded-r-md" style={{ borderLeft: '4px solid var(--border-strong)' }}>
                 <div className="flex gap-3">
-                  <span className="text-placeholder select-none">|</span>
-                  <div className="flex-1 text-heading">{children}</div>
+                  <div className="flex-1 text-heading opacity-90">{children}</div>
                 </div>
               </blockquote>
             )
@@ -299,10 +401,10 @@ const LessonContent: React.FC<LessonContentProps> = ({ content, loading, error, 
                       onClick={() => {
                         navigator.clipboard.writeText(String(children).replace(/\n$/, ''))
                       }}
-                      className="text-xs text-muted hover:text-black hover:bg-th-hover transition-colors px-2 py-0.5"
+                      className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors px-2 py-1 flex items-center gap-1 bg-transparent border-none cursor-pointer"
                       title="Copy code"
                     >
-                      [copy]
+                      <Copy className="w-3.5 h-3.5" /> Copy
                     </button>
                   </div>
                   <SyntaxHighlighter

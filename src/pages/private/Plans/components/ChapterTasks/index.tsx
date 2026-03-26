@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
 import { requestChapterTasks } from '../../../../../services/SignalR'
+import { FocusSessionService, SessionType } from '../../../../../services'
+import type { FocusSession } from '../../../../../services/FocusSessionService'
+import { useNavigate } from 'react-router-dom'
+import ROUTER from '../../../../../router/ROUTER'
+import { BookOpen, Code, HelpCircle, Play } from 'lucide-react'
+import FocusSessionDialog from '../../../../../components/FocusSessionDialog'
+import Toast from '../../../../../components/Toast'
 import { useTranslation } from 'react-i18next'
 
 interface ChapterTasksProps {
@@ -9,53 +16,196 @@ interface ChapterTasksProps {
 
 interface Task {
   id?: string
+  taskId?: string  // API uses TaskId
+  TaskId?: string  // C# property name
   title?: string
+  Title?: string   // C# property name
   description?: string
+  Description?: string // C# property name
   difficulty?: 'Easy' | 'Medium' | 'Hard'
-  completed?: boolean
+  taskType?: number | string // 0: practice, 1: theory, 2: quiz OR "Practice", "Theory", "Quizz"
+  TaskType?: number | string // C# property name
+  type?: number | string // Alternative field name for taskType
+  kind?: number | string // Alternative field name for taskType
+  category?: number | string // Alternative field name for taskType
+  priority?: string | number | null  // Can be string ("High", "Medium", "Low") or number (1, 2, 3)
+  Priority?: string | number | null
+  taskStatus?: string | number | null  // Can be string ("Pending", "Completed") or number (0, 1, 2)
+  TaskStatus?: string | number | null
+  dueDate?: string | null
+  DueDate?: string | null
+  QuizQuestionsJson?: string
+  quizQuestionsJson?: string // lowercase version
 }
 
-const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksCompleted }) => {
+const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   const { t } = useTranslation('student')
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
-  const [showCelebration, setShowCelebration] = useState(false)
   const loadingRef = React.useRef(false)
-  const prevAllCompletedRef = React.useRef(false)
+  const [showFocusDialog, setShowFocusDialog] = useState<boolean>(false)
+  const [selectedTask, setSelectedTask] = useState<{ id: string; title: string; fullTask?: Task } | null>(null)
+  const [creatingSession, setCreatingSession] = useState<boolean>(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
+  const [activeSessions, setActiveSessions] = useState<Record<string, FocusSession>>({})
 
-  const toggleTaskCompletion = (taskId: string | undefined, taskIdx: number) => {
-    setTasks(prevTasks => {
-      const newTasks = prevTasks.map((task, idx) => 
-        (task.id === taskId || idx === taskIdx)
-          ? { ...task, completed: !task.completed }
-          : task
-      )
-      
-      const allCompleted = newTasks.length > 0 && newTasks.every(t => t.completed === true)
-      const wasAllCompleted = prevTasks.length > 0 && prevTasks.every(t => t.completed === true)
-      
-      if (allCompleted && !wasAllCompleted) {
-        setShowCelebration(true)
-        setTimeout(() => setShowCelebration(false), 3000)
+  // Check for active sessions for all tasks
+  const checkActiveSessions = async (taskList: Task[]) => {
+    const activeSessionsMap: Record<string, FocusSession> = {}
+    
+    for (const task of taskList) {
+      const taskId = task.id || task.taskId || task.TaskId
+      if (taskId) {
+        try {
+          const activeSession = await FocusSessionService.getActiveSession(taskId)
+          if (activeSession) {
+            activeSessionsMap[taskId] = activeSession
+          }
+        } catch (error) {
+          // Ignore errors - no active session
+        }
       }
-      
-      return newTasks
-    })
+    }
+    
+    setActiveSessions(activeSessionsMap)
   }
 
-  // Handle onAllTasksCompleted callback in useEffect to avoid setState during render
-  React.useEffect(() => {
-    const allCompleted = tasks.length > 0 && tasks.every(t => t.completed === true)
-    if (allCompleted !== prevAllCompletedRef.current) {
-      prevAllCompletedRef.current = allCompleted
-      onAllTasksCompleted?.(chapterId, allCompleted)
-    }
-  }, [tasks, chapterId, onAllTasksCompleted])
+  // Handle focus session creation
+  const handleCreateFocusSession = async (sessionType: SessionType, duration: number, title?: string) => {
+    if (!selectedTask) return
 
-  const loadTasks = async (retryCount = 0) => {
-    if (loaded || loadingRef.current) return
+    setCreatingSession(true)
+    try {
+      const session = await FocusSessionService.startSession({
+        taskId: selectedTask.id,
+        sessionType,
+        plannedDurationMinutes: duration,
+        title: title || selectedTask.title
+      })
+
+      setToast({ message: t('task.sessionCreated'), type: 'success' })
+      setShowFocusDialog(false)
+      setSelectedTask(null)
+
+      // Navigate to focus session page with both session and task data
+      const taskType = selectedTask.fullTask?.taskType
+      const quizData = selectedTask.fullTask?.QuizQuestionsJson || selectedTask.fullTask?.quizQuestionsJson
+      
+      navigate(ROUTER.FOCUS_SESSION, { 
+        state: { 
+          session,
+          task: {
+            id: selectedTask.id,
+            title: selectedTask.title,
+            description: selectedTask.fullTask?.description || selectedTask.fullTask?.Description,
+            taskType: taskType, // Pass original value (number or string)
+            quizQuestionsJson: quizData
+          }
+        } 
+      })
+      
+      // Scroll to top when navigating to focus session
+      setTimeout(() => {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        })
+      }, 100)
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || t('task.createSessionError')
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setCreatingSession(false)
+    }
+  }
+
+  const handleCancelFocusSession = () => {
+    setShowFocusDialog(false)
+    setSelectedTask(null)
+  }
+
+  // Handle task click - show focus session dialog or navigate to active session
+  const handleTaskClick = async (task: Task, taskIdx: number) => {
+    // Try both id and taskId fields from API
+    const taskId = task.id || task.taskId || task.TaskId
+    if (!taskId) {
+      setToast({ message: t('task.invalidId'), type: 'error' })
+      return
+    }
+    
+    const taskTitle = task.title || task.Title || task.description || task.Description || `Task ${taskIdx + 1}`
+    
+    // Check if there's an active session for this task
+    const activeSession = activeSessions[taskId]
+    if (activeSession) {
+      // Resume the session before navigating
+      try {
+        const resumedSession = await FocusSessionService.resumeSession(activeSession.id)
+        
+        // Navigate to the resumed session
+        navigate(ROUTER.FOCUS_SESSION, { 
+          state: { 
+            session: resumedSession,
+            task: {
+              id: taskId,
+              title: taskTitle,
+              description: task.description || task.Description,
+              taskType: task.taskType || task.TaskType,
+              quizQuestionsJson: task.QuizQuestionsJson || task.quizQuestionsJson
+            }
+          } 
+        })
+      } catch (error: any) {
+        // If resume fails, still navigate but show error
+        console.warn('Failed to resume session:', error)
+        setToast({ message: 'Không thể tiếp tục phiên, nhưng vẫn có thể truy cập', type: 'warning' })
+        
+        navigate(ROUTER.FOCUS_SESSION, { 
+          state: { 
+            session: activeSession,
+            task: {
+              id: taskId,
+              title: taskTitle,
+              description: task.description || task.Description,
+              taskType: task.taskType || task.TaskType,
+              quizQuestionsJson: task.QuizQuestionsJson || task.quizQuestionsJson
+            }
+          } 
+        })
+      }
+      
+      // Scroll to top when navigating to focus session
+      setTimeout(() => {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        })
+      }, 100)
+      return
+    }
+    
+    // No active session, show create dialog
+    setSelectedTask({ 
+      id: taskId, 
+      title: taskTitle,
+      fullTask: task // Store full task object
+    })
+    setShowFocusDialog(true)
+    
+    // Scroll to center of screen for better modal positioning
+    setTimeout(() => {
+      window.scrollTo({
+        top: window.innerHeight / 2 - 30,
+        behavior: 'smooth'
+      })
+    }, 100)
+  }
+
+  const loadTasks = async (retryCount = 0, forceReload = false) => {
+    if (!forceReload && (loaded || loadingRef.current)) return
 
     loadingRef.current = true
     setLoading(true)
@@ -75,17 +225,19 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
       }
       
       taskArray = taskArray.map(task => ({
-        ...task,
-        completed: false
+        ...task
       }))
       
       setTasks(taskArray)
       setLoaded(true)
+      
+      // Check for active sessions after loading tasks
+      checkActiveSessions(taskArray)
     } catch (e: any) {
       loadingRef.current = false
       if (retryCount < 1) {
         await new Promise(r => setTimeout(r, 1000))
-        return loadTasks(retryCount + 1)
+        return loadTasks(retryCount + 1, forceReload)
       }
       setError(e?.message || t('task.notFound'))
     } finally {
@@ -94,12 +246,22 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
   }
 
   React.useEffect(() => {
-    loadTasks()
+    // Reset state when chapterId changes
+    setLoaded(false)
+    loadingRef.current = false
+    setTasks([])
+    setError(null)
+    
+    // Automatically load tasks for the new chapter (force reload)
+    loadTasks(0, true)
   }, [chapterId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const completedCount = tasks.filter(t => t.completed).length
-  const totalCount = tasks.length
-  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+  // Initial load when component mounts
+  React.useEffect(() => {
+    if (chapterId && !loaded && !loading) {
+      loadTasks(0, true)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{
@@ -109,47 +271,17 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
       position: 'relative',
       borderTop: '1px dashed var(--border-base)'
     }}>
-      {/* Celebration Message */}
-      {showCelebration && (
-        <div style={{
-          position: 'absolute',
-          top: -20, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 10, animation: 'bounce 1s infinite'
-        }}>
-          <div style={{
-            background: 'var(--success-primary)', color: 'var(--bg-main)',
-            padding: '8px 16px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 8,
-            fontWeight: 700, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-          }}>
-            <span>[{t('task.success')}]</span>
-            <span>{t('task.allCompleted')}</span>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-          {'>'} {t('task.title')}
+          {t('task.title')}
         </h4>
         <div style={{ display: 'flex', gap: 12 }}>
-          {!loaded && !loading && (
-            <button
-              onClick={() => loadTasks()}
-              style={{
-                background: 'var(--bg-surface)', border: '1px solid var(--border-base)', color: 'var(--text-primary)',
-                padding: '4px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 2
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-100)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}
-            >
-              [ {t('task.execute')} ]
-            </button>
-          )}
           {loaded && (
             <button
               onClick={() => {
                 setLoaded(false); loadingRef.current = false; setTasks([]); setError(null);
+                loadTasks(0, true);
               }}
               style={{
                 background: 'transparent', border: '1px dashed var(--border-base)', color: 'var(--text-disabled)',
@@ -158,7 +290,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-disabled)'}
             >
-              [ {t('task.reload')} ]
+              {t('task.reload')}
             </button>
           )}
         </div>
@@ -166,7 +298,13 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
 
       {loading && (
         <div style={{ fontSize: 13, color: 'var(--accent-primary)', marginBottom: 16 }}>
-          {'>'} {t('task.processing')} _
+          {t('task.loadingAuto')}
+        </div>
+      )}
+
+      {!loading && !loaded && !error && (
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+          {t('task.loadingPrep')}
         </div>
       )}
 
@@ -181,75 +319,187 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
 
       {loaded && tasks.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Progress Bar */}
-          <div style={{
-            background: 'var(--bg-surface)', padding: 16, border: '1px solid var(--border-base)', borderRadius: 2
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
-              <span style={{ color: 'var(--text-secondary)' }}>// {t('task.progress')}</span>
-              <span style={{ color: progressPercent === 100 ? 'var(--success-primary)' : 'var(--accent-primary)', fontWeight: 600 }}>
-                [{completedCount}/{totalCount}]
-              </span>
-            </div>
-            <div style={{ width: '100%', height: 4, background: 'var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${progressPercent}%`,
-                background: progressPercent === 100 ? 'var(--success-primary)' : 'var(--accent-primary)',
-                transition: 'width 0.3s ease'
-              }} />
-            </div>
-          </div>
-
           {/* Task List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tasks.map((task, taskIdx) => {
-              const difficultyKey = task.difficulty ? task.difficulty.toLowerCase() as 'easy' | 'medium' | 'hard' : undefined;
               return (
                 <div
-                  key={task.id || taskIdx}
+                  key={task.id || task.taskId || taskIdx}
                   style={{
-                    background: 'var(--bg-surface)', border: `1px solid ${task.completed ? 'var(--success-primary)' : 'var(--border-base)'}`,
-                    padding: 16, borderRadius: 2, display: 'flex', gap: 16, alignItems: 'flex-start',
-                    opacity: task.completed ? 0.7 : 1, transition: 'all 0.2s ease', cursor: 'pointer'
+                    background: 'var(--bg-surface)', 
+                    border: '1px solid var(--border-base)',
+                    padding: 16, 
+                    borderRadius: 2, 
+                    display: 'flex', 
+                    gap: 16, 
+                    alignItems: 'flex-start',
+                    transition: 'all 0.2s ease'
                   }}
-                  onClick={() => toggleTaskCompletion(task.id, taskIdx)}
-                  onMouseEnter={e => { if(!task.completed) e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
-                  onMouseLeave={e => { if(!task.completed) e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                 >
-                  <div
-                    style={{
-                      width: 20, height: 20, flexShrink: 0, marginTop: 2,
-                      background: task.completed ? 'var(--success-primary)' : 'transparent',
-                      border: `1px solid ${task.completed ? 'var(--success-primary)' : 'var(--border-base)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg-main)', borderRadius: 2
-                    }}
-                  >
-                    {task.completed && '✓'}
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', 
+                    background: 'var(--text-disabled)', 
+                    color: 'var(--bg-surface)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                    fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2
+                  }}>
+                    {taskIdx + 1}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{
-                      margin: 0, fontSize: 14, fontWeight: 600,
-                      color: task.completed ? 'var(--success-primary)' : 'var(--text-primary)',
-                      textDecoration: task.completed ? 'line-through' : 'none'
-                    }}>
-                      {task.title || task.description || `Task ${taskIdx + 1}`}
-                    </p>
-                    {task.description && task.title && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <p style={{
+                        margin: 0, fontSize: 14, fontWeight: 600,
+                        color: 'var(--text-primary)'
+                      }}>
+                        {task.title || task.Title || task.description || task.Description || `Task ${taskIdx + 1}`}
+                      </p>
+                      <button
+                        onClick={() => handleTaskClick(task, taskIdx)}
+                        style={{
+                          background: 'var(--accent-primary)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.background = '#2563eb'
+                          e.currentTarget.style.transform = 'translateY(-1px)'
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)'
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.background = 'var(--accent-primary)'
+                          e.currentTarget.style.transform = 'translateY(0)'
+                          e.currentTarget.style.boxShadow = 'none'
+                        }}
+                      >
+                        <Play size={14} />
+                        {(() => {
+                          const taskId = task.id || task.taskId || task.TaskId
+                          const hasActiveSession = taskId && activeSessions[taskId]
+                          return hasActiveSession ? 'Quay trở lại phiên' : t('task.focus')
+                        })()}
+                      </button>
+                    </div>
+                    {(task.description || task.Description) && (task.title || task.Title) && (
                       <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-                        {task.description}
+                        {task.description || task.Description}
                       </p>
                     )}
-                    {task.difficulty && difficultyKey && (
-                      <span style={{
-                        display: 'inline-block', marginTop: 12, padding: '2px 8px', fontSize: 11, fontWeight: 600,
-                        textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
-                        color: difficultyKey === 'easy' ? 'var(--success-primary)' :
-                               difficultyKey === 'medium' ? 'var(--warning-primary)' :
-                               'var(--error-primary)'
-                      }}>
-                        {t(`task.${difficultyKey}`)}
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                      {/* Priority */}
+                      {(task.priority !== undefined && task.priority !== null) || (task.Priority !== undefined && task.Priority !== null) ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: (() => {
+                            const priority = task.priority ?? task.Priority;
+                            const priorityStr = String(priority).toLowerCase();
+                            // Handle both string and number values
+                            if (priorityStr === 'high' || priority === 3) return 'var(--danger-primary)';
+                            if (priorityStr === 'medium' || priority === 2) return 'var(--warning-primary)';
+                            if (priorityStr === 'low' || priority === 1) return 'var(--success-primary)';
+                            return 'var(--text-secondary)';
+                          })()
+                        }}>
+                          🔥 {(() => {
+                            const priority = task.priority ?? task.Priority;
+                            // Convert number to string
+                            if (priority === 3) return 'High';
+                            if (priority === 2) return 'Medium';
+                            if (priority === 1) return 'Low';
+                            return String(priority);
+                          })()}
+                        </span>
+                      ) : null}
+                      
+                      {/* Task Status */}
+                      {(task.taskStatus !== undefined && task.taskStatus !== null) || (task.TaskStatus !== undefined && task.TaskStatus !== null) ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: (() => {
+                            const status = task.taskStatus ?? task.TaskStatus;
+                            const statusStr = String(status).toLowerCase();
+                            // Handle both string and number values
+                            if (statusStr === 'completed' || status === 2) return 'var(--success-primary)';
+                            if (statusStr === 'in_progress' || statusStr === 'inprogress' || status === 1) return 'var(--accent-primary)';
+                            if (statusStr === 'pending' || status === 0) return 'var(--warning-primary)';
+                            return 'var(--text-secondary)';
+                          })()
+                        }}>
+                          {(() => {
+                            const status = task.taskStatus ?? task.TaskStatus;
+                            const statusStr = String(status).toLowerCase();
+                            // Icons based on status
+                            if (statusStr === 'completed' || status === 2) return '✅';
+                            if (statusStr === 'in_progress' || statusStr === 'inprogress' || status === 1) return '⏳';
+                            if (statusStr === 'pending' || status === 0) return '⏸️';
+                            return '📋';
+                          })()} {(() => {
+                            const status = task.taskStatus ?? task.TaskStatus;
+                            // Convert number to string
+                            if (status === 2) return 'Completed';
+                            if (status === 1) return 'In Progress';
+                            if (status === 0) return 'Pending';
+                            return String(status);
+                          })()}
+                        </span>
+                      ) : null}
+                      
+                      {/* Due Date */}
+                      {(task.dueDate && task.dueDate !== '') || (task.DueDate && task.DueDate !== '') ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          borderRadius: 2, border: '1px solid currentColor',
+                          color: new Date(task.dueDate || task.DueDate!) < new Date() ? 'var(--danger-primary)' : 'var(--accent-primary)'
+                        }}>
+                          📅 {new Date(task.dueDate || task.DueDate!).toLocaleDateString('vi-VN', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: new Date(task.dueDate || task.DueDate!).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                          })}
+                        </span>
+                      ) : null}
+                      
+                      {task.difficulty && (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: task.difficulty.toLowerCase() === 'easy' ? 'var(--success-primary)' :
+                                 task.difficulty.toLowerCase() === 'medium' ? 'var(--warning-primary)' :
+                                 'var(--danger-primary)'
+                        }}>
+                          {t(`task.${task.difficulty.toLowerCase()}`)}
+                        </span>
+                      )}
+                      {task.taskType !== undefined && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
+                          color: task.taskType === 0 || task.taskType === 'Practice' ? 'var(--success-primary)' :
+                                 task.taskType === 1 || task.taskType === 'Theory' ? 'var(--accent-primary)' :
+                                 task.taskType === 2 || task.taskType === 'Quizz' ? 'var(--warning-primary)' : 'var(--text-secondary)',
+                          background: 'transparent'
+                        }}>
+                          {task.taskType === 0 || task.taskType === 'Practice' ? <><Code size={12} /> {t('task.practice')}</> :
+                           task.taskType === 1 || task.taskType === 'Theory' ? <><BookOpen size={12} /> {t('task.theory')}</> :
+                           task.taskType === 2 || task.taskType === 'Quizz' ? <><HelpCircle size={12} /> {t('task.quiz')}</> : `Type ${task.taskType}`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -262,6 +512,26 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, onAllTasksComple
         <div style={{ fontSize: 13, color: 'var(--text-disabled)', padding: 16, textAlign: 'center', border: '1px dashed var(--border-base)', borderRadius: 2 }}>
           {t('task.noTasks')}
         </div>
+      )}
+
+      {/* Focus Session Dialog */}
+      {showFocusDialog && selectedTask && (
+        <FocusSessionDialog
+          isOpen={showFocusDialog}
+          taskTitle={selectedTask.title}
+          onConfirm={handleCreateFocusSession}
+          onCancel={handleCancelFocusSession}
+          loading={creatingSession}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   )

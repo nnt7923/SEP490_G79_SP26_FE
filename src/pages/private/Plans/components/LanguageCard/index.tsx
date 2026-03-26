@@ -1,4 +1,5 @@
 import React from 'react'
+import Tilt from 'react-parallax-tilt'
 
 interface LanguageCardProps {
   active?: boolean
@@ -17,6 +18,7 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
   desc,
   onClick,
 }) => (
+  <Tilt tiltMaxAngleX={6} tiltMaxAngleY={6} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
   <button
     type="button"
     onClick={onClick}
@@ -61,6 +63,7 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
       </span>
     )}
   </button>
+  </Tilt>
 )
 
 export default LanguageCard

@@ -1,12 +1,15 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import ReactMarkdown from 'react-markdown'
 import { useTheme } from '../../../contexts/ThemeContext'
 import LanguageSwitcher from '../../LanguageSwitcher'
 import { useTranslation } from 'react-i18next'
+import { MessageSquare } from 'lucide-react'
+import useChatStore from '../../../store/useChatStore'
 
 const Header: React.FC = () => {
   const navigate = useNavigate()
@@ -16,6 +19,7 @@ const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { t } = useTranslation('common')
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const { globalUnreadCount } = useChatStore()
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -58,7 +62,7 @@ const Header: React.FC = () => {
   const mdLines = [`- [${t('userMenu.dashboard')}](${dashboardPath})`]
   if (profilePath) mdLines.push(`- [${t('userMenu.profile')}](${profilePath})`)
   if (isStudent) mdLines.push(`- [${t('userMenu.myPlans')}](${ROUTER.MY_PLANS})`)
-  mdLines.push(`- [${t('userMenu.changePassword')}](${ROUTER.CHANGE_PASSWORD})`)
+  if (isStudent || isMentor) mdLines.push(`- [${t('userMenu.changePassword')}](${ROUTER.CHANGE_PASSWORD})`)
   mdLines.push(`- [${t('userMenu.logout')}](#logout)`)
   const md = mdLines.join('\n')
 
@@ -103,7 +107,10 @@ const Header: React.FC = () => {
   )
 
   return (
-    <header
+    <motion.header
+      initial={{ y: -48, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
       style={{
         position: 'sticky',
         top: 0,
@@ -321,7 +328,54 @@ const Header: React.FC = () => {
               </div>
             ) : (
               <div style={{ position: 'relative' }} ref={menuRef}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {/* Chat Icon & Badge */}
+                  {(isStudent || isMentor) && (
+                    <Link
+                      to={isMentor ? ROUTER.MENTOR_CHAT : ROUTER.CHAT}
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 32,
+                        height: 32,
+                        color: 'var(--text-secondary)',
+                        textDecoration: 'none',
+                        transition: 'color 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+                      title={t('sidebar.chat', { defaultValue: 'Chat' })}
+                    >
+                      <MessageSquare size={18} />
+                      {globalUnreadCount > 0 && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            background: 'var(--danger-primary)',
+                            color: '#fff',
+                            borderRadius: '999px',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            minWidth: 16,
+                            height: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 4px',
+                            transform: 'translate(25%, -25%)',
+                            border: '2px solid var(--bg-surface)'
+                          }}
+                        >
+                          {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+
                   {profilePath ? (
                     <Link to={profilePath} aria-label="profile">
                       {AvatarEl}
@@ -357,8 +411,14 @@ const Header: React.FC = () => {
                   </button>
                 </div>
 
+                <AnimatePresence>
                 {open && (
-                  <div
+                  <motion.div
+                    key="dropdown"
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
                     role="menu"
                     aria-label="User menu"
                     style={{
@@ -405,8 +465,9 @@ const Header: React.FC = () => {
                         }}
                       >{md}</ReactMarkdown>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </div>
             )}
           </div>
@@ -475,7 +536,7 @@ const Header: React.FC = () => {
           </div>
         )}
       </div>
-    </header>
+    </motion.header>
   )
 }
 

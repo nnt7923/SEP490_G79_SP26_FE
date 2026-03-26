@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { X, Loader2 } from 'lucide-react'
-import { SubjectService } from '../../../services'
+import { SubjectService, LearningPathService } from '../../../services'
 import type { Subject } from '../../../services/SubjectService'
 import useNotificationStore from '../../../store/useNotificationStore'
+import useAuthStore from '../../../store/useAuthStore'
 
 interface CreateResourceModalProps {
   isOpen: boolean
@@ -24,6 +25,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
   onShowProgressToast 
 }) => {
   const { showProgress, hideProgress } = useNotificationStore()
+  const { user } = useAuthStore()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -41,12 +43,43 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
   }, [isOpen])
 
   const fetchSubjects = async () => {
+    if (!user?.id) return
+    
     try {
       setLoadingSubjects(true)
-      const data = await SubjectService.listSubjects()
-      setSubjects(data)
+      
+      // Get user's learning paths to extract subjects
+      const learningPaths = await LearningPathService.getUserLearningPaths(user.id, {
+        pageNumber: 1,
+        pageSize: 100, // Get all learning paths
+      })
+      
+      // Extract unique subject IDs from learning paths
+      const subjectIds = new Set<string>()
+      learningPaths.items.forEach(path => {
+        // Try different possible field names for subjectId
+        const subjectId = path.subjectId || path.SubjectId || (path as any).subject?.id || (path as any).Subject?.id
+        if (subjectId) {
+          subjectIds.add(subjectId)
+        }
+      })
+      
+      if (subjectIds.size === 0) {
+        // If no subjects found in learning paths, show empty list with message
+        setSubjects([])
+        return
+      }
+      
+      // Get all subjects and filter by the ones used in learning paths
+      const allSubjects = await SubjectService.listSubjects()
+      const filteredSubjects = allSubjects.filter(subject => 
+        subjectIds.has(subject.id)
+      )
+      
+      setSubjects(filteredSubjects)
     } catch (err) {
       // silently ignore
+      setSubjects([])
     } finally {
       setLoadingSubjects(false)
     }
@@ -64,6 +97,7 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
     setError(null)
 
     if (!title.trim()) { setError('Title is required'); return }
+    if (subjects.length === 0) { setError('No subjects available. Create a learning path first.'); return }
     if (!subjectId) { setError('Subject is required'); return }
     if (!file) { setError('File is required'); return }
 
@@ -172,6 +206,19 @@ const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
               </label>
               {loadingSubjects ? (
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>// loading subjects...</div>
+              ) : subjects.length === 0 ? (
+                <div style={{ 
+                  padding: '12px', 
+                  border: '1px dashed var(--border-base)', 
+                  borderRadius: 0, 
+                  background: 'var(--bg-main)',
+                  fontSize: 13, 
+                  color: 'var(--text-secondary)',
+                  textAlign: 'center'
+                }}>
+                  // no subjects available<br/>
+                  <span style={{ fontSize: 11 }}>create a learning path first to upload resources</span>
+                </div>
               ) : (
                 <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} disabled={loading || loadingSubjects}
                   style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 0, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s', cursor: 'pointer', opacity: loading ? 0.5 : 1 }}>

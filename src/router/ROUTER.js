@@ -20,8 +20,16 @@ const ROUTER = {
   CHANGE_PASSWORD: "/change-password",
   ADMIN_DASHBOARD: "/admin",
   MENTOR_DASHBOARD: "/mentor",
+  MENTOR_AI_PLANS: "/mentor/ai-plans",
+  MENTOR_AI_PLAN_DETAIL: "/mentor/ai-plans/:pathId",
+  MENTOR_DRAFTS: "/mentor/drafts",
+  MENTOR_DRAFT_CREATE: "/mentor/drafts/new",
+  MENTOR_DRAFT_DETAIL: "/mentor/drafts/:pathId",
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
+  ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",
+  ADMIN_BILLING_TRANSACTIONS: "/admin/billing/transactions",
+  ADMIN_MENTOR_AI_USAGE: "/admin/mentor-ai-usage",
   ADMIN_USERS: "/admin/users",
   ADMIN_REPORTS: "/admin/reports",
   ADMIN_AUDIT_LOGS: "/admin/audit-logs",
@@ -33,6 +41,16 @@ const ROUTER = {
   QUIZ: "/quiz/:quizId",
   // Task (Chapter Tasks)
   TASK: "/task/:chapterId",
+  // Focus Session
+  FOCUS_SESSION: "/focus-session",
+  // Chat
+  CHAT: "/chat",
+  CHAT_SHARE_PREVIEW: "/chat/share-preview/:shareId",
+  MENTOR_CHAT: "/mentor/chat",
+  // Subscription
+  SUBSCRIPTION: "/subscription",
+  SUBSCRIPTION_CURRENT: "/subscription/current",
+  SUBSCRIPTION_SUCCESS: "/subscription/success",
 };
 
 export default ROUTER;

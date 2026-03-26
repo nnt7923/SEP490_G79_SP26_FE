@@ -62,5 +62,39 @@
     "feature2": "Tổng hợp tài nguyên học lập trình thực tế",
     "feature3": "Công cụ theo dõi tiến độ và dashboard trực quan",
     "feature4": "Hệ thống tài nguyên và bài thực hành phong phú"
+  },
+  "about": {
+    "badge": "Về CodeNexus",
+    "title": "Website hỗ trợ học tập các môn lập trình",
+    "subtitle": "CodeNexus là sản phẩm đồ án của nhóm 5 thành viên, tập trung vào việc hỗ trợ người học trong quá trình tự học các môn lập trình. Hệ thống ưu tiên công cụ hỗ trợ như task, quiz và lịch trình nhắc nhở; phần lesson được thiết kế như tài nguyên bổ trợ thêm.",
+    "mission": {
+      "title": "Sứ mệnh",
+      "description": "Tạo ra một nền tảng hỗ trợ người học duy trì nhịp học ổn định, bám sát mục tiêu và có công cụ theo dõi tiến độ rõ ràng cho từng chặng ngắn."
+    },
+    "values": {
+      "title": "Giá trị cốt lõi",
+      "aiFirst": {
+        "title": "Hỗ trợ bằng AI đúng ngữ cảnh",
+        "description": "AI hỗ trợ gợi ý lộ trình và nội dung theo môn học, mục tiêu và mức độ hiện tại của người học."
+      },
+      "goalDriven": {
+        "title": "Task và quiz làm trọng tâm",
+        "description": "Người học bám theo các task và quiz để luyện tập liên tục, từ đó củng cố kiến thức và kỹ năng thực hành."
+      },
+      "reliable": {
+        "title": "Lịch trình nhắc nhở rõ ràng",
+        "description": "Hệ thống hỗ trợ nhắc nhở theo lịch để người học duy trì tiến độ đều đặn theo kế hoạch cá nhân."
+      },
+      "community": {
+        "title": "Lesson là phần bổ trợ",
+        "description": "Các lesson đóng vai trò tài nguyên tham khảo thêm, hỗ trợ người học khi cần ôn lại khái niệm hoặc ví dụ."
+      }
+    },
+    "contact": {
+      "title": "Liên hệ",
+      "email": "team5-codenexus-demo@edu.local",
+      "website": "www.codenexus-demo.local",
+      "note": "Thông tin liên hệ hiện là dữ liệu tạm cho bản demo đồ án và sẽ được cập nhật khi nhóm chốt thông tin chính thức."
+    }
   }
 }

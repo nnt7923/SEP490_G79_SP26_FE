@@ -31,6 +31,21 @@
   50% { opacity: 0; }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-primary-rgb, 9, 105, 218), 0); }
+  50% { box-shadow: 0 0 0 8px rgba(var(--accent-primary-rgb, 9, 105, 218), 0.08); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out;
 }

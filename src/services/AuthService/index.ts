@@ -65,9 +65,10 @@ export async function login(payload: { Identifier: string; Password: string }) {
 }
 
 export async function logout() {
-  // Call backend to invalidate session/token
+  // Call backend to invalidate session/token — send refreshToken in body
   try {
-    await api.post(logoutUrl)
+    const refreshToken = localStorage.getItem('refreshToken')
+    await api.post(logoutUrl, refreshToken ? { refreshToken } : undefined)
   } catch { }
   // Ensure axios does not carry Authorization after logout
   try {
@@ -148,13 +149,19 @@ export async function resetPassword(payload: { Token: string; Password: string; 
   return data
 }
 export async function refresh() {
-  const res: any = await api.get(refreshUrl)
+  const refreshToken = localStorage.getItem('refreshToken')
+  if (!refreshToken) throw new Error('No refresh token available')
+  const res: any = await api.post(refreshUrl, { refreshToken })
   const data = res?.data ?? res
-  const newToken: string | undefined = data?.data?.token ?? data?.token ?? data
+  const newToken: string | undefined = data?.accessToken ?? data?.data?.accessToken ?? data?.token ?? data?.data?.token
+  const newRefreshToken: string | undefined = data?.refreshToken ?? data?.data?.refreshToken
   if (newToken) {
     try { setAccessToken(newToken) } catch { }
   }
-  return { token: newToken }
+  if (newRefreshToken) {
+    try { localStorage.setItem('refreshToken', newRefreshToken) } catch { }
+  }
+  return { token: newToken, refreshToken: newRefreshToken }
 }
 
 export default { login, logout, register, loginWithGoogle, verifyOtp, resendOtp, forgotPassword, resetPassword, getStoredAuth, isAuthenticated, setAccessToken, clearState, refresh }

@@ -13,6 +13,7 @@ const RequireRole = React.lazy(() => import('../components/Authorization/Require
 
 // Pages
 const Home = React.lazy(() => import('../pages/public/Home'))
+const About = React.lazy(() => import('../pages/public/About'))
 const Login = React.lazy(() => import('../pages/public/Login'))
 const Register = React.lazy(() => import('../pages/public/Register'))
 const VerifyOtp = React.lazy(() => import('../pages/public/VerifyOtp'))
@@ -29,6 +30,9 @@ const MyResources = React.lazy(() => import('../pages/private/MyResources'))
 const AdminDashboard = React.lazy(() => import('../pages/private/Admin'))
 const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
+const AdminSubscriptionPlans = React.lazy(() => import('../pages/private/Admin/SubscriptionPlans'))
+const AdminBillingTransactions = React.lazy(() => import('../pages/private/Admin/Billing'))
+const AdminMentorAIUsage = React.lazy(() => import('../pages/private/Admin/MentorAIUsage'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
 const AdminAuditLogs = React.lazy(() => import('../pages/private/Admin/AuditLogs'))
@@ -37,10 +41,22 @@ const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
 const MentorClasses = React.lazy(() => import('../pages/private/Mentor/Classes'))
 const MentorStudents = React.lazy(() => import('../pages/private/Mentor/Students'))
+const MentorAIPlans = React.lazy(() => import('../pages/private/Mentor/AIPlans'))
+const MentorAIPlanDetail = React.lazy(() => import('../pages/private/Mentor/AIPlans/Detail'))
+const MentorDrafts = React.lazy(() => import('../pages/private/Mentor/Drafts'))
+const MentorDraftCreate = React.lazy(() => import('../pages/private/Mentor/Drafts/Create'))
+const MentorDraftDetail = React.lazy(() => import('../pages/private/Mentor/Drafts/Detail'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
 const TaskPage = React.lazy(() => import('../pages/private/Task'))
 const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
+const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
+const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
+const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
+const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat')) 
+const SubscriptionPage = React.lazy(() => import('../pages/private/Subscription'))
+const CurrentSubscriptionPage = React.lazy(() => import('../pages/private/Subscription/CurrentSubscription'))
+const SubscriptionPaymentSuccessPage = React.lazy(() => import('../pages/private/Subscription/PaymentSuccess'))
 
 const Fallback = () => <PageSkeleton />
 
@@ -51,7 +67,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, path: ROUTER.HOME, element: <Home /> },
       { path: ROUTER.CLASSES, element: <div>Classes</div> },
-      { path: ROUTER.ABOUT, element: <div>About Us</div> },
+      { path: ROUTER.ABOUT, element: <About /> },
     ],
   },
   {
@@ -85,6 +101,12 @@ const router = createBrowserRouter([
           { path: '/lesson/:lessonId', element: <LessonDetail /> },
           { path: '/quiz/:quizId', element: <Quiz /> },
           { path: '/task/:taskId', element: <TaskPage /> },
+          { path: ROUTER.FOCUS_SESSION, element: <FocusSession /> },
+          { path: ROUTER.CHAT, element: <StudentChatPage /> },
+          { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
+          { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
+          { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },
+          { path: ROUTER.SUBSCRIPTION_SUCCESS, element: <SubscriptionPaymentSuccessPage /> },
         ],
       },
       // Shared routes (Student & Mentor)
@@ -103,6 +125,9 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
+      { path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, element: <AdminSubscriptionPlans /> },
+      { path: ROUTER.ADMIN_BILLING_TRANSACTIONS, element: <AdminBillingTransactions /> },
+      { path: ROUTER.ADMIN_MENTOR_AI_USAGE, element: <AdminMentorAIUsage /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
       { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },
       { path: ROUTER.ADMIN_AUDIT_LOGS, element: <AdminAuditLogs /> },
@@ -117,7 +142,13 @@ const router = createBrowserRouter([
       { path: '/mentor/subjects', element: <MentorSubjects /> },
       { path: '/mentor/classes', element: <MentorClasses /> },
       { path: '/mentor/students', element: <MentorStudents /> },
+      { path: ROUTER.MENTOR_AI_PLANS, element: <MentorAIPlans /> },
+      { path: ROUTER.MENTOR_AI_PLAN_DETAIL, element: <MentorAIPlanDetail /> },
+      { path: ROUTER.MENTOR_DRAFTS, element: <MentorDrafts /> },
+      { path: ROUTER.MENTOR_DRAFT_CREATE, element: <MentorDraftCreate /> },
+      { path: ROUTER.MENTOR_DRAFT_DETAIL, element: <MentorDraftDetail /> },
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
+      { path: ROUTER.MENTOR_CHAT, element: <MentorChatPage /> },
     ],
   },
 ])

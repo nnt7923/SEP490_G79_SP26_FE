@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { AuthService, UserService } from '../services'
+import useChatStore from './useChatStore'
 
 export type User = {
   id: number | string // Support both number and GUID
@@ -27,7 +28,7 @@ interface AuthState {
   setRefreshToken: (refreshToken: string | null) => void
   setUser: (user: User | null) => void
   clearState: () => void
-  login: (username: string, password: string) => Promise<{ isOk: boolean; msg?: string }>
+  login: (username: string, password: string) => Promise<{ isOk: boolean; msg?: string; errorCode?: string }>
   register: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
   logout: () => Promise<void>
   init: () => Promise<void>
@@ -148,15 +149,27 @@ const useAuthStore = create<AuthState>((set, get) => ({
         // Use setUser to persist role to localStorage
         get().setUser(loginUser)
 
+        // Reconnect SignalR hubs with new token
+        try {
+          const { reconnectHubs } = await import('../services/SignalR')
+          await reconnectHubs()
+        } catch (e) {
+          console.warn('Failed to reconnect SignalR hubs:', e)
+        }
+
         // Load full profile after token; preserve role if profile lacks it
         await get().fetchProfile()
         return { isOk: true }
       }
-      return { isOk: false, msg: 'No token received' }
+      return { isOk: false, errorCode: 'LOGIN_RESPONSE_INVALID', msg: 'No token received' }
     } catch (error: any) {
       const data = error?.response?.data
-      const msg = data?.msg || data?.detail || data?.title || data?.message || error?.message || 'Login failed.'
-      return { isOk: false, msg }
+      const errorCodeRaw = data?.errorCode ?? data?.code
+      const errorCode = typeof errorCodeRaw === 'string' && errorCodeRaw.trim().length > 0
+        ? errorCodeRaw.trim().toUpperCase()
+        : undefined
+      const fallbackMsg = data?.msg || data?.detail || data?.title || data?.message || error?.message || 'Login failed.'
+      return { isOk: false, errorCode, msg: fallbackMsg }
     } finally {
       set({ loading: false })
     }
@@ -167,7 +180,17 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await AuthService.logout()
     } catch { }
+    
+    // Disconnect SignalR hubs before clearing state
+    try {
+      const { disconnectHubs } = await import('../services/SignalR')
+      await disconnectHubs()
+    } catch (e) {
+      console.warn('Failed to disconnect SignalR hubs:', e)
+    }
+    
     get().clearState()
+    useChatStore.getState().reset()
     set({ loading: false })
   },
 
