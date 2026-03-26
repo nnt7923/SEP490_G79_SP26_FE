@@ -12,6 +12,7 @@ type Props = {
   onReject?: () => void
   onPreview?: () => void
   onViewPath?: () => void
+  extraActions?: React.ReactNode
   labels: {
     pending: string
     accepted: string
@@ -48,6 +49,7 @@ const LearningPathShareCard: React.FC<Props> = ({
   onReject,
   onPreview,
   onViewPath,
+  extraActions,
   labels,
 }) => {
   const isInviteMode = actionMode === 'invite'
@@ -101,7 +103,7 @@ const LearningPathShareCard: React.FC<Props> = ({
         </div>
       )}
 
-      {(canRespond || onViewPath || previewOnly) && (
+      {(canRespond || onViewPath || previewOnly || extraActions) && (
         <div className={isInviteMode ? 'chat-kit-invite-actions' : 'chat-kit-share-actions'}>
           {canRespond && onAccept && (
             <button
@@ -155,6 +157,7 @@ const LearningPathShareCard: React.FC<Props> = ({
               {labels.viewPath}
             </button>
           )}
+          {extraActions}
         </div>
       )}
     </div>

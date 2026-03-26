@@ -13,7 +13,7 @@ const asString = (value: unknown): string | null => {
 export const normalizeShareId = (value: string | null | undefined): string =>
   (value ?? '').trim().toLowerCase()
 
-const extractSharedLearningPathTitle = (content: string | null | undefined): string | null => {
+export const extractSharedLearningPathTitle = (content: string | null | undefined): string | null => {
   const raw = asString(content)
   if (!raw) return null
 

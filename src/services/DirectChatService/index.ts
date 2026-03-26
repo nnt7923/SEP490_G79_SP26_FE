@@ -71,11 +71,13 @@ export async function getMessages(
 export async function sendMessageRest(
   conversationId: string,
   content: string,
-  messageType: 'Text' | 'Emoji' = 'Text'
+  messageType: 'Text' | 'Emoji' = 'Text',
+  replyToMessageId: string | null = null
 ): Promise<DirectMessageDto> {
   return api.post(`/direct-chats/conversations/${conversationId}/messages`, {
     content,
     messageType,
+    replyToMessageId,
   })
 }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Gift, LogOut, MessageSquare, Smile, Users } from 'lucide-react'
+import { Gift, LogOut, MessageSquare, Reply, Smile, Users } from 'lucide-react'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar'
 import useAuthStore from '../../../../store/useAuthStore'
@@ -30,8 +30,17 @@ import {
   Search,
 } from '@chatscope/chat-ui-kit-react'
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react'
+import ChatReplyPreview from '../../../../components/Chat/ChatReplyPreview'
 import LearningPathShareCard from '../../../../components/Chat/LearningPathShareCard'
 import { buildLearningPathShareCardData, isLearningPathShareMessage } from '../../../../components/Chat/learningPathShare'
+import {
+  buildReplyDraft,
+  buildReplyPreviewForMessage,
+  getReplyPreviewText,
+  isReplyableMessage,
+  type ReplyDraft,
+  normalizeChatMessageContent,
+} from '../../../../components/Chat/chatReply'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 type ChatRouteState = { conversationId?: string; activeTab?: 'conversations' | 'invites' | 'contacts'; toast?: ToastState }
@@ -57,18 +66,6 @@ function getInitials(name: string): string {
     .slice(-2)
     .map(w => w[0]?.toUpperCase())
     .join('')
-}
-
-function normalizeMessageContent(message: DirectMessageDto): string {
-  const raw = message.content ?? ''
-  if (!raw.includes('\n') && !raw.includes('\r')) return raw
-  const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  const parts = normalized.split('\n')
-  const nonEmpty = parts.filter(p => p.length > 0)
-  if (nonEmpty.length >= 2 && nonEmpty.every(p => p.length === 1)) {
-    return nonEmpty.join('')
-  }
-  return raw
 }
 
 function getMessagePosition(messages: DirectMessageDto[], idx: number): 'single' | 'first' | 'normal' | 'last' {
@@ -112,6 +109,7 @@ const StudentChatPage: React.FC = () => {
   const [contacts, setContacts] = useState<DirectChatContactDto[]>([])
   const [showEmoji, setShowEmoji] = useState(false)
   const [inputValue, setInputValue] = useState('')
+  const [replyDraft, setReplyDraft] = useState<ReplyDraft | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
   const [requestedConversationId, setRequestedConversationId] = useState<string | null>(location.state?.conversationId ?? null)
@@ -130,6 +128,19 @@ const StudentChatPage: React.FC = () => {
   const otherName = activeConv
     ? (activeConv.mentorId === currentUserId ? activeConv.studentName : activeConv.mentorName)
     : ''
+  const replyContext = {
+    currentUserId,
+    otherParticipantName: otherName || t('chat.title'),
+    youLabel: t('chat.you', { defaultValue: 'You' }),
+    unavailableLabel: t('chat.replyUnavailable', {
+      defaultValue: 'Tin nhắn đã bị xóa hoặc không còn khả dụng',
+    }),
+    sharedLearningPathLabel: t('chat.sharedLearningPath', { defaultValue: 'Learning path share' }),
+    pendingShares: pendingLearningPathShares,
+  }
+  const composerPlaceholder = replyDraft
+    ? `${t('chat.replyingTo', { name: replyDraft.preview.senderLabel })}: ${getReplyPreviewText(replyDraft.preview)}`
+    : t('chat.typePlaceholder')
 
   const filteredConversations = useMemo(() => {
     const q = searchQuery.toLowerCase()
@@ -227,6 +238,7 @@ const StudentChatPage: React.FC = () => {
     seenRef.current.clear()
     setShowEmoji(false)
     setInputValue('')
+    setReplyDraft(null)
   }, [activeConversationId])
 
   useEffect(() => {
@@ -280,17 +292,28 @@ const StudentChatPage: React.FC = () => {
     } catch { }
   }
 
-  const handleSend = (content: string, type: 'Text' | 'Emoji') => {
-    if (!activeConversationId) return
-    hub.sendMessage(activeConversationId, content, type).catch(() => { })
+  const handleReplyToMessage = (message: DirectMessageDto) => {
+    const draft = buildReplyDraft(message, replyContext)
+    if (!draft) return
+    setReplyDraft(draft)
+    setShowEmoji(false)
+    messageInputRef.current?.focus?.()
   }
 
-  const handleSendText = (_innerHtml: string, textContent: string) => {
+  const handleSend = async (content: string, type: 'Text' | 'Emoji') => {
+    if (!activeConversationId) return
+    await hub.sendMessage(activeConversationId, content, type, replyDraft?.messageId ?? null)
+    setReplyDraft(null)
+  }
+
+  const handleSendText = async (_innerHtml: string, textContent: string) => {
     if (!activeConversationId) return
     const trimmed = textContent.trim()
     if (!trimmed) return
-    handleSend(trimmed, 'Text')
-    setInputValue('')
+    try {
+      await handleSend(trimmed, 'Text')
+      setInputValue('')
+    } catch { }
   }
 
   const openSharePreview = (shareId: string, from: 'chat' | 'invites') => {
@@ -523,10 +546,11 @@ const StudentChatPage: React.FC = () => {
                   const position = getMessagePosition(activeMessages, idx)
                   const isLastMine =
                     isMine && !activeMessages.slice(idx + 1).some(m => m.senderId === currentUserId)
-                  const displayContent = normalizeMessageContent(msg)
+                  const displayContent = normalizeChatMessageContent(msg.content)
                   const shareCardData = isLearningPathShareMessage(msg)
                     ? buildLearningPathShareCardData(msg, pendingLearningPathShares)
                     : null
+                  const replyPreview = buildReplyPreviewForMessage(msg, activeMessages, replyContext)
                   if (shareCardData) {
                     return (
                       <div
@@ -536,12 +560,28 @@ const StudentChatPage: React.FC = () => {
                         data-chat-share-id={shareCardData.shareId}
                       >
                         <div className="chat-kit-share-row__card">
+                          {replyPreview && (
+                            <ChatReplyPreview preview={replyPreview} />
+                          )}
                           <LearningPathShareCard
                             data={shareCardData}
                             onPreview={() => openSharePreview(shareCardData.shareId, 'chat')}
                             onViewPath={shareCardData.pathId && shareCardData.status === 'Accepted'
                               ? () => navigate('/my-plans/detail', { state: { pathId: shareCardData.pathId } })
                               : undefined}
+                            extraActions={isReplyableMessage(msg) ? (
+                              <button
+                                type="button"
+                                className="chat-kit-reply-action chat-kit-reply-action--share"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  handleReplyToMessage(msg)
+                                }}
+                              >
+                                <Reply size={14} />
+                                {t('chat.reply')}
+                              </button>
+                            ) : undefined}
                             labels={shareCardLabels}
                           />
                         </div>
@@ -566,14 +606,37 @@ const StudentChatPage: React.FC = () => {
                       }}
                       type="text"
                     >
-                      <Message.TextContent text={displayContent} />
-                      <Message.Footer>
-                        <span className="chat-kit-message-meta">
-                          {formatMessageTime(msg.sentAt)}
-                          {isMine && isLastMine && (
-                            <MessageStatusIcon status={getMessageStatus(msg)} />
+                      <Message.CustomContent>
+                        <div className="chat-kit-message-body">
+                          {replyPreview && (
+                            <ChatReplyPreview preview={replyPreview} />
                           )}
-                        </span>
+                          <div className="chat-kit-message-text">{displayContent}</div>
+                        </div>
+                      </Message.CustomContent>
+                      <Message.Footer>
+                        <div className="chat-kit-message-footer-row">
+                          <span className="chat-kit-message-meta">
+                            {formatMessageTime(msg.sentAt)}
+                            {isMine && isLastMine && (
+                              <MessageStatusIcon status={getMessageStatus(msg)} />
+                            )}
+                          </span>
+                          {isReplyableMessage(msg) && (
+                            <button
+                              type="button"
+                              className="chat-kit-reply-action"
+                              onClick={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                handleReplyToMessage(msg)
+                              }}
+                            >
+                              <Reply size={12} />
+                              {t('chat.reply')}
+                            </button>
+                          )}
+                        </div>
                       </Message.Footer>
                     </Message>
                   )
@@ -581,8 +644,21 @@ const StudentChatPage: React.FC = () => {
               )}
             </MessageList>
 
+            {replyDraft && (
+              <div className="chat-kit-composer-reply">
+                <div className="chat-kit-composer-reply__label">
+                  {t('chat.replyingTo', { name: replyDraft.preview.senderLabel })}
+                </div>
+                <ChatReplyPreview
+                  preview={replyDraft.preview}
+                  variant="composer"
+                  onClose={() => setReplyDraft(null)}
+                />
+              </div>
+            )}
+
             <MessageInput
-              placeholder={t('chat.typePlaceholder')}
+              placeholder={composerPlaceholder}
               onSend={handleSendText}
               onChange={(_html, textContent) => setInputValue(textContent)}
               value={inputValue}

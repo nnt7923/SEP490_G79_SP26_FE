@@ -53,7 +53,12 @@ export interface UseChatHubOptions {
 export interface ChatHubRef {
   joinConversation(conversationId: string, page?: number, size?: number): Promise<void>
   leaveConversation(conversationId: string): Promise<void>
-  sendMessage(conversationId: string, content: string, messageType?: 'Text' | 'Emoji'): Promise<void>
+  sendMessage(
+    conversationId: string,
+    content: string,
+    messageType?: 'Text' | 'Emoji',
+    replyToMessageId?: string | null
+  ): Promise<void>
   markDelivered(conversationId: string, messageId: string): Promise<void>
   markSeen(conversationId: string, messageId: string): Promise<void>
   requestConversations(): Promise<void>
@@ -265,9 +270,14 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
   )
 
   const sendMessage = useCallback(
-    async (conversationId: string, content: string, messageType: 'Text' | 'Emoji' = 'Text') => {
+    async (
+      conversationId: string,
+      content: string,
+      messageType: 'Text' | 'Emoji' = 'Text',
+      replyToMessageId: string | null = null
+    ) => {
       await ensureConnected()
-      return connectionRef.current!.invoke('SendMessage', conversationId, content, messageType)
+      return connectionRef.current!.invoke('SendMessage', conversationId, content, messageType, replyToMessageId)
     },
     []
   )

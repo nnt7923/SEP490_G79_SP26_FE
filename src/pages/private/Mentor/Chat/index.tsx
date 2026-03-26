@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LogOut, MessageSquare, Share2, Smile, Users } from 'lucide-react'
+import { LogOut, MessageSquare, Reply, Share2, Smile, Users } from 'lucide-react'
 import Layout from '../../../../components/Layout'
 import { useMentorSidebarConfig } from '../components/MentorSideBar'
 import useAuthStore from '../../../../store/useAuthStore'
@@ -31,10 +31,19 @@ import {
   Search,
 } from '@chatscope/chat-ui-kit-react'
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react'
+import ChatReplyPreview from '../../../../components/Chat/ChatReplyPreview'
 import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 import LearningPathShareCard from '../../../../components/Chat/LearningPathShareCard'
 import SentShareHistoryBlock from '../../../../components/Chat/SentShareHistoryBlock'
 import { buildLearningPathShareCardData, normalizeShareId } from '../../../../components/Chat/learningPathShare'
+import {
+  buildReplyDraft,
+  buildReplyPreviewForMessage,
+  getReplyPreviewText,
+  isReplyableMessage,
+  normalizeChatMessageContent,
+  type ReplyDraft,
+} from '../../../../components/Chat/chatReply'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 type ShareOption = { id: string; label: string }
@@ -60,18 +69,6 @@ function getInitials(name: string): string {
     .slice(-2)
     .map((w) => w[0]?.toUpperCase())
     .join('')
-}
-
-function normalizeMessageContent(message: DirectMessageDto): string {
-  const raw = message.content ?? ''
-  if (!raw.includes('\n') && !raw.includes('\r')) return raw
-  const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  const parts = normalized.split('\n')
-  const nonEmpty = parts.filter((p) => p.length > 0)
-  if (nonEmpty.length >= 2 && nonEmpty.every((p) => p.length === 1)) {
-    return nonEmpty.join('')
-  }
-  return raw
 }
 
 function normalizeShareTitle(value: string): string {
@@ -135,6 +132,7 @@ const MentorChatPage: React.FC = () => {
   const [shareError, setShareError] = useState<string | null>(null)
   const [showEmoji, setShowEmoji] = useState(false)
   const [inputValue, setInputValue] = useState('')
+  const [replyDraft, setReplyDraft] = useState<ReplyDraft | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
   const [sentShares, setSentShares] = useState<SentLearningPathShareSummaryDto[]>([])
@@ -227,6 +225,7 @@ const MentorChatPage: React.FC = () => {
     seenRef.current.clear()
     setShowEmoji(false)
     setInputValue('')
+    setReplyDraft(null)
   }, [activeConversationId])
 
   useEffect(() => {
@@ -280,17 +279,95 @@ const MentorChatPage: React.FC = () => {
     } catch { }
   }
 
-  const handleSend = (content: string, type: 'Text' | 'Emoji') => {
-    if (!activeConversationId) return
-    hub.sendMessage(activeConversationId, content, type).catch(() => { })
+  const resolveMentorShareCardData = (message: DirectMessageDto): LearningPathShareCardData | null => {
+    const directShareCardData = buildLearningPathShareCardData(message)
+    if (directShareCardData) {
+      const latestShare = sentShareById.get(normalizeShareId(directShareCardData.shareId))
+      return {
+        ...directShareCardData,
+        pathId: latestShare?.pathId ?? directShareCardData.pathId,
+        title: latestShare?.learningPathTitle ?? directShareCardData.title,
+        description: latestShare?.learningPathDescription ?? directShareCardData.description,
+        mentorName: directShareCardData.mentorName ?? currentUserName,
+        studentName: latestShare?.studentName ?? directShareCardData.studentName,
+        status: latestShare?.status ?? directShareCardData.status,
+        sentAt: latestShare?.sentAt ?? directShareCardData.sentAt,
+        respondedAt: latestShare?.respondedAt ?? directShareCardData.respondedAt,
+      }
+    }
+
+    if (message.senderId !== currentUserId) return null
+
+    const sharedTitle = extractSharedLearningPathTitle(normalizeChatMessageContent(message.content))
+    if (!sharedTitle) return null
+
+    const normalizedTitle = normalizeShareTitle(sharedTitle)
+    const titleMatches = allSentShares.filter((item) => normalizeShareTitle(item.learningPathTitle) === normalizedTitle)
+    const fuzzyMatches = allSentShares.filter((item) => {
+      const itemTitle = normalizeShareTitle(item.learningPathTitle)
+      return itemTitle.includes(normalizedTitle) || normalizedTitle.includes(itemTitle)
+    })
+    const candidates = titleMatches.length > 0 ? titleMatches : fuzzyMatches
+    if (candidates.length === 0) return null
+
+    const messageSentAt = Date.parse(message.sentAt || '')
+    const bestMatch = [...candidates].sort((left, right) => {
+      const leftDiff = Math.abs(Date.parse(left.sentAt || '') - messageSentAt)
+      const rightDiff = Math.abs(Date.parse(right.sentAt || '') - messageSentAt)
+      return leftDiff - rightDiff
+    })[0]
+
+    if (!bestMatch) return null
+
+    return {
+      shareId: bestMatch.shareId,
+      pathId: bestMatch.pathId,
+      title: bestMatch.learningPathTitle,
+      description: bestMatch.learningPathDescription,
+      mentorName: currentUserName,
+      studentName: bestMatch.studentName,
+      status: bestMatch.status,
+      sentAt: bestMatch.sentAt,
+      respondedAt: bestMatch.respondedAt,
+    }
   }
 
-  const handleSendText = (_innerHtml: string, textContent: string) => {
+  const replyContext = {
+    currentUserId,
+    otherParticipantName: otherName || t('chat.title'),
+    youLabel: t('chat.you', { defaultValue: 'You' }),
+    unavailableLabel: t('chat.replyUnavailable', {
+      defaultValue: 'Tin nhắn đã bị xóa hoặc không còn khả dụng',
+    }),
+    sharedLearningPathLabel: t('chat.sharedLearningPath', { defaultValue: 'Learning path share' }),
+    resolveShareCardData: resolveMentorShareCardData,
+  }
+  const composerPlaceholder = replyDraft
+    ? `${t('chat.replyingTo', { name: replyDraft.preview.senderLabel })}: ${getReplyPreviewText(replyDraft.preview)}`
+    : t('chat.typePlaceholder')
+
+  const handleReplyToMessage = (message: DirectMessageDto) => {
+    const draft = buildReplyDraft(message, replyContext)
+    if (!draft) return
+    setReplyDraft(draft)
+    setShowEmoji(false)
+    messageInputRef.current?.focus?.()
+  }
+
+  const handleSend = async (content: string, type: 'Text' | 'Emoji') => {
+    if (!activeConversationId) return
+    await hub.sendMessage(activeConversationId, content, type, replyDraft?.messageId ?? null)
+    setReplyDraft(null)
+  }
+
+  const handleSendText = async (_innerHtml: string, textContent: string) => {
     if (!activeConversationId) return
     const trimmed = textContent.trim()
     if (!trimmed) return
-    handleSend(trimmed, 'Text')
-    setInputValue('')
+    try {
+      await handleSend(trimmed, 'Text')
+      setInputValue('')
+    } catch { }
   }
 
   const openShareModal = () => {
@@ -434,59 +511,6 @@ const MentorChatPage: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConv?.studentId, sentShareStatus])
-
-  const resolveMentorShareCardData = (message: DirectMessageDto): LearningPathShareCardData | null => {
-    const directShareCardData = buildLearningPathShareCardData(message)
-    if (directShareCardData) {
-      const latestShare = sentShareById.get(normalizeShareId(directShareCardData.shareId))
-      return {
-        ...directShareCardData,
-        pathId: latestShare?.pathId ?? directShareCardData.pathId,
-        title: latestShare?.learningPathTitle ?? directShareCardData.title,
-        description: latestShare?.learningPathDescription ?? directShareCardData.description,
-        mentorName: directShareCardData.mentorName ?? currentUserName,
-        studentName: latestShare?.studentName ?? directShareCardData.studentName,
-        status: latestShare?.status ?? directShareCardData.status,
-        sentAt: latestShare?.sentAt ?? directShareCardData.sentAt,
-        respondedAt: latestShare?.respondedAt ?? directShareCardData.respondedAt,
-      }
-    }
-
-    if (message.senderId !== currentUserId) return null
-
-    const sharedTitle = extractSharedLearningPathTitle(normalizeMessageContent(message))
-    if (!sharedTitle) return null
-
-    const normalizedTitle = normalizeShareTitle(sharedTitle)
-    const titleMatches = allSentShares.filter((item) => normalizeShareTitle(item.learningPathTitle) === normalizedTitle)
-    const fuzzyMatches = allSentShares.filter((item) => {
-      const itemTitle = normalizeShareTitle(item.learningPathTitle)
-      return itemTitle.includes(normalizedTitle) || normalizedTitle.includes(itemTitle)
-    })
-    const candidates = titleMatches.length > 0 ? titleMatches : fuzzyMatches
-    if (candidates.length === 0) return null
-
-    const messageSentAt = Date.parse(message.sentAt || '')
-    const bestMatch = [...candidates].sort((left, right) => {
-      const leftDiff = Math.abs(Date.parse(left.sentAt || '') - messageSentAt)
-      const rightDiff = Math.abs(Date.parse(right.sentAt || '') - messageSentAt)
-      return leftDiff - rightDiff
-    })[0]
-
-    if (!bestMatch) return null
-
-    return {
-      shareId: bestMatch.shareId,
-      pathId: bestMatch.pathId,
-      title: bestMatch.learningPathTitle,
-      description: bestMatch.learningPathDescription,
-      mentorName: currentUserName,
-      studentName: bestMatch.studentName,
-      status: bestMatch.status,
-      sentAt: bestMatch.sentAt,
-      respondedAt: bestMatch.respondedAt,
-    }
-  }
 
   const hasShareMessage = (item: SentLearningPathShareSummaryDto) =>
     activeMessages.some((message) => normalizeShareId(resolveMentorShareCardData(message)?.shareId) === normalizeShareId(item.shareId))
@@ -658,8 +682,9 @@ const MentorChatPage: React.FC = () => {
                   const position = getMessagePosition(activeMessages, idx)
                   const isLastMine =
                     isMine && !activeMessages.slice(idx + 1).some(m => m.senderId === currentUserId)
-                  const displayContent = normalizeMessageContent(msg)
+                  const displayContent = normalizeChatMessageContent(msg.content)
                   const shareCardData = resolveMentorShareCardData(msg)
+                  const replyPreview = buildReplyPreviewForMessage(msg, activeMessages, replyContext)
                   if (shareCardData) {
                     return (
                       <div
@@ -669,8 +694,24 @@ const MentorChatPage: React.FC = () => {
                         data-chat-share-id={shareCardData.shareId}
                       >
                         <div className="chat-kit-share-row__card">
+                          {replyPreview && (
+                            <ChatReplyPreview preview={replyPreview} />
+                          )}
                           <LearningPathShareCard
                             data={shareCardData}
+                            extraActions={isReplyableMessage(msg) ? (
+                              <button
+                                type="button"
+                                className="chat-kit-reply-action chat-kit-reply-action--share"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  handleReplyToMessage(msg)
+                                }}
+                              >
+                                <Reply size={14} />
+                                {t('chat.reply')}
+                              </button>
+                            ) : undefined}
                             labels={shareCardLabels}
                           />
                         </div>
@@ -695,14 +736,37 @@ const MentorChatPage: React.FC = () => {
                         }}
                         type="text"
                       >
-                        <Message.TextContent text={displayContent} />
-                        <Message.Footer>
-                          <span className="chat-kit-message-meta">
-                            {formatMessageTime(msg.sentAt)}
-                            {isMine && isLastMine && (
-                              <MessageStatusIcon status={getMessageStatus(msg)} />
+                        <Message.CustomContent>
+                          <div className="chat-kit-message-body">
+                            {replyPreview && (
+                              <ChatReplyPreview preview={replyPreview} />
                             )}
-                          </span>
+                            <div className="chat-kit-message-text">{displayContent}</div>
+                          </div>
+                        </Message.CustomContent>
+                        <Message.Footer>
+                          <div className="chat-kit-message-footer-row">
+                            <span className="chat-kit-message-meta">
+                              {formatMessageTime(msg.sentAt)}
+                              {isMine && isLastMine && (
+                                <MessageStatusIcon status={getMessageStatus(msg)} />
+                              )}
+                            </span>
+                            {isReplyableMessage(msg) && (
+                              <button
+                                type="button"
+                                className="chat-kit-reply-action"
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  handleReplyToMessage(msg)
+                                }}
+                              >
+                                <Reply size={12} />
+                                {t('chat.reply')}
+                              </button>
+                            )}
+                          </div>
                         </Message.Footer>
                       </Message>
                     </div>
@@ -711,8 +775,21 @@ const MentorChatPage: React.FC = () => {
               )}
             </MessageList>
 
+            {replyDraft && (
+              <div className="chat-kit-composer-reply">
+                <div className="chat-kit-composer-reply__label">
+                  {t('chat.replyingTo', { name: replyDraft.preview.senderLabel })}
+                </div>
+                <ChatReplyPreview
+                  preview={replyDraft.preview}
+                  variant="composer"
+                  onClose={() => setReplyDraft(null)}
+                />
+              </div>
+            )}
+
             <MessageInput
-              placeholder={t('chat.typePlaceholder')}
+              placeholder={composerPlaceholder}
               onSend={handleSendText}
               onChange={(_html, textContent) => setInputValue(textContent)}
               value={inputValue}

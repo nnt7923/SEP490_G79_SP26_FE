@@ -28,6 +28,9 @@ export interface DirectMessageDto {
   sentAt: string          // ISO 8601
   deliveredAt: string | null
   seenAt: string | null
+  replyToMessageId?: string | null
+  replyToContent?: string | null
+  replyToSenderId?: string | null
   learningPathShareId?: string | null
   learningPathTitle?: string | null
   learningPathDescription?: string | null
