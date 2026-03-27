@@ -186,7 +186,10 @@
     "suggestionAdoptedButNoPath": "Đã áp dụng đề xuất nhưng không nhận được pathId",
     "errorAdoptingSuggestion": "Lỗi khi áp dụng lộ trình đề xuất",
     "matchScore": "Độ tương thích",
-    "checkingSuggestions": "Đang tìm lộ trình phù hợp..."
+    "checkingSuggestions": "Đang tìm lộ trình phù hợp...",
+    "aiConfirmTitle": "Xác nhận tạo bằng AI",
+    "aiConfirmMessage": "Bạn có chắc muốn tạo lộ trình học tập bằng AI?",
+    "confirm": "xác nhận"
   },
   "subscription": {
     "title": "Gói học tập",

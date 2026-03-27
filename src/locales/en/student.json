@@ -186,7 +186,10 @@
     "suggestionAdoptedButNoPath": "Suggestion adopted but no pathId received",
     "errorAdoptingSuggestion": "Error adopting suggested learning path",
     "matchScore": "Match Level",
-    "checkingSuggestions": "Finding suitable paths..."
+    "checkingSuggestions": "Finding suitable paths...",
+    "aiConfirmTitle": "Confirm AI Generation",
+    "aiConfirmMessage": "Are you sure you want to generate a learning path using AI?",
+    "confirm": "confirm"
   },
   "subscription": {
     "title": "Subscription Plans",

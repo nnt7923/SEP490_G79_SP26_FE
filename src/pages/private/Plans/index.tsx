@@ -134,6 +134,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null)
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
 
+  // AI generation confirmation state
+  const [showAiConfirm, setShowAiConfirm] = useState<boolean>(false)
+
   // Goal editing states
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [editingGoalTitle, setEditingGoalTitle] = useState<string>('')
@@ -2207,350 +2210,117 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               <StepHeader
                 title={t('plans.step7Title')}
                 subtitle={t('plans.step7Subtitle')}
-                icon="$"
                 selectedValue={t('plans.chooseGenerationMethod')}
               />
 
               {/* Generation Options */}
-              <section style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', 
-                gap: 24, 
-                maxWidth: 1200, 
-                margin: '0 auto',
-                padding: '0 16px'
-              }} aria-label="generation-options">
+              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, maxWidth: 900, margin: '0 auto' }} aria-label="generation-options">
                 
                 {/* Option 1: AI Generation */}
-                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
-                <div
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAiConfirm(true)}
                   style={{
-                    padding: '32px 28px',
-                    border: '2px solid var(--border-base)',
-                    borderRadius: 12,
-                    background: 'var(--bg-surface)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden'
+                    padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
+                    borderColor: 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%', display: 'flex', flexDirection: 'column', gap: 12
                   }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--accent-primary)'
-                    e.currentTarget.style.background = 'var(--bg-main)'
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--border-base)'
-                    e.currentTarget.style.background = 'var(--bg-surface)'
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                  onClick={handleGenerateClick}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
-                    <div style={{ 
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      borderRadius: 16,
-                      padding: 16,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minWidth: 72,
-                      height: 72
-                    }}>
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 12l2 2 4-4"/>
-                        <path d="M21 12c.552 0 1-.448 1-1V5c0-.552-.448-1-1-1H3c-.552 0-1 .448-1 1v6c0 .552.448 1 1 1"/>
-                        <path d="M3 12v6c0 .552.448 1 1 1h16c.552 0 1-.448 1-1v-6"/>
-                      </svg>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ 
-                        fontSize: 20, 
-                        fontWeight: 700, 
-                        color: 'var(--text-primary)', 
-                        margin: '0 0 8px 0',
-                        lineHeight: 1.3
-                      }}>
-                        {t('plans.aiGeneration')}
-                      </h3>
-                      <p style={{ 
-                        fontSize: 14, 
-                        color: 'var(--text-secondary)', 
-                        margin: 0,
-                        lineHeight: 1.4
-                      }}>
-                        {t('plans.aiGenerationDesc')}
-                      </p>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('plans.aiGeneration')}</div>
+                    <div style={{ marginLeft: 'auto', padding: '2px 8px', background: 'var(--accent-primary)', color: 'var(--bg-surface)', borderRadius: 2, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('plans.recommended')}</div>
                   </div>
-
-                  <div style={{ 
-                    marginTop: 'auto',
-                    paddingTop: 20,
-                    borderTop: '1px solid var(--border-base)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 13,
-                    color: 'var(--accent-primary)',
-                    fontWeight: 600
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.aiGenerationDesc')}</div>
+                  <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border-base)', fontSize: 11, fontWeight: 600, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                     </svg>
                     {t('plans.fastAndPersonalized')}
                   </div>
-                </div>
+                </button>
                 </Tilt>
 
                 {/* Option 2: Similar Learning Paths */}
-                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
-                <div
-                  style={{
-                    padding: '32px 28px',
-                    border: '2px solid var(--border-base)',
-                    borderRadius: 12,
-                    background: 'var(--bg-surface)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--success-primary)'
-                    e.currentTarget.style.background = 'var(--bg-main)'
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--border-base)'
-                    e.currentTarget.style.background = 'var(--bg-surface)'
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <button
+                  type="button"
                   onClick={handleGetSuggestions}
+                  style={{
+                    padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
+                    borderColor: 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%', display: 'flex', flexDirection: 'column', gap: 12
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--success-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
-                    <div style={{ 
-                      background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-                      borderRadius: 16,
-                      padding: 16,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minWidth: 72,
-                      height: 72
-                    }}>
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                      </svg>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ 
-                        fontSize: 20, 
-                        fontWeight: 700, 
-                        color: 'var(--text-primary)', 
-                        margin: '0 0 8px 0',
-                        lineHeight: 1.3
-                      }}>
-                        {t('plans.similarPaths')}
-                      </h3>
-                      <p style={{ 
-                        fontSize: 14, 
-                        color: 'var(--text-secondary)', 
-                        margin: 0,
-                        lineHeight: 1.4
-                      }}>
-                        {t('plans.similarPathsDesc')}
-                      </p>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                    </svg>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('plans.similarPaths')}</div>
                   </div>
-
-                  <div style={{ 
-                    marginTop: 'auto',
-                    paddingTop: 20,
-                    borderTop: '1px solid var(--border-base)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 13,
-                    color: 'var(--success-primary)',
-                    fontWeight: 600
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.similarPathsDesc')}</div>
+                  <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border-base)', fontSize: 11, fontWeight: 600, color: 'var(--success-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="11" cy="11" r="8"/>
                       <path d="m21 21-4.35-4.35"/>
                     </svg>
                     {t('plans.browseExisting')}
                   </div>
-                </div>
+                </button>
                 </Tilt>
 
-                {/* Option 3: Ask Mentor */}
-                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
-                <div
+                {/* Option 3: Ask Mentor (Coming Soon) */}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <button
+                  type="button"
+                  onClick={() => { setToast({ message: t('plans.comingSoon'), type: 'success' }) }}
                   style={{
-                    padding: '32px 28px',
-                    border: '2px solid var(--border-base)',
-                    borderRadius: 12,
-                    background: 'var(--bg-surface)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    opacity: 0.75
+                    padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
+                    borderColor: 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
+                    height: '100%', display: 'flex', flexDirection: 'column', gap: 12, opacity: 0.65
                   }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--warning-primary)'
-                    e.currentTarget.style.background = 'var(--bg-main)'
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
-                    e.currentTarget.style.opacity = '1'
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--border-base)'
-                    e.currentTarget.style.background = 'var(--bg-surface)'
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
-                    e.currentTarget.style.opacity = '0.75'
-                  }}
-                  onClick={() => {
-                    setToast({ message: t('plans.comingSoon'), type: 'success' })
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--warning-primary)'; e.currentTarget.style.background = 'var(--bg-main)'; e.currentTarget.style.opacity = '1' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.opacity = '0.65' }}
                 >
-                  {/* Coming Soon Badge */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 16,
-                    right: 16,
-                    background: 'var(--warning-primary)',
-                    color: 'var(--bg-surface)',
-                    padding: '4px 12px',
-                    borderRadius: 16,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {t('plans.comingSoon')}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warning-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('plans.askMentor')}</div>
+                    <div style={{ marginLeft: 'auto', padding: '2px 8px', background: 'var(--warning-primary)', color: 'var(--bg-surface)', borderRadius: 2, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('plans.comingSoon')}</div>
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
-                    <div style={{ 
-                      background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-                      borderRadius: 16,
-                      padding: 16,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minWidth: 72,
-                      height: 72
-                    }}>
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="m22 2-5 10-5-5 10-5z"/>
-                      </svg>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ 
-                        fontSize: 20, 
-                        fontWeight: 700, 
-                        color: 'var(--text-primary)', 
-                        margin: '0 0 8px 0',
-                        lineHeight: 1.3
-                      }}>
-                        {t('plans.askMentor')}
-                      </h3>
-                      <p style={{ 
-                        fontSize: 14, 
-                        color: 'var(--text-secondary)', 
-                        margin: 0,
-                        lineHeight: 1.4
-                      }}>
-                        {t('plans.askMentorDesc')}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ 
-                    marginTop: 'auto',
-                    paddingTop: 20,
-                    borderTop: '1px solid var(--border-base)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 13,
-                    color: 'var(--warning-primary)',
-                    fontWeight: 600
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.askMentorDesc')}</div>
+                  <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border-base)', fontSize: 11, fontWeight: 600, color: 'var(--warning-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
                     {t('plans.personalGuidance')}
                   </div>
-                </div>
+                </button>
                 </Tilt>
 
               </section>
 
               {/* Loading and Error States */}
               {generating && (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  marginTop: 40, 
-                  padding: 24, 
-                  background: 'var(--bg-surface)', 
-                  border: '2px solid var(--border-base)', 
-                  borderRadius: 12,
-                  maxWidth: 500,
-                  margin: '40px auto 0'
-                }}>
-                  <div className="animate-spin" style={{ 
-                    width: 24, 
-                    height: 24, 
-                    border: '3px solid var(--border-base)', 
-                    borderTopColor: 'var(--accent-primary)', 
-                    borderRadius: '50%', 
-                    marginRight: 16 
-                  }} />
-                  <span style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 32, padding: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 500, margin: '32px auto 0' }}>
+                  <div className="animate-spin" style={{ width: 20, height: 20, border: '2px solid var(--border-base)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', marginRight: 12 }} />
+                  <span style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
                     {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
                   </span>
                 </div>
               )}
 
               {planError && (
-                <div style={{ 
-                  marginTop: 40, 
-                  maxWidth: 600, 
-                  margin: '40px auto 0', 
-                  padding: 20, 
-                  background: 'var(--bg-red-tint)', 
-                  border: '2px solid var(--danger-primary)', 
-                  borderRadius: 12, 
-                  color: 'var(--danger-primary)', 
-                  textAlign: 'center',
-                  fontSize: 14,
-                  lineHeight: 1.5
-                }}>
+                <div style={{ marginTop: 32, maxWidth: 600, margin: '32px auto 0', padding: 16, background: 'var(--bg-red-tint)', border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', textAlign: 'center', fontSize: 13, lineHeight: 1.5 }}>
                   {planError}
                 </div>
               )}
@@ -2560,8 +2330,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
                   <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 900, width: '100%', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                        📚 {t('plans.suggestedLearningPaths')}
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        {t('plans.suggestedLearningPaths')}
                       </h3>
                       <button
                         type="button"
@@ -2631,11 +2402,11 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                   </p>
                                 </div>
                                 <div style={{ 
-                                  padding: '4px 12px', 
+                                  padding: '2px 8px', 
                                   background: 'var(--accent-primary)', 
                                   color: 'white', 
-                                  borderRadius: 12, 
-                                  fontSize: 12, 
+                                  borderRadius: 2, 
+                                  fontSize: 11, 
                                   fontWeight: 600,
                                   marginLeft: 16
                                 }}>
@@ -2644,9 +2415,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                               </div>
                               
                               <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 12, color: 'var(--text-secondary)' }}>
-                                <span>📚 {suggestion.chapterCount} chapters</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                                  {suggestion.chapterCount} chapters
+                                </span>
                                 {suggestion.goals && suggestion.goals.length > 0 && (
-                                  <span>🎯 {suggestion.goals.length} goals</span>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                                    {suggestion.goals.length} goals
+                                  </span>
                                 )}
                               </div>
                               
@@ -2690,12 +2467,49 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                         </div>
                       ) : (
                         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
-                          <div style={{ fontSize: 32, marginBottom: 16 }}>📚</div>
+                          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-disabled)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                          </div>
                           <p style={{ fontSize: 14, margin: 0 }}>
                             {t('plans.noSuggestionsFound')}
                           </p>
                         </div>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Generation Confirmation Modal */}
+              {showAiConfirm && (
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+                  <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 500, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        {t('plans.aiConfirmTitle')}
+                      </h3>
+                    </div>
+                    <div style={{ padding: 20 }}>
+                      <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
+                        {t('plans.aiConfirmMessage')}
+                      </p>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowAiConfirm(false)}
+                          style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
+                        >{t('plans.cancel')}</button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowAiConfirm(false); handleGenerateClick() }}
+                          style={{ flex: 1, padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
+                        >{t('plans.confirm')}</button>
+                      </div>
                     </div>
                   </div>
                 </div>
