@@ -514,5 +514,13 @@
     "errorSend": "Failed to send message",
     "accessDenied": "You do not have access",
     "connectionError": "Connection error, retrying..."
+  },
+  "channelChat": {
+    "title": "Community",
+    "channels": "Channels",
+    "noChannels": "No channels available",
+    "selectChannel": "Select a channel to start chatting",
+    "noMessages": "No messages yet",
+    "typePlaceholder": "Type a message..."
   }
 }

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import ROUTER from '../../../../router/ROUTER'
-import { LayoutDashboard, BookOpen, Users, GraduationCap, MessageSquare, User, Sparkles, FolderOpen } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Users, GraduationCap, MessageSquare, User, Sparkles, FolderOpen, Hash } from 'lucide-react'
 
 export type MentorNavItem = {
   label: string
@@ -18,6 +18,7 @@ export const getMentorSidebarConfig = (): MentorNavItem[] => {
     { label: 'AI Plans', path: ROUTER.MENTOR_AI_PLANS, icon: <Sparkles size={18} /> },
     { label: 'Drafts', path: ROUTER.MENTOR_DRAFTS, icon: <FolderOpen size={18} /> },
     { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} /> },
+    { label: 'Community', path: '/mentor/community', icon: <Hash size={18} /> },
     { label: 'Profile', path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }
@@ -33,6 +34,7 @@ export const useMentorSidebarConfig = (): MentorNavItem[] => {
     { label: t('sidebar.aiPlans'), path: ROUTER.MENTOR_AI_PLANS, icon: <Sparkles size={18} /> },
     { label: t('sidebar.drafts'), path: ROUTER.MENTOR_DRAFTS, icon: <FolderOpen size={18} /> },
     { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} /> },
+    { label: t('sidebar.community'), path: '/mentor/community', icon: <Hash size={18} /> },
     { label: t('sidebar.profile'), path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }

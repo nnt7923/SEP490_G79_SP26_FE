@@ -54,6 +54,8 @@ const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
 const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat')) 
+const StudentChannelChatPage = React.lazy(() => import('../pages/private/Student/ChannelChat'))
+const MentorChannelChatPage = React.lazy(() => import('../pages/private/Mentor/ChannelChat'))
 const SubscriptionPage = React.lazy(() => import('../pages/private/Subscription'))
 const CurrentSubscriptionPage = React.lazy(() => import('../pages/private/Subscription/CurrentSubscription'))
 const SubscriptionPaymentSuccessPage = React.lazy(() => import('../pages/private/Subscription/PaymentSuccess'))
@@ -104,6 +106,7 @@ const router = createBrowserRouter([
           { path: ROUTER.FOCUS_SESSION, element: <FocusSession /> },
           { path: ROUTER.CHAT, element: <StudentChatPage /> },
           { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
+          { path: ROUTER.CHANNEL_CHAT, element: <StudentChannelChatPage /> },
           { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION_SUCCESS, element: <SubscriptionPaymentSuccessPage /> },
@@ -149,6 +152,7 @@ const router = createBrowserRouter([
       { path: ROUTER.MENTOR_DRAFT_DETAIL, element: <MentorDraftDetail /> },
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
       { path: ROUTER.MENTOR_CHAT, element: <MentorChatPage /> },
+      { path: ROUTER.MENTOR_CHANNEL_CHAT, element: <MentorChannelChatPage /> },
     ],
   },
 ])

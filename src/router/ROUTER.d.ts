@@ -18,6 +18,11 @@ declare const ROUTER: {
   MY_RESOURCES: string
   ADMIN_DASHBOARD: string
   MENTOR_DASHBOARD: string
+  MENTOR_AI_PLANS: string
+  MENTOR_AI_PLAN_DETAIL: string
+  MENTOR_DRAFTS: string
+  MENTOR_DRAFT_CREATE: string
+  MENTOR_DRAFT_DETAIL: string
   ADMIN_API_KEY: string
   ADMIN_SUBSCRIPTION_PLANS: string
   ADMIN_BILLING_TRANSACTIONS: string
@@ -32,6 +37,8 @@ declare const ROUTER: {
   CHAT: string
   CHAT_SHARE_PREVIEW: string
   MENTOR_CHAT: string
+  CHANNEL_CHAT: string
+  MENTOR_CHANNEL_CHAT: string
   SUBSCRIPTION: string
   SUBSCRIPTION_CURRENT: string
   SUBSCRIPTION_SUCCESS: string

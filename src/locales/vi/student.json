@@ -514,5 +514,13 @@
     "errorSend": "Không thể gửi tin nhắn",
     "accessDenied": "Bạn không có quyền truy cập",
     "connectionError": "Lỗi kết nối, đang thử lại..."
+  },
+  "channelChat": {
+    "title": "Cộng đồng",
+    "channels": "Kênh",
+    "noChannels": "Không có kênh nào",
+    "selectChannel": "Chọn kênh để bắt đầu trò chuyện",
+    "noMessages": "Chưa có tin nhắn nào",
+    "typePlaceholder": "Nhập tin nhắn..."
   }
 }

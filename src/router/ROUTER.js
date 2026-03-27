@@ -47,6 +47,9 @@ const ROUTER = {
   CHAT: "/chat",
   CHAT_SHARE_PREVIEW: "/chat/share-preview/:shareId",
   MENTOR_CHAT: "/mentor/chat",
+  // Channel Chat (Community)
+  CHANNEL_CHAT: "/community",
+  MENTOR_CHANNEL_CHAT: "/mentor/community",
   // Subscription
   SUBSCRIPTION: "/subscription",
   SUBSCRIPTION_CURRENT: "/subscription/current",
