@@ -1,10 +1,8 @@
 import React from 'react'
-import ChannelChatPage from '../../../../components/ChannelChat/ChannelChatPage'
-import { useMentorSidebarConfig } from '../components/MentorSideBar'
+import MentorChatPage from '../Chat'
 
 const MentorChannelChatPage: React.FC = () => {
-  const navItems = useMentorSidebarConfig()
-  return <ChannelChatPage role="Mentor" sidebarNavItems={navItems} />
+  return <MentorChatPage initialView="community" />
 }
 
 export default MentorChannelChatPage

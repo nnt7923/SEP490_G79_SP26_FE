@@ -109,11 +109,12 @@ function buildChannelReplyPreviewForMessage(
 export interface ChannelChatPageProps {
   role: 'Student' | 'Mentor'
   sidebarNavItems: SidebarNavItem[]
+  embedded?: boolean
 }
 
 // ── Component ───────────────────────────────────────────────────
 
-const ChannelChatPage: React.FC<ChannelChatPageProps> = ({ role, sidebarNavItems }) => {
+const ChannelChatPage: React.FC<ChannelChatPageProps> = ({ role, sidebarNavItems, embedded = false }) => {
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
   const { theme } = useTheme()
@@ -316,10 +317,8 @@ const ChannelChatPage: React.FC<ChannelChatPageProps> = ({ role, sidebarNavItems
     ? `${t('chat.replyingTo', { name: replyDraft.preview.senderLabel })}: ${getReplyPreviewText(replyDraft.preview as any)}`
     : t('channelChat.typePlaceholder', { defaultValue: 'Type a message...' })
 
-  return (
-    <Layout sidebar={sidebarConfig}>
-      <div className="chat-kit-page">
-        <MainContainer responsive className="chat-kit-container">
+  const content = (
+    <MainContainer responsive className="chat-kit-container">
           <ChatSidebar position="left" scrollable={false} className="chat-kit-sidebar">
             <div className="chat-kit-sidebar-header">
               <div className="chat-kit-tabs">
@@ -514,8 +513,17 @@ const ChannelChatPage: React.FC<ChannelChatPageProps> = ({ role, sidebarNavItems
             </InputToolbox>
           </ChatContainer>
         </MainContainer>
-      </div>
+  )
 
+  if (embedded) {
+    return content
+  }
+
+  return (
+    <Layout sidebar={sidebarConfig}>
+      <div className="chat-kit-page">
+        {content}
+      </div>
     </Layout>
   )
 }

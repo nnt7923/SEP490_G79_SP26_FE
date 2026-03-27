@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Gift, LogOut, MessageSquare, Reply, Smile, Users } from 'lucide-react'
+import { Gift, Hash, LogOut, MessageSquare, Reply, Smile, Users } from 'lucide-react'
 import Layout from '../../../../components/Layout'
+import ChannelChatPage from '../../../../components/ChannelChat/ChannelChatPage'
 import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar'
 import useAuthStore from '../../../../store/useAuthStore'
 import useChatStore from '../../../../store/useChatStore'
@@ -44,6 +45,9 @@ import {
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 type ChatRouteState = { conversationId?: string; activeTab?: 'conversations' | 'invites' | 'contacts'; toast?: ToastState }
+interface StudentChatPageProps {
+  initialView?: 'direct' | 'community'
+}
 
 function formatConversationTime(iso: string | null): string {
   if (!iso) return ''
@@ -80,7 +84,7 @@ function getMessagePosition(messages: DirectMessageDto[], idx: number): 'single'
   return 'last'
 }
 
-const StudentChatPage: React.FC = () => {
+const StudentChatPage: React.FC<StudentChatPageProps> = ({ initialView = 'direct' }) => {
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
   const { theme } = useTheme()
@@ -106,6 +110,7 @@ const StudentChatPage: React.FC = () => {
   } = useChatStore()
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeView, setActiveView] = useState<'direct' | 'community'>(initialView)
   const [activeTab, setActiveTab] = useState<'conversations' | 'invites' | 'contacts'>('conversations')
   const [inviteStatusFilter, setInviteStatusFilter] = useState<'' | ShareStatus>('')
   const [contacts, setContacts] = useState<DirectChatContactDto[]>([])
@@ -196,6 +201,10 @@ const StudentChatPage: React.FC = () => {
       if (code === 'UNAUTHORIZED') { logout(); navigate(ROUTER.LOGIN) }
     },
   })
+
+  useEffect(() => {
+    setActiveView(initialView)
+  }, [initialView])
 
   useEffect(() => {
     hub.requestConversations()
@@ -473,6 +482,30 @@ const StudentChatPage: React.FC = () => {
   return (
     <Layout sidebar={sidebarConfig}>
       <div className="chat-kit-page">
+        <div className="chat-kit-tabs" style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            className="chat-kit-tab"
+            aria-pressed={activeView === 'direct'}
+            onClick={() => setActiveView('direct')}
+          >
+            <MessageSquare size={14} />
+            {t('chat.title')}
+          </button>
+          <button
+            type="button"
+            className="chat-kit-tab"
+            aria-pressed={activeView === 'community'}
+            onClick={() => setActiveView('community')}
+          >
+            <Hash size={14} />
+            {t('channelChat.title', { defaultValue: 'Community' })}
+          </button>
+        </div>
+
+        {activeView === 'community' ? (
+          <ChannelChatPage role="Student" sidebarNavItems={navItems} embedded />
+        ) : (
         <MainContainer responsive className="chat-kit-container">
           <ChatSidebar position="left" scrollable={false} className="chat-kit-sidebar">
             <div className="chat-kit-sidebar-header">
@@ -803,6 +836,7 @@ const StudentChatPage: React.FC = () => {
             </InputToolbox>
           </ChatContainer>
         </MainContainer>
+        )}
       </div>
       {toast && <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 120 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div>}
     </Layout>
