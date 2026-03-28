@@ -318,7 +318,7 @@
       "statUrgent": "Việc khẩn",
       "statDue3Days": "Sắp đến hạn (3 ngày)",
       "statNotStarted": "Chưa bắt đầu",
-      "statCompletedToday": "Hoàn thành hôm nay",
+      "statCompletedToday": "Đã hoàn thành",
       "priorityQueueTitle": "Danh sách ưu tiên",
       "priorityQueueSubtitle": "Top việc nên làm ngay, đã trộn Lesson/Task/Quiz từ các lộ trình.",
       "emptyPriority": "Hiện chưa có việc ưu tiên.",
@@ -432,6 +432,8 @@
     "brandSubtitle": "Kết Quả"
   },
   "lessonDetail": {
+    "defaultLessonTitle": "Bài học",
+    "unknownChapter": "Chương",
     "backToPlan": "QUAY LẠI LỘ TRÌNH",
     "enableFocus": "CHẾ ĐỘ TẬP TRUNG",
     "exitFocus": "THOÁT TẬP TRUNG",

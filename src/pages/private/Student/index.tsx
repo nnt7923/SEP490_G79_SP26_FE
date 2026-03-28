@@ -7,6 +7,7 @@ import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from './components/StudentSideBar'
 import { AlertTriangle, CheckCircle2, Clock3, Flag, Circle } from 'lucide-react'
 import { getTimeline, type TimelineItem, type TimelineResponse } from '../../../services/TimelineService'
+import LearningPathService from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
 
 type DayBucket = {
@@ -24,15 +25,37 @@ type PriorityPathOption = {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const PRIORITY_PAGE_SIZE = 5
+const PRIORITY_PAGE_SIZE = 3
 const PRIORITY_ALL_PATH_KEY = '__all_paths__'
 const UTC_PLUS_7_TIMEZONE = 'Asia/Ho_Chi_Minh'
 const TIMELINE_COLORS = ['#5B8FF9', '#5AD8A6', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D']
+const TIMELINE_FROM_UTC = '2000-01-01T00:00:00.000Z'
+const TIMELINE_TO_UTC = '2100-01-01T00:00:00.000Z'
+
+const getUtc7DateKey = (value?: Date | string | null): string | null => {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: UTC_PLUS_7_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+
+  const year = parts.find((part) => part.type === 'year')?.value
+  const month = parts.find((part) => part.type === 'month')?.value
+  const day = parts.find((part) => part.type === 'day')?.value
+  if (!year || !month || !day) return null
+
+  return `${year}-${month}-${day}`
+}
 
 const toStartOfDay = (date: Date) => {
-  const value = new Date(date)
-  value.setHours(0, 0, 0, 0)
-  return value
+  const key = getUtc7DateKey(date)
+  if (!key) return new Date(date)
+  return new Date(`${key}T00:00:00+07:00`)
 }
 
 const parseDueTime = (value?: string | null): number => {
@@ -43,9 +66,38 @@ const parseDueTime = (value?: string | null): number => {
 
 const isSameLocalDay = (left?: string | null, right?: Date) => {
   if (!left || !right) return false
-  const value = new Date(left)
-  if (Number.isNaN(value.getTime())) return false
-  return value.toDateString() === right.toDateString()
+  const leftKey = getUtc7DateKey(left)
+  const rightKey = getUtc7DateKey(right)
+  if (!leftKey || !rightKey) return false
+  return leftKey === rightKey
+}
+
+const getTimelineItemScheduleDate = (item: TimelineItem): string | null => {
+  const raw = item as Record<string, unknown>
+  const candidates = [
+    item.dueAtUtc,
+    raw?.dueDate,
+    raw?.DueDate,
+    raw?.lessonDay,
+    raw?.LessonDay,
+  ]
+
+  for (const value of candidates) {
+    if (typeof value !== 'string') continue
+    const trimmed = value.trim()
+    if (!trimmed) continue
+    const parsed = new Date(trimmed)
+    if (!Number.isNaN(parsed.getTime())) return trimmed
+  }
+
+  return null
+}
+
+const parseTimelineItemScheduleTime = (item: TimelineItem): number => {
+  const scheduleDate = getTimelineItemScheduleDate(item)
+  if (!scheduleDate) return Number.POSITIVE_INFINITY
+  const parsed = new Date(scheduleDate).getTime()
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
 }
 
 const getPathChipColor = (key: string) => {
@@ -60,6 +112,7 @@ const getPathChipColor = (key: string) => {
 const StudentIndex: React.FC = () => {
   const { user } = useAuthStore()
   const displayName = user?.name || user?.username || 'Student'
+  const avatarUrl = String(user?.avatarUrl ?? '').trim()
   const navigate = useNavigate()
   const { t, i18n } = useTranslation('student')
   const priorityQueueRef = React.useRef<HTMLDivElement | null>(null)
@@ -71,21 +124,28 @@ const StudentIndex: React.FC = () => {
   const [priorityScope, setPriorityScope] = React.useState<'all' | 'overdue'>('all')
   const [selectedPriorityPathKey, setSelectedPriorityPathKey] = React.useState<string>(PRIORITY_ALL_PATH_KEY)
   const [selectedPriorityType, setSelectedPriorityType] = React.useState<PriorityType>('Lesson')
+  const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false)
   const [priorityPages, setPriorityPages] = React.useState<Record<PriorityType, number>>({
     Lesson: 1,
     Task: 1,
     Quiz: 1,
   })
+  const learningPathSkeletonCacheRef = React.useRef<Map<string, any>>(new Map())
+
+  React.useEffect(() => {
+    setAvatarLoadFailed(false)
+  }, [avatarUrl])
 
   React.useEffect(() => {
     const fetchTimeline = async () => {
       setTimelineLoading(true)
       setTimelineError(null)
       try {
-        const now = new Date()
-        const fromUtc = new Date(now.getTime() - 7 * DAY_MS).toISOString()
-        const toUtc = new Date(now.getTime() + 14 * DAY_MS).toISOString()
-        const data = await getTimeline({ fromUtc, toUtc, onlyActivePaths: true })
+        const data = await getTimeline({
+          fromUtc: TIMELINE_FROM_UTC,
+          toUtc: TIMELINE_TO_UTC,
+          onlyActivePaths: true,
+        })
         setTimeline(data)
       } catch {
         setTimeline(null)
@@ -125,8 +185,8 @@ const StudentIndex: React.FC = () => {
   )
 
   const completedTodayCount = React.useMemo(
-    () => items.filter((item) => item.isCompleted && isSameLocalDay(item.dueAtUtc, now)).length,
-    [items, now]
+    () => items.filter((item) => item.isCompleted).length,
+    [items]
   )
 
   const buildPriorityPathKey = React.useCallback((item: TimelineItem) => {
@@ -242,16 +302,12 @@ const StudentIndex: React.FC = () => {
 
     const buckets: DayBucket[] = Array.from({ length: 7 }).map((_, index) => {
       const date = new Date(start.getTime() + index * DAY_MS)
-      const key = date.toISOString().slice(0, 10)
+      const key = getUtc7DateKey(date) || date.toISOString().slice(0, 10)
       const dayItems = items
-        .filter((item) => isSameLocalDay(item.dueAtUtc, date))
-        .sort((left, right) => parseDueTime(left.dueAtUtc) - parseDueTime(right.dueAtUtc))
+        .filter((item) => isSameLocalDay(getTimelineItemScheduleDate(item), date))
+        .sort((left, right) => parseTimelineItemScheduleTime(left) - parseTimelineItemScheduleTime(right))
 
-      const dueCount = dayItems.filter((item) => {
-        if (item.isCompleted) return false
-        const dueTs = parseDueTime(item.dueAtUtc)
-        return !Number.isFinite(dueTs) || dueTs >= nowTs
-      }).length
+      const dueCount = dayItems.filter((item) => !item.isCompleted).length
 
       return {
         key,
@@ -263,7 +319,7 @@ const StudentIndex: React.FC = () => {
     })
 
     return buckets
-  }, [items, now, nowTs])
+  }, [items, now])
 
   React.useEffect(() => {
     if (sevenDayBuckets.length === 0) {
@@ -279,26 +335,6 @@ const StudentIndex: React.FC = () => {
     () => sevenDayBuckets.find((bucket) => bucket.key === activeDayKey) ?? sevenDayBuckets[0],
     [sevenDayBuckets, activeDayKey]
   )
-
-  const backlogItems = React.useMemo(() => {
-    const raw = items
-      .filter((item) => !item.isCompleted)
-      .filter((item) => {
-        const dueTs = parseDueTime(item.dueAtUtc)
-        if (item.isOverdue) return false
-        if (!Number.isFinite(dueTs)) return true
-        return dueTs > nowTs + 3 * DAY_MS
-      })
-      .sort((left, right) => parseDueTime(left.dueAtUtc) - parseDueTime(right.dueAtUtc))
-
-    const byChapter = new Map<string, TimelineItem>()
-    raw.forEach((item) => {
-      const key = `${item.learningPathId || item.learningPathTitle || 'path'}::${item.chapterId || item.chapterTitle || 'chapter'}`
-      if (!byChapter.has(key)) byChapter.set(key, item)
-    })
-
-    return Array.from(byChapter.values()).slice(0, 8)
-  }, [items, nowTs])
 
   const progressByPath = React.useMemo(() => {
     const groups = new Map<string, {
@@ -387,7 +423,129 @@ const StudentIndex: React.FC = () => {
     return t('dashboard.timeline.typeOther')
   }, [t])
 
-  const getInitials = (name: string) => name.split(' ').map((part) => part[0]).join('').toUpperCase().slice(0, 2)
+  const getTimelineStatusLabel = React.useCallback((item: TimelineItem) => {
+    const rawStatus = String(item.status ?? '').trim()
+    const normalizedStatus = rawStatus.toLowerCase()
+
+    if (item.isCompleted || normalizedStatus === 'completed' || normalizedStatus === 'done' || normalizedStatus === 'finished') {
+      return t('dashboard.timeline.statusCompleted')
+    }
+
+    if (item.isOverdue || normalizedStatus === 'overdue') {
+      return t('dashboard.timeline.statusOverdue')
+    }
+
+    if (normalizedStatus === 'pending' || normalizedStatus === 'notstarted' || normalizedStatus === 'not_started') {
+      return t('dashboard.timeline.statusPending')
+    }
+
+    if (!rawStatus) {
+      return t('dashboard.timeline.statusPending')
+    }
+
+    return rawStatus
+  }, [t])
+
+  const readTimelineIdField = React.useCallback((item: TimelineItem, candidates: string[]) => {
+    for (const candidate of candidates) {
+      const value = item?.[candidate]
+      const normalized = String(value ?? '').trim()
+      if (normalized) return normalized
+    }
+    return ''
+  }, [])
+
+  const resolveTimelineLessonSkeleton = React.useCallback(async (item: TimelineItem, lessonId: string) => {
+    const userId = user?.id
+    if (!userId) return null
+
+    const learningPathId = readTimelineIdField(item, ['learningPathId', 'pathId', 'PathId'])
+    if (learningPathId && learningPathSkeletonCacheRef.current.has(learningPathId)) {
+      return learningPathSkeletonCacheRef.current.get(learningPathId)
+    }
+
+    try {
+      const result = await LearningPathService.getUserLearningPaths(userId, {
+        pageNumber: 1,
+        pageSize: 200,
+        sortDescending: true,
+      })
+      const paths = Array.isArray(result?.items) ? result.items : []
+
+      let foundPath = learningPathId
+        ? paths.find((path: any) => String(path?.pathId ?? path?.id ?? '').trim() === learningPathId)
+        : null
+
+      if (!foundPath) {
+        foundPath = paths.find((path: any) =>
+          Array.isArray(path?.chapters) && path.chapters.some((chapter: any) =>
+            Array.isArray(chapter?.lessons) && chapter.lessons.some((lesson: any) => {
+              const currentLessonId = String(lesson?.id ?? lesson?.lessonId ?? '').trim()
+              return currentLessonId === lessonId
+            })
+          )
+        )
+      }
+
+      const foundPathId = String(foundPath?.pathId ?? foundPath?.id ?? '').trim()
+      if (foundPathId && foundPath) {
+        learningPathSkeletonCacheRef.current.set(foundPathId, foundPath)
+      }
+
+      return foundPath || null
+    } catch {
+      return null
+    }
+  }, [readTimelineIdField, user?.id])
+
+  const handleTimelineItemClick = React.useCallback(async (item: TimelineItem) => {
+    const itemType = String(item.itemType ?? '').trim().toLowerCase()
+
+    if (itemType === 'lesson') {
+      const lessonId = readTimelineIdField(item, ['lessonId', 'LessonId', 'itemId', 'id'])
+      if (!lessonId) return
+      const lessonTitle = String(item.title ?? '').trim()
+      const chapterTitle = String(item.chapterTitle ?? item.learningPathTitle ?? '').trim()
+      const lessonState = {
+        lessonTitle,
+        chapterTitle,
+      }
+
+      const skeleton = await resolveTimelineLessonSkeleton(item, lessonId)
+      if (skeleton) {
+        try {
+          sessionStorage.setItem('learningPathSkeleton', JSON.stringify(skeleton))
+        } catch {}
+        navigate(`/lesson/${encodeURIComponent(lessonId)}`, { state: { skeleton, ...lessonState } })
+        return
+      }
+
+      navigate(`/lesson/${encodeURIComponent(lessonId)}`, { state: lessonState })
+      return
+    }
+
+    if (itemType === 'quiz') {
+      const quizId = readTimelineIdField(item, ['quizId', 'QuizId', 'quizzId', 'QuizzId', 'itemId', 'id'])
+      if (!quizId) return
+      navigate(`/quiz/${encodeURIComponent(quizId)}`)
+      return
+    }
+
+    if (itemType === 'task') {
+      const taskRouteId = readTimelineIdField(item, ['chapterId', 'ChapterId', 'taskId', 'TaskId', 'itemId', 'id'])
+      if (!taskRouteId) return
+      navigate(`/task/${encodeURIComponent(taskRouteId)}`)
+    }
+  }, [navigate, readTimelineIdField, resolveTimelineLessonSkeleton])
+  const getInitials = (name: string) => {
+    const initials = name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+    return initials || 'U'
+  }
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
@@ -405,8 +563,17 @@ const StudentIndex: React.FC = () => {
           style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '16px 20px', marginBottom: 16 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 2, border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
-              {getInitials(displayName)}
+            <div style={{ width: 56, height: 56, borderRadius: 2, border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0, overflow: 'hidden' }}>
+              {avatarUrl && !avatarLoadFailed ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={() => setAvatarLoadFailed(true)}
+                />
+              ) : (
+                getInitials(displayName)
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{displayName}</h1>
@@ -463,6 +630,102 @@ const StudentIndex: React.FC = () => {
 
         {!timelineLoading && !timelineError && (
           <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, marginBottom: 16 }}>
+              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, height: 'fit-content' }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.timeline.sevenDaysTitle')}</h3>
+                <p style={{ margin: '6px 0 12px', fontSize: 13, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.sevenDaysSubtitle')}</p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6, marginBottom: 12 }}>
+                  {sevenDayBuckets.map((bucket) => {
+                    const isActive = activeDayKey === bucket.key
+                    return (
+                      <button
+                        key={bucket.key}
+                        type="button"
+                        onClick={() => setActiveDayKey(bucket.key)}
+                        style={{
+                          border: isActive ? '1px solid var(--accent-primary)' : '1px solid var(--border-base)',
+                          borderRadius: 2,
+                          background: isActive ? 'var(--bg-main)' : 'var(--bg-surface-short)',
+                          cursor: 'pointer',
+                          padding: '9px 7px',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)', fontWeight: 700 }}>{formatDisplayWeekday(bucket.date)}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>{formatDisplayDate(bucket.date)}</p>
+                        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--warning-primary)' }}>{t('dashboard.timeline.kDue')}: {bucket.due}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: 'var(--success-primary)' }}>{t('dashboard.timeline.kCompleted')}: {bucket.completed}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12 }}>
+                  <p style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {t('dashboard.timeline.dayPanelTitle', { date: formatDisplayDate(activeDayBucket?.date) })}
+                  </p>
+                  {(!activeDayBucket || activeDayBucket.items.length === 0) ? (
+                    <p style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.emptyDay')}</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {activeDayBucket.items.map((item) => {
+                        const isCompleted = Boolean(item.isCompleted)
+                        return (
+                          <div
+                            key={`${activeDayBucket.key}-${item.itemType}-${item.itemId}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleTimelineItemClick(item)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                handleTimelineItemClick(item)
+                              }
+                            }}
+                            style={{
+                              border: isCompleted ? '1px solid var(--success-primary)' : '1px solid var(--border-base)',
+                              borderRadius: 2,
+                              padding: '8px 10px',
+                              cursor: 'pointer',
+                              background: isCompleted ? 'var(--bg-green-tint)' : 'var(--bg-main)'
+                            }}
+                          >
+                            <p style={{ margin: 0, fontSize: 14, color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.35 }}>{item.title || '—'}</p>
+                            <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.35 }}>{item.learningPathTitle || t('dashboard.timeline.unknownPath')}</p>
+                            <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: isCompleted ? 'var(--success-primary)' : 'var(--text-secondary)' }}>
+                              {isCompleted ? <CheckCircle2 size={12} /> : <Circle size={12} />}
+                              {getTimelineStatusLabel(item)}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 10, marginTop: 10, background: 'var(--bg-surface-short)' }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>{t('dashboard.quickActions')}</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {[
+                      { label: t('dashboard.newPath'), sub: t('dashboard.generateLearningPath'), route: ROUTER.PLANS },
+                      { label: t('dashboard.newGoal'), sub: t('dashboard.setLearningObjective'), route: ROUTER.GOALS },
+                    ].map((action) => (
+                      <button
+                        key={action.label}
+                        type="button"
+                        onClick={() => navigate(action.route)}
+                        style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '9px 11px', textAlign: 'left', cursor: 'pointer', background: 'var(--bg-main)' }}
+                      >
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{action.label}</span>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>{action.sub}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 12, marginBottom: 16, alignItems: 'start' }}>
               <div ref={priorityQueueRef} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16 }}>
                 <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.timeline.priorityQueueTitle')}</h3>
@@ -582,7 +845,19 @@ const StudentIndex: React.FC = () => {
                                     : 'var(--text-secondary)'
 
                                 return (
-                                  <div key={`${type}-${item.itemId}`} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 10, background: 'var(--bg-surface-short)' }}>
+                                  <div
+                                    key={`${type}-${item.itemId}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => handleTimelineItemClick(item)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault()
+                                        handleTimelineItemClick(item)
+                                      }
+                                    }}
+                                    style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 10, background: 'var(--bg-surface-short)', cursor: 'pointer' }}
+                                  >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
                                       <div style={{ flex: 1, minWidth: 0 }}>
                                         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{item.title || '—'}</p>
@@ -601,7 +876,7 @@ const StudentIndex: React.FC = () => {
                                       </span>
                                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: statusColor }}>
                                         {item.isCompleted ? <CheckCircle2 size={12} /> : item.isOverdue ? <AlertTriangle size={12} /> : <Circle size={12} />}
-                                        {item.status || (item.isCompleted ? t('dashboard.timeline.statusCompleted') : t('dashboard.timeline.statusPending'))}
+                                        {getTimelineStatusLabel(item)}
                                       </span>
                                       <span style={{ width: 10, height: 10, borderRadius: 999, background: chipColor, display: 'inline-block' }} />
                                       <span style={{ fontSize: 11, color: chipColor, fontWeight: 600 }}>{item.learningPathTitle || t('dashboard.timeline.unknownPath')}</span>
@@ -658,98 +933,6 @@ const StudentIndex: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 12, marginBottom: 16 }}>
-              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, height: 'fit-content' }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.timeline.sevenDaysTitle')}</h3>
-                <p style={{ margin: '4px 0 10px', fontSize: 11, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.sevenDaysSubtitle')}</p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6, marginBottom: 10 }}>
-                  {sevenDayBuckets.map((bucket) => {
-                    const isActive = activeDayKey === bucket.key
-                    return (
-                      <button
-                        key={bucket.key}
-                        type="button"
-                        onClick={() => setActiveDayKey(bucket.key)}
-                        style={{
-                          border: isActive ? '1px solid var(--accent-primary)' : '1px solid var(--border-base)',
-                          borderRadius: 2,
-                          background: isActive ? 'var(--bg-main)' : 'var(--bg-surface-short)',
-                          cursor: 'pointer',
-                          padding: '8px 6px',
-                          textAlign: 'left'
-                        }}
-                      >
-                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-primary)', fontWeight: 700 }}>{formatDisplayWeekday(bucket.date)}</p>
-                        <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-secondary)' }}>{formatDisplayDate(bucket.date)}</p>
-                        <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--warning-primary)' }}>{t('dashboard.timeline.kDue')}: {bucket.due}</p>
-                        <p style={{ margin: 0, fontSize: 10, color: 'var(--success-primary)' }}>{t('dashboard.timeline.kCompleted')}: {bucket.completed}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12 }}>
-                  <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {t('dashboard.timeline.dayPanelTitle', { date: formatDisplayDate(activeDayBucket?.date) })}
-                  </p>
-                  {(!activeDayBucket || activeDayBucket.items.length === 0) ? (
-                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.emptyDay')}</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {activeDayBucket.items.map((item) => (
-                        <div key={`${activeDayBucket.key}-${item.itemType}-${item.itemId}`} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '8px 10px' }}>
-                          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.35 }}>{item.title || '—'}</p>
-                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.35 }}>{item.learningPathTitle || t('dashboard.timeline.unknownPath')}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 10, marginTop: 10, background: 'var(--bg-surface-short)' }}>
-                  <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>{t('dashboard.quickActions')}</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {[
-                      { label: t('dashboard.newPath'), sub: t('dashboard.generateLearningPath'), route: ROUTER.PLANS },
-                      { label: t('dashboard.newGoal'), sub: t('dashboard.setLearningObjective'), route: ROUTER.GOALS },
-                    ].map((action) => (
-                      <button
-                        key={action.label}
-                        type="button"
-                        onClick={() => navigate(action.route)}
-                        style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '8px 10px', textAlign: 'left', cursor: 'pointer', background: 'var(--bg-main)' }}
-                      >
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{action.label}</span>
-                        <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: '3px 0 0' }}>{action.sub}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.timeline.backlogTitle')}</h3>
-                <p style={{ margin: '4px 0 10px', fontSize: 11, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.backlogSubtitle')}</p>
-
-                {backlogItems.length === 0 ? (
-                  <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 14, textAlign: 'center', fontSize: 12, color: 'var(--text-secondary)' }}>
-                    {t('dashboard.timeline.emptyBacklog')}
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {backlogItems.map((item) => (
-                      <div key={`backlog-${item.itemType}-${item.itemId}`} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 10, background: 'var(--bg-surface-short)' }}>
-                        <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{item.learningPathTitle || t('dashboard.timeline.unknownPath')}</p>
-                        <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-secondary)' }}>{item.chapterTitle || t('dashboard.timeline.unknownChapter')}</p>
-                        <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-primary)' }}>{item.title || '—'}</p>
-                        <p style={{ margin: '3px 0 0', fontSize: 10, color: 'var(--gray-400)' }}>{formatLocalDateTime(item.dueAtUtc)}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
           </>
         )}
 

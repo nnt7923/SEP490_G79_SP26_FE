@@ -146,8 +146,6 @@ const LessonDetailPage: React.FC = () => {
 
   // Tutor conversation state
   const [conversationId, setConversationId] = useState<string | null>(null)
-  const [conversationCreated, setConversationCreated] = useState<boolean>(false)
-  const [conversationLoading, setConversationLoading] = useState<boolean>(false)
 
   const toggleFocusMode = async () => {
     if (!isFocusMode) {
@@ -195,8 +193,19 @@ const LessonDetailPage: React.FC = () => {
   }, [allLessons, lessonId])
 
   const currentLesson = allLessons[currentLessonIndex]
+  const displayLesson = useMemo(() => {
+    if (currentLesson) return currentLesson
+    const stateLessonTitle = String(location?.state?.lessonTitle ?? '').trim()
+    const stateChapterTitle = String(location?.state?.chapterTitle ?? '').trim()
+    return {
+      id: lessonId,
+      title: stateLessonTitle || t('lessonDetail.defaultLessonTitle', 'Lesson'),
+      description: '',
+      chapterTitle: stateChapterTitle || t('lessonDetail.unknownChapter', 'Chapter'),
+    }
+  }, [currentLesson, lessonId, location?.state?.chapterTitle, location?.state?.lessonTitle, t])
   const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null
-  const nextLesson = currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
+  const nextLesson = currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
   const currentChapterId = currentLesson?.chapterId
   const canShowMarkRead = !loading && !error && md.trim().length > 0
   const lessonReadLabel = isLessonRead
@@ -214,12 +223,12 @@ const LessonDetailPage: React.FC = () => {
         } 
       })
     } else {
-      navigate(ROUTER.PLANS_RESULT, { state: { skeleton, selectedLessonId: lessonId, activeChapterId: currentChapterId } })
+      navigate(ROUTER.MY_PLANS)
     }
   }
 
   useEffect(() => {
-    if (!lessonId || !currentLesson) return
+    if (!lessonId) return
 
     let cancelled = false
 
@@ -247,7 +256,7 @@ const LessonDetailPage: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [lessonId, currentLesson, t])
+  }, [lessonId, t])
 
   const handleMarkLessonRead = async () => {
     if (!lessonId || isLessonRead || markLessonReadLoading) return
@@ -312,7 +321,6 @@ const LessonDetailPage: React.FC = () => {
     if (!lessonId || !skeleton?.pathId) return
 
     const resolveConversation = async () => {
-      setConversationLoading(true)
       try {
         const result = await requestResolveTutorConversation(
           skeleton.pathId, // learningPathId
@@ -325,20 +333,16 @@ const LessonDetailPage: React.FC = () => {
           (data) => {
             // onResolved
             setConversationId(data.conversationId)
-            setConversationCreated(data.created || false)
           }
         )
 
         // Set conversation data from result
         if (result?.conversationId) {
           setConversationId(result.conversationId)
-          setConversationCreated(result.created || false)
         }
       } catch (error: any) {
         console.warn('Failed to resolve tutor conversation:', error.message)
         // Don't show error to user, just continue without conversation
-      } finally {
-        setConversationLoading(false)
       }
     }
 
@@ -402,52 +406,6 @@ const LessonDetailPage: React.FC = () => {
     window.scrollTo({ top: height, behavior: 'smooth' })
   }
 
-  if (!skeleton) {
-    return (
-      <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace' }}>
-        <Header />
-        <main className="page-main py-12">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p style={{ color: 'var(--text-secondary)' }} className="mb-4">{t('lessonDetail.noPathFound', 'No learning path found. Please generate a learning path first.')}</p>
-            <button
-              onClick={() => navigate(ROUTER.PLANS)}
-              style={{
-                background: 'var(--accent-primary)', color: 'var(--bg-surface)', border: 'none',
-                padding: '8px 16px', borderRadius: 4, fontWeight: 700, cursor: 'pointer'
-              }}
-            >
-              {t('lessonDetail.goToPlans', 'Go to Plans')}
-            </button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
-
-  if (!currentLesson) {
-    return (
-      <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace' }}>
-        <Header />
-        <main className="page-main py-12">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p style={{ color: 'var(--error-primary)' }} className="mb-4">{t('lessonDetail.lessonNotFound', 'Lesson not found.')}</p>
-            <button
-              onClick={handleBack}
-              style={{
-                background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)',
-                padding: '8px 16px', borderRadius: 4, fontWeight: 600, cursor: 'pointer'
-              }}
-            >
-              {t('lessonDetail.backToPath', 'Back to Learning Path')}
-            </button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
-
   return (
     <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
       {!isFocusMode && <Header />}
@@ -487,7 +445,7 @@ const LessonDetailPage: React.FC = () => {
           
           {/* Progress Bar inside banner */}
           <div style={{ height: 2, width: '100%', background: 'var(--bg-main)' }}>
-             <div style={{ height: '100%', background: 'var(--accent-primary)', width: `${((currentLessonIndex + 1) / allLessons.length) * 100}%`, transition: 'width 0.3s ease' }} />
+             <div style={{ height: '100%', background: 'var(--accent-primary)', width: `${allLessons.length > 0 ? ((Math.max(currentLessonIndex, 0) + 1) / allLessons.length) * 100 : 0}%`, transition: 'width 0.3s ease' }} />
           </div>
         </div>
       )}
@@ -526,14 +484,14 @@ const LessonDetailPage: React.FC = () => {
             <div style={{ marginBottom: 40, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
               <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
                  <BookOpen className="w-4 h-4" />
-                 {currentLesson.chapterTitle} <span style={{ color: 'var(--border-strong)' }}>/</span> {String(currentLessonIndex + 1).padStart(2, '0')}
+                 {displayLesson.chapterTitle || t('lessonDetail.unknownChapter', 'Chapter')} <span style={{ color: 'var(--border-strong)' }}>/</span> {String(Math.max(currentLessonIndex + 1, 1)).padStart(2, '0')}
               </div>
               <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 16px 0', lineHeight: 1.3, color: 'var(--text-primary)' }}>
-                {currentLesson.title}
+                {displayLesson.title}
               </h1>
-              {currentLesson.description && (
+              {displayLesson.description && (
                 <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6, borderLeft: '3px solid var(--accent-primary)', paddingLeft: 16 }}>
-                  {currentLesson.description}
+                  {displayLesson.description}
                 </p>
               )}
             </div>

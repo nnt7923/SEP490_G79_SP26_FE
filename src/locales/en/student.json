@@ -318,7 +318,7 @@
       "statUrgent": "Urgent",
       "statDue3Days": "Due in 3 days",
       "statNotStarted": "Not started",
-      "statCompletedToday": "Completed today",
+      "statCompletedToday": "Completed",
       "priorityQueueTitle": "Priority Queue",
       "priorityQueueSubtitle": "Top tasks to act on now across Lesson/Task/Quiz and all paths.",
       "emptyPriority": "No priority items right now.",
@@ -432,6 +432,8 @@
     "brandSubtitle": "Result"
   },
   "lessonDetail": {
+    "defaultLessonTitle": "Lesson",
+    "unknownChapter": "Chapter",
     "backToPlan": "BACK TO PLAN",
     "enableFocus": "ENABLE FOCUS",
     "exitFocus": "EXIT FOCUS",
