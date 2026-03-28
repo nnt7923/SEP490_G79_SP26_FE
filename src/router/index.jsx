@@ -71,9 +71,11 @@ const router = createBrowserRouter([
         element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
         handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
         children: [
-      { index: true, path: ROUTER.HOME, element: <Home /> },
-      { path: ROUTER.CLASSES, element: <div>Classes</div> },
-      { path: ROUTER.ABOUT, element: <About /> },
+          { index: true, path: ROUTER.HOME, element: <Home /> },
+          { path: ROUTER.CLASSES, element: <div>Classes</div> },
+          { path: ROUTER.ABOUT, element: <About /> },
+        ],
+      },
     ],
   },
   {
