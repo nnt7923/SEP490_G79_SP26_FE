@@ -24,7 +24,6 @@ const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
 const MyPlans = React.lazy(() => import('../pages/private/Student/MyPlans'))
 const MyPlansDetail = React.lazy(() => import('../pages/private/Student/MyPlans/Detail'))
 const Goals = React.lazy(() => import('../pages/private/Student/Goals'))
-const GoalsDetail = React.lazy(() => import('../pages/private/Student/Goals/Detail'))
 const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
 const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
 const MyResources = React.lazy(() => import('../pages/private/MyResources'))
@@ -107,7 +106,6 @@ const router = createBrowserRouter([
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/detail', element: <MyPlansDetail /> },
           { path: ROUTER.GOALS, element: <Goals /> },
-          { path: '/goals/:goalId', element: <GoalsDetail /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
           { path: ROUTER.PLANS, element: <Plans /> },
           { path: ROUTER.PLANS_RESULT, element: <PlansResult /> },

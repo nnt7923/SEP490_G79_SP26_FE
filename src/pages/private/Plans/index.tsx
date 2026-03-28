@@ -134,9 +134,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null)
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
 
-  // AI generation confirmation state
-  const [showAiConfirm, setShowAiConfirm] = useState<boolean>(false)
-
   // Goal editing states
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [editingGoalTitle, setEditingGoalTitle] = useState<string>('')
@@ -1883,9 +1880,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           {step === 3 && selectedGoals.length === 2 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
-                title={t('plans.setGoalPriorities', { defaultValue: 'Set Goal Priorities' })}
-                subtitle={t('plans.balanceGoalImportance', { defaultValue: 'Balance the importance of your learning goals' })}
-                selectedValue={selectedGoals.length === 2 ? t('plans.prioritiesSet', { defaultValue: 'Priorities set' }) : undefined}
+                title="Set Goal Priorities"
+                subtitle="Balance the importance of your learning goals"
+                selectedValue={selectedGoals.length === 2 ? 'Priorities set' : undefined}
               />
               
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
@@ -1893,258 +1890,175 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   marginBottom: 32, 
                   padding: 20, 
                   background: 'var(--bg-surface)', 
-                  border: '1px solid var(--border-base)', 
-                  borderLeft: '4px solid var(--accent-primary)',
-                  borderRadius: 2 
+                  border: '1px dashed var(--border-base)', 
+                  borderRadius: 4 
                 }}>
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'flex-start', 
                     gap: 12,
-                    fontSize: 13,
+                    fontSize: 14,
                     color: 'var(--text-secondary)',
-                    lineHeight: 1.6,
-                    fontFamily: 'monospace'
+                    lineHeight: 1.6
                   }}>
-                    <span style={{ fontSize: 16 }}>&gt;_</span>
+                    <span style={{ fontSize: 18 }}>💡</span>
                     <div>
-                      <strong style={{ color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        {t('plans.sysBalanceGoals', { defaultValue: 'SYSTEM.BALANCE_GOALS' })}
-                      </strong>
+                      <strong style={{ color: 'var(--text-primary)' }}>Balance your learning focus</strong>
                       <br />
-                      {t('plans.sysBalanceDesc', { defaultValue: 'Adjust the allocation slider to distribute processing weight between selected vectors. The generation matrix will scale focus according to inputs.' })}
+                      Adjust the weight of each goal. The total must equal 100%. The AI will focus more 
+                      on the goal with higher weight when generating your learning path.
                     </div>
                   </div>
                 </div>
 
-                {(() => {
-                  const goal1Id = selectedGoals[0]
-                  const goal2Id = selectedGoals[1]
-                  const goal1 = goalItems.find(g => String(g.key) === String(goal1Id))
-                  const goal2 = goalItems.find(g => String(g.key) === String(goal2Id))
-                  const priority1 = goalPriorities[goal1Id] || 50
-                  const priority2 = 100 - priority1
-
-                  return (
-                    <div className="group" style={{ 
-                      background: 'var(--bg-main)', 
-                      border: '1px solid var(--border-base)', 
-                      borderRadius: 2, 
-                      padding: '32px 40px',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      fontFamily: 'monospace'
-                    }}>
-                      
-                      {/* Techy background grid peek */}
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundImage: 'linear-gradient(var(--border-base) 1px, transparent 1px), linear-gradient(90deg, var(--border-base) 1px, transparent 1px)',
-                        backgroundSize: '20px 20px',
-                        opacity: 0.2,
-                        zIndex: 0
-                      }} />
-
-                      {/* Goal Headers */}
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'flex-start',
-                        marginBottom: 40,
-                        position: 'relative',
-                        zIndex: 1
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {selectedGoals.map((goalId, index) => {
+                    const goal = goalItems.find(g => String(g.key) === String(goalId))
+                    const priority = goalPriorities[goalId] || 50
+                    const otherGoalId = selectedGoals.find(id => id !== goalId)
+                    const otherPriority = otherGoalId ? (goalPriorities[otherGoalId] || 50) : 50
+                    
+                    return (
+                      <div key={goalId} style={{ 
+                        background: 'var(--bg-surface)', 
+                        border: '1px solid var(--border-base)', 
+                        borderRadius: 4, 
+                        padding: 24 
                       }}>
-                        {/* Goal 1 (Left) */}
-                        <div style={{ flex: 1, paddingRight: 20 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                            <div style={{
-                              width: 24, height: 24,
-                              background: 'var(--bg-surface)',
-                              border: '1px solid var(--accent-primary)',
-                              color: 'var(--accent-primary)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 12, fontWeight: 700
-                            }}>[1]</div>
-                            <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                              {goal1?.label || t('plans.targetAlpha', { defaultValue: 'Target_Alpha' })}
-                            </h4>
-                          </div>
-                          <div style={{ 
-                            fontSize: 36, 
-                            fontWeight: 400, 
-                            color: priority1 > priority2 ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                            transition: 'color 0.1s',
-                            display: 'flex',
-                            alignItems: 'baseline',
-                            gap: 4
-                          }}>
-                            {priority1}<span style={{ fontSize: 14, color: 'var(--text-disabled)' }}>%</span>
-                          </div>
-                        </div>
-
-                        {/* XOR Badge */}
-                        <div style={{
-                          padding: '4px 12px',
-                          background: 'var(--bg-surface)',
-                          border: '1px solid var(--border-base)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)',
-                          flexShrink: 0,
-                          marginTop: 16,
-                          letterSpacing: '2px'
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          marginBottom: 20 
                         }}>
-                          {t('plans.xor', { defaultValue: 'XOR' })}
-                        </div>
-
-                        {/* Goal 2 (Right) */}
-                        <div style={{ flex: 1, paddingLeft: 20, textAlign: 'right' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, justifyContent: 'flex-end' }}>
-                            <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                              {goal2?.label || t('plans.targetBeta', { defaultValue: 'Target_Beta' })}
-                            </h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                             <div style={{
-                              width: 24, height: 24,
-                              background: 'var(--bg-surface)',
-                              border: '1px solid var(--success-primary)',
-                              color: 'var(--success-primary)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 12, fontWeight: 700
-                            }}>[2]</div>
+                              width: 40,
+                              height: 40,
+                              borderRadius: 4,
+                              background: index === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                              color: 'var(--bg-surface)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 18,
+                              fontWeight: 700
+                            }}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h4 style={{ 
+                                fontSize: 18, 
+                                fontWeight: 600, 
+                                color: 'var(--text-primary)', 
+                                margin: 0 
+                              }}>
+                                {goal?.label || 'Unknown Goal'}
+                              </h4>
+                            </div>
                           </div>
                           <div style={{ 
-                            fontSize: 36, 
-                            fontWeight: 400, 
-                            color: priority2 > priority1 ? 'var(--success-primary)' : 'var(--text-secondary)',
-                            transition: 'color 0.1s',
-                            display: 'flex',
-                            alignItems: 'baseline',
-                            justifyContent: 'flex-end',
-                            gap: 4
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 12,
+                            fontSize: 24,
+                            fontWeight: 700,
+                            color: priority >= 60 ? 'var(--success-primary)' : 
+                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'
                           }}>
-                            {priority2}<span style={{ fontSize: 14, color: 'var(--text-disabled)' }}>%</span>
+                            <span>{priority}%</span>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Unified Slider */}
-                      <div style={{ position: 'relative', padding: '16px 0', zIndex: 1 }}>
-                        {/* Track Background line */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: 0,
-                          right: 0,
-                          height: 2,
-                          background: 'var(--border-base)',
-                          transform: 'translateY(-50%)',
-                          zIndex: -1
-                        }} />
                         
-                        {/* Track filled line */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: 0,
-                          width: `${priority1}%`,
-                          height: 2,
-                          background: 'var(--accent-primary)',
-                          transform: 'translateY(-50%)',
-                          zIndex: -1,
-                          transition: 'width 0.1s'
-                        }} />
-                        <div style={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: `${priority1}%`,
-                          right: 0,
-                          height: 2,
-                          background: 'var(--success-primary)',
-                          transform: 'translateY(-50%)',
-                          zIndex: -1,
-                          transition: 'left 0.1s'
-                        }} />
-
-                        <input
-                          type="range"
-                          min="10"
-                          max="90"
-                          step="1"
-                          value={priority1}
-                          onChange={(e) => {
-                            const newPriority1 = parseInt(e.target.value)
-                            const newPriority2 = 100 - newPriority1
-                            
-                            setGoalPriorities(prev => ({
-                              ...prev,
-                              [goal1Id]: newPriority1,
-                              [goal2Id]: newPriority2
-                            }))
-                          }}
-                          style={{
-                            width: '100%',
-                            appearance: 'none',
-                            background: 'transparent',
-                            outline: 'none',
-                            cursor: 'ew-resize',
-                            display: 'block'
-                          }}
-                        />
-                        <style>
-                          {`
-                            input[type="range"]::-webkit-slider-thumb {
-                              appearance: none;
-                              width: 12px;
-                              height: 28px;
-                              background: var(--bg-surface);
-                              border: 2px solid var(--text-primary);
-                              border-radius: 2px;
-                              cursor: ew-resize;
-                              transition: transform 0.1s, background 0.1s;
-                            }
-                            input[type="range"]:hover::-webkit-slider-thumb, input[type="range"]:active::-webkit-slider-thumb {
-                              transform: scaleY(1.3);
-                              background: var(--text-primary);
-                            }
-                            input[type="range"]::-moz-range-thumb {
-                              appearance: none;
-                              width: 12px;
-                              height: 28px;
-                              background: var(--bg-surface);
-                              border: 2px solid var(--text-primary);
-                              border-radius: 2px;
-                              cursor: ew-resize;
-                              transition: transform 0.1s, background 0.1s;
-                            }
-                            input[type="range"]:hover::-moz-range-thumb, input[type="range"]:active::-moz-range-thumb {
-                              transform: scaleY(1.3);
-                              background: var(--text-primary);
-                            }
-                          `}
-                        </style>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="range"
+                            min="10"
+                            max="90"
+                            value={priority}
+                            onChange={(e) => {
+                              const newPriority = parseInt(e.target.value)
+                              const otherPriority = 100 - newPriority
+                              
+                              setGoalPriorities(prev => ({
+                                ...prev,
+                                [goalId]: newPriority,
+                                [otherGoalId!]: otherPriority
+                              }))
+                            }}
+                            style={{
+                              width: '100%',
+                              height: 10,
+                              borderRadius: 5,
+                              background: `linear-gradient(to right, 
+                                ${priority >= 60 ? 'var(--success-primary)' : 
+                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} 0%, 
+                                ${priority >= 60 ? 'var(--success-primary)' : 
+                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} ${priority}%, 
+                                var(--border-base) ${priority}%, 
+                                var(--border-base) 100%)`,
+                              outline: 'none',
+                              appearance: 'none',
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <style>
+                            {`
+                              input[type="range"]::-webkit-slider-thumb {
+                                appearance: none;
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 50%;
+                                background: ${priority >= 60 ? 'var(--success-primary)' : 
+                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
+                                cursor: pointer;
+                                border: 3px solid var(--bg-surface);
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                              }
+                              input[type="range"]::-moz-range-thumb {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 50%;
+                                background: ${priority >= 60 ? 'var(--success-primary)' : 
+                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
+                                cursor: pointer;
+                                border: 3px solid var(--bg-surface);
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                              }
+                            `}
+                          </style>
+                          
+                          {/* Priority scale labels */}
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            marginTop: 16,
+                            fontSize: 12,
+                            color: 'var(--text-secondary)',
+                            fontWeight: 600
+                          }}>
+                            <span>LOW FOCUS</span>
+                            <span>BALANCED</span>
+                            <span>HIGH FOCUS</span>
+                          </div>
+                        </div>
+                        
+                        {/* Show other goal's weight */}
+                        <div style={{ 
+                          marginTop: 16, 
+                          padding: 12, 
+                          background: 'var(--bg-main)', 
+                          border: '1px dashed var(--border-base)', 
+                          borderRadius: 4,
+                          fontSize: 13,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Other goal will have <strong style={{ color: 'var(--text-primary)' }}>{100 - priority}%</strong> weight
+                        </div>
                       </div>
-
-                      {/* Scale Labels */}
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        marginTop: 24,
-                        fontSize: 11,
-                        color: 'var(--text-disabled)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '1px'
-                      }}>
-                        <span style={{ color: priority1 > 70 ? 'var(--accent-primary)' : 'inherit', transition: 'color 0.2s' }}>&lt; {t('plans.allocateLeft', { defaultValue: 'ALLOCATE_LEFT' })}</span>
-                        <span style={{ color: priority1 === 50 ? 'var(--text-primary)' : 'inherit', transition: 'color 0.2s' }}>[ {t('plans.equilibrium', { defaultValue: 'EQUILIBRIUM' })} ]</span>
-                        <span style={{ color: priority2 > 70 ? 'var(--success-primary)' : 'inherit', transition: 'color 0.2s' }}>{t('plans.allocateRight', { defaultValue: 'ALLOCATE_RIGHT' })} &gt;</span>
-                      </div>
-                    </div>
-                  )
-                })()}
-
+                    )
+                  })}
+                </div>
               </div>
             </motion.div>
           )}
@@ -2293,98 +2207,320 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               <StepHeader
                 title={t('plans.step7Title')}
                 subtitle={t('plans.step7Subtitle')}
+                icon="$"
                 selectedValue={t('plans.chooseGenerationMethod')}
               />
 
               {/* Generation Options */}
-              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, maxWidth: 900, margin: '0 auto' }} aria-label="generation-options">
+              <section style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                gap: 18, 
+                maxWidth: 1080, 
+                margin: '0 auto',
+                padding: '0 8px'
+              }} aria-label="generation-options">
                 
                 {/* Option 1: AI Generation */}
-                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.01} transitionSpeed={350} style={{ height: '100%', width: '100%', display: 'flex' }}>
                 <button
                   type="button"
-                  onClick={() => setShowAiConfirm(true)}
                   style={{
-                    padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
-                    borderColor: 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
-                    height: '100%', display: 'flex', flexDirection: 'column', gap: 12
+                    padding: 22,
+                    border: '1px solid var(--border-base)',
+                    borderRadius: 6,
+                    background: 'var(--bg-surface)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '100%',
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)'
+                    e.currentTarget.style.background = 'var(--bg-main)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.12)'
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                    e.currentTarget.style.background = 'var(--bg-surface)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
+                  }}
+                  onClick={handleGenerateClick}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                    </svg>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('plans.aiGeneration')}</div>
-                    <div style={{ marginLeft: 'auto', padding: '2px 8px', background: 'var(--accent-primary)', color: 'var(--bg-surface)', borderRadius: 2, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('plans.recommended')}</div>
+                  <div style={{ height: 2, width: 42, background: 'var(--accent-primary)', borderRadius: 999, marginBottom: 12 }} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                      $ {t('plans.aiGeneration')}
+                    </span>
+                    <span style={{ padding: '2px 8px', border: '1px solid var(--color-blue-300)', color: 'var(--accent-primary)', fontSize: 10, fontWeight: 700, borderRadius: 2 }}>
+                      {t('plans.recommended')}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.aiGenerationDesc')}</div>
-                  <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border-base)', fontSize: 11, fontWeight: 600, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                    </svg>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+                    <div style={{ 
+                      border: '1px solid var(--color-blue-300)',
+                      background: 'var(--bg-blue-hover)',
+                      borderRadius: 2,
+                      padding: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 44,
+                      height: 44,
+                      color: 'var(--accent-primary)',
+                      fontWeight: 700
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 8v8" />
+                        <path d="M8 12h8" />
+                        <rect x="3" y="3" width="18" height="18" rx="3" />
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ 
+                        fontSize: 18,
+                        fontWeight: 700, 
+                        color: 'var(--text-primary)', 
+                        margin: '0 0 6px 0',
+                        lineHeight: 1.3
+                      }}>
+                        {t('plans.aiGeneration')}
+                      </h3>
+                      <p style={{ 
+                        fontSize: 13,
+                        color: 'var(--text-secondary)', 
+                        margin: 0,
+                        lineHeight: 1.5
+                      }}>
+                        {t('plans.aiGenerationDesc')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    marginTop: 'auto',
+                    paddingTop: 14,
+                    borderTop: '1px solid var(--border-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                    color: 'var(--accent-primary)',
+                    fontWeight: 600
+                  }}>
+                    <span>→</span>
                     {t('plans.fastAndPersonalized')}
                   </div>
                 </button>
                 </Tilt>
 
                 {/* Option 2: Similar Learning Paths */}
-                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.01} transitionSpeed={350} style={{ height: '100%', width: '100%', display: 'flex' }}>
                 <button
                   type="button"
-                  onClick={handleGetSuggestions}
                   style={{
-                    padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
-                    borderColor: 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
-                    height: '100%', display: 'flex', flexDirection: 'column', gap: 12
+                    padding: 22,
+                    border: '1px solid var(--border-base)',
+                    borderRadius: 6,
+                    background: 'var(--bg-surface)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '100%',
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--success-primary)'; e.currentTarget.style.background = 'var(--bg-main)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--success-primary)'
+                    e.currentTarget.style.background = 'var(--bg-main)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.12)'
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                    e.currentTarget.style.background = 'var(--bg-surface)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
+                  }}
+                  onClick={handleGetSuggestions}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                    </svg>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('plans.similarPaths')}</div>
+                  <div style={{ height: 2, width: 42, background: 'var(--success-primary)', borderRadius: 999, marginBottom: 12 }} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                      $ {t('plans.similarPaths')}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.similarPathsDesc')}</div>
-                  <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border-base)', fontSize: 11, fontWeight: 600, color: 'var(--success-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8"/>
-                      <path d="m21 21-4.35-4.35"/>
-                    </svg>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+                    <div style={{ 
+                      border: '1px solid var(--success-primary)',
+                      background: 'var(--bg-green-tint)',
+                      borderRadius: 2,
+                      padding: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 44,
+                      height: 44,
+                      color: 'var(--success-primary)',
+                      fontWeight: 700
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 5h7v14H3z" />
+                        <path d="M14 5h7v14h-7z" />
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ 
+                        fontSize: 18,
+                        fontWeight: 700, 
+                        color: 'var(--text-primary)', 
+                        margin: '0 0 6px 0',
+                        lineHeight: 1.3
+                      }}>
+                        {t('plans.similarPaths')}
+                      </h3>
+                      <p style={{ 
+                        fontSize: 13,
+                        color: 'var(--text-secondary)', 
+                        margin: 0,
+                        lineHeight: 1.5
+                      }}>
+                        {t('plans.similarPathsDesc')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    marginTop: 'auto',
+                    paddingTop: 14,
+                    borderTop: '1px solid var(--border-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                    color: 'var(--success-primary)',
+                    fontWeight: 600
+                  }}>
+                    <span>→</span>
                     {t('plans.browseExisting')}
                   </div>
                 </button>
                 </Tilt>
 
-                {/* Option 3: Ask Mentor (Coming Soon) */}
-                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.02} transitionSpeed={400} style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                {/* Option 3: Ask Mentor */}
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.01} transitionSpeed={350} style={{ height: '100%', width: '100%', display: 'flex' }}>
                 <button
                   type="button"
-                  onClick={() => { setToast({ message: t('plans.comingSoon'), type: 'success' }) }}
                   style={{
-                    padding: 20, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)',
-                    borderColor: 'var(--border-base)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s',
-                    height: '100%', display: 'flex', flexDirection: 'column', gap: 12, opacity: 0.65
+                    padding: 22,
+                    border: '1px dashed var(--border-base)',
+                    borderRadius: 6,
+                    background: 'var(--bg-surface)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '100%',
+                    opacity: 0.9,
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--warning-primary)'; e.currentTarget.style.background = 'var(--bg-main)'; e.currentTarget.style.opacity = '1' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.opacity = '0.65' }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--warning-primary)'
+                    e.currentTarget.style.background = 'var(--bg-main)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.opacity = '1'
+                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.10)'
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                    e.currentTarget.style.background = 'var(--bg-surface)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.opacity = '0.9'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.06)'
+                  }}
+                  onClick={() => {
+                    setToast({ message: t('plans.comingSoon'), type: 'success' })
+                  }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warning-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('plans.askMentor')}</div>
-                    <div style={{ marginLeft: 'auto', padding: '2px 8px', background: 'var(--warning-primary)', color: 'var(--bg-surface)', borderRadius: 2, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('plans.comingSoon')}</div>
+                  <div style={{ height: 2, width: 42, background: 'var(--warning-primary)', borderRadius: 999, marginBottom: 12 }} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                      $ {t('plans.askMentor')}
+                    </span>
+                    <span style={{ padding: '2px 8px', border: '1px solid var(--warning-primary)', color: 'var(--warning-primary)', fontSize: 10, fontWeight: 700, borderRadius: 2 }}>
+                      {t('plans.comingSoon')}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.askMentorDesc')}</div>
-                  <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border-base)', fontSize: 11, fontWeight: 600, color: 'var(--warning-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+                    <div style={{ 
+                      border: '1px solid var(--warning-primary)',
+                      background: 'var(--bg-yellow-tint)',
+                      borderRadius: 2,
+                      padding: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 44,
+                      height: 44,
+                      color: 'var(--warning-primary)',
+                      fontWeight: 700
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="9" cy="8" r="3" />
+                        <path d="M3 19a6 6 0 0 1 12 0" />
+                        <path d="M16 9h5" />
+                        <path d="M18.5 6.5v5" />
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ 
+                        fontSize: 18,
+                        fontWeight: 700, 
+                        color: 'var(--text-primary)', 
+                        margin: '0 0 6px 0',
+                        lineHeight: 1.3
+                      }}>
+                        {t('plans.askMentor')}
+                      </h3>
+                      <p style={{ 
+                        fontSize: 13,
+                        color: 'var(--text-secondary)', 
+                        margin: 0,
+                        lineHeight: 1.5
+                      }}>
+                        {t('plans.askMentorDesc')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    marginTop: 'auto',
+                    paddingTop: 14,
+                    borderTop: '1px solid var(--border-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                    color: 'var(--warning-primary)',
+                    fontWeight: 600
+                  }}>
+                    <span>→</span>
                     {t('plans.personalGuidance')}
                   </div>
                 </button>
@@ -2394,16 +2530,46 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
               {/* Loading and Error States */}
               {generating && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 32, padding: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 500, margin: '32px auto 0' }}>
-                  <div className="animate-spin" style={{ width: 20, height: 20, border: '2px solid var(--border-base)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', marginRight: 12 }} />
-                  <span style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  marginTop: 40, 
+                  padding: 24, 
+                  background: 'var(--bg-surface)', 
+                  border: '2px solid var(--border-base)', 
+                  borderRadius: 12,
+                  maxWidth: 500,
+                  margin: '40px auto 0'
+                }}>
+                  <div className="animate-spin" style={{ 
+                    width: 24, 
+                    height: 24, 
+                    border: '3px solid var(--border-base)', 
+                    borderTopColor: 'var(--accent-primary)', 
+                    borderRadius: '50%', 
+                    marginRight: 16 
+                  }} />
+                  <span style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>
                     {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
                   </span>
                 </div>
               )}
 
               {planError && (
-                <div style={{ marginTop: 32, maxWidth: 600, margin: '32px auto 0', padding: 16, background: 'var(--bg-red-tint)', border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', textAlign: 'center', fontSize: 13, lineHeight: 1.5 }}>
+                <div style={{ 
+                  marginTop: 40, 
+                  maxWidth: 600, 
+                  margin: '40px auto 0', 
+                  padding: 20, 
+                  background: 'var(--bg-red-tint)', 
+                  border: '2px solid var(--danger-primary)', 
+                  borderRadius: 12, 
+                  color: 'var(--danger-primary)', 
+                  textAlign: 'center',
+                  fontSize: 14,
+                  lineHeight: 1.5
+                }}>
                   {planError}
                 </div>
               )}
@@ -2413,9 +2579,8 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
                   <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 900, width: '100%', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                        {t('plans.suggestedLearningPaths')}
+                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                        📚 {t('plans.suggestedLearningPaths')}
                       </h3>
                       <button
                         type="button"
@@ -2485,11 +2650,11 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                   </p>
                                 </div>
                                 <div style={{ 
-                                  padding: '2px 8px', 
+                                  padding: '4px 12px', 
                                   background: 'var(--accent-primary)', 
                                   color: 'white', 
-                                  borderRadius: 2, 
-                                  fontSize: 11, 
+                                  borderRadius: 12, 
+                                  fontSize: 12, 
                                   fontWeight: 600,
                                   marginLeft: 16
                                 }}>
@@ -2498,15 +2663,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                               </div>
                               
                               <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 12, color: 'var(--text-secondary)' }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                                  {suggestion.chapterCount} chapters
-                                </span>
+                                <span>📚 {suggestion.chapterCount} chapters</span>
                                 {suggestion.goals && suggestion.goals.length > 0 && (
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                                    {suggestion.goals.length} goals
-                                  </span>
+                                  <span>🎯 {suggestion.goals.length} goals</span>
                                 )}
                               </div>
                               
@@ -2550,9 +2709,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                         </div>
                       ) : (
                         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
-                          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-disabled)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                          </div>
+                          <div style={{ fontSize: 32, marginBottom: 16 }}>📚</div>
                           <p style={{ fontSize: 14, margin: 0 }}>
                             {t('plans.noSuggestionsFound')}
                           </p>
@@ -2563,58 +2720,12 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 </div>
               )}
 
-              {/* AI Generation Confirmation Modal */}
-              {showAiConfirm && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
-                  <div style={{ background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, maxWidth: 500, width: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ padding: 20, borderBottom: '1px solid var(--border-base)' }}>
-                      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                        {t('plans.aiConfirmTitle')}
-                      </h3>
-                    </div>
-                    <div style={{ padding: 20 }}>
-                      <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
-                        {t('plans.aiConfirmMessage')}
-                      </p>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button
-                          type="button"
-                          onClick={() => setShowAiConfirm(false)}
-                          style={{ flex: 1, padding: '8px 16px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-short)' }}
-                        >{t('plans.cancel')}</button>
-                        <button
-                          type="button"
-                          onClick={() => { setShowAiConfirm(false); handleGenerateClick() }}
-                          style={{ flex: 1, padding: '8px 16px', background: 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
-                        >{t('plans.confirm')}</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
             </motion.div>
           )}
           </AnimatePresence>
 
           {/* Footer actions */}
-          <div style={{ 
-            position: 'sticky',
-            bottom: 0,
-            zIndex: 40,
-            background: 'transparent',
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: 16, 
-            marginTop: 40, 
-            padding: '24px 0'
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 40, paddingTop: 32, borderTop: '1px solid var(--border-base)' }}>
             {step > 1 && (
               <button
                 type="button"
