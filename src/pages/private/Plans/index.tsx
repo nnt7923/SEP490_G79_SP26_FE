@@ -1883,9 +1883,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           {step === 3 && selectedGoals.length === 2 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
-                title="Set Goal Priorities"
-                subtitle="Balance the importance of your learning goals"
-                selectedValue={selectedGoals.length === 2 ? 'Priorities set' : undefined}
+                title={t('plans.setGoalPriorities', { defaultValue: 'Set Goal Priorities' })}
+                subtitle={t('plans.balanceGoalImportance', { defaultValue: 'Balance the importance of your learning goals' })}
+                selectedValue={selectedGoals.length === 2 ? t('plans.prioritiesSet', { defaultValue: 'Priorities set' }) : undefined}
               />
               
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
@@ -1893,175 +1893,258 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   marginBottom: 32, 
                   padding: 20, 
                   background: 'var(--bg-surface)', 
-                  border: '1px dashed var(--border-base)', 
-                  borderRadius: 4 
+                  border: '1px solid var(--border-base)', 
+                  borderLeft: '4px solid var(--accent-primary)',
+                  borderRadius: 2 
                 }}>
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'flex-start', 
                     gap: 12,
-                    fontSize: 14,
+                    fontSize: 13,
                     color: 'var(--text-secondary)',
-                    lineHeight: 1.6
+                    lineHeight: 1.6,
+                    fontFamily: 'monospace'
                   }}>
-                    <span style={{ fontSize: 18 }}>💡</span>
+                    <span style={{ fontSize: 16 }}>&gt;_</span>
                     <div>
-                      <strong style={{ color: 'var(--text-primary)' }}>Balance your learning focus</strong>
+                      <strong style={{ color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        {t('plans.sysBalanceGoals', { defaultValue: 'SYSTEM.BALANCE_GOALS' })}
+                      </strong>
                       <br />
-                      Adjust the weight of each goal. The total must equal 100%. The AI will focus more 
-                      on the goal with higher weight when generating your learning path.
+                      {t('plans.sysBalanceDesc', { defaultValue: 'Adjust the allocation slider to distribute processing weight between selected vectors. The generation matrix will scale focus according to inputs.' })}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  {selectedGoals.map((goalId, index) => {
-                    const goal = goalItems.find(g => String(g.key) === String(goalId))
-                    const priority = goalPriorities[goalId] || 50
-                    const otherGoalId = selectedGoals.find(id => id !== goalId)
-                    const otherPriority = otherGoalId ? (goalPriorities[otherGoalId] || 50) : 50
-                    
-                    return (
-                      <div key={goalId} style={{ 
-                        background: 'var(--bg-surface)', 
-                        border: '1px solid var(--border-base)', 
-                        borderRadius: 4, 
-                        padding: 24 
+                {(() => {
+                  const goal1Id = selectedGoals[0]
+                  const goal2Id = selectedGoals[1]
+                  const goal1 = goalItems.find(g => String(g.key) === String(goal1Id))
+                  const goal2 = goalItems.find(g => String(g.key) === String(goal2Id))
+                  const priority1 = goalPriorities[goal1Id] || 50
+                  const priority2 = 100 - priority1
+
+                  return (
+                    <div className="group" style={{ 
+                      background: 'var(--bg-main)', 
+                      border: '1px solid var(--border-base)', 
+                      borderRadius: 2, 
+                      padding: '32px 40px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      fontFamily: 'monospace'
+                    }}>
+                      
+                      {/* Techy background grid peek */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage: 'linear-gradient(var(--border-base) 1px, transparent 1px), linear-gradient(90deg, var(--border-base) 1px, transparent 1px)',
+                        backgroundSize: '20px 20px',
+                        opacity: 0.2,
+                        zIndex: 0
+                      }} />
+
+                      {/* Goal Headers */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'flex-start',
+                        marginBottom: 40,
+                        position: 'relative',
+                        zIndex: 1
                       }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          marginBottom: 20 
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        {/* Goal 1 (Left) */}
+                        <div style={{ flex: 1, paddingRight: 20 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                             <div style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 4,
-                              background: index === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                              color: 'var(--bg-surface)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 18,
-                              fontWeight: 700
-                            }}>
-                              {index + 1}
-                            </div>
-                            <div>
-                              <h4 style={{ 
-                                fontSize: 18, 
-                                fontWeight: 600, 
-                                color: 'var(--text-primary)', 
-                                margin: 0 
-                              }}>
-                                {goal?.label || 'Unknown Goal'}
-                              </h4>
-                            </div>
+                              width: 24, height: 24,
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--accent-primary)',
+                              color: 'var(--accent-primary)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 12, fontWeight: 700
+                            }}>[1]</div>
+                            <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                              {goal1?.label || t('plans.targetAlpha', { defaultValue: 'Target_Alpha' })}
+                            </h4>
                           </div>
                           <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 12,
-                            fontSize: 24,
-                            fontWeight: 700,
-                            color: priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'
+                            fontSize: 36, 
+                            fontWeight: 400, 
+                            color: priority1 > priority2 ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                            transition: 'color 0.1s',
+                            display: 'flex',
+                            alignItems: 'baseline',
+                            gap: 4
                           }}>
-                            <span>{priority}%</span>
+                            {priority1}<span style={{ fontSize: 14, color: 'var(--text-disabled)' }}>%</span>
                           </div>
                         </div>
-                        
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="range"
-                            min="10"
-                            max="90"
-                            value={priority}
-                            onChange={(e) => {
-                              const newPriority = parseInt(e.target.value)
-                              const otherPriority = 100 - newPriority
-                              
-                              setGoalPriorities(prev => ({
-                                ...prev,
-                                [goalId]: newPriority,
-                                [otherGoalId!]: otherPriority
-                              }))
-                            }}
-                            style={{
-                              width: '100%',
-                              height: 10,
-                              borderRadius: 5,
-                              background: `linear-gradient(to right, 
-                                ${priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} 0%, 
-                                ${priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} ${priority}%, 
-                                var(--border-base) ${priority}%, 
-                                var(--border-base) 100%)`,
-                              outline: 'none',
-                              appearance: 'none',
-                              cursor: 'pointer'
-                            }}
-                          />
-                          <style>
-                            {`
-                              input[type="range"]::-webkit-slider-thumb {
-                                appearance: none;
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: ${priority >= 60 ? 'var(--success-primary)' : 
-                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
-                                cursor: pointer;
-                                border: 3px solid var(--bg-surface);
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                              }
-                              input[type="range"]::-moz-range-thumb {
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: ${priority >= 60 ? 'var(--success-primary)' : 
-                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
-                                cursor: pointer;
-                                border: 3px solid var(--bg-surface);
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                              }
-                            `}
-                          </style>
-                          
-                          {/* Priority scale labels */}
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            marginTop: 16,
-                            fontSize: 12,
-                            color: 'var(--text-secondary)',
-                            fontWeight: 600
-                          }}>
-                            <span>LOW FOCUS</span>
-                            <span>BALANCED</span>
-                            <span>HIGH FOCUS</span>
-                          </div>
-                        </div>
-                        
-                        {/* Show other goal's weight */}
-                        <div style={{ 
-                          marginTop: 16, 
-                          padding: 12, 
-                          background: 'var(--bg-main)', 
-                          border: '1px dashed var(--border-base)', 
-                          borderRadius: 4,
-                          fontSize: 13,
-                          color: 'var(--text-secondary)'
+
+                        {/* XOR Badge */}
+                        <div style={{
+                          padding: '4px 12px',
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-base)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)',
+                          flexShrink: 0,
+                          marginTop: 16,
+                          letterSpacing: '2px'
                         }}>
-                          Other goal will have <strong style={{ color: 'var(--text-primary)' }}>{100 - priority}%</strong> weight
+                          {t('plans.xor', { defaultValue: 'XOR' })}
+                        </div>
+
+                        {/* Goal 2 (Right) */}
+                        <div style={{ flex: 1, paddingLeft: 20, textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, justifyContent: 'flex-end' }}>
+                            <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                              {goal2?.label || t('plans.targetBeta', { defaultValue: 'Target_Beta' })}
+                            </h4>
+                            <div style={{
+                              width: 24, height: 24,
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--success-primary)',
+                              color: 'var(--success-primary)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 12, fontWeight: 700
+                            }}>[2]</div>
+                          </div>
+                          <div style={{ 
+                            fontSize: 36, 
+                            fontWeight: 400, 
+                            color: priority2 > priority1 ? 'var(--success-primary)' : 'var(--text-secondary)',
+                            transition: 'color 0.1s',
+                            display: 'flex',
+                            alignItems: 'baseline',
+                            justifyContent: 'flex-end',
+                            gap: 4
+                          }}>
+                            {priority2}<span style={{ fontSize: 14, color: 'var(--text-disabled)' }}>%</span>
+                          </div>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+
+                      {/* Unified Slider */}
+                      <div style={{ position: 'relative', padding: '16px 0', zIndex: 1 }}>
+                        {/* Track Background line */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: 0,
+                          right: 0,
+                          height: 2,
+                          background: 'var(--border-base)',
+                          transform: 'translateY(-50%)',
+                          zIndex: -1
+                        }} />
+                        
+                        {/* Track filled line */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: 0,
+                          width: `${priority1}%`,
+                          height: 2,
+                          background: 'var(--accent-primary)',
+                          transform: 'translateY(-50%)',
+                          zIndex: -1,
+                          transition: 'width 0.1s'
+                        }} />
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: `${priority1}%`,
+                          right: 0,
+                          height: 2,
+                          background: 'var(--success-primary)',
+                          transform: 'translateY(-50%)',
+                          zIndex: -1,
+                          transition: 'left 0.1s'
+                        }} />
+
+                        <input
+                          type="range"
+                          min="10"
+                          max="90"
+                          step="1"
+                          value={priority1}
+                          onChange={(e) => {
+                            const newPriority1 = parseInt(e.target.value)
+                            const newPriority2 = 100 - newPriority1
+                            
+                            setGoalPriorities(prev => ({
+                              ...prev,
+                              [goal1Id]: newPriority1,
+                              [goal2Id]: newPriority2
+                            }))
+                          }}
+                          style={{
+                            width: '100%',
+                            appearance: 'none',
+                            background: 'transparent',
+                            outline: 'none',
+                            cursor: 'ew-resize',
+                            display: 'block'
+                          }}
+                        />
+                        <style>
+                          {`
+                            input[type="range"]::-webkit-slider-thumb {
+                              appearance: none;
+                              width: 12px;
+                              height: 28px;
+                              background: var(--bg-surface);
+                              border: 2px solid var(--text-primary);
+                              border-radius: 2px;
+                              cursor: ew-resize;
+                              transition: transform 0.1s, background 0.1s;
+                            }
+                            input[type="range"]:hover::-webkit-slider-thumb, input[type="range"]:active::-webkit-slider-thumb {
+                              transform: scaleY(1.3);
+                              background: var(--text-primary);
+                            }
+                            input[type="range"]::-moz-range-thumb {
+                              appearance: none;
+                              width: 12px;
+                              height: 28px;
+                              background: var(--bg-surface);
+                              border: 2px solid var(--text-primary);
+                              border-radius: 2px;
+                              cursor: ew-resize;
+                              transition: transform 0.1s, background 0.1s;
+                            }
+                            input[type="range"]:hover::-moz-range-thumb, input[type="range"]:active::-moz-range-thumb {
+                              transform: scaleY(1.3);
+                              background: var(--text-primary);
+                            }
+                          `}
+                        </style>
+                      </div>
+
+                      {/* Scale Labels */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        marginTop: 24,
+                        fontSize: 11,
+                        color: 'var(--text-disabled)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px'
+                      }}>
+                        <span style={{ color: priority1 > 70 ? 'var(--accent-primary)' : 'inherit', transition: 'color 0.2s' }}>&lt; {t('plans.allocateLeft', { defaultValue: 'ALLOCATE_LEFT' })}</span>
+                        <span style={{ color: priority1 === 50 ? 'var(--text-primary)' : 'inherit', transition: 'color 0.2s' }}>[ {t('plans.equilibrium', { defaultValue: 'EQUILIBRIUM' })} ]</span>
+                        <span style={{ color: priority2 > 70 ? 'var(--success-primary)' : 'inherit', transition: 'color 0.2s' }}>{t('plans.allocateRight', { defaultValue: 'ALLOCATE_RIGHT' })} &gt;</span>
+                      </div>
+                    </div>
+                  )
+                })()}
+
               </div>
             </motion.div>
           )}
@@ -2520,7 +2603,18 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           </AnimatePresence>
 
           {/* Footer actions */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 40, paddingTop: 32, borderTop: '1px solid var(--border-base)' }}>
+          <div style={{ 
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 40,
+            background: 'transparent',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: 16, 
+            marginTop: 40, 
+            padding: '24px 0'
+          }}>
             {step > 1 && (
               <button
                 type="button"

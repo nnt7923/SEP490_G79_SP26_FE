@@ -189,7 +189,18 @@
     "checkingSuggestions": "Finding suitable paths...",
     "aiConfirmTitle": "Confirm AI Generation",
     "aiConfirmMessage": "Are you sure you want to generate a learning path using AI?",
-    "confirm": "confirm"
+    "confirm": "confirm",
+    "setGoalPriorities": "Set Goal Priorities",
+    "balanceGoalImportance": "Balance the importance of your learning goals",
+    "prioritiesSet": "Priorities set",
+    "sysBalanceGoals": "SYSTEM.BALANCE_GOALS",
+    "sysBalanceDesc": "Adjust the allocation slider to distribute processing weight between selected vectors. The generation matrix will scale focus according to inputs.",
+    "targetAlpha": "Target_Alpha",
+    "targetBeta": "Target_Beta",
+    "xor": "XOR",
+    "allocateLeft": "ALLOCATE_LEFT",
+    "allocateRight": "ALLOCATE_RIGHT",
+    "equilibrium": "EQUILIBRIUM"
   },
   "subscription": {
     "title": "Subscription Plans",

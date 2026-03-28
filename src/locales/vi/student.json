@@ -189,7 +189,18 @@
     "checkingSuggestions": "Đang tìm lộ trình phù hợp...",
     "aiConfirmTitle": "Xác nhận tạo bằng AI",
     "aiConfirmMessage": "Bạn có chắc muốn tạo lộ trình học tập bằng AI?",
-    "confirm": "xác nhận"
+    "confirm": "xác nhận",
+    "setGoalPriorities": "Thiết Lập Mức Độ Ưu Tiên",
+    "balanceGoalImportance": "Cân bằng độ quan trọng giữa các mục tiêu",
+    "prioritiesSet": "Đã thiết lập ưu tiên",
+    "sysBalanceGoals": "HỆ_THỐNG.CÂN_BẰNG_MỤC_TIÊU",
+    "sysBalanceDesc": "Điều chỉnh thanh trượt để phân bổ trọng số xử lý giữa các mục tiêu. Ma trận sinh lộ trình sẽ tập trung theo tỷ lệ đầu vào.",
+    "targetAlpha": "Mục_Tiêu_Alpha",
+    "targetBeta": "Mục_Tiêu_Beta",
+    "xor": "XOR",
+    "allocateLeft": "PHÂN_BỔ_TRỤC_TRÁI",
+    "allocateRight": "PHÂN_BỔ_TRỤC_PHẢI",
+    "equilibrium": "CÂN_BẰNG"
   },
   "subscription": {
     "title": "Gói học tập",
