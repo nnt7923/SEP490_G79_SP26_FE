@@ -10,6 +10,7 @@ const LayoutCommon = React.lazy(() => import('../components/Layout'))
 const ProtectedRoute = React.lazy(() => import('../components/Authorization/ProtectedRoute'))
 const ForbidRole = React.lazy(() => import('../components/Authorization/ForbidRole'))
 const RequireRole = React.lazy(() => import('../components/Authorization/RequireRole'))
+const GuestRoute = React.lazy(() => import('../components/Authorization/GuestRoute'))
 
 // Pages
 const Home = React.lazy(() => import('../pages/public/Home'))
@@ -64,22 +65,30 @@ const Fallback = () => <PageSkeleton />
 
 const router = createBrowserRouter([
   {
-    element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
-    handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
+    element: <Suspense fallback={<PageSkeleton />}> <GuestRoute /> </Suspense>,
     children: [
+      {
+        element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
+        handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
+        children: [
       { index: true, path: ROUTER.HOME, element: <Home /> },
       { path: ROUTER.CLASSES, element: <div>Classes</div> },
       { path: ROUTER.ABOUT, element: <About /> },
     ],
   },
   {
-    element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
+    element: <Suspense fallback={<PageSkeleton />}> <GuestRoute /> </Suspense>,
     children: [
+      {
+        element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
+        children: [
       { path: ROUTER.LOGIN, element: <Login /> },
       { path: ROUTER.REGISTER, element: <Register /> },
       { path: ROUTER.VERIFY_OTP, element: <VerifyOtp /> },
       { path: ROUTER.FORGOT_PASSWORD, element: <ForgotPassword /> },
       { path: ROUTER.RESET_PASSWORD, element: <ResetPassword /> },
+        ],
+      },
     ],
   },
   // General protected routes (any logged-in user)
