@@ -6,8 +6,8 @@
     "about": "About"
   },
   "auth": {
-    "login": "login",
-    "register": "register",
+    "login": "Login",
+    "register": "Register",
     "logout": "Logout"
   },
   "userMenu": {

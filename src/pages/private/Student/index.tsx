@@ -875,6 +875,7 @@ const StudentIndex: React.FC = () => {
                         </div>
                       ) : visibleSevenDayItems.map((item) => {
                         const isCompleted = Boolean(item.isCompleted)
+                        const isOverdue = !isCompleted && (item.isOverdue || parseDueTime(item.dueAtUtc) < nowTs)
                         return (
                           <div
                             key={`${activeDayKey || 'selected-day'}-${item.itemType}-${item.itemId}`}
@@ -888,17 +889,24 @@ const StudentIndex: React.FC = () => {
                               }
                             }}
                             style={{
-                              border: isCompleted ? '1px solid var(--success-primary)' : '1px solid var(--border-base)',
+                              border: isCompleted
+                                ? '1px solid var(--success-primary)'
+                                : '1px solid var(--border-base)',
+                              borderLeft: isOverdue ? '3px solid var(--danger-primary)' : undefined,
                               borderRadius: 2,
                               padding: '8px 10px',
                               cursor: 'pointer',
-                              background: isCompleted ? 'var(--bg-green-tint)' : 'var(--bg-main)'
+                              background: isCompleted
+                                ? 'var(--bg-green-tint)'
+                                : isOverdue
+                                  ? 'rgba(207, 34, 46, 0.07)'
+                                  : 'var(--bg-main)'
                             }}
                           >
                             <p style={{ margin: 0, fontSize: 14, color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.35 }}>{item.title || '—'}</p>
                             <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.35 }}>{item.learningPathTitle || t('dashboard.timeline.unknownPath')}</p>
-                            <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: isCompleted ? 'var(--success-primary)' : 'var(--text-secondary)' }}>
-                              {isCompleted ? <CheckCircle2 size={12} /> : <Circle size={12} />}
+                            <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: isCompleted ? 'var(--success-primary)' : isOverdue ? 'var(--danger-primary)' : 'var(--text-secondary)' }}>
+                              {isCompleted ? <CheckCircle2 size={12} /> : isOverdue ? <AlertTriangle size={12} /> : <Circle size={12} />}
                               {getTimelineStatusLabel(item)}
                             </div>
                           </div>
@@ -1048,9 +1056,10 @@ const StudentIndex: React.FC = () => {
                               {pagedItems.map((item) => {
                                 const pathKey = String(item.learningPathId || item.learningPathTitle || 'unknown')
                                 const chipColor = getPathChipColor(pathKey)
+                                const isOverdue = !item.isCompleted && (item.isOverdue || parseDueTime(item.dueAtUtc) < nowTs)
                                 const statusColor = item.isCompleted
                                   ? 'var(--success-primary)'
-                                  : item.isOverdue
+                                  : isOverdue
                                     ? 'var(--danger-primary)'
                                     : 'var(--text-secondary)'
 
@@ -1066,7 +1075,14 @@ const StudentIndex: React.FC = () => {
                                         handleTimelineItemClick(item)
                                       }
                                     }}
-                                    style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 10, background: 'var(--bg-surface-short)', cursor: 'pointer' }}
+                                    style={{
+                                      border: '1px solid var(--border-base)',
+                                      borderLeft: isOverdue ? '3px solid var(--danger-primary)' : undefined,
+                                      borderRadius: 2,
+                                      padding: 10,
+                                      background: isOverdue ? 'rgba(207, 34, 46, 0.07)' : 'var(--bg-surface-short)',
+                                      cursor: 'pointer'
+                                    }}
                                   >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
                                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -1085,7 +1101,7 @@ const StudentIndex: React.FC = () => {
                                         <Clock3 size={12} /> {formatLocalDateTime(item.dueAtUtc)}
                                       </span>
                                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: statusColor }}>
-                                        {item.isCompleted ? <CheckCircle2 size={12} /> : item.isOverdue ? <AlertTriangle size={12} /> : <Circle size={12} />}
+                                        {item.isCompleted ? <CheckCircle2 size={12} /> : isOverdue ? <AlertTriangle size={12} /> : <Circle size={12} />}
                                         {getTimelineStatusLabel(item)}
                                       </span>
                                       <span style={{ width: 10, height: 10, borderRadius: 999, background: chipColor, display: 'inline-block' }} />

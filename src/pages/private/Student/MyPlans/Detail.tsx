@@ -71,6 +71,79 @@ const getProgressStatusLabel = (
   return t(`quizStatus.${status}`, status)
 }
 
+type ItemVisualStatus = 'completed' | 'overdue' | 'default'
+
+const normalizeVisualStatus = (value: unknown): ItemVisualStatus | undefined => {
+  if (value === null || value === undefined) return undefined
+
+  if (typeof value === 'number') {
+    if (value === 2) return 'completed'
+    if (value === 3) return 'overdue'
+    return undefined
+  }
+
+  const normalized = String(value).trim().toLowerCase().replace(/[\s_-]/g, '')
+  if (!normalized) return undefined
+
+  if (['completed', 'done', 'finished', 'success'].includes(normalized)) return 'completed'
+  if (['overdue', 'pastdue', 'expired', 'late'].includes(normalized)) return 'overdue'
+
+  return undefined
+}
+
+const resolveVisualStatus = (rawStatus: unknown, dueDate?: unknown): ItemVisualStatus => {
+  const fromStatus = normalizeVisualStatus(rawStatus)
+  if (fromStatus) return fromStatus
+
+  if (dueDate) {
+    const parsedDate = new Date(String(dueDate))
+    if (!Number.isNaN(parsedDate.getTime()) && parsedDate.getTime() < Date.now()) {
+      return 'overdue'
+    }
+  }
+
+  return 'default'
+}
+
+const getItemStatusStyles = (status: ItemVisualStatus) => {
+  if (status === 'completed') {
+    return {
+      background: 'rgba(34, 197, 94, 0.06)',
+      borderColor: 'rgba(34, 197, 94, 0.3)',
+      leftAccent: 'var(--success-primary)',
+      badgeBackground: 'var(--success-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      metaColor: 'var(--success-primary)',
+      nestedBackground: 'rgba(34, 197, 94, 0.03)'
+    }
+  }
+
+  if (status === 'overdue') {
+    return {
+      background: 'rgba(207, 34, 46, 0.06)',
+      borderColor: 'rgba(207, 34, 46, 0.28)',
+      leftAccent: 'var(--danger-primary)',
+      badgeBackground: 'var(--danger-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      metaColor: 'var(--danger-primary)',
+      nestedBackground: 'rgba(207, 34, 46, 0.04)'
+    }
+  }
+
+  return {
+    background: 'var(--bg-main)',
+    borderColor: 'var(--border-base)',
+    leftAccent: 'transparent',
+    badgeBackground: 'var(--text-disabled)',
+    badgeColor: 'var(--bg-surface)',
+    titleColor: 'var(--text-primary)',
+    metaColor: 'var(--accent-primary)',
+    nestedBackground: 'var(--bg-surface)'
+  }
+}
+
 const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
   const pathId = location.state?.pathId
@@ -521,26 +594,34 @@ const MyPlansDetailPage: React.FC = () => {
                             }}
                             style={{ display: 'grid', gap: 16 }}
                           >
-                            {chapter.lessons.map((lesson, lessonIdx) => (
-                              <motion.div 
-                                key={lesson.id || lessonIdx} 
-                                variants={{
-                                  hidden: { opacity: 0, y: 10 },
-                                  visible: { opacity: 1, y: 0 }
-                                }}
-                                transition={{ duration: 0.3 }}
-                                style={{ 
-                                  display: 'flex', 
-                                  alignItems: 'flex-start', 
-                                  gap: 16, 
-                                  padding: '16px', 
-                                  background: 'var(--bg-main)', 
-                                  border: '1px solid var(--border-base)', 
-                                  borderRadius: 4 
-                                }}
-                              >
+                            {chapter.lessons.map((lesson, lessonIdx) => {
+                              const lessonVisualStatus = resolveVisualStatus(
+                                lesson.status ?? lesson.lessonStatus ?? lesson.Status ?? lesson.LessonStatus,
+                                lesson.lessonDay
+                              )
+                              const lessonStyles = getItemStatusStyles(lessonVisualStatus)
+
+                              return (
+                                <motion.div 
+                                  key={lesson.id || lessonIdx} 
+                                  variants={{
+                                    hidden: { opacity: 0, y: 10 },
+                                    visible: { opacity: 1, y: 0 }
+                                  }}
+                                  transition={{ duration: 0.3 }}
+                                  style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'flex-start', 
+                                    gap: 16, 
+                                    padding: '16px', 
+                                    background: lessonStyles.background,
+                                    border: `1px solid ${lessonStyles.borderColor}`,
+                                    borderLeft: `3px solid ${lessonStyles.leftAccent}`,
+                                    borderRadius: 4 
+                                  }}
+                                >
                                 <div style={{
-                                  width: 24, height: 24, borderRadius: '50%', background: 'var(--text-disabled)', color: 'var(--bg-surface)',
+                                  width: 24, height: 24, borderRadius: '50%', background: lessonStyles.badgeBackground, color: lessonStyles.badgeColor,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
                                 }}>
                                   {lessonIdx + 1}
@@ -555,7 +636,7 @@ const MyPlansDetailPage: React.FC = () => {
                                     whileHover={{ x: 4 }}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
-                                      fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
+                                      fontSize: 15, fontWeight: 600, color: lessonStyles.titleColor, cursor: 'pointer',
                                       textDecoration: 'none', textAlign: 'left', display: 'block'
                                     }}
                                   >
@@ -566,7 +647,7 @@ const MyPlansDetailPage: React.FC = () => {
                                   {lesson.lessonDay && (
                                     <div style={{ 
                                       display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
-                                      fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600
+                                      fontSize: 12, color: lessonStyles.metaColor, fontWeight: 600
                                     }}>
                                       <span>📅</span>
                                       <span>{new Date(lesson.lessonDay).toLocaleDateString('vi-VN', { 
@@ -593,6 +674,11 @@ const MyPlansDetailPage: React.FC = () => {
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                                         {lesson.quizzes.map((quiz, quizIdx) => {
                                           const quizId = quiz?.id ?? quiz?.quizId ?? quiz?.quizzId
+                                          const quizVisualStatus = resolveVisualStatus(
+                                            quiz?.status ?? quiz?.quizStatus ?? quiz?.Status ?? quiz?.QuizStatus,
+                                            quiz?.dueDate ?? quiz?.DueDate
+                                          )
+                                          const quizStyles = getItemStatusStyles(quizVisualStatus)
                                           return (
                                             <motion.button
                                               key={quizId || quizIdx}
@@ -607,13 +693,19 @@ const MyPlansDetailPage: React.FC = () => {
                                                 })
                                               }}
                                               style={{
-                                                background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
+                                                background: quizStyles.nestedBackground,
+                                                border: `1px solid ${quizStyles.borderColor}`,
+                                                borderLeft: `3px solid ${quizStyles.leftAccent}`,
+                                                borderRadius: 4,
+                                                padding: '6px 8px',
+                                                fontSize: 13,
+                                                color: quizStyles.metaColor,
                                                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
                                               }}
                                               onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                                               onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
                                             >
-                                              <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                              <span style={{ color: quizStyles.leftAccent === 'transparent' ? 'var(--success-primary)' : quizStyles.leftAccent }}>➔</span>
                                               <span style={{ display: 'flex', alignItems: 'center' }}>
                                                 {quiz.title}
                                                 {quizId && <QuizStatusBadge quizId={quizId} />}
@@ -625,8 +717,9 @@ const MyPlansDetailPage: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
-                              </motion.div>
-                            ))}
+                                </motion.div>
+                              )
+                            })}
                           </motion.div>
                         </div>
                       )}

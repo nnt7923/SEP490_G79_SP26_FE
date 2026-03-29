@@ -38,6 +38,78 @@ interface Task {
   quizQuestionsJson?: string // lowercase version
 }
 
+type TaskVisualStatus = 'completed' | 'overdue' | 'default'
+
+const normalizeTaskStatus = (value: unknown): TaskVisualStatus | undefined => {
+  if (value === null || value === undefined) return undefined
+
+  if (typeof value === 'number') {
+    if (value === 2) return 'completed'
+    if (value === 3) return 'overdue'
+    return undefined
+  }
+
+  const normalized = String(value).trim().toLowerCase().replace(/[\s_-]/g, '')
+  if (!normalized) return undefined
+
+  if (['completed', 'done', 'finished', 'success'].includes(normalized)) return 'completed'
+  if (['overdue', 'pastdue', 'late', 'expired'].includes(normalized)) return 'overdue'
+
+  return undefined
+}
+
+const resolveTaskVisualStatus = (task: Task): TaskVisualStatus => {
+  const rawStatus = task.taskStatus ?? task.TaskStatus
+  const normalizedStatus = normalizeTaskStatus(rawStatus)
+  if (normalizedStatus) return normalizedStatus
+
+  const dueDate = task.dueDate ?? task.DueDate
+  if (dueDate) {
+    const parsedDate = new Date(String(dueDate))
+    if (!Number.isNaN(parsedDate.getTime()) && parsedDate.getTime() < Date.now()) {
+      return 'overdue'
+    }
+  }
+
+  return 'default'
+}
+
+const getTaskVisualStyles = (status: TaskVisualStatus) => {
+  if (status === 'completed') {
+    return {
+      background: 'rgba(34, 197, 94, 0.06)',
+      borderColor: 'rgba(34, 197, 94, 0.3)',
+      leftAccent: 'var(--success-primary)',
+      badgeBackground: 'var(--success-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      secondaryColor: 'var(--success-primary)'
+    }
+  }
+
+  if (status === 'overdue') {
+    return {
+      background: 'rgba(207, 34, 46, 0.06)',
+      borderColor: 'rgba(207, 34, 46, 0.28)',
+      leftAccent: 'var(--danger-primary)',
+      badgeBackground: 'var(--danger-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      secondaryColor: 'var(--danger-primary)'
+    }
+  }
+
+  return {
+    background: 'var(--bg-surface)',
+    borderColor: 'var(--border-base)',
+    leftAccent: 'transparent',
+    badgeBackground: 'var(--text-disabled)',
+    badgeColor: 'var(--bg-surface)',
+    titleColor: 'var(--text-primary)',
+    secondaryColor: 'var(--text-secondary)'
+  }
+}
+
 const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   const { t } = useTranslation('student')
   const navigate = useNavigate()
@@ -322,12 +394,16 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
           {/* Task List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tasks.map((task, taskIdx) => {
+              const taskVisualStatus = resolveTaskVisualStatus(task)
+              const taskStyles = getTaskVisualStyles(taskVisualStatus)
+
               return (
                 <div
                   key={task.id || task.taskId || taskIdx}
                   style={{
-                    background: 'var(--bg-surface)', 
-                    border: '1px solid var(--border-base)',
+                    background: taskStyles.background,
+                    border: `1px solid ${taskStyles.borderColor}`,
+                    borderLeft: `3px solid ${taskStyles.leftAccent}`,
                     padding: 16, 
                     borderRadius: 2, 
                     display: 'flex', 
@@ -336,12 +412,12 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                     transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = taskStyles.borderColor }}
                 >
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%', 
-                    background: 'var(--text-disabled)', 
-                    color: 'var(--bg-surface)',
+                    background: taskStyles.badgeBackground,
+                    color: taskStyles.badgeColor,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
                     fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2
                   }}>
@@ -351,7 +427,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                       <p style={{
                         margin: 0, fontSize: 14, fontWeight: 600,
-                        color: 'var(--text-primary)'
+                        color: taskStyles.titleColor
                       }}>
                         {task.title || task.Title || task.description || task.Description || `Task ${taskIdx + 1}`}
                       </p>
@@ -391,7 +467,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                       </button>
                     </div>
                     {(task.description || task.Description) && (task.title || task.Title) && (
-                      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                      <p style={{ margin: '8px 0 0', fontSize: 13, color: taskStyles.secondaryColor }}>
                         {task.description || task.Description}
                       </p>
                     )}
@@ -429,28 +505,33 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                           textTransform: 'uppercase', borderRadius: 2, border: '1px solid currentColor',
                           color: (() => {
                             const status = task.taskStatus ?? task.TaskStatus;
-                            const statusStr = String(status).toLowerCase();
-                            // Handle both string and number values
+                            const statusStr = String(status).toLowerCase().replace(/[\s_-]/g, '');
                             if (statusStr === 'completed' || status === 2) return 'var(--success-primary)';
-                            if (statusStr === 'in_progress' || statusStr === 'inprogress' || status === 1) return 'var(--accent-primary)';
+                            if (statusStr === 'overdue' || statusStr === 'pastdue' || status === 3) return 'var(--danger-primary)';
+                            if (statusStr === 'inprogress' || status === 1) return 'var(--accent-primary)';
                             if (statusStr === 'pending' || status === 0) return 'var(--warning-primary)';
                             return 'var(--text-secondary)';
                           })()
                         }}>
                           {(() => {
                             const status = task.taskStatus ?? task.TaskStatus;
-                            const statusStr = String(status).toLowerCase();
-                            // Icons based on status
+                            const statusStr = String(status).toLowerCase().replace(/[\s_-]/g, '');
                             if (statusStr === 'completed' || status === 2) return '✅';
-                            if (statusStr === 'in_progress' || statusStr === 'inprogress' || status === 1) return '⏳';
+                            if (statusStr === 'overdue' || statusStr === 'pastdue' || status === 3) return '⚠️';
+                            if (statusStr === 'inprogress' || status === 1) return '⏳';
                             if (statusStr === 'pending' || status === 0) return '⏸️';
                             return '📋';
                           })()} {(() => {
                             const status = task.taskStatus ?? task.TaskStatus;
-                            // Convert number to string
                             if (status === 2) return 'Completed';
+                            if (status === 3) return 'Overdue';
                             if (status === 1) return 'In Progress';
                             if (status === 0) return 'Pending';
+                            const statusStr = String(status).toLowerCase().replace(/[\s_-]/g, '');
+                            if (statusStr === 'overdue' || statusStr === 'pastdue') return 'Overdue';
+                            if (statusStr === 'inprogress') return 'In Progress';
+                            if (statusStr === 'completed') return 'Completed';
+                            if (statusStr === 'pending') return 'Pending';
                             return String(status);
                           })()}
                         </span>
@@ -461,7 +542,9 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                         <span style={{
                           display: 'inline-block', padding: '2px 8px', fontSize: 11, fontWeight: 600,
                           borderRadius: 2, border: '1px solid currentColor',
-                          color: new Date(task.dueDate || task.DueDate!) < new Date() ? 'var(--danger-primary)' : 'var(--accent-primary)'
+                          color: taskVisualStatus === 'completed'
+                            ? 'var(--success-primary)'
+                            : (new Date(task.dueDate || task.DueDate!) < new Date() ? 'var(--danger-primary)' : 'var(--accent-primary)')
                         }}>
                           📅 {new Date(task.dueDate || task.DueDate!).toLocaleDateString('vi-VN', { 
                             month: 'short', 
