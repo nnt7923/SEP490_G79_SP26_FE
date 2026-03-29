@@ -28,6 +28,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const PRIORITY_PAGE_SIZE = 3
 const PRIORITY_ALL_PATH_KEY = '__all_paths__'
 const UTC_PLUS_7_TIMEZONE = 'Asia/Ho_Chi_Minh'
+const TIMELINE_LOAD_ERROR_CODE = 'timeline_load_error'
 const TIMELINE_COLORS = ['#5B8FF9', '#5AD8A6', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D']
 const TIMELINE_FROM_UTC = '2000-01-01T00:00:00.000Z'
 const TIMELINE_TO_UTC = '2100-01-01T00:00:00.000Z'
@@ -56,6 +57,15 @@ const toStartOfDay = (date: Date) => {
   const key = getUtc7DateKey(date)
   if (!key) return new Date(date)
   return new Date(`${key}T00:00:00+07:00`)
+}
+
+const getDateFromUtc7DateKey = (value?: string | null): Date | null => {
+  if (!value) return null
+  const normalized = String(value).trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null
+  const parsed = new Date(`${normalized}T00:00:00+07:00`)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed
 }
 
 const parseDueTime = (value?: string | null): number => {
@@ -116,6 +126,7 @@ const StudentIndex: React.FC = () => {
   const navigate = useNavigate()
   const { t, i18n } = useTranslation('student')
   const priorityQueueRef = React.useRef<HTMLDivElement | null>(null)
+  const sevenDayDateInputRef = React.useRef<HTMLInputElement | null>(null)
 
   const [timeline, setTimeline] = React.useState<TimelineResponse | null>(null)
   const [timelineLoading, setTimelineLoading] = React.useState(true)
@@ -124,6 +135,8 @@ const StudentIndex: React.FC = () => {
   const [priorityScope, setPriorityScope] = React.useState<'all' | 'overdue'>('all')
   const [selectedPriorityPathKey, setSelectedPriorityPathKey] = React.useState<string>(PRIORITY_ALL_PATH_KEY)
   const [selectedPriorityType, setSelectedPriorityType] = React.useState<PriorityType>('Lesson')
+  const [selectedSevenDayPathKey, setSelectedSevenDayPathKey] = React.useState<string>(PRIORITY_ALL_PATH_KEY)
+  const [selectedSevenDayType, setSelectedSevenDayType] = React.useState<PriorityType>('Lesson')
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false)
   const [priorityPages, setPriorityPages] = React.useState<Record<PriorityType, number>>({
     Lesson: 1,
@@ -149,14 +162,14 @@ const StudentIndex: React.FC = () => {
         setTimeline(data)
       } catch {
         setTimeline(null)
-        setTimelineError(t('dashboard.timeline.errorLoad'))
+        setTimelineError(TIMELINE_LOAD_ERROR_CODE)
       } finally {
         setTimelineLoading(false)
       }
     }
 
     fetchTimeline()
-  }, [t])
+  }, [])
 
   const items = React.useMemo(() => {
     return Array.isArray(timeline?.items) ? timeline.items : []
@@ -326,15 +339,97 @@ const StudentIndex: React.FC = () => {
       setActiveDayKey('')
       return
     }
-    if (!activeDayKey || !sevenDayBuckets.some((bucket) => bucket.key === activeDayKey)) {
+    if (!activeDayKey) {
       setActiveDayKey(sevenDayBuckets[0].key)
     }
   }, [sevenDayBuckets, activeDayKey])
 
-  const activeDayBucket = React.useMemo(
-    () => sevenDayBuckets.find((bucket) => bucket.key === activeDayKey) ?? sevenDayBuckets[0],
-    [sevenDayBuckets, activeDayKey]
+  const activeDayDate = React.useMemo(() => {
+    const fromKey = getDateFromUtc7DateKey(activeDayKey)
+    if (fromKey) return fromKey
+    return sevenDayBuckets[0]?.date
+  }, [activeDayKey, sevenDayBuckets])
+
+  const activeDayItems = React.useMemo(() => {
+    if (!activeDayDate) return []
+    return items
+      .filter((item) => isSameLocalDay(getTimelineItemScheduleDate(item), activeDayDate))
+      .sort((left, right) => parseTimelineItemScheduleTime(left) - parseTimelineItemScheduleTime(right))
+  }, [activeDayDate, items])
+
+  const sevenDayPathOptions = React.useMemo(() => {
+    const map = new Map<string, PriorityPathOption>()
+    const dayItems = Array.isArray(activeDayItems) ? activeDayItems : []
+
+    dayItems.forEach((item) => {
+      const key = buildPriorityPathKey(item)
+      const title = String(item.learningPathTitle || '').trim() || t('dashboard.timeline.unknownPath')
+      if (key && !map.has(key)) {
+        map.set(key, { key, title })
+      }
+    })
+
+    return Array.from(map.values()).sort((left, right) => left.title.localeCompare(right.title))
+  }, [activeDayItems, buildPriorityPathKey, t])
+
+  React.useEffect(() => {
+    if (selectedSevenDayPathKey === PRIORITY_ALL_PATH_KEY) return
+    const exists = sevenDayPathOptions.some((option) => option.key === selectedSevenDayPathKey)
+    if (!exists) setSelectedSevenDayPathKey(PRIORITY_ALL_PATH_KEY)
+  }, [selectedSevenDayPathKey, sevenDayPathOptions])
+
+  const filteredSevenDayItems = React.useMemo(() => {
+    const dayItems = Array.isArray(activeDayItems) ? activeDayItems : []
+    if (selectedSevenDayPathKey === PRIORITY_ALL_PATH_KEY) return dayItems
+    return dayItems.filter((item) => buildPriorityPathKey(item) === selectedSevenDayPathKey)
+  }, [activeDayItems, selectedSevenDayPathKey, buildPriorityPathKey])
+
+  const sevenDayGroupedItems = React.useMemo(() => {
+    const grouped: Record<PriorityType, TimelineItem[]> = {
+      Lesson: [],
+      Task: [],
+      Quiz: [],
+    }
+
+    filteredSevenDayItems.forEach((item) => {
+      if (item.itemType === 'Lesson' || item.itemType === 'Task' || item.itemType === 'Quiz') {
+        grouped[item.itemType].push(item)
+      }
+    })
+
+    return grouped
+  }, [filteredSevenDayItems])
+
+  React.useEffect(() => {
+    if (sevenDayGroupedItems[selectedSevenDayType].length > 0) return
+    const fallbackType = (['Lesson', 'Task', 'Quiz'] as PriorityType[])
+      .find((type) => sevenDayGroupedItems[type].length > 0)
+    if (fallbackType) setSelectedSevenDayType(fallbackType)
+  }, [selectedSevenDayType, sevenDayGroupedItems])
+
+  const selectedSevenDayItems = React.useMemo(
+    () => sevenDayGroupedItems[selectedSevenDayType],
+    [sevenDayGroupedItems, selectedSevenDayType]
   )
+
+  const visibleSevenDayItems = React.useMemo(
+    () => selectedSevenDayItems.slice(0, PRIORITY_PAGE_SIZE),
+    [selectedSevenDayItems]
+  )
+
+  const hiddenSevenDayItemCount = Math.max(0, selectedSevenDayItems.length - visibleSevenDayItems.length)
+
+  const openSevenDayCalendarPicker = React.useCallback(() => {
+    const input = sevenDayDateInputRef.current
+    if (!input) return
+    const pickerInput = input as HTMLInputElement & { showPicker?: () => void }
+    if (typeof pickerInput.showPicker === 'function') {
+      pickerInput.showPicker()
+      return
+    }
+    input.focus()
+    input.click()
+  }, [])
 
   const progressByPath = React.useMemo(() => {
     const groups = new Map<string, {
@@ -590,7 +685,7 @@ const StudentIndex: React.FC = () => {
             <div style={{ padding: 16, fontSize: 12, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.loading')}</div>
           ) : timelineError ? (
             <div style={{ padding: 16, border: '1px solid var(--danger-primary)', borderRadius: 2, color: 'var(--danger-primary)', background: 'var(--bg-red-tint)', fontSize: 12 }}>
-              {timelineError}
+              {timelineError === TIMELINE_LOAD_ERROR_CODE ? t('dashboard.timeline.errorLoad') : timelineError}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
@@ -632,7 +727,70 @@ const StudentIndex: React.FC = () => {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, marginBottom: 16 }}>
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16, height: 'fit-content' }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.timeline.sevenDaysTitle')}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.timeline.sevenDaysTitle')}</h3>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      ref={sevenDayDateInputRef}
+                      type="date"
+                      value={activeDayKey || ''}
+                      onChange={(event) => {
+                        const selectedDateKey = event.target.value
+                        if (!selectedDateKey) return
+                        setActiveDayKey(selectedDateKey)
+                      }}
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                      aria-hidden="true"
+                      tabIndex={-1}
+                    />
+                    <button
+                      type="button"
+                      onClick={openSevenDayCalendarPicker}
+                      title={t('dashboard.timeline.openCalendar')}
+                      aria-label={t('dashboard.timeline.openCalendar')}
+                      onMouseEnter={(event) => {
+                        event.currentTarget.style.borderColor = 'var(--accent-primary)'
+                        event.currentTarget.style.background = 'var(--bg-main)'
+                        event.currentTarget.style.color = 'var(--accent-primary)'
+                      }}
+                      onMouseLeave={(event) => {
+                        event.currentTarget.style.borderColor = 'var(--border-base)'
+                        event.currentTarget.style.background = 'transparent'
+                        event.currentTarget.style.color = 'var(--accent-primary)'
+                      }}
+                      onFocus={(event) => {
+                        event.currentTarget.style.borderColor = 'var(--accent-primary)'
+                        event.currentTarget.style.background = 'var(--bg-main)'
+                        event.currentTarget.style.color = 'var(--accent-primary)'
+                        event.currentTarget.style.outline = '2px solid var(--accent-primary)'
+                        event.currentTarget.style.outlineOffset = '2px'
+                      }}
+                      onBlur={(event) => {
+                        event.currentTarget.style.borderColor = 'var(--border-base)'
+                        event.currentTarget.style.background = 'transparent'
+                        event.currentTarget.style.color = 'var(--accent-primary)'
+                        event.currentTarget.style.outline = 'none'
+                        event.currentTarget.style.outlineOffset = ''
+                      }}
+                      style={{
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 2,
+                        width: 30,
+                        height: 30,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        background: 'transparent',
+                        color: 'var(--accent-primary)',
+                        lineHeight: 1,
+                        transition: 'all 0.12s ease'
+                      }}
+                    >
+                      <span aria-hidden="true" style={{ display: 'inline-block', fontSize: 14, lineHeight: 1 }}>📅</span>
+                    </button>
+                  </div>
+                </div>
                 <p style={{ margin: '6px 0 12px', fontSize: 13, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.sevenDaysSubtitle')}</p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6, marginBottom: 12 }}>
@@ -663,17 +821,63 @@ const StudentIndex: React.FC = () => {
 
                 <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 12 }}>
                   <p style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {t('dashboard.timeline.dayPanelTitle', { date: formatDisplayDate(activeDayBucket?.date) })}
+                    {t('dashboard.timeline.dayPanelTitle', { date: formatDisplayDate(activeDayDate) })}
                   </p>
-                  {(!activeDayBucket || activeDayBucket.items.length === 0) ? (
+                  {activeDayItems.length === 0 ? (
                     <p style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)' }}>{t('dashboard.timeline.emptyDay')}</p>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {activeDayBucket.items.map((item) => {
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label htmlFor="seven-day-path-filter" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                          {t('dashboard.timeline.learningPathFilterLabel')}
+                        </label>
+                        <select
+                          id="seven-day-path-filter"
+                          value={selectedSevenDayPathKey}
+                          onChange={(event) => setSelectedSevenDayPathKey(event.target.value)}
+                          style={{ border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', padding: '6px 8px', fontSize: 12, maxWidth: 360 }}
+                        >
+                          <option value={PRIORITY_ALL_PATH_KEY}>{t('dashboard.timeline.allLearningPaths')}</option>
+                          {sevenDayPathOptions.map((option) => (
+                            <option key={option.key} value={option.key}>{option.title}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+                        {(['Lesson', 'Task', 'Quiz'] as PriorityType[]).map((type) => {
+                          const isActive = selectedSevenDayType === type
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setSelectedSevenDayType(type)}
+                              style={{
+                                border: isActive ? '1px solid var(--accent-primary)' : '1px solid var(--border-base)',
+                                background: isActive ? 'var(--bg-main)' : 'var(--bg-surface-short)',
+                                color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                borderRadius: 999,
+                                padding: '4px 10px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {getPriorityTypeLabel(type)} ({sevenDayGroupedItems[type].length})
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {selectedSevenDayItems.length === 0 ? (
+                        <div style={{ border: '1px dashed var(--border-base)', borderRadius: 2, padding: 10, textAlign: 'center', fontSize: 11, color: 'var(--text-secondary)' }}>
+                          {t('dashboard.timeline.emptyTypeItems', { type: getPriorityTypeLabel(selectedSevenDayType).toLowerCase() })}
+                        </div>
+                      ) : visibleSevenDayItems.map((item) => {
                         const isCompleted = Boolean(item.isCompleted)
                         return (
                           <div
-                            key={`${activeDayBucket.key}-${item.itemType}-${item.itemId}`}
+                            key={`${activeDayKey || 'selected-day'}-${item.itemType}-${item.itemId}`}
                             role="button"
                             tabIndex={0}
                             onClick={() => handleTimelineItemClick(item)}
@@ -700,6 +904,12 @@ const StudentIndex: React.FC = () => {
                           </div>
                         )
                       })}
+
+                      {hiddenSevenDayItemCount > 0 && (
+                        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
+                          {t('dashboard.timeline.moreItems', { count: hiddenSevenDayItemCount })}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
