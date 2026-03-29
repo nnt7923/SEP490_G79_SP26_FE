@@ -5,10 +5,14 @@ import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from './components/StudentSideBar'
-import { AlertTriangle, CheckCircle2, Clock3, Flag, Circle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock3, Flag, Circle, ArrowRight, X } from 'lucide-react'
 import { getTimeline, type TimelineItem, type TimelineResponse } from '../../../services/TimelineService'
 import LearningPathService from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
+import useAppNotificationStore from '../../../store/useAppNotificationStore'
+import useNotificationStore from '../../../store/useNotificationStore'
+import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
+import type { NotificationDto } from '../../../types/notification'
 
 type DayBucket = {
   key: string
@@ -32,6 +36,7 @@ const TIMELINE_LOAD_ERROR_CODE = 'timeline_load_error'
 const TIMELINE_COLORS = ['#5B8FF9', '#5AD8A6', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D']
 const TIMELINE_FROM_UTC = '2000-01-01T00:00:00.000Z'
 const TIMELINE_TO_UTC = '2100-01-01T00:00:00.000Z'
+const DISMISSED_EXPIRING_NOTICE_KEY = 'student-dashboard-expiring-notice-dismissed'
 
 const getUtc7DateKey = (value?: Date | string | null): string | null => {
   if (!value) return null
@@ -125,6 +130,10 @@ const StudentIndex: React.FC = () => {
   const avatarUrl = String(user?.avatarUrl ?? '').trim()
   const navigate = useNavigate()
   const { t, i18n } = useTranslation('student')
+  const notificationItems = useAppNotificationStore((state) => state.items)
+  const notificationPanelItems = useAppNotificationStore((state) => state.panelItems)
+  const markNotificationAsRead = useAppNotificationStore((state) => state.markAsRead)
+  const showToast = useNotificationStore((state) => state.showToast)
   const priorityQueueRef = React.useRef<HTMLDivElement | null>(null)
   const sevenDayDateInputRef = React.useRef<HTMLInputElement | null>(null)
 
@@ -138,6 +147,7 @@ const StudentIndex: React.FC = () => {
   const [selectedSevenDayPathKey, setSelectedSevenDayPathKey] = React.useState<string>(PRIORITY_ALL_PATH_KEY)
   const [selectedSevenDayType, setSelectedSevenDayType] = React.useState<PriorityType>('Lesson')
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false)
+  const [showExpiringSoonModal, setShowExpiringSoonModal] = React.useState(false)
   const [priorityPages, setPriorityPages] = React.useState<Record<PriorityType, number>>({
     Lesson: 1,
     Task: 1,
@@ -647,6 +657,57 @@ const StudentIndex: React.FC = () => {
     actions: [],
     brand: { name: 'Dashboard', subtitle: 'Learning' },
   }
+
+  const expiringSoonNotification = React.useMemo<NotificationDto | null>(() => {
+    const seen = new Set<string>()
+    const deduped = [...notificationPanelItems, ...notificationItems].filter((item) => {
+      if (!item.notificationId || seen.has(item.notificationId)) return false
+      seen.add(item.notificationId)
+      return true
+    })
+
+    const matched = deduped
+      .filter((item) => String(item.type || '').trim() === 'PlanExpiringSoon')
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+
+    return matched[0] ?? null
+  }, [notificationItems, notificationPanelItems])
+
+  const handleExpiringSoonBannerClick = React.useCallback(async () => {
+    if (!expiringSoonNotification) return
+
+    try {
+      setShowExpiringSoonModal(false)
+      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, (notificationId) => markNotificationAsRead(notificationId))
+    } catch (error: any) {
+      showToast(error?.message || 'Failed to open subscription update screen.', 'error')
+    }
+  }, [expiringSoonNotification, markNotificationAsRead, navigate, showToast])
+
+  React.useEffect(() => {
+    if (!expiringSoonNotification?.notificationId) {
+      setShowExpiringSoonModal(false)
+      return
+    }
+
+    try {
+      const dismissedId = sessionStorage.getItem(DISMISSED_EXPIRING_NOTICE_KEY)
+      setShowExpiringSoonModal(dismissedId !== expiringSoonNotification.notificationId)
+    } catch {
+      setShowExpiringSoonModal(true)
+    }
+  }, [expiringSoonNotification?.notificationId])
+
+  const handleCloseExpiringSoonModal = React.useCallback(() => {
+    setShowExpiringSoonModal(false)
+    if (!expiringSoonNotification?.notificationId) return
+
+    try {
+      sessionStorage.setItem(DISMISSED_EXPIRING_NOTICE_KEY, expiringSoonNotification.notificationId)
+    } catch {
+      // ignore storage failures
+    }
+  }, [expiringSoonNotification?.notificationId])
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -1163,6 +1224,144 @@ const StudentIndex: React.FC = () => {
         )}
 
       </div>
+
+      {showExpiringSoonModal && expiringSoonNotification && (
+        <div
+          onClick={handleCloseExpiringSoonModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 80,
+            background: 'rgba(15, 23, 42, 0.28)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="expiring-plan-modal-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 430,
+              borderRadius: 14,
+              border: '1px solid rgba(245, 158, 11, 0.2)',
+              background: 'var(--bg-surface)',
+              boxShadow: '0 24px 60px rgba(15, 23, 42, 0.2)',
+              padding: 22,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <button
+                type="button"
+                onClick={handleCloseExpiringSoonModal}
+                aria-label="Close"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: 2,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <div
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(180deg, #4ade80, #22c55e)',
+                  color: '#fff',
+                  boxShadow: '0 16px 30px rgba(34, 197, 94, 0.28)',
+                }}
+              >
+                <AlertTriangle size={28} />
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: 18 }}>
+              <h2 id="expiring-plan-modal-title" style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
+                {expiringSoonNotification.title || t('overview.subscriptionNotice.title')}
+              </h2>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65, color: 'var(--text-secondary)' }}>
+                {expiringSoonNotification.message || t('overview.subscriptionNotice.description')}
+              </p>
+            </div>
+
+            <div
+              style={{
+                border: '1px solid var(--border-base)',
+                borderRadius: 10,
+                background: 'var(--bg-main)',
+                padding: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {t('overview.subscriptionNotice.eyebrow')}
+              </div>
+              <button
+                type="button"
+                onClick={() => { void handleExpiringSoonBannerClick() }}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  border: '1px solid rgba(245, 158, 11, 0.22)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              >
+                <span>{t('overview.subscriptionNotice.action')}</span>
+                <ArrowRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseExpiringSoonModal}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border-base)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Để sau
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </Layout>
   )
 }

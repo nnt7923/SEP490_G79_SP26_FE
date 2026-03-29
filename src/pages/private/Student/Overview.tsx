@@ -7,7 +7,11 @@ import Footer from '../../../components/Layout/Footer'
 import { getMyGoals } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
-import { FileText, Target, BookOpen, GraduationCap } from 'lucide-react'
+import { FileText, Target, BookOpen, GraduationCap, AlertTriangle, ArrowRight } from 'lucide-react'
+import useAppNotificationStore from '../../../store/useAppNotificationStore'
+import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
+import useNotificationStore from '../../../store/useNotificationStore'
+import type { NotificationDto } from '../../../types/notification'
 
 const StudentOverview: React.FC = () => {
   const { user } = useAuthStore()
@@ -15,6 +19,10 @@ const StudentOverview: React.FC = () => {
   const navigate = useNavigate()
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
+  const items = useAppNotificationStore((state) => state.items)
+  const panelItems = useAppNotificationStore((state) => state.panelItems)
+  const markAsRead = useAppNotificationStore((state) => state.markAsRead)
+  const showToast = useNotificationStore((state) => state.showToast)
   const [plansCount, setPlansCount] = React.useState(0)
   const [recentPlans, setRecentPlans] = React.useState<any[]>([])
   const [recentGoals, setRecentGoals] = React.useState<any[]>([])
@@ -74,6 +82,31 @@ const StudentOverview: React.FC = () => {
     ? Math.round((stats.completedLessons / stats.totalLessons) * 100)
     : 0
 
+  const expiringSoonNotification = React.useMemo<NotificationDto | null>(() => {
+    const seen = new Set<string>()
+    const deduped = [...panelItems, ...items].filter((item) => {
+      if (!item.notificationId || seen.has(item.notificationId)) return false
+      seen.add(item.notificationId)
+      return true
+    })
+
+    const matched = deduped
+      .filter((item) => String(item.type || '').trim() === 'PlanExpiringSoon')
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+
+    return matched[0] ?? null
+  }, [items, panelItems])
+
+  const handleSubscriptionNoticeClick = React.useCallback(async () => {
+    if (!expiringSoonNotification) return
+
+    try {
+      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, (notificationId) => markAsRead(notificationId))
+    } catch (error: any) {
+      showToast(error?.message || tc('notifications.markReadError'), 'error')
+    }
+  }, [expiringSoonNotification, markAsRead, navigate, showToast, tc])
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-surface)' }}>
       <Header />
@@ -99,6 +132,75 @@ const StudentOverview: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {expiringSoonNotification && (
+            <button
+              type="button"
+              onClick={() => { void handleSubscriptionNoticeClick() }}
+              style={{
+                width: '100%',
+                maxWidth: 760,
+                margin: '0 auto 20px',
+                display: 'block',
+                padding: '18px 22px',
+                borderRadius: 8,
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(251, 191, 36, 0.08))',
+                textAlign: 'left',
+                cursor: 'pointer',
+                boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 999,
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(245, 158, 11, 0.18)',
+                      color: '#b45309',
+                    }}
+                  >
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#b45309' }}>
+                      <span>{t('overview.subscriptionNotice.eyebrow')}</span>
+                    </div>
+                    <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {expiringSoonNotification.title || t('overview.subscriptionNotice.title')}
+                    </h2>
+                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                      {expiringSoonNotification.message || t('overview.subscriptionNotice.description')}
+                    </p>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexShrink: 0,
+                    padding: '10px 12px',
+                    borderRadius: 999,
+                    background: 'rgba(255, 255, 255, 0.72)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    color: 'var(--text-primary)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>{t('overview.subscriptionNotice.action')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </div>
+            </button>
+          )}
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)', fontSize: 13 }}>{tc('status.loading')}</div>

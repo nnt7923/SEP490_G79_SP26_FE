@@ -3,6 +3,10 @@ import useAuthStore from '../../store/useAuthStore'
 import useAppNotificationStore from '../../store/useAppNotificationStore'
 import NotificationService from '../../services/NotificationService'
 import { disconnectNotificationHub, subscribeToNotifications } from '../../services/SignalR'
+import {
+  ensureBrowserNotificationPermission,
+  showBrowserNotification,
+} from './browser'
 
 const NotificationBootstrap: React.FC = () => {
   const token = useAuthStore((state) => state.token)
@@ -25,6 +29,7 @@ const NotificationBootstrap: React.FC = () => {
       try {
         await bootstrap()
         if (!active) return
+        void ensureBrowserNotificationPermission()
 
         unsubscribe = await subscribeToNotifications({
           onReceiveNotification: (payload) => {
@@ -36,6 +41,7 @@ const NotificationBootstrap: React.FC = () => {
             prependRealtimeItem(notification)
             if (!notification.isRead && !existing) {
               syncUnreadCount(useAppNotificationStore.getState().unreadCount + 1)
+              showBrowserNotification(notification)
             }
           },
           onUnreadCountChanged: (payload) => {

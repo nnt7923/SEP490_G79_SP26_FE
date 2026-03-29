@@ -29,6 +29,12 @@
       "setFirst": "đặt mục tiêu đầu tiên",
       "untitled": "Mục tiêu chưa đặt tên",
       "noDescription": "Không có mô tả"
+    },
+    "subscriptionNotice": {
+      "eyebrow": "Gói sắp hết hạn",
+      "title": "Subscription của bạn sắp hết hạn",
+      "description": "Cập nhật gói ngay để không bị gián đoạn trong quá trình học.",
+      "action": "Cập nhật gói"
     }
   },
   "goals": {

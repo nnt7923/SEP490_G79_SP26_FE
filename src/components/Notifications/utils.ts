@@ -81,6 +81,7 @@ export function formatNotificationDate(value?: string | null) {
 export function resolveNotificationNavigationTarget(notification: NotificationDto): NotificationNavigationTarget | null {
   const action = notification.action
   const targetUrl = String(action?.targetUrl || '').trim()
+  const notificationType = String(notification.type || '').trim()
 
   if (action?.targetType === 'lesson') {
     const lessonId = action.lessonId || action.targetId
@@ -101,10 +102,6 @@ export function resolveNotificationNavigationTarget(notification: NotificationDt
         },
       }
     }
-  }
-
-  if (isSupportedNotificationPath(targetUrl)) {
-    return { path: targetUrl }
   }
 
   if (action?.targetType === 'chapter') {
@@ -133,10 +130,14 @@ export function resolveNotificationNavigationTarget(notification: NotificationDt
   }
 
   if (action?.targetType === 'subscription') {
-    if (notification.type === 'PlanExpired') {
+    if (notificationType === 'PlanExpired' || notificationType === 'PlanExpiringSoon') {
       return { path: ROUTER.SUBSCRIPTION }
     }
     return { path: ROUTER.SUBSCRIPTION_CURRENT }
+  }
+
+  if (isSupportedNotificationPath(targetUrl)) {
+    return { path: targetUrl }
   }
 
   return null

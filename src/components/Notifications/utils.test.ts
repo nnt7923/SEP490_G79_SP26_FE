@@ -62,4 +62,31 @@ describe('notification navigation resolver', () => {
 
     expect(target).toEqual({ path: '/subscription' })
   })
+
+  it('routes expiring-soon plan notifications to the subscription update screen', () => {
+    const target = resolveNotificationNavigationTarget({
+      notificationId: 'n-3',
+      userId: 'u-1',
+      type: 'PlanExpiringSoon',
+      title: 'Plan expiring soon',
+      message: null,
+      createdAt: '2026-03-30T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'High',
+      channels: ['Web'],
+      action: {
+        targetType: 'subscription',
+        targetId: null,
+        targetUrl: '/subscription/current',
+        route: '/subscription/current',
+        taskId: null,
+        chapterId: null,
+        lessonId: null,
+        learningPathId: null,
+      },
+    })
+
+    expect(target).toEqual({ path: '/subscription' })
+  })
 })

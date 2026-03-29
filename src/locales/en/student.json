@@ -29,6 +29,12 @@
       "setFirst": "set first goal",
       "untitled": "Untitled Goal",
       "noDescription": "No description"
+    },
+    "subscriptionNotice": {
+      "eyebrow": "Plan expiring soon",
+      "title": "Your subscription is about to expire",
+      "description": "Update your plan now to avoid interruptions while learning.",
+      "action": "Update plan"
     }
   },
   "goals": {
