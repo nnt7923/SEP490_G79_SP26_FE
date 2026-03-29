@@ -148,6 +148,8 @@ const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
   const pathId = location.state?.pathId
   const initialSkeleton = location.state?.skeleton
+  const activeChapterFromNav = location.state?.activeChapterId || null
+  const selectedTaskFromNav = location.state?.selectedTaskId || null
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { t } = useTranslation('student')
@@ -158,7 +160,8 @@ const MyPlansDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(!initialSkeleton)
   const [error, setError] = useState<string | null>(null)
 
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(location.state?.activeChapterId || null)
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(activeChapterFromNav)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(selectedTaskFromNav)
   const detailScrollRef = useRef<HTMLDivElement>(null)
   // Track chapter completion status
   const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
@@ -172,6 +175,14 @@ const MyPlansDetailPage: React.FC = () => {
   useEffect(() => {
     fetchPlanDetail()
   }, [pathId, location?.key, user?.id])
+
+  useEffect(() => {
+    setActiveChapterId(activeChapterFromNav)
+  }, [activeChapterFromNav, pathId, location?.key])
+
+  useEffect(() => {
+    setSelectedTaskId(selectedTaskFromNav)
+  }, [selectedTaskFromNav, location?.key])
 
   const fetchPlanDetail = async () => {
     if (!user?.id || !pathId) return
@@ -511,7 +522,10 @@ const MyPlansDetailPage: React.FC = () => {
                     >
                       <button
                         className={`chapter-btn ${isActive ? 'active' : ''}`}
-                        onClick={() => setActiveChapterId(chapter.id)}
+                        onClick={() => {
+                          setActiveChapterId(chapter.id)
+                          setSelectedTaskId(null)
+                        }}
                         style={{
                           width: '100%', padding: '16px', display: 'flex', alignItems: 'center', gap: 12,
                           background: isActive ? 'var(--bg-surface)' : 'transparent',
@@ -728,6 +742,7 @@ const MyPlansDetailPage: React.FC = () => {
                       <div style={{ marginTop: 'auto' }}>
                         <ChapterTasks
                           chapterId={chapter.id!}
+                          selectedTaskId={chapter.id === activeChapterId ? selectedTaskId : null}
                           onAllTasksCompleted={handleChapterTasksCompleted}
                         />
                       </div>

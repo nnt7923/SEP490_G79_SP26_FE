@@ -37,6 +37,7 @@ const ROUTER = {
   MENTOR_PROFILE: "/mentor/profile",
   // Student resources
   MY_RESOURCES: "/my-resources",
+  NOTIFICATIONS: "/notifications",
   // Quiz
   QUIZ: "/quiz/:quizId",
   // Task (Chapter Tasks)

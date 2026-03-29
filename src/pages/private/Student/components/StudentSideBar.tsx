@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown } from 'lucide-react'
+import useChatStore from '../../../../store/useChatStore'
 
 export const getStudentSidebarConfig = (): SidebarNavItem[] => {
   // Note: We can't use hooks directly in non-component functions,
@@ -52,6 +53,8 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
 // Hook version for use in React components
 export const useStudentSidebarConfig = (): SidebarNavItem[] => {
   const { t } = useTranslation('common')
+  const globalUnreadCount = useChatStore((state) => state.globalUnreadCount)
+
   return [
     { label: t('sidebar.overview'), path: '/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: t('sidebar.myPlans'), path: '/my-plans', icon: <Map size={18} /> },
@@ -59,7 +62,7 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.progress'), path: '/plans', icon: <TrendingUp size={18} /> },
     { label: t('sidebar.resources'), path: '/my-resources', icon: <Library size={18} /> },
     { label: t('sidebar.profile'), path: '/profile', icon: <User size={18} /> },
-    { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} /> },
+    { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} />, badge: globalUnreadCount },
     { label: t('sidebar.upgrade'), path: '/subscription', icon: <Crown size={18} className="text-yellow-500" /> },
   ]
 }

@@ -16,6 +16,7 @@ declare const ROUTER: {
   PROFILE: string
   CHANGE_PASSWORD: string
   MY_RESOURCES: string
+  NOTIFICATIONS: string
   ADMIN_DASHBOARD: string
   MENTOR_DASHBOARD: string
   MENTOR_AI_PLANS: string

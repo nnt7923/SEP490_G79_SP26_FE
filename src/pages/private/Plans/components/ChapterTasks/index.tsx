@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { requestChapterTasks } from '../../../../../services/SignalR'
 import { FocusSessionService, SessionType } from '../../../../../services'
 import type { FocusSession } from '../../../../../services/FocusSessionService'
@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 
 interface ChapterTasksProps {
   chapterId: string
+  selectedTaskId?: string | null
   onAllTasksCompleted?: (chapterId: string, completed: boolean) => void
 }
 
@@ -110,7 +111,7 @@ const getTaskVisualStyles = (status: TaskVisualStatus) => {
   }
 }
 
-const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
+const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId = null }) => {
   const { t } = useTranslation('student')
   const navigate = useNavigate()
   const [tasks, setTasks] = useState<Task[]>([])
@@ -123,13 +124,16 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   const [creatingSession, setCreatingSession] = useState<boolean>(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
   const [activeSessions, setActiveSessions] = useState<Record<string, FocusSession>>({})
+  const taskRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  const getTaskId = (task: Task) => task.id || task.taskId || task.TaskId || null
 
   // Check for active sessions for all tasks
   const checkActiveSessions = async (taskList: Task[]) => {
     const activeSessionsMap: Record<string, FocusSession> = {}
     
     for (const task of taskList) {
-      const taskId = task.id || task.taskId || task.TaskId
+      const taskId = getTaskId(task)
       if (taskId) {
         try {
           const activeSession = await FocusSessionService.getActiveSession(taskId)
@@ -202,7 +206,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
   // Handle task click - show focus session dialog or navigate to active session
   const handleTaskClick = async (task: Task, taskIdx: number) => {
     // Try both id and taskId fields from API
-    const taskId = task.id || task.taskId || task.TaskId
+    const taskId = getTaskId(task)
     if (!taskId) {
       setToast({ message: t('task.invalidId'), type: 'error' })
       return
@@ -335,6 +339,22 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!loaded || !selectedTaskId) return
+
+    const targetNode = taskRefs.current[selectedTaskId]
+    if (!targetNode) return
+
+    const timer = window.setTimeout(() => {
+      targetNode.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 150)
+
+    return () => window.clearTimeout(timer)
+  }, [loaded, selectedTaskId, tasks])
+
   return (
     <div style={{
       padding: '24px',
@@ -396,23 +416,34 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
             {tasks.map((task, taskIdx) => {
               const taskVisualStatus = resolveTaskVisualStatus(task)
               const taskStyles = getTaskVisualStyles(taskVisualStatus)
+              const taskId = getTaskId(task)
+              const isSelectedTask = selectedTaskId !== null && taskId === selectedTaskId
 
               return (
                 <div
                   key={task.id || task.taskId || taskIdx}
+                  ref={(node) => {
+                    if (!taskId) return
+                    if (node) {
+                      taskRefs.current[taskId] = node
+                      return
+                    }
+                    delete taskRefs.current[taskId]
+                  }}
                   style={{
                     background: taskStyles.background,
-                    border: `1px solid ${taskStyles.borderColor}`,
+                    border: `1px solid ${isSelectedTask ? 'var(--accent-primary)' : taskStyles.borderColor}`,
                     borderLeft: `3px solid ${taskStyles.leftAccent}`,
                     padding: 16, 
                     borderRadius: 2, 
                     display: 'flex', 
                     gap: 16, 
                     alignItems: 'flex-start',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: isSelectedTask ? '0 0 0 2px rgba(59, 130, 246, 0.18)' : 'none'
                   }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = taskStyles.borderColor }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = isSelectedTask ? 'var(--accent-primary)' : taskStyles.borderColor }}
                 >
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%', 
@@ -460,7 +491,6 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId }) => {
                       >
                         <Play size={14} />
                         {(() => {
-                          const taskId = task.id || task.taskId || task.TaskId
                           const hasActiveSession = taskId && activeSessions[taskId]
                           return hasActiveSession ? 'Quay trở lại phiên' : t('task.focus')
                         })()}

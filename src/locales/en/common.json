@@ -94,6 +94,18 @@
     "community": "Community",
     "logout": "Logout"
   },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Stay on top of overdue work and plan status updates.",
+    "empty": "No notifications yet.",
+    "viewAll": "View all",
+    "unreadOnly": "Unread only",
+    "refresh": "Refresh",
+    "fetchError": "Failed to load notifications.",
+    "markReadError": "Failed to sync notification state.",
+    "pageLabel": "Page {{page}}",
+    "unreadCountLabel": "{{count}} unread"
+  },
   "footer": {
     "tagline1": "Personalized learning paths",
     "tagline2": "powered by AI",

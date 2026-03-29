@@ -125,8 +125,22 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span style={{ fontSize: 12, opacity: active ? 1 : 0.7 }}>{item.icon}</span>
                 <span style={{ fontSize: 13, flex: 1 }}>{item.label}</span>
                 {item.badge && (
-                  <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--danger-primary)', color: 'var(--bg-surface-short)', borderRadius: 2, fontWeight: 700 }}>
-                    {item.badge}
+                  <span style={{
+                    minWidth: 18,
+                    height: 18,
+                    padding: '0 5px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--danger-primary)',
+                    color: '#fff',
+                    borderRadius: 999,
+                    fontSize: 10,
+                    lineHeight: 1,
+                    fontWeight: 700,
+                    boxShadow: '0 0 0 2px var(--bg-surface)',
+                  }}>
+                    {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
               </Link>

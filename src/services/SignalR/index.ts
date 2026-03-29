@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr'
 import useAuthStore from '../../store/useAuthStore'
+import type { NotificationDto } from '../../types/notification'
 
 // ==== Hub URLs ====
 const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
@@ -20,6 +21,7 @@ const QUIZ_HUB_URL = `${HUB_BASE}/hubs/quiz`
 const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
+const NOTIFICATION_HUB_URL = `${HUB_BASE}/hubs/notification`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
 
 
@@ -31,6 +33,11 @@ let quizHub: signalR.HubConnection | null = null
 let summaryHub: signalR.HubConnection | null = null
 let learningPathHub: signalR.HubConnection | null = null
 let tutorHub: signalR.HubConnection | null = null
+let notificationHub: signalR.HubConnection | null = null
+let notificationHubBound = false
+
+const notificationReceiveListeners = new Set<(payload: NotificationDto | unknown) => void>()
+const notificationUnreadCountListeners = new Set<(payload: unknown) => void>()
 
 // single-flight guards (avoid duplicate invokes for the same id)
 const inflightLesson = new Map<string, Promise<any>>()
@@ -159,6 +166,66 @@ export async function getTutorHub(): Promise<signalR.HubConnection> {
   }
   await ensureStarted(tutorHub, 'tutor')
   return tutorHub
+}
+
+function bindNotificationHubListeners(hub: signalR.HubConnection) {
+  if (notificationHubBound) return
+
+  hub.on('ReceiveNotification', (payload: NotificationDto | unknown) => {
+    notificationReceiveListeners.forEach((listener) => listener(payload))
+  })
+  hub.on('NotificationUnreadCountChanged', (payload: unknown) => {
+    notificationUnreadCountListeners.forEach((listener) => listener(payload))
+  })
+
+  notificationHubBound = true
+}
+
+export async function getNotificationHub(): Promise<signalR.HubConnection> {
+  if (!notificationHub) {
+    notificationHub = buildConnection(NOTIFICATION_HUB_URL)
+  }
+  await ensureStarted(notificationHub, 'notification')
+  bindNotificationHubListeners(notificationHub)
+  return notificationHub
+}
+
+export async function subscribeToNotifications(handlers: {
+  onReceiveNotification?: (payload: NotificationDto | unknown) => void
+  onUnreadCountChanged?: (payload: unknown) => void
+}): Promise<() => void> {
+  if (handlers.onReceiveNotification) {
+    notificationReceiveListeners.add(handlers.onReceiveNotification)
+  }
+  if (handlers.onUnreadCountChanged) {
+    notificationUnreadCountListeners.add(handlers.onUnreadCountChanged)
+  }
+
+  await getNotificationHub()
+
+  return () => {
+    if (handlers.onReceiveNotification) {
+      notificationReceiveListeners.delete(handlers.onReceiveNotification)
+    }
+    if (handlers.onUnreadCountChanged) {
+      notificationUnreadCountListeners.delete(handlers.onUnreadCountChanged)
+    }
+  }
+}
+
+export async function disconnectNotificationHub(): Promise<void> {
+  try {
+    if (notificationHub && notificationHub.state !== signalR.HubConnectionState.Disconnected) {
+      await notificationHub.stop()
+    }
+  } catch {
+    // ignore
+  } finally {
+    notificationReceiveListeners.clear()
+    notificationUnreadCountListeners.clear()
+    notificationHub = null
+    notificationHubBound = false
+  }
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
@@ -1492,6 +1559,9 @@ export async function disconnectHubs(): Promise<void> {
     if (tutorHub && tutorHub.state !== signalR.HubConnectionState.Disconnected) {
       await tutorHub.stop()
     }
+    if (notificationHub && notificationHub.state !== signalR.HubConnectionState.Disconnected) {
+      await notificationHub.stop()
+    }
 
     // Reset all hub references to null so they get recreated with new token
     lessonHub = null
@@ -1501,6 +1571,8 @@ export async function disconnectHubs(): Promise<void> {
     summaryHub = null
     learningPathHub = null
     tutorHub = null
+    notificationHub = null
+    notificationHubBound = false
 
     // Clear all inflight requests
     inflightLesson.clear()
@@ -1516,6 +1588,8 @@ export async function disconnectHubs(): Promise<void> {
     inflightTutorMessages.clear()
     inflightTutorMessageHistory.clear()
     inflightTutorConversationResolve.clear()
+    notificationReceiveListeners.clear()
+    notificationUnreadCountListeners.clear()
   } catch {
     // ignore
   }

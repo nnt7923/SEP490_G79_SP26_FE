@@ -94,6 +94,18 @@
     "community": "Cộng đồng",
     "logout": "Đăng xuất"
   },
+  "notifications": {
+    "title": "Thông báo",
+    "subtitle": "Theo dõi công việc quá hạn và trạng thái gói dịch vụ.",
+    "empty": "Chưa có thông báo nào.",
+    "viewAll": "Xem tất cả",
+    "unreadOnly": "Chỉ hiện chưa đọc",
+    "refresh": "Tải lại",
+    "fetchError": "Không thể tải thông báo.",
+    "markReadError": "Không thể đồng bộ trạng thái thông báo.",
+    "pageLabel": "Trang {{page}}",
+    "unreadCountLabel": "{{count}} chưa đọc"
+  },
   "footer": {
     "tagline1": "Lộ trình học tập cá nhân hóa",
     "tagline2": "được hỗ trợ bởi AI",

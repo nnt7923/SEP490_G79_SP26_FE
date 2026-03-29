@@ -2,6 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import ROUTER from '../../../../router/ROUTER'
 import { LayoutDashboard, BookOpen, Users, GraduationCap, MessageSquare, User, Sparkles, FolderOpen } from 'lucide-react'
+import useChatStore from '../../../../store/useChatStore'
 
 export type MentorNavItem = {
   label: string
@@ -25,6 +26,8 @@ export const getMentorSidebarConfig = (): MentorNavItem[] => {
 // Hook version for use in React components
 export const useMentorSidebarConfig = (): MentorNavItem[] => {
   const { t } = useTranslation('common')
+  const globalUnreadCount = useChatStore((state) => state.globalUnreadCount)
+
   return [
     { label: t('sidebar.overview'), path: ROUTER.MENTOR_DASHBOARD, icon: <LayoutDashboard size={18} /> },
     { label: t('sidebar.subjects'), path: '/mentor/subjects', icon: <BookOpen size={18} /> },
@@ -32,7 +35,7 @@ export const useMentorSidebarConfig = (): MentorNavItem[] => {
     { label: t('sidebar.students'), path: '/mentor/students', icon: <GraduationCap size={18} /> },
     { label: t('sidebar.aiPlans'), path: ROUTER.MENTOR_AI_PLANS, icon: <Sparkles size={18} /> },
     { label: t('sidebar.drafts'), path: ROUTER.MENTOR_DRAFTS, icon: <FolderOpen size={18} /> },
-    { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} /> },
+    { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} />, badge: globalUnreadCount },
     { label: t('sidebar.profile'), path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }

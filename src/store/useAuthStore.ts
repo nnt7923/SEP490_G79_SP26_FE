@@ -94,6 +94,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.removeItem('userRole')
     } catch { }
     try { AuthService.clearState?.() } catch { }
+    try {
+      import('./useAppNotificationStore').then(({ default: useAppNotificationStore }) => {
+        useAppNotificationStore.getState().reset()
+      })
+    } catch { }
   },
 
   register: async (payload) => {
