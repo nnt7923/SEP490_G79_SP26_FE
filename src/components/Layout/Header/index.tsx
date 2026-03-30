@@ -373,6 +373,7 @@ const Header: React.FC = () => {
                       justifyContent: 'center',
                       width: 34,
                       height: 34,
+                      padding: 0,
                       color: 'var(--text-primary)',
                       background: notificationsOpen || unreadNotificationCount > 0 ? 'var(--bg-main)' : 'transparent',
                       border: notificationsOpen || unreadNotificationCount > 0 ? '1px solid var(--border-base)' : '1px solid transparent',

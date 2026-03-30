@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
 import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown } from 'lucide-react'
+import useChatUnreadBadge from '../../../../hooks/useChatUnreadBadge'
 import useChatStore from '../../../../store/useChatStore'
 
 export const getStudentSidebarConfig = (): SidebarNavItem[] => {
@@ -53,6 +54,7 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
 // Hook version for use in React components
 export const useStudentSidebarConfig = (): SidebarNavItem[] => {
   const { t } = useTranslation('common')
+  useChatUnreadBadge()
   const globalUnreadCount = useChatStore((state) => state.globalUnreadCount)
 
   return [

@@ -2,6 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import ROUTER from '../../../../router/ROUTER'
 import { LayoutDashboard, BookOpen, Users, GraduationCap, MessageSquare, User, Sparkles, FolderOpen } from 'lucide-react'
+import useChatUnreadBadge from '../../../../hooks/useChatUnreadBadge'
 import useChatStore from '../../../../store/useChatStore'
 
 export type MentorNavItem = {
@@ -26,6 +27,7 @@ export const getMentorSidebarConfig = (): MentorNavItem[] => {
 // Hook version for use in React components
 export const useMentorSidebarConfig = (): MentorNavItem[] => {
   const { t } = useTranslation('common')
+  useChatUnreadBadge()
   const globalUnreadCount = useChatStore((state) => state.globalUnreadCount)
 
   return [
