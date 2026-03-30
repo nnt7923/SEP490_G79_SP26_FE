@@ -363,52 +363,54 @@ const Header: React.FC = () => {
             ) : (
               <div style={{ position: 'relative' }} ref={menuRef}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <button
-                    type="button"
-                    onClick={() => { void handleNotificationsToggle() }}
-                    style={{
-                      position: 'relative',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 34,
-                      height: 34,
-                      padding: 0,
-                      color: 'var(--text-primary)',
-                      background: notificationsOpen || unreadNotificationCount > 0 ? 'var(--bg-main)' : 'transparent',
-                      border: notificationsOpen || unreadNotificationCount > 0 ? '1px solid var(--border-base)' : '1px solid transparent',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                    }}
-                    title={t('notifications.title')}
-                  >
-                    <FaBell size={15} />
-                    {unreadNotificationCount > 0 && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          right: 0,
-                          background: 'var(--danger-primary)',
-                          borderRadius: '999px',
-                          minWidth: 16,
-                          height: 16,
-                          padding: '0 4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          transform: 'translate(25%, -25%)',
-                          boxShadow: '0 0 0 2px var(--bg-surface)',
-                        }}
-                      >
-                        {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
-                      </span>
-                    )}
-                  </button>
+                  {isStudent && (
+                    <button
+                      type="button"
+                      onClick={() => { void handleNotificationsToggle() }}
+                      style={{
+                        position: 'relative',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 34,
+                        height: 34,
+                        padding: 0,
+                        color: 'var(--text-primary)',
+                        background: notificationsOpen || unreadNotificationCount > 0 ? 'var(--bg-main)' : 'transparent',
+                        border: notificationsOpen || unreadNotificationCount > 0 ? '1px solid var(--border-base)' : '1px solid transparent',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      title={t('notifications.title')}
+                    >
+                      <FaBell size={15} />
+                      {unreadNotificationCount > 0 && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            background: 'var(--danger-primary)',
+                            borderRadius: '999px',
+                            minWidth: 16,
+                            height: 16,
+                            padding: '0 4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            transform: 'translate(25%, -25%)',
+                            boxShadow: '0 0 0 2px var(--bg-surface)',
+                          }}
+                        >
+                          {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
 
                   {profilePath ? (
                     <Link to={profilePath} aria-label="profile">
