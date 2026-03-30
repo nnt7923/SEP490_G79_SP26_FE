@@ -39,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
 
@@ -63,9 +64,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [isCollapsed])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    setIsDesktop(mq.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
   const isActive = (path: string) => location.pathname === path
   const closeMobileSidebar = () => setIsMobileOpen(false)
   const sidebarWidth = isMobileOpen ? 256 : isCollapsed ? 64 : 256
+  const desktopTopOffset = 'var(--layout-header-height, 49px)'
+  const desktopSidebarHeight = 'calc(100vh - var(--layout-header-height, 49px) - var(--layout-footer-height, 0px))'
 
   return (
     <>
@@ -83,12 +95,18 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 md:top-[49px] left-0 h-screen md:h-[calc(100vh-49px)] z-30 transition-all duration-300 ease-out overflow-hidden flex flex-col ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${className}`}
+        className={`transition-all duration-300 ease-out overflow-hidden flex flex-col ${className}`}
         style={{
+          position: isDesktop ? 'sticky' : 'fixed',
+          top: isDesktop ? desktopTopOffset : 0,
+          left: 0,
+          height: isDesktop ? desktopSidebarHeight : '100vh',
           width: sidebarWidth,
+          minWidth: sidebarWidth,
           background: 'var(--bg-surface)',
           borderRight: '1px solid var(--border-base)',
-          minWidth: sidebarWidth
+          zIndex: 30,
+          transform: (!isDesktop && !isMobileOpen) ? 'translateX(-100%)' : 'translateX(0)',
         }}
       >
         <div
