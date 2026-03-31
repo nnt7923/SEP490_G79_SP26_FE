@@ -13,6 +13,7 @@ import useAppNotificationStore from '../../../store/useAppNotificationStore'
 import useNotificationStore from '../../../store/useNotificationStore'
 import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
 import type { NotificationDto } from '../../../types/notification'
+import SubscriptionService from '../../../services/SubscriptionService'
 
 type DayBucket = {
   key: string
@@ -148,6 +149,7 @@ const StudentIndex: React.FC = () => {
   const [selectedSevenDayType, setSelectedSevenDayType] = React.useState<PriorityType>('Lesson')
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false)
   const [showExpiringSoonModal, setShowExpiringSoonModal] = React.useState(false)
+  const [currentSubExpiredAt, setCurrentSubExpiredAt] = React.useState<Date | null>(null)
   const [priorityPages, setPriorityPages] = React.useState<Record<PriorityType, number>>({
     Lesson: 1,
     Task: 1,
@@ -178,7 +180,25 @@ const StudentIndex: React.FC = () => {
       }
     }
 
+    const fetchCurrentSub = async () => {
+      try {
+        const sub = await SubscriptionService.getCurrentSubscription()
+        if (sub) {
+          const expiredStr = (sub.expiresAt || sub.expiredAt || sub.endDate) as string | undefined
+          if (expiredStr) {
+            const parsed = new Date(expiredStr)
+            if (!Number.isNaN(parsed.getTime())) {
+              setCurrentSubExpiredAt(parsed)
+            }
+          }
+        }
+      } catch {
+        // Error handling
+      }
+    }
+
     fetchTimeline()
+    fetchCurrentSub()
   }, [])
 
   const items = React.useMemo(() => {
@@ -667,11 +687,21 @@ const StudentIndex: React.FC = () => {
     })
 
     const matched = deduped
-      .filter((item) => String(item.type || '').trim() === 'PlanExpiringSoon')
+      .filter((item) => {
+        const type = String(item.type || '').trim()
+        return type === 'PlanExpiringSoon' || type === 'PlanExpired'
+      })
+      .map((item) => {
+        const type = String(item.type || '').trim()
+        if (type === 'PlanExpiringSoon' && currentSubExpiredAt && currentSubExpiredAt.getTime() < Date.now()) {
+          return { ...item, type: 'PlanExpired' }
+        }
+        return item
+      })
       .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
 
     return matched[0] ?? null
-  }, [notificationItems, notificationPanelItems])
+  }, [notificationItems, notificationPanelItems, currentSubExpiredAt])
 
   const handleExpiringSoonBannerClick = React.useCallback(async () => {
     if (!expiringSoonNotification) return
@@ -1317,7 +1347,7 @@ const StudentIndex: React.FC = () => {
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {t('overview.subscriptionNotice.eyebrow')}
+                {String(expiringSoonNotification.type).trim() === 'PlanExpired' ? t('overview.subscriptionNotice.eyebrowExpired') : t('overview.subscriptionNotice.eyebrow')}
               </div>
               <button
                 type="button"

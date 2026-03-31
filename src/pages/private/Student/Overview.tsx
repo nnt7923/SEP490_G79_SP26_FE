@@ -12,6 +12,7 @@ import useAppNotificationStore from '../../../store/useAppNotificationStore'
 import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
 import useNotificationStore from '../../../store/useNotificationStore'
 import type { NotificationDto } from '../../../types/notification'
+import SubscriptionService from '../../../services/SubscriptionService'
 
 const StudentOverview: React.FC = () => {
   const { user } = useAuthStore()
@@ -33,6 +34,7 @@ const StudentOverview: React.FC = () => {
     totalChapters: 0,
     activeGoals: 0
   })
+  const [currentSubExpiredAt, setCurrentSubExpiredAt] = React.useState<Date | null>(null)
 
   React.useEffect(() => {
     const fetchDashboardData = async () => {
@@ -71,7 +73,25 @@ const StudentOverview: React.FC = () => {
       }
     }
 
+    const fetchCurrentSub = async () => {
+      try {
+        const sub = await SubscriptionService.getCurrentSubscription()
+        if (sub) {
+          const expiredStr = (sub.expiresAt || sub.expiredAt || sub.endDate) as string | undefined
+          if (expiredStr) {
+            const parsed = new Date(expiredStr)
+            if (!Number.isNaN(parsed.getTime())) {
+              setCurrentSubExpiredAt(parsed)
+            }
+          }
+        }
+      } catch {
+        // Error handling
+      }
+    }
+
     fetchDashboardData()
+    fetchCurrentSub()
   }, [user?.id])
 
   const getInitials = (name: string) => {
@@ -91,11 +111,21 @@ const StudentOverview: React.FC = () => {
     })
 
     const matched = deduped
-      .filter((item) => String(item.type || '').trim() === 'PlanExpiringSoon')
+      .filter((item) => {
+        const type = String(item.type || '').trim()
+        return type === 'PlanExpiringSoon' || type === 'PlanExpired'
+      })
+      .map((item) => {
+        const type = String(item.type || '').trim()
+        if (type === 'PlanExpiringSoon' && currentSubExpiredAt && currentSubExpiredAt.getTime() < Date.now()) {
+          return { ...item, type: 'PlanExpired' }
+        }
+        return item
+      })
       .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
 
     return matched[0] ?? null
-  }, [items, panelItems])
+  }, [items, panelItems, currentSubExpiredAt])
 
   const handleSubscriptionNoticeClick = React.useCallback(async () => {
     if (!expiringSoonNotification) return
@@ -170,7 +200,7 @@ const StudentOverview: React.FC = () => {
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#b45309' }}>
-                      <span>{t('overview.subscriptionNotice.eyebrow')}</span>
+                      <span>{String(expiringSoonNotification.type).trim() === 'PlanExpired' ? t('overview.subscriptionNotice.eyebrowExpired') : t('overview.subscriptionNotice.eyebrow')}</span>
                     </div>
                     <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
                       {expiringSoonNotification.title || t('overview.subscriptionNotice.title')}
