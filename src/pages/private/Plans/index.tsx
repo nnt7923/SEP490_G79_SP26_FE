@@ -1430,7 +1430,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 selectedValue={selectedGoals.length > 0 ? 
                   selectedGoals.length === 1 
                     ? goalItems.find((x) => String(x.key) === String(selectedGoals[0]))?.label 
-                    : `${selectedGoals.length} goals selected`
+                    : t('plans.step2GoalsSelected', { count: selectedGoals.length })
                   : undefined}
               />
 
@@ -1452,13 +1452,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 }}>
                   <span style={{ fontSize: 16 }}>💡</span>
                   <div>
-                    <strong style={{ color: 'var(--text-primary)' }}>Select up to 2 learning goals</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{t('plans.step2InstructionTitle')}</strong>
                     <br />
-                    Choose 1-2 goals that best match what you want to achieve with{' '}
+                    {t('plans.step2InstructionDesc')}{' '}
                     <strong style={{ color: 'var(--text-primary)' }}>
-                      {language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : 'the selected subject'}
+                      {language
+                        ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name
+                        : t('plans.step2SelectedSubjectFallback')}
                     </strong>
-                    . If you select 2 goals, you'll be able to set priority weights to focus more on your primary objective.
+                    . {t('plans.step2InstructionHint')}
                   </div>
                 </div>
               </div>
@@ -1467,10 +1469,10 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               <div style={{ marginBottom: 40 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    // {t('plans.suggestGoals')}
+                    {t('plans.suggestGoals')}
                     {totalSystemGoals > 0 && (
                       <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
-                        ({totalSystemGoals} goals)
+                        {t('plans.goalsCount', { count: totalSystemGoals })}
                       </span>
                     )}
                   </h3>
@@ -1538,7 +1540,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                       currentPage={currentSystemGoalPage}
                       totalPages={totalSystemPages}
                       onPageChange={setCurrentSystemGoalPage}
-                      label="System Goals"
+                      label={t('plans.suggestGoals')}
                     />
                   </>
                 )}
@@ -1548,10 +1550,10 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    // {t('plans.myGoals')}
+                    {t('plans.myGoals')}
                     {totalMyGoals > 0 && (
                       <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
-                        ({totalMyGoals} goals)
+                        {t('plans.goalsCount', { count: totalMyGoals })}
                       </span>
                     )}
                   </h3>
@@ -1638,7 +1640,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                       currentPage={currentMyGoalPage}
                       totalPages={totalMyPages}
                       onPageChange={setCurrentMyGoalPage}
-                      label="My Goals"
+                      label={t('plans.myGoals')}
                     />
                   </>
                 )}

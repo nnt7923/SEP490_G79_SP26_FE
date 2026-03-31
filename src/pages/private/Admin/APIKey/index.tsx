@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
-import { AIConfigService, AIUsageService, AIUsageType } from '../../../../services'
-import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key, BarChart3, TrendingUp, Zap, DollarSign } from 'lucide-react'
+import { AIConfigService, AIUsageType } from '../../../../services'
+import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 const AccessTier = {
@@ -23,11 +23,6 @@ const AdminApiKeyPage: React.FC = () => {
   // List of configs from backend
   const [items, setItems] = useState<any[]>([])
   const [expandedIndex, setExpandedIndex] = useState<string | null>(null)
-  
-  // AI Usage Statistics
-  const [usageStats, setUsageStats] = useState<any[]>([])
-  const [loadingStats, setLoadingStats] = useState(false)
-  const [showStats, setShowStats] = useState(true)
   
   // Collapsible groups by AI Usage Type
   const [expandedGroups, setExpandedGroups] = useState<Set<AIUsageType>>(new Set([
@@ -152,22 +147,8 @@ const AdminApiKeyPage: React.FC = () => {
     }
   }
 
-  const fetchUsageStats = async () => {
-    setLoadingStats(true)
-    try {
-      const stats = await AIUsageService.getAIUsageSummary()
-      setUsageStats(stats)
-    } catch (e: any) {
-      console.warn('Failed to load usage stats:', e?.message)
-      setUsageStats([])
-    } finally {
-      setLoadingStats(false)
-    }
-  }
-
   useEffect(() => {
     fetchList()
-    fetchUsageStats()
   }, [])
 
   const addAdditionalProp = () => {
@@ -403,117 +384,6 @@ const AdminApiKeyPage: React.FC = () => {
               </svg>
               <span>{notice}</span>
             </div>
-          </div>
-        )}
-
-        {/* ========== AI USAGE STATISTICS ========== */}
-        {showStats && (
-          <div className="mb-8 bg-th-card border border-bd-strong">
-            <div className="bg-th-input px-6 py-4 border-b border-bd-strong flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="text-status-blue" size={20} />
-                <h2 className="text-lg font-bold text-heading">AI Usage Statistics</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowStats(false)}
-                className="text-muted hover:text-heading transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="p-6">
-              {loadingStats ? (
-                <div className="text-center py-8">
-                  <span className="text-sm font-bold text-muted">Loading usage statistics...</span>
-                </div>
-              ) : usageStats.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted">No usage data available</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {usageStats.map((stat, idx) => {
-                    const typeInfo = getUsageTypeInfo(stat.usageType === 'StructureGeneration' ? AIUsageType.StructureGeneration :
-                                                     stat.usageType === 'ContentGeneration' ? AIUsageType.ContentGeneration :
-                                                     stat.usageType === 'Verification' ? AIUsageType.Verification :
-                                                     AIUsageType.Assistant)
-                    
-                    return (
-                      <div key={idx} className="bg-th-page border border-bd p-4 hover:border-bd-strong transition-colors">
-                        <div className="flex items-center gap-3 mb-3">
-                          <typeInfo.icon className="w-5 h-5 flex-shrink-0" style={{ color: typeInfo.color }} />
-                          <h3 className="text-sm font-bold text-heading truncate">{typeInfo.label}</h3>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4 text-muted" />
-                              <span className="text-xs font-bold text-muted">Requests</span>
-                            </div>
-                            <span className="text-sm font-bold text-heading">{stat.totalRequests?.toLocaleString() || 0}</span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Zap className="w-4 h-4 text-muted" />
-                              <span className="text-xs font-bold text-muted">Tokens</span>
-                            </div>
-                            <span className="text-sm font-bold text-heading">{stat.totalTokens?.toLocaleString() || 0}</span>
-                          </div>
-                          
-                          <div className="text-xs text-muted space-y-1">
-                            <div className="flex justify-between">
-                              <span>Input:</span>
-                              <span>{stat.totalInputTokens?.toLocaleString() || 0}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Output:</span>
-                              <span>{stat.totalOutputTokens?.toLocaleString() || 0}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between pt-2 border-t border-bd">
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="w-4 h-4 text-status-green-dark" />
-                              <span className="text-xs font-bold text-muted">Cost</span>
-                            </div>
-                            <span className="text-sm font-bold text-status-green-dark">
-                              ${(stat.totalCostUsd || 0).toFixed(4)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              
-              <div className="mt-4 pt-4 border-t border-bd">
-                <button
-                  type="button"
-                  onClick={fetchUsageStats}
-                  className="px-4 py-2 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
-                >
-                  Refresh Statistics
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!showStats && (
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={() => setShowStats(true)}
-              className="px-4 py-2 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm flex items-center gap-2"
-            >
-              <BarChart3 size={16} />
-              Show AI Usage Statistics
-            </button>
           </div>
         )}
 
