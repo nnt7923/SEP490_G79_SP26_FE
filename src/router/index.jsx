@@ -33,6 +33,7 @@ const MentorDashboard = React.lazy(() => import('../pages/private/Mentor'))
 const AdminApiKey = React.lazy(() => import('../pages/private/Admin/APIKey'))
 const AdminSubscriptionPlans = React.lazy(() => import('../pages/private/Admin/SubscriptionPlans'))
 const AdminBillingTransactions = React.lazy(() => import('../pages/private/Admin/Billing'))
+const AdminAIUsageSpending = React.lazy(() => import('../pages/private/Admin/AIUsageSpending'))
 const AdminMentorAIUsage = React.lazy(() => import('../pages/private/Admin/MentorAIUsage'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
@@ -141,6 +142,7 @@ const router = createBrowserRouter([
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
       { path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, element: <AdminSubscriptionPlans /> },
       { path: ROUTER.ADMIN_BILLING_TRANSACTIONS, element: <AdminBillingTransactions /> },
+      { path: ROUTER.ADMIN_AI_SPENDING, element: <AdminAIUsageSpending /> },
       { path: ROUTER.ADMIN_MENTOR_AI_USAGE, element: <AdminMentorAIUsage /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
       { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },

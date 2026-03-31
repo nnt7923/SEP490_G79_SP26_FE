@@ -21,6 +21,53 @@ interface ResourcePageViewerProps {
   onSummaryRequest?: (pageNumber: number, pageText: string) => Promise<string>
 }
 
+interface ResourcePagesCacheEntry {
+  timestamp: number
+  pages: PageData[]
+  totalPages: number
+}
+
+const RESOURCE_PAGES_CACHE_PREFIX = 'resource-pages:'
+const RESOURCE_PAGES_CACHE_TTL_MS = 30 * 60 * 1000
+
+const readResourcePagesCache = (resourceId: string): ResourcePagesCacheEntry | null => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.sessionStorage.getItem(`${RESOURCE_PAGES_CACHE_PREFIX}${resourceId}`)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as ResourcePagesCacheEntry
+    if (!parsed || !Array.isArray(parsed.pages) || typeof parsed.totalPages !== 'number' || !parsed.timestamp) {
+      return null
+    }
+
+    const isExpired = Date.now() - parsed.timestamp > RESOURCE_PAGES_CACHE_TTL_MS
+    if (isExpired) {
+      window.sessionStorage.removeItem(`${RESOURCE_PAGES_CACHE_PREFIX}${resourceId}`)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+const writeResourcePagesCache = (resourceId: string, pages: PageData[], totalPages: number) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    const payload: ResourcePagesCacheEntry = {
+      timestamp: Date.now(),
+      pages,
+      totalPages,
+    }
+    window.sessionStorage.setItem(`${RESOURCE_PAGES_CACHE_PREFIX}${resourceId}`, JSON.stringify(payload))
+  } catch {
+  }
+}
+
 const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
   isOpen,
   resourceId,
@@ -41,11 +88,24 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
 
   useEffect(() => {
     if (isOpen && resourceId) {
+      setCurrentPage(1)
       fetchPages()
     }
   }, [isOpen, resourceId])
 
-  const fetchPages = async () => {
+  const fetchPages = async (forceRefresh = false) => {
+    const cached = !forceRefresh ? readResourcePagesCache(resourceId) : null
+    if (cached) {
+      setPages(cached.pages)
+      setTotalPages(cached.totalPages)
+      setError(null)
+      setLoading(false)
+      if (cached.totalPages === 0) {
+        setError('No pages found. The document may not have been processed yet.')
+      }
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -57,6 +117,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
       
       setPages(pagesData)
       setTotalPages(total)
+      writeResourcePagesCache(resourceId, pagesData, total)
       
       if (total === 0) {
         setError('No pages found. The document may not have been processed yet.')
@@ -211,7 +272,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                       {error}
                     </p>
                     <button
-                      onClick={fetchPages}
+                      onClick={() => fetchPages(true)}
                       className="w-full px-4 py-2.5 bg-status-blue-solid hover:bg-status-blue-solid-hover text-white transition-colors duration-200 cursor-pointer font-medium shadow-sm"
                     >
                       Retry
