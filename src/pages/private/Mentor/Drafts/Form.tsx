@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Loader2, Plus, Save, Share2, Sparkles, Trash2 } from 'lucide-react'
@@ -103,11 +103,9 @@ const validateDraftForm = (form: DraftFormState): string | null => {
   if (form.goals.length === 0) return 'Select at least one goal.'
   if (form.goals.length === 1 && form.goals[0].weight !== 100) return 'Single goal must have weight 100.'
   if (form.goals.length === 2 && form.goals[0].weight + form.goals[1].weight !== 100) return 'Goal weights must total 100.'
-  if (form.startDate && form.endDate && form.startDate > form.endDate) return 'Path start date must be before end date.'
   for (const chapter of form.chapters) {
     if (!chapter.title.trim()) return 'Every chapter needs a title.'
     if (!chapter.lessons.length) return `Chapter "${chapter.title || 'Untitled'}" needs at least one lesson.`
-    if (chapter.startDate && chapter.endDate && chapter.startDate > chapter.endDate) return `Chapter "${chapter.title || 'Untitled'}" has an invalid date range.`
     for (const lesson of chapter.lessons) if (!lesson.title.trim()) return `Every lesson needs a title in chapter "${chapter.title || 'Untitled'}".`
   }
   return null
@@ -184,9 +182,12 @@ const Panel = ({
   )
 }
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+const Field = ({ label, children, required = false }: { label: string; children: React.ReactNode; required?: boolean }) => (
   <label style={{ display: 'grid', gap: 8 }}>
-    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</span>
+    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+      {label}
+      {required && <span style={{ color: 'var(--danger-primary)', marginLeft: 4 }}>*</span>}
+    </span>
     {children}
   </label>
 )
@@ -200,9 +201,12 @@ const MentorDraftFormPage: React.FC = () => {
   const sidebarConfig = { navItems: useMentorSidebarConfig(), actions: [], brand: { name: t('drafts.brandName'), subtitle: t('drafts.brandSubtitle') } }
 
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
+  const [subjectSearch, setSubjectSearch] = useState('')
+  const [isSubjectMenuOpen, setIsSubjectMenuOpen] = useState(false)
   const [form, setForm] = useState<DraftFormState>(hydrateDraftForm(location.state?.draft))
   const [loading, setLoading] = useState(!isCreateMode)
   const [saving, setSaving] = useState(false)
+  const [generatingAiDraft, setGeneratingAiDraft] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
   const [activeTab, setActiveTab] = useState<EditorTab>('structure')
@@ -213,6 +217,7 @@ const MentorDraftFormPage: React.FC = () => {
   const [shareError, setShareError] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const subjectPickerRef = useRef<HTMLDivElement | null>(null)
   const collapseLabel = t('drafts.collapse')
   const expandLabel = t('drafts.expand')
   const currentPathId = String(pathId ?? location.state?.draft?.pathId ?? '')
@@ -276,8 +281,37 @@ const MentorDraftFormPage: React.FC = () => {
   }, [isCreateMode, location.state?.draft, navigate, pathId])
 
   const selectedSubject = useMemo(() => subjects.find((subject) => subject.id === form.subjectId) ?? null, [form.subjectId, subjects])
+  const filteredSubjects = useMemo(() => {
+    const keyword = subjectSearch.trim().toLowerCase()
+    const matched = keyword
+      ? subjects.filter((subject) => subject.name.toLowerCase().includes(keyword))
+      : subjects
+
+    if (selectedSubject && !matched.some((subject) => subject.id === selectedSubject.id)) {
+      return [selectedSubject, ...matched]
+    }
+
+    return matched
+  }, [selectedSubject, subjectSearch, subjects])
   const activeChapter = useMemo(() => form.chapters.find((chapter) => chapter.id === activeChapterId) ?? form.chapters[0] ?? null, [activeChapterId, form.chapters])
   const activeLesson = useMemo(() => activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? activeChapter?.lessons[0] ?? null, [activeChapter?.lessons, activeLessonId])
+
+  useEffect(() => {
+    if (!selectedSubject) {
+      if (!form.subjectId) setSubjectSearch('')
+      return
+    }
+    setSubjectSearch(selectedSubject.name)
+  }, [form.subjectId, selectedSubject])
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!subjectPickerRef.current?.contains(event.target as Node)) setIsSubjectMenuOpen(false)
+    }
+
+    window.addEventListener('mousedown', handlePointerDown)
+    return () => window.removeEventListener('mousedown', handlePointerDown)
+  }, [])
 
   const updateChapter = (chapterId: string, updater: (chapter: EditableChapter) => EditableChapter) => setForm((prev) => ({ ...prev, chapters: prev.chapters.map((chapter) => chapter.id === chapterId ? updater(chapter) : chapter) }))
   const updateLesson = (chapterId: string, lessonId: string, updater: (lesson: EditableLesson) => EditableLesson) => updateChapter(chapterId, (chapter) => ({ ...chapter, lessons: chapter.lessons.map((lesson) => lesson.id === lessonId ? updater(lesson) : lesson) }))
@@ -297,6 +331,11 @@ const MentorDraftFormPage: React.FC = () => {
     return { ...prev, goals: nextGoals }
   })
   const setPrimaryWeight = (weight: number) => setForm((prev) => prev.goals.length !== 2 ? prev : { ...prev, goals: [{ ...prev.goals[0], weight }, { ...prev.goals[1], weight: 100 - weight }] })
+  const selectSubject = (subject: SubjectOption) => {
+    setForm((prev) => ({ ...prev, subjectId: subject.id, goals: [] }))
+    setSubjectSearch(subject.name)
+    setIsSubjectMenuOpen(false)
+  }
   const addChapter = () => {
     const chapter = emptyChapter()
     setForm((prev) => ({ ...prev, chapters: [...prev.chapters, chapter] }))
@@ -347,6 +386,49 @@ const MentorDraftFormPage: React.FC = () => {
     setActiveLessonId(safeLessons[0].id)
     return { ...chapter, lessons: safeLessons }
   })
+
+  const validateAiDraftInput = () => {
+    if (!form.subjectId) return 'Subject is required.'
+    if (form.goals.length === 0) return 'Select at least one goal.'
+    if (!form.complexityLevel) return 'Level is required.'
+    if (form.languageSelection === undefined || form.languageSelection === null) return 'Language is required.'
+    return null
+  }
+
+  const generateAiDraftFromSettings = async () => {
+    const validationError = validateAiDraftInput()
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
+      return
+    }
+
+    setGeneratingAiDraft(true)
+    try {
+      const draft = await LearningPathService.generateAiDraft({
+        subjectId: form.subjectId,
+        goals: form.goals,
+        complexityLevel: form.complexityLevel,
+        languageSelection: form.languageSelection,
+      })
+
+      if (!draft?.pathId) {
+        setToast({ message: t('aiPlans.missingDraftId'), type: 'error' })
+        return
+      }
+
+      navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(draft.pathId)), {
+        state: {
+          pathId: draft.pathId,
+          draft,
+          toast: { message: t('drafts.aiGenerateSuccess'), type: 'success' } satisfies ToastState,
+        },
+      })
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message || err?.message || t('aiPlans.detailLoadFailed'), type: 'error' })
+    } finally {
+      setGeneratingAiDraft(false)
+    }
+  }
 
   const saveDraft = async () => {
     const validationError = validateDraftForm(form)
@@ -490,21 +572,84 @@ const MentorDraftFormPage: React.FC = () => {
                   <Panel
                     title={t('drafts.pathSettings')}
                     subtitle={t('drafts.pathSettingsHint')}
+                    action={isCreateMode ? (
+                      <button
+                        type="button"
+                        style={{ ...buttonStyle, borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
+                        onClick={generateAiDraftFromSettings}
+                        disabled={generatingAiDraft || saving}
+                      >
+                        {generatingAiDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+                        {generatingAiDraft ? t('aiPlans.generatingDraft') : t('aiPlans.generateByAi')}
+                      </button>
+                    ) : undefined}
                     collapsible
                     collapseLabel={collapseLabel}
                     expandLabel={expandLabel}
                   >
+                    <div style={{ marginBottom: 14, fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <span style={{ color: 'var(--danger-primary)', fontWeight: 700 }}>*</span> {t('drafts.aiRequiredHint')}
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
-                      <Field label={t('drafts.subject')}><select style={inputStyle} value={form.subjectId} onChange={(event) => setForm((prev) => ({ ...prev, subjectId: event.target.value, goals: [] }))}><option value="">{t('drafts.selectSubject')}</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></Field>
-                      <Field label={t('drafts.level')}><select style={inputStyle} value={form.complexityLevel} onChange={(event) => setForm((prev) => ({ ...prev, complexityLevel: event.target.value as Level }))}>{LEVEL_OPTIONS.map((level) => <option key={level} value={level}>{level}</option>)}</select></Field>
+                      <Field label={t('drafts.subject')} required>
+                        <div ref={subjectPickerRef} style={{ position: 'relative' }}>
+                          <input
+                            style={{ ...inputStyle, paddingRight: 36 }}
+                            value={subjectSearch}
+                            placeholder={t('drafts.subjectSearchPlaceholder')}
+                            onFocus={() => setIsSubjectMenuOpen(true)}
+                            onChange={(event) => {
+                              const nextValue = event.target.value
+                              setSubjectSearch(nextValue)
+                              setIsSubjectMenuOpen(true)
+                              if (selectedSubject && nextValue !== selectedSubject.name) setForm((prev) => ({ ...prev, subjectId: '', goals: [] }))
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'ArrowDown') {
+                                event.preventDefault()
+                                setIsSubjectMenuOpen(true)
+                              }
+                              if (event.key === 'Enter' && filteredSubjects.length > 0) {
+                                event.preventDefault()
+                                selectSubject(filteredSubjects[0])
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            aria-label={t('drafts.selectSubject')}
+                            onClick={() => setIsSubjectMenuOpen((prev) => !prev)}
+                            style={{ position: 'absolute', top: 1, right: 1, bottom: 1, width: 34, border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                          >
+                            <ChevronDown size={16} />
+                          </button>
+                          {isSubjectMenuOpen && (
+                            <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 20, ...cardStyle, background: 'var(--bg-surface)', maxHeight: 220, overflowY: 'auto', padding: 6 }}>
+                              {filteredSubjects.length > 0 ? filteredSubjects.map((subject) => (
+                                <button
+                                  key={subject.id}
+                                  type="button"
+                                  onClick={() => selectSubject(subject)}
+                                  style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 4, padding: '10px 12px', background: subject.id === form.subjectId ? 'var(--bg-blue-hover)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontFamily: 'inherit' }}
+                                >
+                                  {subject.name}
+                                </button>
+                              )) : (
+                                <div style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontSize: 13 }}>
+                                  {t('drafts.noSubjectMatch')}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </Field>
+                      <Field label={t('drafts.level')} required><select style={inputStyle} value={form.complexityLevel} onChange={(event) => setForm((prev) => ({ ...prev, complexityLevel: event.target.value as Level }))}>{LEVEL_OPTIONS.map((level) => <option key={level} value={level}>{level}</option>)}</select></Field>
                       <Field label={t('drafts.titleLabel')}><input style={inputStyle} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} /></Field>
-                      <Field label={t('drafts.language')}><select style={inputStyle} value={form.languageSelection} onChange={(event) => setForm((prev) => ({ ...prev, languageSelection: Number(event.target.value) }))}><option value={LanguageSelection.Vietnamese}>Tiếng Việt</option><option value={LanguageSelection.English}>English</option></select></Field>
-                      <Field label={t('drafts.startDate')}><input type="date" style={inputStyle} value={form.startDate} onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))} /></Field>
-                      <Field label={t('drafts.endDate')}><input type="date" style={inputStyle} value={form.endDate} onChange={(event) => setForm((prev) => ({ ...prev, endDate: event.target.value }))} /></Field>
+                      <Field label={t('drafts.language')} required><select style={inputStyle} value={form.languageSelection} onChange={(event) => setForm((prev) => ({ ...prev, languageSelection: Number(event.target.value) }))}><option value={LanguageSelection.Vietnamese}>Tiếng Việt</option><option value={LanguageSelection.English}>English</option></select></Field>
                     </div>
                     <div style={{ marginTop: 14 }}><Field label={t('drafts.description')}><textarea style={{ ...textAreaStyle, minHeight: 90 }} value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} /></Field></div>
                     <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('drafts.goals')}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('drafts.goals')}<span style={{ color: 'var(--danger-primary)', marginLeft: 4 }}>*</span></div>
                       {!selectedSubject ? <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('drafts.selectSubjectForGoals')}</div> : selectedSubject.goals.length === 0 ? <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('drafts.noGoalsForSubject')}</div> : <div style={{ display: 'grid', gap: 10 }}>
                         {selectedSubject.goals.map((goal) => {
                           const selected = form.goals.some((item) => item.goalId === goal.goalId)
@@ -525,8 +670,6 @@ const MentorDraftFormPage: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
                       <Field label={t('drafts.chapterTitle')}><input style={inputStyle} value={activeChapter.title} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, title: event.target.value }))} /></Field>
                       <Field label={t('drafts.estimatedDays')}><input type="number" min={1} style={inputStyle} value={activeChapter.estimatedDays} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, estimatedDays: event.target.value }))} /></Field>
-                      <Field label={t('drafts.startDate')}><input type="date" style={inputStyle} value={activeChapter.startDate} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, startDate: event.target.value }))} /></Field>
-                      <Field label={t('drafts.endDate')}><input type="date" style={inputStyle} value={activeChapter.endDate} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, endDate: event.target.value }))} /></Field>
                     </div>
                     <div style={{ marginTop: 14 }}><Field label={t('drafts.chapterDescription')}><textarea style={textAreaStyle} value={activeChapter.content} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, content: event.target.value }))} /></Field></div>
                     <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
