@@ -76,6 +76,7 @@
     "goals": "Mục tiêu",
     "progress": "Tiến độ",
     "resources": "Tài nguyên",
+    "achievements": "Thành tựu",
     "upgrade": "Nâng cấp",
     "profile": "Hồ sơ",
     "subjects": "Môn học",
@@ -106,6 +107,64 @@
     "markReadError": "Không thể đồng bộ trạng thái thông báo.",
     "pageLabel": "Trang {{page}}",
     "unreadCountLabel": "{{count}} chưa đọc"
+  },
+  "toast": {
+    "loading": "Đang xử lý",
+    "success": "Thành công",
+    "error": "Có lỗi xảy ra"
+  },
+  "aboutPage": {
+    "badge": "about://codenexus",
+    "title": "Nền tảng hỗ trợ học tập lập trình bằng AI",
+    "description": "CodeNexus không bán khóa học đóng gói. Chúng tôi cung cấp hệ thống AI hỗ trợ bạn tự học hiệu quả hơn: gợi ý lộ trình, chia nhỏ mục tiêu, theo dõi tiến độ và nhắc bước tiếp theo.",
+    "tags": {
+      "supportOnly": "Hỗ trợ học tập, không bán khóa học",
+      "aiGenerated": "Nội dung học được AI tạo và tối ưu theo mục tiêu",
+      "goalTracking": "Theo dõi tiến độ theo mục tiêu thực tế"
+    },
+    "features": {
+      "title": "CodeNexus hỗ trợ gì cho bạn?",
+      "items": [
+        "Tạo learning path theo mục tiêu nghề nghiệp (Frontend, Backend, Fullstack...).",
+        "Chia lộ trình thành chapter/lesson có quiz và task để tự kiểm tra ngay.",
+        "Focus session giúp giữ nhịp học ổn định mỗi ngày.",
+        "Chat với mentor/AI để tháo gỡ vấn đề trong quá trình học."
+      ]
+    },
+    "supportStatement": "$ product.mode = \"AI learning support\"; // not course-selling",
+    "valuesTitle": "Giá trị cốt lõi",
+    "values": {
+      "aiFirst": {
+        "title": "AI-First Support",
+        "description": "Lộ trình được cá nhân hóa theo mục tiêu, tốc độ và thời gian học thực tế của từng người."
+      },
+      "goalDriven": {
+        "title": "Goal-Driven",
+        "description": "Mọi gợi ý đều bám đầu ra cụ thể: kỹ năng, dự án, milestone và deadline rõ ràng."
+      },
+      "reliable": {
+        "title": "Reliable & Transparent",
+        "description": "Tiến độ được đo theo dữ liệu học tập thực tế, giúp bạn biết mình đang ở đâu và cần làm gì tiếp."
+      },
+      "community": {
+        "title": "Community Support",
+        "description": "Kết nối học viên, mentor và kênh hỗ trợ để giải quyết vướng mắc nhanh hơn."
+      }
+    },
+    "support": {
+      "title": "Thông tin hỗ trợ",
+      "email": "support@codenexus.app",
+      "website": "https://codenexus.app",
+      "liveChat": "Live chat trong ứng dụng (08:00 - 22:00, Thứ 2 - Chủ nhật)",
+      "response": "Thời gian phản hồi email trung bình: 2 - 6 giờ làm việc",
+      "note": "Nếu cần hỗ trợ nhanh, vui lòng gửi kèm email đăng ký, thời điểm gặp lỗi và ảnh màn hình để team xử lý sớm hơn."
+    },
+    "supportCenter": {
+      "title": "Trung tâm hỗ trợ nhanh",
+      "description": "Bạn có thể gửi yêu cầu hỗ trợ trực tiếp qua thông báo hoặc chat trong ứng dụng. Với sự cố tài khoản nghiêm trọng, hãy liên hệ email hỗ trợ để được ưu tiên.",
+      "backHome": "Quay về trang chủ",
+      "sendEmail": "Gửi email hỗ trợ"
+    }
   },
   "footer": {
     "tagline1": "Lộ trình học tập cá nhân hóa",

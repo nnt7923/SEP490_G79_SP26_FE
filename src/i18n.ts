@@ -9,6 +9,7 @@ import viHome from './locales/vi/home.json'
 import viStudent from './locales/vi/student.json'
 import viMentor from './locales/vi/mentor.json'
 import viAdmin from './locales/vi/admin.json'
+import viErrors from './locales/vi/errors.json'
 
 // English
 import enCommon from './locales/en/common.json'
@@ -17,6 +18,7 @@ import enHome from './locales/en/home.json'
 import enStudent from './locales/en/student.json'
 import enMentor from './locales/en/mentor.json'
 import enAdmin from './locales/en/admin.json'
+import enErrors from './locales/en/errors.json'
 
 i18n
   .use(LanguageDetector)
@@ -30,6 +32,7 @@ i18n
         student: viStudent,
         mentor: viMentor,
         admin: viAdmin,
+        errors: viErrors,
       },
       en: {
         common: enCommon,
@@ -38,6 +41,7 @@ i18n
         student: enStudent,
         mentor: enMentor,
         admin: enAdmin,
+        errors: enErrors,
       },
     },
     defaultNS: 'common',

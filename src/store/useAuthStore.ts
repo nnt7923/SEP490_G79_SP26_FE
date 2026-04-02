@@ -95,6 +95,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
     } catch { }
     try { AuthService.clearState?.() } catch { }
     try {
+      import('../services/SubscriptionService').then(({ clearSubscriptionCaches }) => {
+        clearSubscriptionCaches()
+      })
+    } catch { }
+    try {
       import('./useAppNotificationStore').then(({ default: useAppNotificationStore }) => {
         useAppNotificationStore.getState().reset()
       })
@@ -284,7 +289,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ updatingProfile: true })
 
-      await UserService.updateProfile(payload)
+      const response: any = await UserService.updateProfile(payload)
       set((state) => ({
         user: {
           ...state.user,
@@ -292,11 +297,17 @@ const useAuthStore = create<AuthState>((set, get) => ({
         }
       }))
 
-      return { isOk: true, msg: 'Update profile successfully' }
-    } catch {
-      return { isOk: false, msg: 'Update profile failed' }
+      return {
+        isOk: true,
+        msg: response?.msg || response?.message,
+      }
+    } catch (error: any) {
+      return {
+        isOk: false,
+        msg: error?.response?.data?.msg || error?.response?.data?.message,
+      }
     } finally {
-      set({ loading: false })
+      set({ updatingProfile: false })
     }
   },
 

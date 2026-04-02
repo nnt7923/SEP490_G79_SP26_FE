@@ -12,6 +12,7 @@ export { default as AdminSubscriptionService } from './AdminSubscriptionService/
 export { default as AdminBillingService } from './AdminBillingService/index'
 export { default as AdminAIUsageService } from './AdminAIUsageService/index'
 export { default as SubscriptionService } from './SubscriptionService/index'
+export { default as AchievementService } from './AchievementService/index'
 export { AIUsageType } from './AIConfigService/index'
 export { LanguageSelection } from './GoalService/index'
 export { SubjectCategory } from './SubjectService/index'

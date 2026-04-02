@@ -95,8 +95,13 @@ const GoalsPage: React.FC = () => {
       return rawDuration as GoalDuration
     }
 
-    const days = Number(goal?.durationDays || 0)
+    const days = Number(goal?.durationDays ?? goal?.durationInDays ?? 0)
     return GOAL_DURATION_BY_DAYS[days] || 'OneMonth'
+  }
+
+  const getGoalDurationDays = (goal: any): number => {
+    const days = Number(goal?.durationDays ?? goal?.durationInDays ?? 0)
+    return Number.isFinite(days) ? days : 0
   }
 
   const mapGoalErrorCode = (errorCode: string): string => {
@@ -393,7 +398,7 @@ const GoalsPage: React.FC = () => {
                           <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{goal.title || t('goals.untitled')}</h3>
                           <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.description || t('goals.noDescription')}</p>
                           <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)' }}>
-                            <span>{t('goals.days', { count: goal.durationDays || 0 })}</span>
+                            <span>{t('goals.days', { count: getGoalDurationDays(goal) })}</span>
                             {goal.createdAt && <span>{new Date(goal.createdAt).toLocaleDateString()}</span>}
                           </div>
                         </div>

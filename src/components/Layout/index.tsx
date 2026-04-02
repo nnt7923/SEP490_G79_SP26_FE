@@ -25,6 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
   const headerRef = useRef<HTMLDivElement | null>(null)
   const footerRef = useRef<HTMLDivElement | null>(null)
   const [headerHeight, setHeaderHeight] = useState(49)
+  const [headerOffset, setHeaderOffset] = useState(49)
   const [footerHeight, setFooterHeight] = useState(0)
   const isChatRoute =
     location.pathname === ROUTER.CHAT ||
@@ -35,7 +36,9 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
     const footerElement = footerRef.current
 
     const syncHeights = () => {
-      setHeaderHeight(headerElement?.getBoundingClientRect().height ?? 0)
+      const headerRect = headerElement?.getBoundingClientRect()
+      setHeaderHeight(headerRect?.height ?? 0)
+      setHeaderOffset(Math.max(0, headerRect?.bottom ?? 0))
       setFooterHeight(isChatRoute ? 0 : (footerElement?.getBoundingClientRect().height ?? 0))
     }
 
@@ -43,7 +46,11 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
 
     if (typeof ResizeObserver === 'undefined') {
       window.addEventListener('resize', syncHeights)
-      return () => window.removeEventListener('resize', syncHeights)
+      window.addEventListener('scroll', syncHeights, { passive: true })
+      return () => {
+        window.removeEventListener('resize', syncHeights)
+        window.removeEventListener('scroll', syncHeights)
+      }
     }
 
     const observer = new ResizeObserver(() => {
@@ -54,10 +61,12 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
     if (footerElement && !isChatRoute) observer.observe(footerElement)
 
     window.addEventListener('resize', syncHeights)
+    window.addEventListener('scroll', syncHeights, { passive: true })
 
     return () => {
       observer.disconnect()
       window.removeEventListener('resize', syncHeights)
+      window.removeEventListener('scroll', syncHeights)
     }
   }, [isChatRoute])
 
@@ -81,6 +90,7 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
           <Sidebar
             navItems={sidebar.navItems}
             actions={sidebar.actions}
+            topOffset={headerOffset}
             brand={sidebar.brand}
           />
         )}
@@ -98,7 +108,14 @@ const Layout: React.FC<LayoutProps> = ({ children, sidebar }) => {
         </AnimatePresence>
       </div>
       {!isChatRoute && (
-        <div ref={footerRef}>
+        <div
+          ref={footerRef}
+          style={{
+            position: 'relative',
+            zIndex: 40,
+            paddingLeft: sidebar ? 'var(--layout-sidebar-width, 0px)' : 0,
+          }}
+        >
           <Footer />
         </div>
       )}

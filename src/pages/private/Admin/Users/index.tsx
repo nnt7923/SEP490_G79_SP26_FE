@@ -32,7 +32,7 @@ const AdminUsersPage: React.FC = () => {
   const [totalCount, setTotalCount] = useState<number>(0)
   const [totalPages, setTotalPages] = useState<number>(1)
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (forceRefresh: boolean = false) => {
     setLoading(true)
     setError(null)
     try {
@@ -43,7 +43,7 @@ const AdminUsersPage: React.FC = () => {
         searchTerm: query.trim() || undefined,
         sortBy: 'CreatedAt',
         sortDescending: true,
-      })
+      }, { forceRefresh })
 
       setUsers(response.items)
       setTotalCount(response.totalCount)
@@ -75,7 +75,7 @@ const AdminUsersPage: React.FC = () => {
         setToast({ message: t('users.banSuccess'), type: 'success' })
       }
       // Refresh users list
-      await fetchUsers()
+      await fetchUsers(true)
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || t('users.banFailed')
       setToast({ message: msg, type: 'error' })
@@ -121,7 +121,7 @@ const AdminUsersPage: React.FC = () => {
                 </p>
               </div>
               <button
-                onClick={fetchUsers}
+                onClick={() => { void fetchUsers(true) }}
                 disabled={loading}
                 className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
                 title="Reload"

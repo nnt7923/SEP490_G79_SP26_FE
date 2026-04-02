@@ -113,7 +113,8 @@ const Login: React.FC = () => {
       return t('login.invalidCredentials')
     }
 
-    return t(`login.errorCodes.${normalized}`, {
+    return t(`codes.${normalized}`, {
+      ns: 'errors',
       defaultValue: t('login.invalidCredentials'),
     })
   }
