@@ -10,6 +10,10 @@ const asString = (value: unknown): string | null => {
   return null
 }
 
+const getMessageContentValue = (message: DirectMessageDto | Record<string, any>): string | null =>
+  asString(message?.content) ??
+  asString((message as any)?.Content)
+
 export const normalizeShareId = (value: string | null | undefined): string =>
   (value ?? '').trim().toLowerCase()
 
@@ -39,7 +43,9 @@ export const getLearningPathShareId = (message: DirectMessageDto | Record<string
   asString(message?.learningPathShareId) ??
   asString((message as any)?.LearningPathShareId) ??
   asString((message as any)?.learningPathShare?.shareId) ??
-  asString((message as any)?.LearningPathShare?.shareId)
+  asString((message as any)?.learningPathShare?.ShareId) ??
+  asString((message as any)?.LearningPathShare?.shareId) ??
+  asString((message as any)?.LearningPathShare?.ShareId)
 
 export const isLearningPathShareMessage = (message: DirectMessageDto | Record<string, any>): boolean =>
   getMessageTypeValue(message) === 'LearningPathShare' && !!getLearningPathShareId(message)
@@ -59,8 +65,10 @@ export function buildLearningPathShareCardData(
     asString(message.learningPathTitle) ??
     asString((message as any)?.LearningPathTitle) ??
     asString(nested?.learningPathTitle) ??
+    asString(nested?.LearningPathTitle) ??
     asString(nested?.title) ??
-    extractSharedLearningPathTitle(message.content) ??
+    asString(nested?.Title) ??
+    extractSharedLearningPathTitle(getMessageContentValue(message)) ??
     asString(pendingShare?.learningPathTitle)
 
   if (!title) return null
@@ -78,33 +86,40 @@ export function buildLearningPathShareCardData(
       asString(message.pathId) ??
       asString((message as any)?.PathId) ??
       asString(nested?.pathId) ??
+      asString(nested?.PathId) ??
       asString(pendingShare?.pathId),
     title,
     description:
       asString(message.learningPathDescription) ??
       asString((message as any)?.LearningPathDescription) ??
       asString(nested?.learningPathDescription) ??
+      asString(nested?.LearningPathDescription) ??
       asString(nested?.description) ??
+      asString(nested?.Description) ??
       pendingShare?.learningPathDescription ??
       null,
     mentorName:
       asString(message.mentorName) ??
       asString((message as any)?.MentorName) ??
       asString(nested?.mentorName) ??
+      asString(nested?.MentorName) ??
       asString(pendingShare?.mentorName),
     studentName:
       asString(message.studentName) ??
       asString((message as any)?.StudentName) ??
-      asString(nested?.studentName),
+      asString(nested?.studentName) ??
+      asString(nested?.StudentName),
     status,
     sentAt:
       asString(message.sentAt) ??
       asString((message as any)?.SentAt) ??
       asString(nested?.sentAt) ??
+      asString(nested?.SentAt) ??
       asString(pendingShare?.sentAt),
     respondedAt:
       asString(message.respondedAt) ??
       asString((message as any)?.RespondedAt) ??
-      asString(nested?.respondedAt),
+      asString(nested?.respondedAt) ??
+      asString(nested?.RespondedAt),
   }
 }

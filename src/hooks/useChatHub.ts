@@ -9,9 +9,6 @@ import type {
 } from '../types/chat'
 import { getUnreadCount } from '../services/DirectChatService'
 
-// ================================================================
-// Hub URL — same origin strategy as existing SignalR services
-// ================================================================
 const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
   || (import.meta.env.VITE_BASE_URL as string)
   || (import.meta.env.PROD ? 'https://pplp.click/api' : '')
@@ -25,10 +22,218 @@ const HUB_BASE = isDev
 
 const DIRECT_CHAT_HUB_URL = `${HUB_BASE}/hubs/direct-chat`
 
-// Notification sound (short beep)
+const asString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized ? normalized : null
+}
+
+const pickDirectPayloadObject = (payload: any): Record<string, any> | null => {
+  const nested =
+    payload?.message ??
+    payload?.conversation ??
+    payload?.data?.message ??
+    payload?.data?.conversation ??
+    payload?.result?.message ??
+    payload?.result?.conversation ??
+    payload?.data ??
+    payload?.result ??
+    payload
+
+  return nested && typeof nested === 'object' ? nested : null
+}
+
+const normalizeDirectLearningPathShare = (payload: any) => {
+  if (!payload || typeof payload !== 'object') return undefined
+
+  return {
+    ...payload,
+    shareId: asString(payload.shareId) ?? asString(payload.ShareId) ?? undefined,
+    pathId: asString(payload.pathId) ?? asString(payload.PathId) ?? undefined,
+    mentorId: asString(payload.mentorId) ?? asString(payload.MentorId) ?? undefined,
+    studentId: asString(payload.studentId) ?? asString(payload.StudentId) ?? undefined,
+    status: asString(payload.status) ?? asString(payload.Status) ?? undefined,
+    sentAt: asString(payload.sentAt) ?? asString(payload.SentAt) ?? undefined,
+    respondedAt: asString(payload.respondedAt) ?? asString(payload.RespondedAt) ?? null,
+    learningPathTitle:
+      asString(payload.learningPathTitle) ??
+      asString(payload.LearningPathTitle) ??
+      asString(payload.title) ??
+      asString(payload.Title) ??
+      undefined,
+    learningPathDescription:
+      asString(payload.learningPathDescription) ??
+      asString(payload.LearningPathDescription) ??
+      asString(payload.description) ??
+      asString(payload.Description) ??
+      null,
+    mentorName: asString(payload.mentorName) ?? asString(payload.MentorName) ?? undefined,
+    studentName: asString(payload.studentName) ?? asString(payload.StudentName) ?? undefined,
+  }
+}
+
+const normalizeDirectConversation = (payload: any): DirectConversationDto | null => {
+  const nested = pickDirectPayloadObject(payload)
+  if (!nested) return null
+
+  const conversationId = asString(nested.conversationId) ?? asString(nested.ConversationId)
+  if (!conversationId) return null
+
+  return {
+    ...nested,
+    conversationId,
+    mentorId: asString(nested.mentorId) ?? asString(nested.MentorId) ?? '',
+    mentorName: asString(nested.mentorName) ?? asString(nested.MentorName) ?? '',
+    studentId: asString(nested.studentId) ?? asString(nested.StudentId) ?? '',
+    studentName: asString(nested.studentName) ?? asString(nested.StudentName) ?? '',
+    lastMessagePreview:
+      asString(nested.lastMessagePreview) ??
+      asString(nested.LastMessagePreview) ??
+      null,
+    lastMessageAt:
+      asString(nested.lastMessageAt) ??
+      asString(nested.LastMessageAt) ??
+      null,
+    unreadCount: Number(nested.unreadCount ?? nested.UnreadCount ?? 0),
+  }
+}
+
+export const normalizeDirectMessage = (payload: any): DirectMessageDto | null => {
+  const nested = pickDirectPayloadObject(payload)
+  if (!nested) return null
+
+  const messageId = asString(nested.messageId) ?? asString(nested.MessageId)
+  const conversationId = asString(nested.conversationId) ?? asString(nested.ConversationId)
+  if (!messageId || !conversationId) return null
+
+  const normalizedShare = normalizeDirectLearningPathShare(
+    nested.learningPathShare ?? nested.LearningPathShare
+  )
+
+  return {
+    ...nested,
+    messageId,
+    conversationId,
+    senderId: asString(nested.senderId) ?? asString(nested.SenderId) ?? '',
+    content: asString(nested.content) ?? asString(nested.Content) ?? '',
+    messageType:
+      ((asString(nested.messageType) ?? asString(nested.MessageType) ?? 'Text') as DirectMessageDto['messageType']),
+    sentAt: asString(nested.sentAt) ?? asString(nested.SentAt) ?? new Date().toISOString(),
+    deliveredAt: asString(nested.deliveredAt) ?? asString(nested.DeliveredAt) ?? null,
+    seenAt: asString(nested.seenAt) ?? asString(nested.SeenAt) ?? null,
+    replyToMessageId:
+      asString(nested.replyToMessageId) ??
+      asString(nested.ReplyToMessageId) ??
+      null,
+    replyToContent:
+      asString(nested.replyToContent) ??
+      asString(nested.ReplyToContent) ??
+      null,
+    replyToSenderId:
+      asString(nested.replyToSenderId) ??
+      asString(nested.ReplyToSenderId) ??
+      null,
+    learningPathShareId:
+      asString(nested.learningPathShareId) ??
+      asString(nested.LearningPathShareId) ??
+      normalizedShare?.shareId ??
+      null,
+    learningPathTitle:
+      asString(nested.learningPathTitle) ??
+      asString(nested.LearningPathTitle) ??
+      normalizedShare?.learningPathTitle ??
+      null,
+    learningPathDescription:
+      asString(nested.learningPathDescription) ??
+      asString(nested.LearningPathDescription) ??
+      normalizedShare?.learningPathDescription ??
+      null,
+    shareStatus:
+      ((asString(nested.shareStatus) ??
+        asString(nested.ShareStatus) ??
+        normalizedShare?.status ??
+        null) as DirectMessageDto['shareStatus']),
+    pathId:
+      asString(nested.pathId) ??
+      asString(nested.PathId) ??
+      normalizedShare?.pathId ??
+      null,
+    mentorName:
+      asString(nested.mentorName) ??
+      asString(nested.MentorName) ??
+      normalizedShare?.mentorName ??
+      null,
+    studentName:
+      asString(nested.studentName) ??
+      asString(nested.StudentName) ??
+      normalizedShare?.studentName ??
+      null,
+    respondedAt:
+      asString(nested.respondedAt) ??
+      asString(nested.RespondedAt) ??
+      normalizedShare?.respondedAt ??
+      null,
+    learningPathShare: normalizedShare,
+  }
+}
+
+const normalizeConversationListPayload = (
+  payload: DirectConversationDto[] | { items: DirectConversationDto[] } | any
+): DirectConversationDto[] => {
+  const candidates = [
+    payload,
+    payload?.items,
+    payload?.data?.items,
+    payload?.result?.items,
+    payload?.conversations,
+    payload?.data?.conversations,
+    payload?.result?.conversations,
+    payload?.data,
+    payload?.result,
+  ]
+  const list = candidates.find((value) => Array.isArray(value)) ?? []
+
+  return (list as any[])
+    .map((item) => normalizeDirectConversation(item))
+    .filter((item): item is DirectConversationDto => !!item)
+}
+
+const normalizeDirectStatusPayload = (
+  key: 'deliveredAt' | 'seenAt',
+  arg1: any,
+  arg2?: any,
+  arg3?: any
+): { conversationId: string; messageId: string; deliveredAt?: string | null; seenAt?: string | null } | null => {
+  if (typeof arg1 === 'string' && typeof arg2 === 'string') {
+    return {
+      conversationId: arg1,
+      messageId: arg2,
+      [key]: typeof arg3 === 'string' ? arg3 : null,
+    }
+  }
+
+  const payload = pickDirectPayloadObject(arg1)
+  if (!payload) return null
+
+  const conversationId = asString(payload.conversationId) ?? asString(payload.ConversationId)
+  const messageId = asString(payload.messageId) ?? asString(payload.MessageId)
+  if (!conversationId || !messageId) return null
+
+  return {
+    conversationId,
+    messageId,
+    deliveredAt: asString(payload.deliveredAt) ?? asString(payload.DeliveredAt) ?? null,
+    seenAt: asString(payload.seenAt) ?? asString(payload.SeenAt) ?? null,
+  }
+}
+
 function playNotificationSound() {
   try {
-    const ctx = new AudioContext()
+    const AudioContextCtor = window.AudioContext
+      || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!AudioContextCtor) return
+
+    const ctx = new AudioContextCtor()
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)
@@ -39,14 +244,12 @@ function playNotificationSound() {
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + 0.3)
   } catch {
-    // AudioContext not available (e.g. SSR / test env) — ignore
+    // Ignore browsers/environments that do not allow AudioContext here.
   }
 }
 
 export interface UseChatHubOptions {
-  /** Called when hub emits `DirectChatError` */
   onError?: (errorCode: string, errorMessage: string) => void
-  /** Called when `NewMessageNotification` arrives (for toast / badge) */
   onNewMessageNotification?: (payload: NewMessageNotificationPayload) => void
 }
 
@@ -66,17 +269,12 @@ export interface ChatHubRef {
   startConversation(participantId: string): Promise<void>
 }
 
-/**
- * Hook that manages the Direct Chat SignalR connection.
- * Mount it at the page level (StudentChatPage / MentorChatPage).
- * Returns a ref with helper methods to invoke hub methods.
- */
 export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
   const { onError, onNewMessageNotification } = options
   const connectionRef = useRef<signalR.HubConnection | null>(null)
+  const joinedConversationIdsRef = useRef<Set<string>>(new Set())
   const store = useChatStore
 
-  // ── Build connection once ──────────────────────────────────────
   function getConnection(): signalR.HubConnection {
     if (!connectionRef.current) {
       connectionRef.current = new signalR.HubConnectionBuilder()
@@ -100,17 +298,17 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
     const conn = getConnection()
     if (conn.state === signalR.HubConnectionState.Connected) return
 
-    // If connecting/reconnecting, wait briefly for the connection to be ready
     const isConnectingOrReconnecting =
       conn.state === signalR.HubConnectionState.Connecting ||
       conn.state === signalR.HubConnectionState.Reconnecting
+
     if (isConnectingOrReconnecting) {
       const maxWait = 10000
       const startTime = Date.now()
       while (Date.now() - startTime < maxWait) {
         if (conn.state === signalR.HubConnectionState.Connected) return
         if (conn.state === signalR.HubConnectionState.Disconnected) break
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise((resolve) => setTimeout(resolve, 100))
       }
     }
 
@@ -133,36 +331,55 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
         payload?.result,
       ]
       const list = candidates.find((value) => Array.isArray(value))
-      return Array.isArray(list) ? list : null
+      if (!Array.isArray(list)) return null
+
+      return list
+        .map((item) => normalizeDirectMessage(item))
+        .filter((item): item is DirectMessageDto => !!item)
     }
 
     if (typeof arg1 === 'string') {
       const messages = pickMessages(arg2)
       if (messages) return { conversationId: arg1, messages }
     }
+
     if (arg1 && typeof arg1 === 'object') {
-      const conversationId = arg1.conversationId ?? arg1.data?.conversationId ?? arg1.result?.conversationId
+      const conversationId =
+        asString(arg1.conversationId) ??
+        asString(arg1.ConversationId) ??
+        asString(arg1.data?.conversationId) ??
+        asString(arg1.data?.ConversationId) ??
+        asString(arg1.result?.conversationId) ??
+        asString(arg1.result?.ConversationId)
       const messages = pickMessages(arg1)
       if (conversationId && messages) return { conversationId, messages }
     }
+
     return null
   }
 
-  // ── Register event handlers ────────────────────────────────────
   useEffect(() => {
     let mounted = true
     const conn = getConnection()
 
-    // ── Section 5.2: Events FE nhận ──
+    conn.onreconnected(async () => {
+      const conversationIds = Array.from(joinedConversationIdsRef.current)
+      await Promise.all(
+        conversationIds.map((conversationId) =>
+          conn.invoke('JoinConversation', conversationId, 1, 30).catch(() => {})
+        )
+      )
+    })
 
     conn.on('ConversationsLoaded', (payload: DirectConversationDto[] | { items: DirectConversationDto[] }) => {
       if (!mounted) return
-      const list = Array.isArray(payload) ? payload : (payload?.items ?? [])
-      store.getState().setConversations(list)
+      store.getState().setConversations(normalizeConversationListPayload(payload))
     })
 
-    conn.on('ConversationStarted', (conv: DirectConversationDto) => {
+    conn.on('ConversationStarted', (payload: any) => {
       if (!mounted) return
+      const conv = normalizeDirectConversation(payload)
+      if (!conv) return
       store.getState().upsertConversation(conv)
     })
 
@@ -175,51 +392,52 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
 
     conn.on('ReceiveMessage', (payload: DirectMessageDto | { message?: DirectMessageDto; data?: DirectMessageDto }) => {
       if (!mounted) return
-      const message = (payload as any)?.message ?? (payload as any)?.data ?? payload
-      if (!message?.conversationId) return
+      const message = normalizeDirectMessage(payload)
+      if (!message) return
       store.getState().appendMessage(message.conversationId, message)
     })
 
-    conn.on('ConversationUpdated', (conv: DirectConversationDto) => {
+    conn.on('ConversationUpdated', (payload: any) => {
       if (!mounted) return
+      const conv = normalizeDirectConversation(payload)
+      if (!conv) return
       store.getState().upsertConversation(conv)
     })
 
     conn.on('UnreadCountUpdated', (data: { totalUnreadCount?: number; conversationId?: string }) => {
       if (!mounted) return
       if (typeof data?.totalUnreadCount === 'number') {
-        // Idempotent: just set the new total
         store.getState().setGlobalUnreadCount(data.totalUnreadCount)
       } else if (data?.conversationId) {
-        // Sync total when backend sends only conversationId
         getUnreadCount()
           .then((res) => store.getState().setGlobalUnreadCount(res?.totalUnreadCount ?? 0))
-          .catch(() => { })
+          .catch(() => {})
       }
     })
 
-    conn.on('MessageDelivered', (data: { conversationId: string; messageId: string; deliveredAt: string }) => {
+    conn.on('MessageDelivered', (arg1: any, arg2?: any, arg3?: any) => {
       if (!mounted) return
+      const data = normalizeDirectStatusPayload('deliveredAt', arg1, arg2, arg3)
+      if (!data) return
       store.getState().updateMessageStatus(data.conversationId, data.messageId, { deliveredAt: data.deliveredAt })
     })
 
-    conn.on('MessageSeen', (data: { conversationId: string; messageId: string; seenAt: string }) => {
+    conn.on('MessageSeen', (arg1: any, arg2?: any, arg3?: any) => {
       if (!mounted) return
+      const data = normalizeDirectStatusPayload('seenAt', arg1, arg2, arg3)
+      if (!data) return
       store.getState().updateMessageStatus(data.conversationId, data.messageId, { seenAt: data.seenAt })
     })
 
     conn.on('NewMessageNotification', (payload: NewMessageNotificationPayload) => {
       if (!mounted) return
-      // Increment badge
       store.getState().incrementGlobalUnreadCount(payload.badgeIncrement)
-      // Play sound
       if (payload.playSound) playNotificationSound()
-      // Notify parent (for toast etc.)
       onNewMessageNotification?.(payload)
     })
 
     conn.on('ChatContactsLoaded', (_contacts: unknown) => {
-      // Contacts not stored in Zustand for now; handled by pages via requestChatContacts + local state
+      // Contacts are still handled by the page via REST fetch.
     })
 
     conn.on('DirectChatError', (err: { errorCode: string; errorMessage: string }) => {
@@ -227,12 +445,10 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
       onError?.(err.errorCode, err.errorMessage)
     })
 
-    // Start the connection
-    ensureConnected().catch(() => {/* silent; hub auto-reconnects */})
+    ensureConnected().catch(() => {})
 
     return () => {
       mounted = false
-      // Remove all handlers on unmount (avoid leaks across re-mounts)
       conn.off('ConversationsLoaded')
       conn.off('ConversationStarted')
       conn.off('ConversationMessagesLoaded')
@@ -244,18 +460,17 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
       conn.off('NewMessageNotification')
       conn.off('ChatContactsLoaded')
       conn.off('DirectChatError')
-      // Disconnect only when the component fully unmounts
-      conn.stop().catch(() => { })
+      joinedConversationIdsRef.current.clear()
+      conn.stop().catch(() => {})
       connectionRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Methods exposed to callers ─────────────────────────────────
-
   const joinConversation = useCallback(
     async (conversationId: string, page = 1, size = 30) => {
       await ensureConnected()
+      joinedConversationIdsRef.current.add(conversationId)
       return connectionRef.current!.invoke('JoinConversation', conversationId, page, size)
     },
     []
@@ -264,6 +479,7 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
   const leaveConversation = useCallback(
     async (conversationId: string) => {
       await ensureConnected()
+      joinedConversationIdsRef.current.delete(conversationId)
       return connectionRef.current!.invoke('LeaveConversation', conversationId)
     },
     []

@@ -14,13 +14,16 @@ import { buildLessonContentFromSections, createEmptyLessonSections, parseLessonS
 import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
 import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
+import { requestChapterTasks, requestQuizQuestions } from '../../../../services/SignalR'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 type EditorTab = 'structure' | 'lesson'
 type SubjectOption = { id: string; name: string; goals: Array<{ goalId: string; title: string }> }
-type EditableLesson = { id: string; title: string; lessonDay: string; sections: Record<LessonSectionKey, string> }
-type EditableChapter = { id: string; title: string; content: string; startDate: string; endDate: string; estimatedDays: string; lessons: EditableLesson[] }
+type EditableQuiz = { id: string; persistedId: string | null; title: string; description: string; quizQuestionsJson: string }
+type EditableTask = { id: string; persistedId: string | null; title: string; description: string; priority: string; taskStatus: string; dueDate: string; taskType: string; quizQuestionsJson: string }
+type EditableLesson = { id: string; persistedId: string | null; title: string; lessonDay: string; sections: Record<LessonSectionKey, string>; quizzes: EditableQuiz[] }
+type EditableChapter = { id: string; persistedId: string | null; title: string; content: string; startDate: string; endDate: string; estimatedDays: string; lessons: EditableLesson[]; tasks: EditableTask[] }
 type DraftFormState = {
   subjectId: string
   goals: Array<{ goalId: string; weight: number }>
@@ -34,6 +37,8 @@ type DraftFormState = {
 }
 
 const LEVEL_OPTIONS: Level[] = ['Beginner', 'Intermediate', 'Advanced']
+const TASK_TYPE_OPTIONS = ['Practice', 'Theory', 'Quizz']
+const TASK_STATUS_OPTIONS = ['Pending', 'InProgress', 'Completed']
 const SECTION_HINT_KEYS: Record<LessonSectionKey, string> = {
   overview: 'drafts.sectionHints.overview',
   'core-concepts': 'drafts.sectionHints.coreConcepts',
@@ -53,9 +58,34 @@ const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2,
 const toDateInput = (value?: string | null) => value ? new Date(value).toISOString().slice(0, 10) : ''
 const toIsoDate = (value?: string) => value ? new Date(`${value}T00:00:00.000Z`).toISOString() : undefined
 const extractMarkdown = (payload: any): string => typeof payload === 'string' ? payload : payload?.content ?? payload?.markdown ?? payload?.body ?? payload?.text ?? ''
+const normalizeJsonField = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (value == null || value === '') return ''
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+const normalizeTaskType = (value: unknown): string => {
+  if (value === 0 || String(value).trim() === '0') return 'Practice'
+  if (value === 1 || String(value).trim() === '1') return 'Theory'
+  if (value === 2 || String(value).trim() === '2') return 'Quizz'
+  const normalized = String(value ?? '').trim()
+  return TASK_TYPE_OPTIONS.includes(normalized) ? normalized : 'Practice'
+}
+const normalizeTaskStatus = (value: unknown): string => {
+  if (value === 0 || String(value).trim() === '0') return 'Pending'
+  if (value === 1 || String(value).trim() === '1') return 'InProgress'
+  if (value === 2 || String(value).trim() === '2') return 'Completed'
+  const normalized = String(value ?? '').trim()
+  return TASK_STATUS_OPTIONS.includes(normalized) ? normalized : 'Pending'
+}
 const normalizeLanguage = (value: unknown) => value === 'English' ? LanguageSelection.English : value === 'VietNamese' || value === 'Vietnamese' ? LanguageSelection.Vietnamese : typeof value === 'number' ? value : LanguageSelection.Vietnamese
-const emptyLesson = (): EditableLesson => ({ id: uid('lesson'), title: '', lessonDay: '', sections: createEmptyLessonSections() })
-const emptyChapter = (): EditableChapter => ({ id: uid('chapter'), title: '', content: '', startDate: '', endDate: '', estimatedDays: '', lessons: [emptyLesson()] })
+const emptyQuiz = (): EditableQuiz => ({ id: uid('quiz'), persistedId: null, title: '', description: '', quizQuestionsJson: '' })
+const emptyTask = (): EditableTask => ({ id: uid('task'), persistedId: null, title: '', description: '', priority: '', taskStatus: 'Pending', dueDate: '', taskType: 'Practice', quizQuestionsJson: '' })
+const emptyLesson = (): EditableLesson => ({ id: uid('lesson'), persistedId: null, title: '', lessonDay: '', sections: createEmptyLessonSections(), quizzes: [] })
+const emptyChapter = (): EditableChapter => ({ id: uid('chapter'), persistedId: null, title: '', content: '', startDate: '', endDate: '', estimatedDays: '', lessons: [emptyLesson()], tasks: [] })
 const emptyForm = (): DraftFormState => ({ subjectId: '', goals: [], complexityLevel: 'Beginner', languageSelection: LanguageSelection.Vietnamese, title: '', description: '', startDate: '', endDate: '', chapters: [emptyChapter()] })
 
 const extractGoals = (payload: any) => {
@@ -68,6 +98,7 @@ const hydrateDraftForm = (payload?: SkeletonResponse | null): DraftFormState => 
   const chapters = Array.isArray(payload?.chapters) && payload.chapters.length > 0
     ? payload.chapters.map((chapter: any) => ({
       id: String(chapter?.id ?? chapter?.chapterId ?? uid('chapter')),
+      persistedId: chapter?.id != null || chapter?.chapterId != null ? String(chapter?.id ?? chapter?.chapterId) : null,
       title: chapter?.title ?? '',
       content: chapter?.content ?? '',
       startDate: toDateInput(chapter?.startDate ?? chapter?.StartDate),
@@ -76,11 +107,30 @@ const hydrateDraftForm = (payload?: SkeletonResponse | null): DraftFormState => 
       lessons: Array.isArray(chapter?.lessons) && chapter.lessons.length > 0
         ? chapter.lessons.map((lesson: any) => ({
           id: String(lesson?.id ?? lesson?.lessonId ?? uid('lesson')),
+          persistedId: lesson?.id != null || lesson?.lessonId != null ? String(lesson?.id ?? lesson?.lessonId) : null,
           title: lesson?.title ?? '',
           lessonDay: toDateInput(lesson?.lessonDay),
           sections: parseLessonSections(extractMarkdown(lesson?.content)),
+          quizzes: Array.isArray(lesson?.quizzes) ? lesson.quizzes.map((quiz: any) => ({
+            id: String(quiz?.id ?? quiz?.quizId ?? quiz?.quizzId ?? uid('quiz')),
+            persistedId: quiz?.id != null || quiz?.quizId != null || quiz?.quizzId != null ? String(quiz?.id ?? quiz?.quizId ?? quiz?.quizzId) : null,
+            title: quiz?.title ?? '',
+            description: quiz?.description ?? '',
+            quizQuestionsJson: normalizeJsonField(quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson),
+          })) : [],
         }))
         : [emptyLesson()],
+      tasks: Array.isArray(chapter?.tasks) ? chapter.tasks.map((task: any) => ({
+        id: String(task?.id ?? task?.taskId ?? uid('task')),
+        persistedId: task?.id != null || task?.taskId != null ? String(task?.id ?? task?.taskId) : null,
+        title: task?.title ?? '',
+        description: task?.description ?? '',
+        priority: task?.priority != null ? String(task.priority) : '',
+        taskStatus: normalizeTaskStatus(task?.taskStatus ?? task?.TaskStatus),
+        dueDate: toDateInput(task?.dueDate ?? task?.DueDate),
+        taskType: normalizeTaskType(task?.taskType ?? task?.TaskType),
+        quizQuestionsJson: normalizeJsonField(task?.quizQuestionsJson ?? task?.QuizQuestionsJson),
+      })) : [],
     }))
     : [emptyChapter()]
 
@@ -121,15 +171,38 @@ const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
   startDate: toIsoDate(form.startDate),
   endDate: toIsoDate(form.endDate),
   chapters: form.chapters.map((chapter) => ({
+    id: chapter.persistedId ?? undefined,
+    chapterId: chapter.persistedId ?? undefined,
     title: chapter.title.trim(),
     content: chapter.content.trim() || undefined,
     startDate: toIsoDate(chapter.startDate),
     endDate: toIsoDate(chapter.endDate),
     estimatedDays: chapter.estimatedDays ? Number(chapter.estimatedDays) : undefined,
+    tasks: chapter.tasks.map((task) => ({
+      id: task.persistedId ?? undefined,
+      taskId: task.persistedId ?? undefined,
+      title: task.title.trim(),
+      description: task.description.trim() || undefined,
+      priority: task.priority.trim() || undefined,
+      taskStatus: task.taskStatus.trim() || undefined,
+      dueDate: toIsoDate(task.dueDate),
+      taskType: task.taskType.trim() || undefined,
+      quizQuestionsJson: task.quizQuestionsJson.trim() || undefined,
+    })),
     lessons: chapter.lessons.map((lesson) => ({
+      id: lesson.persistedId ?? undefined,
+      lessonId: lesson.persistedId ?? undefined,
       title: lesson.title.trim(),
       lessonDay: toIsoDate(lesson.lessonDay),
       content: buildLessonContentFromSections(lesson.sections),
+      quizzes: lesson.quizzes.map((quiz) => ({
+        id: quiz.persistedId ?? undefined,
+        quizId: quiz.persistedId ?? undefined,
+        quizzId: quiz.persistedId ?? undefined,
+        title: quiz.title.trim(),
+        description: quiz.description.trim() || undefined,
+        quizQuestionsJson: quiz.quizQuestionsJson.trim() || undefined,
+      })),
     })),
   })),
 })
@@ -207,6 +280,9 @@ const MentorDraftFormPage: React.FC = () => {
   const [loading, setLoading] = useState(!isCreateMode)
   const [saving, setSaving] = useState(false)
   const [generatingAiDraft, setGeneratingAiDraft] = useState(false)
+  const [generatingLessonId, setGeneratingLessonId] = useState<string | null>(null)
+  const [generatingTaskChapterId, setGeneratingTaskChapterId] = useState<string | null>(null)
+  const [generatingQuizId, setGeneratingQuizId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
   const [activeTab, setActiveTab] = useState<EditorTab>('structure')
@@ -295,6 +371,8 @@ const MentorDraftFormPage: React.FC = () => {
   }, [selectedSubject, subjectSearch, subjects])
   const activeChapter = useMemo(() => form.chapters.find((chapter) => chapter.id === activeChapterId) ?? form.chapters[0] ?? null, [activeChapterId, form.chapters])
   const activeLesson = useMemo(() => activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? activeChapter?.lessons[0] ?? null, [activeChapter?.lessons, activeLessonId])
+  const canGenerateActiveLesson = !!activeLesson?.persistedId
+  const isGeneratingActiveLesson = activeLesson?.id != null && generatingLessonId === activeLesson.id
 
   useEffect(() => {
     if (!selectedSubject) {
@@ -315,6 +393,8 @@ const MentorDraftFormPage: React.FC = () => {
 
   const updateChapter = (chapterId: string, updater: (chapter: EditableChapter) => EditableChapter) => setForm((prev) => ({ ...prev, chapters: prev.chapters.map((chapter) => chapter.id === chapterId ? updater(chapter) : chapter) }))
   const updateLesson = (chapterId: string, lessonId: string, updater: (lesson: EditableLesson) => EditableLesson) => updateChapter(chapterId, (chapter) => ({ ...chapter, lessons: chapter.lessons.map((lesson) => lesson.id === lessonId ? updater(lesson) : lesson) }))
+  const updateTask = (chapterId: string, taskId: string, updater: (task: EditableTask) => EditableTask) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.map((task) => task.id === taskId ? updater(task) : task) }))
+  const updateQuiz = (chapterId: string, lessonId: string, quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.map((quiz) => quiz.id === quizId ? updater(quiz) : quiz) }))
   const toggleGoal = (goalId: string) => setForm((prev) => {
     const exists = prev.goals.some((goal) => goal.goalId === goalId)
     if (exists) {
@@ -350,6 +430,8 @@ const MentorDraftFormPage: React.FC = () => {
     setActiveLessonId(lesson.id)
     setActiveTab('lesson')
   }
+  const addTask = (chapterId: string) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: [...chapter.tasks, emptyTask()] }))
+  const addQuiz = (chapterId: string, lessonId: string) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: [...lesson.quizzes, emptyQuiz()] }))
   const moveChapter = (chapterId: string, direction: -1 | 1) => setForm((prev) => {
     const index = prev.chapters.findIndex((chapter) => chapter.id === chapterId)
     const targetIndex = index + direction
@@ -386,6 +468,8 @@ const MentorDraftFormPage: React.FC = () => {
     setActiveLessonId(safeLessons[0].id)
     return { ...chapter, lessons: safeLessons }
   })
+  const removeTask = (chapterId: string, taskId: string) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.filter((task) => task.id !== taskId) }))
+  const removeQuiz = (chapterId: string, lessonId: string, quizId: string) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.filter((quiz) => quiz.id !== quizId) }))
 
   const validateAiDraftInput = () => {
     if (!form.subjectId) return 'Subject is required.'
@@ -427,6 +511,116 @@ const MentorDraftFormPage: React.FC = () => {
       setToast({ message: err?.response?.data?.message || err?.message || t('aiPlans.detailLoadFailed'), type: 'error' })
     } finally {
       setGeneratingAiDraft(false)
+    }
+  }
+
+  const generateAiLessonContent = async () => {
+    if (!activeChapter || !activeLesson) return
+
+    if (!activeLesson.persistedId) {
+      setToast({
+        message: t('drafts.saveBeforeGenerateLesson', { defaultValue: 'Save the draft before generating AI lesson content.' }),
+        type: 'warning',
+      })
+      return
+    }
+
+    setGeneratingLessonId(activeLesson.id)
+    try {
+      const result = await LearningPathService.generateLessonContent(activeLesson.persistedId)
+      const generatedContent = extractMarkdown(result)
+
+      if (!generatedContent.trim()) {
+        setToast({
+          message: t('drafts.lessonGenerateEmpty', { defaultValue: 'AI did not return lesson content.' }),
+          type: 'warning',
+        })
+        return
+      }
+
+      const generatedSections = parseLessonSections(generatedContent)
+      updateLesson(activeChapter.id, activeLesson.id, (lesson) => ({
+        ...lesson,
+        title: result?.title?.trim() || lesson.title,
+        lessonDay: result?.lessonDay ? toDateInput(result.lessonDay) : lesson.lessonDay,
+        sections: generatedSections,
+      }))
+      setToast({
+        message: t('drafts.lessonGenerateSuccess', { defaultValue: 'AI lesson content generated successfully.' }),
+        type: 'success',
+      })
+    } catch (err: any) {
+      setToast({
+        message: err?.response?.data?.message || err?.message || t('drafts.lessonGenerateFailed', { defaultValue: 'Failed to generate AI lesson content.' }),
+        type: 'error',
+      })
+    } finally {
+      setGeneratingLessonId(null)
+    }
+  }
+
+  const generateAiTasks = async () => {
+    if (!activeChapter) return
+
+    if (!activeChapter.persistedId) {
+      setToast({ message: t('drafts.saveBeforeGenerateTasks'), type: 'warning' })
+      return
+    }
+
+    setGeneratingTaskChapterId(activeChapter.id)
+    try {
+      const result = await requestChapterTasks(activeChapter.persistedId)
+      const rawTasks: any[] = Array.isArray(result) ? result : Array.isArray(result?.tasks) ? result.tasks : []
+
+      if (rawTasks.length === 0) {
+        setToast({ message: t('drafts.tasksGenerateEmpty'), type: 'warning' })
+        return
+      }
+
+      const newTasks = rawTasks.map((task: any) => ({
+        id: uid('task'),
+        persistedId: task?.id ?? task?.taskId ?? null,
+        title: task?.title ?? '',
+        description: task?.description ?? '',
+        priority: task?.priority != null ? String(task.priority) : '',
+        taskStatus: normalizeTaskStatus(task?.taskStatus ?? task?.TaskStatus),
+        dueDate: toDateInput(task?.dueDate ?? task?.DueDate),
+        taskType: normalizeTaskType(task?.taskType ?? task?.TaskType),
+        quizQuestionsJson: normalizeJsonField(task?.quizQuestionsJson ?? task?.QuizQuestionsJson),
+      }))
+
+      updateChapter(activeChapter.id, (chapter) => ({ ...chapter, tasks: [...chapter.tasks, ...newTasks] }))
+      setToast({ message: t('drafts.tasksGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message || err?.message || t('drafts.tasksGenerateFailed'), type: 'error' })
+    } finally {
+      setGeneratingTaskChapterId(null)
+    }
+  }
+
+  const generateAiQuizQuestions = async (chapterId: string, lessonId: string, quiz: EditableQuiz) => {
+    if (!quiz.persistedId) {
+      setToast({ message: t('drafts.saveBeforeGenerateQuiz'), type: 'warning' })
+      return
+    }
+
+    setGeneratingQuizId(quiz.id)
+    try {
+      const result = await requestQuizQuestions(quiz.persistedId)
+      const rawJson = typeof result === 'string' ? result : result?.quizQuestionsJson ?? result?.QuizQuestionsJson ?? result?.questions ?? result
+      const normalized = normalizeJsonField(rawJson)
+
+      if (!normalized.trim()) {
+        setToast({ message: t('drafts.quizGenerateEmpty'), type: 'warning' })
+        return
+      }
+
+      updateQuiz(chapterId, lessonId, quiz.id, (item) => ({ ...item, quizQuestionsJson: normalized }))
+      setToast({ message: t('drafts.quizGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message || err?.message || t('drafts.quizGenerateFailed'), type: 'error' })
+    } finally {
+      setGeneratingQuizId(null)
     }
   }
 
@@ -566,7 +760,7 @@ const MentorDraftFormPage: React.FC = () => {
               </div>
             </aside>
 
-            <main style={{ display: 'grid', gap: 20 }}>
+            <main style={{ display: 'grid', gap: 20, minWidth: 0 }}>
               {activeTab === 'structure' && (
                 <>
                   <Panel
@@ -676,33 +870,186 @@ const MentorDraftFormPage: React.FC = () => {
                       {activeChapter.lessons.map((lesson, lessonIndex) => <div key={lesson.id} style={{ ...cardStyle, padding: 12, background: 'var(--bg-main)' }}><div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 10, alignItems: 'end' }}><Field label={`Lesson ${lessonIndex + 1}`}><input style={inputStyle} value={lesson.title} onChange={(event) => updateLesson(activeChapter.id, lesson.id, (item) => ({ ...item, title: event.target.value }))} /></Field><Field label={t('drafts.lessonDay')}><input type="date" style={inputStyle} value={lesson.lessonDay} onChange={(event) => updateLesson(activeChapter.id, lesson.id, (item) => ({ ...item, lessonDay: event.target.value }))} /></Field><button type="button" style={{ ...buttonStyle, alignSelf: 'stretch' }} onClick={() => { setActiveLessonId(lesson.id); setActiveTab('lesson') }}>{t('drafts.openStudio')}</button></div></div>)}
                     </div>
                   </Panel>}
+
+                  {activeChapter && <Panel
+                    title={t('drafts.tasks')}
+                    subtitle={t('drafts.tasksHint')}
+                    action={
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          style={{
+                            ...buttonStyle,
+                            borderColor: 'var(--accent-primary)',
+                            color: 'var(--accent-primary)',
+                            opacity: activeChapter.persistedId ? 1 : 0.55,
+                            cursor: activeChapter.persistedId ? 'pointer' : 'not-allowed',
+                          }}
+                          onClick={generateAiTasks}
+                          disabled={generatingTaskChapterId === activeChapter.id || saving}
+                          title={!activeChapter.persistedId ? t('drafts.saveBeforeGenerateTasks') : undefined}
+                        >
+                          {generatingTaskChapterId === activeChapter.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+                          {generatingTaskChapterId === activeChapter.id ? t('drafts.generatingTasks') : t('drafts.generateTasksByAi')}
+                        </button>
+                        <button type="button" style={buttonStyle} onClick={() => addTask(activeChapter.id)}><Plus size={14} /> {t('drafts.addTask')}</button>
+                      </div>
+                    }
+                    collapsible
+                    defaultCollapsed={false}
+                    collapseLabel={collapseLabel}
+                    expandLabel={expandLabel}
+                  >
+                    {activeChapter.tasks.length === 0 ? (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('drafts.noTasksYet')}</div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 12 }}>
+                        {activeChapter.tasks.map((task, taskIndex) => (
+                          <div key={task.id} style={{ ...cardStyle, padding: 14, background: 'var(--bg-main)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+                              <strong style={{ color: 'var(--text-primary)' }}>{task.title || `${t('drafts.untitledTask')} ${taskIndex + 1}`}</strong>
+                              <button type="button" style={buttonStyle} onClick={() => removeTask(activeChapter.id, task.id)}><Trash2 size={14} /></button>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+                              <Field label={t('drafts.taskTitle')}><input style={inputStyle} value={task.title} onChange={(event) => updateTask(activeChapter.id, task.id, (item) => ({ ...item, title: event.target.value }))} /></Field>
+                              <Field label={t('drafts.taskType')}>
+                                <select style={inputStyle} value={task.taskType} onChange={(event) => updateTask(activeChapter.id, task.id, (item) => ({ ...item, taskType: event.target.value }))}>
+                                  {TASK_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                </select>
+                              </Field>
+                              <Field label={t('drafts.priority')}><input style={inputStyle} value={task.priority} onChange={(event) => updateTask(activeChapter.id, task.id, (item) => ({ ...item, priority: event.target.value }))} placeholder="Low / Medium / High" /></Field>
+                              <Field label={t('drafts.dueDate')}><input type="date" style={inputStyle} value={task.dueDate} onChange={(event) => updateTask(activeChapter.id, task.id, (item) => ({ ...item, dueDate: event.target.value }))} /></Field>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 180px) minmax(0, 1fr)', gap: 12, marginTop: 12 }}>
+                              <Field label="Task Status">
+                                <select style={inputStyle} value={task.taskStatus} onChange={(event) => updateTask(activeChapter.id, task.id, (item) => ({ ...item, taskStatus: event.target.value }))}>
+                                  {TASK_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                </select>
+                              </Field>
+                              <Field label="Description"><textarea style={{ ...textAreaStyle, minHeight: 90 }} value={task.description} onChange={(event) => updateTask(activeChapter.id, task.id, (item) => ({ ...item, description: event.target.value }))} placeholder={t('drafts.taskDescriptionHint')} /></Field>
+                            </div>
+                            <div style={{ marginTop: 12 }}>
+                              <Field label={t('drafts.quizJson')}>
+                                <>
+                                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t('drafts.quizJsonHint')}</div>
+                                  <textarea style={{ ...textAreaStyle, minHeight: 140 }} value={task.quizQuestionsJson} onChange={(event) => updateTask(activeChapter.id, task.id, (item) => ({ ...item, quizQuestionsJson: event.target.value }))} />
+                                </>
+                              </Field>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Panel>}
                 </>
               )}
 
               {activeTab === 'lesson' && activeChapter && activeLesson && <Panel
                 title={t('drafts.lessonStudio')}
                 subtitle={t('drafts.lessonStudioHint')}
-                action={<span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{activeLesson.title || t('drafts.untitledLesson')}</span>}
+                action={
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{activeLesson.title || t('drafts.untitledLesson')}</span>
+                    <button
+                      type="button"
+                      style={{
+                        ...buttonStyle,
+                        borderColor: 'var(--accent-primary)',
+                        color: 'var(--accent-primary)',
+                        opacity: canGenerateActiveLesson ? 1 : 0.6,
+                      }}
+                      onClick={generateAiLessonContent}
+                      disabled={saving || isGeneratingActiveLesson}
+                      title={!canGenerateActiveLesson ? t('drafts.saveBeforeGenerateLesson', { defaultValue: 'Save the draft before generating AI lesson content.' }) : undefined}
+                    >
+                      {isGeneratingActiveLesson ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+                      {isGeneratingActiveLesson
+                        ? t('drafts.generatingLessonContent', { defaultValue: 'Generating lesson...' })
+                        : t('drafts.generateLessonContent', { defaultValue: 'Generate Lesson by AI' })}
+                    </button>
+                  </div>
+                }
                 collapsible
                 collapseLabel={collapseLabel}
                 expandLabel={expandLabel}
               >
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20 }}>
-                  <div style={{ display: 'grid', gap: 14 }}>
-                    {SECTION_KEYS.map((key) => <Field key={key} label={SECTION_LABELS[key]}><><div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t(SECTION_HINT_KEYS[key])}</div><textarea style={{ ...textAreaStyle, minHeight: key === 'code-examples' || key === 'common-mistakes' ? 180 : 110 }} value={activeLesson.sections[key]} onChange={(event) => updateLesson(activeChapter.id, activeLesson.id, (lesson) => ({ ...lesson, sections: { ...lesson.sections, [key]: event.target.value } }))} /></></Field>)}
-                  </div>
-                  <div style={{ display: 'grid', gap: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>Markdown Sync</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>{t('drafts.markdownSyncHint')}</div>
-                      <Editor height="340px" defaultLanguage="markdown" theme="vs-light" value={buildLessonContentFromSections(activeLesson.sections)} onChange={(next) => updateLesson(activeChapter.id, activeLesson.id, (lesson) => ({ ...lesson, sections: parseLessonSections(next ?? '') }))} options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }} />
+                <div style={{ display: 'grid', gap: 20, minWidth: 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20, minWidth: 0 }}>
+                    <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+                      {SECTION_KEYS.map((key) => <Field key={key} label={SECTION_LABELS[key]}><><div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t(SECTION_HINT_KEYS[key])}</div><textarea style={{ ...textAreaStyle, minHeight: key === 'code-examples' || key === 'common-mistakes' ? 180 : 110 }} value={activeLesson.sections[key]} onChange={(event) => updateLesson(activeChapter.id, activeLesson.id, (lesson) => ({ ...lesson, sections: { ...lesson.sections, [key]: event.target.value } }))} /></></Field>)}
                     </div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>Preview</div>
-                      <div style={{ ...cardStyle, padding: 16, background: 'var(--bg-main)', maxHeight: 580, overflow: 'auto' }}>
-                        <LessonContent content={buildLessonContentFromSections(activeLesson.sections)} />
+                    <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+                      <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>Markdown Sync</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>{t('drafts.markdownSyncHint')}</div>
+                        <Editor height="340px" width="100%" defaultLanguage="markdown" theme="vs-light" value={buildLessonContentFromSections(activeLesson.sections)} onChange={(next) => updateLesson(activeChapter.id, activeLesson.id, (lesson) => ({ ...lesson, sections: parseLessonSections(next ?? '') }))} options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on', scrollBeyondLastLine: false, wrappingStrategy: 'advanced' }} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>Preview</div>
+                        <div style={{ ...cardStyle, padding: 16, background: 'var(--bg-main)', maxHeight: 580, overflow: 'auto', minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                          <LessonContent content={buildLessonContentFromSections(activeLesson.sections)} />
+                        </div>
                       </div>
                     </div>
+                  </div>
+                  <div style={{ ...cardStyle, padding: 16, background: 'var(--bg-main)', minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{t('drafts.lessonQuizzes')}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{t('drafts.lessonQuizzesHint')}</div>
+                      </div>
+                      <button type="button" style={buttonStyle} onClick={() => addQuiz(activeChapter.id, activeLesson.id)}><Plus size={14} /> {t('drafts.addQuiz')}</button>
+                    </div>
+                    {activeLesson.quizzes.length === 0 ? (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('drafts.noQuizzesYet')}</div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 12 }}>
+                        {activeLesson.quizzes.map((quiz, quizIndex) => (
+                          <div key={quiz.id} style={{ ...cardStyle, padding: 14, background: 'var(--bg-surface)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+                              <strong style={{ color: 'var(--text-primary)' }}>{quiz.title || `${t('drafts.untitledQuiz')} ${quizIndex + 1}`}</strong>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  style={{
+                                    ...buttonStyle,
+                                    borderColor: 'var(--accent-primary)',
+                                    color: 'var(--accent-primary)',
+                                    opacity: quiz.persistedId ? 1 : 0.55,
+                                    cursor: quiz.persistedId ? 'pointer' : 'not-allowed',
+                                    fontSize: 12,
+                                  }}
+                                  onClick={() => generateAiQuizQuestions(activeChapter.id, activeLesson.id, quiz)}
+                                  disabled={generatingQuizId === quiz.id || saving}
+                                  title={!quiz.persistedId ? t('drafts.saveBeforeGenerateQuiz') : undefined}
+                                >
+                                  {generatingQuizId === quiz.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles size={12} />}
+                                  {generatingQuizId === quiz.id ? t('drafts.generatingQuiz') : t('drafts.generateQuizByAi')}
+                                </button>
+                                <button type="button" style={buttonStyle} onClick={() => removeQuiz(activeChapter.id, activeLesson.id, quiz.id)}><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: 12 }}>
+                              <Field label={t('drafts.quizTitle')}>
+                                <>
+                                  <input style={inputStyle} value={quiz.title} onChange={(event) => updateQuiz(activeChapter.id, activeLesson.id, quiz.id, (item) => ({ ...item, title: event.target.value }))} />
+                                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t('drafts.quizTitleHint')}</div>
+                                </>
+                              </Field>
+                              <Field label="Description"><textarea style={{ ...textAreaStyle, minHeight: 90 }} value={quiz.description} onChange={(event) => updateQuiz(activeChapter.id, activeLesson.id, quiz.id, (item) => ({ ...item, description: event.target.value }))} /></Field>
+                            </div>
+                            <div style={{ marginTop: 12 }}>
+                              <Field label={t('drafts.quizJson')}>
+                                <>
+                                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t('drafts.quizJsonHint')}</div>
+                                  <textarea style={{ ...textAreaStyle, minHeight: 180 }} value={quiz.quizQuestionsJson} onChange={(event) => updateQuiz(activeChapter.id, activeLesson.id, quiz.id, (item) => ({ ...item, quizQuestionsJson: event.target.value }))} />
+                                </>
+                              </Field>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Panel>}
@@ -724,7 +1071,7 @@ const MentorDraftFormPage: React.FC = () => {
           selectedStudentId={selectedStudentId}
           selectedPathId={currentPathId}
           onSelectStudent={setSelectedStudentId}
-          onSelectPath={() => {}}
+          onSelectPath={() => { }}
           onClose={() => setIsShareModalOpen(false)}
           onSubmit={handleShareDraft}
           error={shareError}

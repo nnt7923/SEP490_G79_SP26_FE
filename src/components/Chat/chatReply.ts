@@ -41,6 +41,24 @@ export interface ReplyPreviewContext {
 
 const REPLYABLE_TYPES = new Set(['Text', 'Emoji', 'LearningPathShare'])
 
+const asString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized ? normalized : null
+}
+
+const getReplyToMessageId = (message: DirectMessageDto | Record<string, any>): string | null =>
+  asString(message?.replyToMessageId) ??
+  asString((message as any)?.ReplyToMessageId)
+
+const getReplyToContent = (message: DirectMessageDto | Record<string, any>): string | null =>
+  asString(message?.replyToContent) ??
+  asString((message as any)?.ReplyToContent)
+
+const getReplyToSenderId = (message: DirectMessageDto | Record<string, any>): string | null =>
+  asString(message?.replyToSenderId) ??
+  asString((message as any)?.ReplyToSenderId)
+
 export function normalizeChatMessageContent(raw: string | null | undefined): string {
   const content = raw ?? ''
   if (!content.includes('\n') && !content.includes('\r')) return content
@@ -143,13 +161,14 @@ export function buildReplyPreviewForMessage(
   messages: DirectMessageDto[],
   context: ReplyPreviewContext
 ): ReplyPreviewModel | null {
-  if (!message.replyToMessageId) return null
+  const replyToMessageId = getReplyToMessageId(message)
+  if (!replyToMessageId) return null
 
-  const sourceMessage = messages.find((item) => item.messageId === message.replyToMessageId)
+  const sourceMessage = messages.find((item) => item.messageId === replyToMessageId)
   if (sourceMessage) return buildReplyPreviewFromSourceMessage(sourceMessage, context)
 
-  const senderLabel = getReplySenderLabel(message.replyToSenderId, context)
-  const normalizedReplyContent = normalizeChatMessageContent(message.replyToContent).trim()
+  const senderLabel = getReplySenderLabel(getReplyToSenderId(message), context)
+  const normalizedReplyContent = normalizeChatMessageContent(getReplyToContent(message)).trim()
   const shareTitle = extractSharedLearningPathTitle(normalizedReplyContent)
 
   if (shareTitle) {
