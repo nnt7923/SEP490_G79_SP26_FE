@@ -478,14 +478,6 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
         const message = normalizeDirectMessage(payload);
         if (!message) return;
 
-        if (import.meta.env.DEV) {
-          console.debug("[DirectChatHub] ReceiveMessage", {
-            raw: payload,
-            normalized: message,
-            isLearningPathShare: message.messageType === "LearningPathShare",
-          });
-        }
-
         store.getState().appendMessage(message.conversationId, message);
 
         if (message.messageType === "LearningPathShare") {

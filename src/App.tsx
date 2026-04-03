@@ -10,7 +10,7 @@ function App() {
     <Providers>
       <NotificationBootstrap />
       <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">Loading...</div>}>
-        <RouterProvider router={router} />
+        <RouterProvider router={router} future={{ v7_startTransition: true }} />
       </Suspense>
       <GlobalNotifications />
     </Providers>

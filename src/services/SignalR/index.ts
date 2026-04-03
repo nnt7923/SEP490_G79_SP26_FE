@@ -108,7 +108,7 @@ function buildConnection(url: string): signalR.HubConnection {
     .withAutomaticReconnect({
       nextRetryDelayInMilliseconds: (ctx) => ctx.previousRetryCount === 0 ? 0 : Math.min(1000 << ctx.previousRetryCount, 30000),
     })
-    .configureLogging(signalR.LogLevel.Information) // Tăng log level để debug
+    .configureLogging(signalR.LogLevel.None)
     .build()
 }
 
@@ -1600,3 +1600,4 @@ export async function reconnectHubs(): Promise<void> {
   await disconnectHubs()
   // Hubs will be recreated automatically on next use with new token
 }
+

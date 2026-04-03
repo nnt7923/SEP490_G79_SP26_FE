@@ -13,6 +13,12 @@ import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPat
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 
+const getApiErrorMessage = (err: any, fallback: string) =>
+  err?.response?.data?.message
+  || err?.response?.data?.errorMessage
+  || err?.message
+  || fallback
+
 const MentorDraftsPage: React.FC = () => {
   const { t } = useTranslation('mentor')
   const { t: tc } = useTranslation('common')
@@ -96,7 +102,7 @@ const MentorDraftsPage: React.FC = () => {
         setTotalCount(res.totalCount)
       } catch (err: any) {
         if (!active) return
-        setError(err?.response?.data?.message || err?.message || t('drafts.loadFailed'))
+        setError(getApiErrorMessage(err, t('drafts.loadFailed')))
       } finally {
         if (active) setLoading(false)
       }
@@ -132,7 +138,7 @@ const MentorDraftsPage: React.FC = () => {
       })
     } catch (err: any) {
       const code = err?.response?.data?.errorCode
-      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : (err?.response?.data?.message || err?.message || t('chat.shareError')))
+      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : getApiErrorMessage(err, t('chat.shareError')))
     } finally {
       setSharing(false)
     }

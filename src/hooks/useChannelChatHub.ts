@@ -220,16 +220,13 @@ export function useChannelChatHub(options: UseChannelChatHubOptions = {}): Chann
 
     connectionRef.current = conn
 
-    conn.onclose((err) => console.log('[ChannelHub] closed', err))
-    conn.onreconnecting((err) => console.log('[ChannelHub] reconnecting...', err))
-    conn.onreconnected(async (id) => {
-      console.log('[ChannelHub] reconnected', id)
+    conn.onclose(() => {})
+    conn.onreconnecting(() => {})
+    conn.onreconnected(async () => {
       const categories = Array.from(joinedCategoriesRef.current)
       await Promise.all(
         categories.map((category) =>
-          conn.invoke('JoinChannel', category).catch((err) => {
-            console.error('[ChannelHub] rejoin failed:', category, err)
-          })
+          conn.invoke('JoinChannel', category).catch(() => {})
         )
       )
     })
@@ -254,7 +251,6 @@ export function useChannelChatHub(options: UseChannelChatHubOptions = {}): Chann
       const categoryKey = resolveCategoryKey(rawCategory, rawConversationId, joinedCategoriesRef.current, store)
       const message = normalizeChannelMessage(payload, categoryKey)
       if (!message) {
-        console.warn('[ChannelHub] unable to normalize ReceiveChannelMessage payload', payload)
         return
       }
       store.getState().appendMessage(message.category, message)
@@ -285,17 +281,10 @@ export function useChannelChatHub(options: UseChannelChatHubOptions = {}): Chann
 
     conn.on('ChannelChatError', (err: any) => {
       if (!mounted) return
-      console.error('[ChannelHub] ChannelChatError:', err)
       onErrorRef.current?.(err?.errorCode ?? 'UNKNOWN', err?.errorMessage ?? '')
     })
 
-    readyPromiseRef.current = conn.start()
-      .then(() => {
-        console.log('[ChannelHub] connected:', conn.state)
-      })
-      .catch((err) => {
-        console.error('[ChannelHub] initial connection failed:', err)
-      })
+    readyPromiseRef.current = conn.start().catch(() => {})
 
     return () => {
       mounted = false
