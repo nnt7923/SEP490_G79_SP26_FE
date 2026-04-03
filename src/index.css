@@ -197,3 +197,15 @@ button:focus-visible {
   color: #e6edf3;
 }
 
+input.hide-password-reveal::-ms-reveal,
+input.hide-password-reveal::-ms-clear {
+  display: none;
+}
+
+input.hide-password-reveal::-webkit-credentials-auto-fill-button,
+input.hide-password-reveal::-webkit-textfield-decoration-container {
+  visibility: hidden;
+  pointer-events: none;
+  display: none !important;
+}
+
