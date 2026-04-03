@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
 import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, Book, Maximize2, Minimize2 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FocusSessionService, SessionType } from '../../../services'
+import { DailyCheckinService, FocusSessionService, SessionType } from '../../../services'
 import type { FocusSession } from '../../../services/FocusSessionService'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
@@ -10,6 +10,8 @@ import Toast from '../../../components/Toast'
 import CompleteSessionDialog from '../../../components/CompleteSessionDialog'
 import ROUTER from '../../../router/ROUTER'
 import { useTranslation } from 'react-i18next'
+import useDailyCheckinActivitySync from '../../../hooks/useDailyCheckinActivitySync'
+import DailyCheckinPopup from '../Student/components/DailyCheckinPopup'
 
 interface TaskData {
   id?: string
@@ -24,6 +26,7 @@ const FocusSessionPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { t } = useTranslation('student')
+  const syncDailyCheckin = useDailyCheckinActivitySync()
 
   // Get session data from navigation state
   const sessionData = location.state?.session as FocusSession | undefined
@@ -60,6 +63,7 @@ const FocusSessionPage: React.FC = () => {
   const [aiReviewLoading, setAiReviewLoading] = useState<boolean>(false)
   const [aiReview, setAiReview] = useState<{ feedback: string, score?: number } | null>(null)
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false)
+  const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
 
   // Code editor state for practice tasks
   const [code, setCode] = useState<string>('')
@@ -307,6 +311,9 @@ const FocusSessionPage: React.FC = () => {
       }
 
       // Call complete session API
+      const preActionStatus = payload.submissionType === 'Final'
+        ? await DailyCheckinService.getDailyCheckinStatus().catch(() => null)
+        : null
       await FocusSessionService.completeSession(session.id, payload)
 
       setIsRunning(false)
@@ -318,11 +325,24 @@ const FocusSessionPage: React.FC = () => {
         : t('focusSession.completed')
 
       setToast({ message, type: 'success' })
+      let navigationDelay = 2000
+      if (submitType !== 'save_progress') {
+        const dailyCheckinResult = await syncDailyCheckin({ preActionStatus })
+        if (dailyCheckinResult?.shouldShowPopup) {
+          setDailyCheckinPopup({
+            message: dailyCheckinResult.message,
+            currentStreak: dailyCheckinResult.stats.currentStreak,
+            mood: dailyCheckinResult.todayCheckin?.mood,
+            productivity: dailyCheckinResult.todayCheckin?.productivity,
+          })
+          navigationDelay = 3800
+        }
+      }
 
       // Navigate back to my plans after a short delay
       setTimeout(() => {
         navigate(ROUTER.MY_PLANS)
-      }, 2000)
+      }, navigationDelay)
     } catch (error: any) {
       const msg = error?.response?.data?.message || error?.message || t('focusSession.completeError')
       setToast({ message: msg, type: 'error' })
@@ -1113,6 +1133,36 @@ const FocusSessionPage: React.FC = () => {
           loading={loading}
         />
       )}
+
+      <DailyCheckinPopup
+        isOpen={dailyCheckinPopup != null}
+        title={t('dashboard.dailyCheckin.popupTitle')}
+        message={dailyCheckinPopup?.message ?? ''}
+        currentStreakLabel={t('dashboard.dailyCheckin.currentStreak')}
+        moodLabel={t('dashboard.dailyCheckin.mood')}
+        productivityLabel={t('dashboard.dailyCheckin.productivity')}
+        productivityValueTemplate={t('dashboard.dailyCheckin.productivityValue', { value: '{{value}}' })}
+        closeLabel={t('dashboard.dailyCheckin.close')}
+        stats={dailyCheckinPopup ? {
+          todayCheckedIn: true,
+          currentStreak: dailyCheckinPopup.currentStreak,
+          longestStreak: 0,
+          totalCheckins: 0,
+          lastCheckinDate: null,
+          isStreakMilestone: false,
+          popupCode: '',
+          popupParams: null,
+        } : null}
+        todayCheckin={dailyCheckinPopup ? {
+          checkinId: '',
+          userId: '',
+          checkinDate: '',
+          mood: dailyCheckinPopup.mood ?? null,
+          productivity: dailyCheckinPopup.productivity ?? null,
+          createdAt: '',
+        } : null}
+        onClose={() => setDailyCheckinPopup(null)}
+      />
 
       {/* Toast Notification */}
       {toast && (

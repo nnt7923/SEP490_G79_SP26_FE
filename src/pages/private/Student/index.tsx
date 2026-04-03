@@ -14,6 +14,7 @@ import useNotificationStore from '../../../store/useNotificationStore'
 import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
 import type { NotificationDto } from '../../../types/notification'
 import SubscriptionService from '../../../services/SubscriptionService'
+import useDailyCheckinDashboard from '../../../hooks/useDailyCheckinDashboard'
 
 type DayBucket = {
   key: string
@@ -125,6 +126,46 @@ const getPathChipColor = (key: string) => {
   return TIMELINE_COLORS[Math.abs(hash) % TIMELINE_COLORS.length]
 }
 
+const getCompactDailyCheckinAccent = (streak: number, checkedInToday: boolean) => {
+  if (!checkedInToday) {
+    return {
+      color: '#2563eb',
+      background: 'rgba(37, 99, 235, 0.08)',
+      border: 'rgba(37, 99, 235, 0.18)',
+    }
+  }
+
+  if (streak >= 30) {
+    return {
+      color: '#dc2626',
+      background: 'rgba(220, 38, 38, 0.08)',
+      border: 'rgba(220, 38, 38, 0.18)',
+    }
+  }
+
+  if (streak >= 14) {
+    return {
+      color: '#ea580c',
+      background: 'rgba(234, 88, 12, 0.08)',
+      border: 'rgba(234, 88, 12, 0.18)',
+    }
+  }
+
+  if (streak >= 7) {
+    return {
+      color: '#0891b2',
+      background: 'rgba(8, 145, 178, 0.08)',
+      border: 'rgba(8, 145, 178, 0.18)',
+    }
+  }
+
+  return {
+    color: '#16a34a',
+    background: 'rgba(22, 163, 74, 0.08)',
+    border: 'rgba(22, 163, 74, 0.18)',
+  }
+}
+
 const StudentIndex: React.FC = () => {
   const { user } = useAuthStore()
   const displayName = user?.name || user?.username || 'Student'
@@ -156,6 +197,7 @@ const StudentIndex: React.FC = () => {
     Quiz: 1,
   })
   const learningPathSkeletonCacheRef = React.useRef<Map<string, any>>(new Map())
+  const dailyCheckin = useDailyCheckinDashboard()
 
   React.useEffect(() => {
     setAvatarLoadFailed(false)
@@ -739,6 +781,17 @@ const StudentIndex: React.FC = () => {
     }
   }, [expiringSoonNotification?.notificationId])
 
+  const dailyCheckinCheckedInToday = Boolean(dailyCheckin.stats?.todayCheckedIn || dailyCheckin.todayCheckin)
+  const dailyCheckinCurrentStreak = dailyCheckin.stats?.currentStreak ?? 0
+  const dailyCheckinAccent = getCompactDailyCheckinAccent(dailyCheckinCurrentStreak, dailyCheckinCheckedInToday)
+  const dailyCheckinSummary = dailyCheckin.loading
+    ? t('dashboard.dailyCheckin.loading')
+    : dailyCheckin.error
+      ? dailyCheckin.error
+      : dailyCheckin.todayCheckin
+        ? `${t('dashboard.dailyCheckin.mood')}: ${dailyCheckin.todayCheckin.mood || '-'} | ${t('dashboard.dailyCheckin.productivity')}: ${dailyCheckin.todayCheckin.productivity ? t('dashboard.dailyCheckin.productivityValue', { value: dailyCheckin.todayCheckin.productivity }) : '-'}`
+        : t('dashboard.dailyCheckin.empty')
+
   return (
     <Layout sidebar={sidebarConfig}>
       <div className="page-fade-in" style={{ padding: 16, background: 'var(--bg-surface)' }}>
@@ -748,7 +801,7 @@ const StudentIndex: React.FC = () => {
           transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
           style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '16px 20px', marginBottom: 16 }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ width: 56, height: 56, borderRadius: 2, border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0, overflow: 'hidden' }}>
               {avatarUrl && !avatarLoadFailed ? (
                 <img
@@ -761,9 +814,38 @@ const StudentIndex: React.FC = () => {
                 getInitials(displayName)
               )}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: '3 1 0', minWidth: 0 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{displayName}</h1>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>{user?.email ?? '—'}</p>
+            </div>
+            <div
+              style={{
+                flex: '2 1 280px',
+                minWidth: 260,
+                border: `1px solid ${dailyCheckinAccent.border}`,
+                borderRadius: 2,
+                background: dailyCheckinAccent.background,
+                padding: '10px 12px',
+                display: 'grid',
+                gap: 8,
+                alignContent: 'center',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.4px', textTransform: 'uppercase', color: dailyCheckinAccent.color }}>
+                  {t('dashboard.dailyCheckin.title')}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: dailyCheckinCheckedInToday ? dailyCheckinAccent.color : 'var(--text-secondary)' }}>
+                  {dailyCheckinCheckedInToday ? t('dashboard.dailyCheckin.checkedIn') : t('dashboard.dailyCheckin.notCheckedIn')}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: dailyCheckinAccent.color, lineHeight: 1 }}>{dailyCheckinCurrentStreak}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.dailyCheckin.currentStreak')}</div>
+              </div>
+              <div style={{ fontSize: 12, color: dailyCheckin.error ? 'var(--danger-primary)' : 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {dailyCheckinSummary}
+              </div>
             </div>
           </div>
         </motion.div>

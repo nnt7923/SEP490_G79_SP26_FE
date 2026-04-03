@@ -4,11 +4,14 @@ import Header from '../../../../components/Layout/Header'
 import Footer from '../../../../components/Layout/Footer'
 import TutorChatbot from '../../../../components/TutorChatbot'
 import { requestLessonContent, requestResolveTutorConversation } from '../../../../services/SignalR'
+import { DailyCheckinService } from '../../../../services'
 import LearningPathService from '../../../../services/LearningPathService'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
 import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import useDailyCheckinActivitySync from '../../../../hooks/useDailyCheckinActivitySync'
+import DailyCheckinPopup from '../../Student/components/DailyCheckinPopup'
 
 // Helper to extract headings (## and ###) from markdown
 const extractHeadings = (md: string) => {
@@ -150,6 +153,7 @@ const LessonDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation() as any
   const { t } = useTranslation('student')
+  const syncDailyCheckin = useDailyCheckinActivitySync()
   
   const [skeleton] = useState<any | null>(() => {
     const fromState = location?.state?.skeleton
@@ -172,10 +176,10 @@ const LessonDetailPage: React.FC = () => {
   const [lessonReadError, setLessonReadError] = useState<string | null>(null)
   
   const [isFocusMode, setIsFocusMode] = useState(false)
+  const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
 
   // Tutor conversation state
   const [conversationId, setConversationId] = useState<string | null>(null)
-  const [resolvedChapterId, setResolvedChapterId] = useState<string | null>(null)
   const [isResolvingTutorConversation, setIsResolvingTutorConversation] = useState<boolean>(false)
   const [tutorResolveErrorCode, setTutorResolveErrorCode] = useState<string | null>(null)
 
@@ -239,7 +243,9 @@ const LessonDetailPage: React.FC = () => {
   const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null
   const nextLesson = currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
   const currentChapterId = currentLesson?.chapterId
-  const canShowMarkRead = !loading && !error && md.trim().length > 0
+  const isLessonContentReady = !loading && !error && md.trim().length > 0
+  const canShowMarkRead = isLessonContentReady
+  const canShowLessonNavigation = isLessonContentReady
   const lessonReadLabel = isLessonRead
     ? t('lessonDetail.readCompleted', 'Marked as completed')
     : t('lessonDetail.markRead', 'Mark lesson as completed')
@@ -250,13 +256,11 @@ const LessonDetailPage: React.FC = () => {
     const cachedConversationId = getCachedTutorConversationId(currentChapterId)
     if (cachedConversationId) {
       setConversationId(cachedConversationId)
-      setResolvedChapterId(currentChapterId)
       setTutorResolveErrorCode(null)
       return
     }
 
     setConversationId(null)
-    setResolvedChapterId(null)
   }, [currentChapterId])
 
   const handleBack = () => {
@@ -311,10 +315,20 @@ const LessonDetailPage: React.FC = () => {
     setMarkLessonReadLoading(true)
     setLessonReadError(null)
     try {
+      const preActionStatus = await DailyCheckinService.getDailyCheckinStatus().catch(() => null)
       await LearningPathService.markLessonContentRead(lessonId)
       const now = new Date().toISOString()
       setIsLessonRead(true)
       setLessonReadAt((prev) => prev ?? now)
+      const dailyCheckinResult = await syncDailyCheckin({ preActionStatus })
+      if (dailyCheckinResult?.shouldShowPopup) {
+        setDailyCheckinPopup({
+          message: dailyCheckinResult.message,
+          currentStreak: dailyCheckinResult.stats.currentStreak,
+          mood: dailyCheckinResult.todayCheckin?.mood,
+          productivity: dailyCheckinResult.todayCheckin?.productivity,
+        })
+      }
     } catch (error: any) {
       const message = error?.response?.data?.message || error?.message || t('lessonDetail.markReadError', 'Unable to mark this lesson as completed.')
       setLessonReadError(message)
@@ -401,7 +415,6 @@ const LessonDetailPage: React.FC = () => {
               setCachedTutorConversationId(currentChapterId, finalConversationId)
             }
 
-            setResolvedChapterId(currentChapterId || null)
             setTutorResolveErrorCode(null)
           },
           (resolveError) => {
@@ -428,7 +441,6 @@ const LessonDetailPage: React.FC = () => {
             setCachedTutorConversationId(currentChapterId, finalConversationId)
           }
 
-          setResolvedChapterId(currentChapterId || null)
           setTutorResolveErrorCode(null)
         }
       } catch (error: any) {
@@ -455,6 +467,7 @@ const LessonDetailPage: React.FC = () => {
     const run = async () => {
       setLoading(true)
       setError(null)
+      setMd('')
 
       // 1) Check if content is in skeleton
       const found = allLessons.find((l: any) => l.id === lessonId)
@@ -530,7 +543,7 @@ const LessonDetailPage: React.FC = () => {
                  }}
                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
-                 title="Toggle Distraction-Free Reading"
+                 title={t('lessonDetail.focusToggleTitle')}
                >
                  <Maximize2 className="w-4 h-4" />
                  <span>{t('lessonDetail.enableFocus')}</span>
@@ -669,9 +682,8 @@ const LessonDetailPage: React.FC = () => {
 
             {/* Interactive Footer & Actions */}
             <div style={{ marginTop: 64, borderTop: '1px solid var(--border-base)', paddingTop: 32, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
-               
-               {/* Next / Prev Lessons */}
-               <div style={{ display: 'flex', gap: 24, justifyContent: 'space-between' }}>
+              {canShowLessonNavigation ? (
+                <div style={{ display: 'flex', gap: 24, justifyContent: 'space-between' }}>
                   {prevLesson ? (
                     <button
                       onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
@@ -713,7 +725,21 @@ const LessonDetailPage: React.FC = () => {
                       <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--bg-surface)' }}>{t('lessonDetail.returnToPlan')}</span>
                     </button>
                   )}
-               </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '14px 16px',
+                  borderRadius: 4,
+                  border: '1px dashed var(--border-base)',
+                  color: 'var(--text-secondary)',
+                  fontSize: 13,
+                  background: 'var(--bg-surface)'
+                }}>
+                  {loading
+                    ? t('lessonDetail.navigationPending')
+                    : t('lessonDetail.navigationPendingFallback')}
+                </div>
+              )}
             </div>
           </div>
 
@@ -790,7 +816,7 @@ const LessonDetailPage: React.FC = () => {
             background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
             color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
-          title="Scroll to top"
+          title={t('lessonDetail.scrollTop')}
         >
           <ArrowUp className="w-4 h-4" />
         </button>
@@ -801,7 +827,7 @@ const LessonDetailPage: React.FC = () => {
             background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
             color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
-          title="Scroll to bottom"
+          title={t('lessonDetail.scrollBottom')}
         >
           <ArrowDown className="w-4 h-4" />
         </button>
@@ -817,6 +843,36 @@ const LessonDetailPage: React.FC = () => {
         lessonTitle={displayLesson.title || null}
         isResolvingSession={isResolvingTutorConversation}
         resolveErrorCode={tutorResolveErrorCode}
+      />
+
+      <DailyCheckinPopup
+        isOpen={dailyCheckinPopup != null}
+        title={t('dashboard.dailyCheckin.popupTitle')}
+        message={dailyCheckinPopup?.message ?? ''}
+        currentStreakLabel={t('dashboard.dailyCheckin.currentStreak')}
+        moodLabel={t('dashboard.dailyCheckin.mood')}
+        productivityLabel={t('dashboard.dailyCheckin.productivity')}
+        productivityValueTemplate={t('dashboard.dailyCheckin.productivityValue', { value: '{{value}}' })}
+        closeLabel={t('dashboard.dailyCheckin.close')}
+        stats={dailyCheckinPopup ? {
+          todayCheckedIn: true,
+          currentStreak: dailyCheckinPopup.currentStreak,
+          longestStreak: 0,
+          totalCheckins: 0,
+          lastCheckinDate: null,
+          isStreakMilestone: false,
+          popupCode: '',
+          popupParams: null,
+        } : null}
+        todayCheckin={dailyCheckinPopup ? {
+          checkinId: '',
+          userId: '',
+          checkinDate: '',
+          mood: dailyCheckinPopup.mood ?? null,
+          productivity: dailyCheckinPopup.productivity ?? null,
+          createdAt: '',
+        } : null}
+        onClose={() => setDailyCheckinPopup(null)}
       />
       
       {!isFocusMode && <Footer />}

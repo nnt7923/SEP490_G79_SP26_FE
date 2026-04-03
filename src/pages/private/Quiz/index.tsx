@@ -5,7 +5,10 @@ import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import { useTranslation } from 'react-i18next'
 import api from '../../../services/Axios'
+import { DailyCheckinService } from '../../../services'
 import { requestQuizQuestions } from '../../../services/SignalR'
+import useDailyCheckinActivitySync from '../../../hooks/useDailyCheckinActivitySync'
+import DailyCheckinPopup from '../Student/components/DailyCheckinPopup'
 
 /* ── Types ─────────────────────────────────────────── */
 interface QuizQuestion {
@@ -46,12 +49,109 @@ function clearAttempt(quizId: string) {
   try { sessionStorage.removeItem(STORAGE_KEY(quizId)) } catch { /* ignore */ }
 }
 
+const normalizeInlineText = (value: string) => value.replace(/\s+/g, ' ').trim()
+
+const parseMatchingAnswerMap = (rawAnswer: string): Record<string, string> => {
+  const result: Record<string, string> = {}
+  const normalizedRaw = String(rawAnswer || '').trim()
+  if (!normalizedRaw) return result
+
+  const rawPairs = normalizedRaw.includes('||')
+    ? normalizedRaw.split('||')
+    : normalizedRaw.split(',')
+
+  rawPairs.forEach((pair) => {
+    const [left, ...rightParts] = pair.split('::')
+    const normalizedLeft = normalizeInlineText(left || '')
+    const normalizedRight = normalizeInlineText(rightParts.join('::') || '')
+    if (!normalizedLeft || !normalizedRight) return
+    result[normalizedLeft] = normalizedRight
+  })
+
+  return result
+}
+
+const normalizeAnswerForSubmit = (question: QuizQuestion, rawAnswer: string): string => {
+  const answer = String(rawAnswer || '').trim()
+  if (!answer && question.type !== 'Ordering') return ''
+
+  if (question.type === 'FillInTheBlank') {
+    return normalizeInlineText(answer)
+  }
+
+  if (question.type === 'MultipleChoice') {
+    const selected = new Set(
+      answer
+        .split('||')
+        .map((item) => normalizeInlineText(item))
+        .filter(Boolean),
+    )
+    return question.options.filter((option) => selected.has(option)).join('||')
+  }
+
+  if (question.type === 'Matching') {
+    const currentMap = parseMatchingAnswerMap(answer)
+    const normalizedPairs = question.options
+      .map((pair) => {
+        const [left] = pair.split('::')
+        const normalizedLeft = normalizeInlineText(left || '')
+        if (!normalizedLeft) return null
+        const selectedRight = currentMap[normalizedLeft]
+        if (!selectedRight) return null
+        return `${normalizedLeft}::${selectedRight}`
+      })
+      .filter((pair): pair is string => Boolean(pair))
+
+    return normalizedPairs.join(', ')
+  }
+
+  if (question.type === 'Ordering') {
+    const normalizedOptions = question.options
+      .map((item) => normalizeInlineText(item))
+      .filter(Boolean)
+
+    if (!normalizedOptions.length) return ''
+
+    const requestedOrder = answer
+      ? answer
+          .split('||')
+          .map((item) => normalizeInlineText(item))
+          .filter(Boolean)
+      : []
+
+    const validOrderedItems = requestedOrder.filter((item, index) =>
+      normalizedOptions.includes(item) && requestedOrder.indexOf(item) === index,
+    )
+
+    const missingItems = normalizedOptions.filter((item) => !validOrderedItems.includes(item))
+    return [...validOrderedItems, ...missingItems].join('||')
+  }
+
+  return answer
+}
+
+const formatAnswerForDisplay = (value: unknown): string => {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+
+  if (text.includes('||')) {
+    return text
+      .split('||')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(', ')
+  }
+
+  return text
+}
+
 /* ── Component ─────────────────────────────────────── */
 const QuizPage: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>()
   const navigate = useNavigate()
   const location = useLocation() as any
   const { t } = useTranslation('student')
+  const syncDailyCheckin = useDailyCheckinActivitySync()
 
   const quizTitle = location.state?.quizTitle || 'Quiz'
 
@@ -77,6 +177,7 @@ const QuizPage: React.FC = () => {
   const [remainingSec, setRemainingSec] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hasAutoSubmittedRef = useRef(false)
+  const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
 
   /* ── Restore session or Generate Questions ─────── */
   useEffect(() => {
@@ -147,14 +248,24 @@ const QuizPage: React.FC = () => {
     if (isAutoSubmit) hasAutoSubmittedRef.current = true
     setSubmitting(true)
     try {
+      const preActionStatus = await DailyCheckinService.getDailyCheckinStatus().catch(() => null)
       const body = attempt.questions.map(q => ({
         questionId: q.questionId,
-        answer: answers[q.questionId] || ''
+        answer: normalizeAnswerForSubmit(q, answers[q.questionId] || '')
       }))
       const res = await api.post(`/quizzes/attempts/${attempt.attemptId}/submit`, body)
       setSubmitResult(res)
       if (quizId) clearAttempt(quizId)
       setPhase('submitted')
+      const dailyCheckinResult = await syncDailyCheckin({ preActionStatus })
+      if (dailyCheckinResult?.shouldShowPopup) {
+        setDailyCheckinPopup({
+          message: dailyCheckinResult.message,
+          currentStreak: dailyCheckinResult.stats.currentStreak,
+          mood: dailyCheckinResult.todayCheckin?.mood,
+          productivity: dailyCheckinResult.todayCheckin?.productivity,
+        })
+      }
     } catch {
       setError(t('quiz.submitFailed'))
     } finally {
@@ -231,6 +342,38 @@ const QuizPage: React.FC = () => {
     }
     return map[type] || type
   }
+
+  const renderDailyCheckinPopup = () => (
+    <DailyCheckinPopup
+      isOpen={dailyCheckinPopup != null}
+      title={t('dashboard.dailyCheckin.popupTitle')}
+      message={dailyCheckinPopup?.message ?? ''}
+      currentStreakLabel={t('dashboard.dailyCheckin.currentStreak')}
+      moodLabel={t('dashboard.dailyCheckin.mood')}
+      productivityLabel={t('dashboard.dailyCheckin.productivity')}
+      productivityValueTemplate={t('dashboard.dailyCheckin.productivityValue', { value: '{{value}}' })}
+      closeLabel={t('dashboard.dailyCheckin.close')}
+      stats={dailyCheckinPopup ? {
+        todayCheckedIn: true,
+        currentStreak: dailyCheckinPopup.currentStreak,
+        longestStreak: 0,
+        totalCheckins: 0,
+        lastCheckinDate: null,
+        isStreakMilestone: false,
+        popupCode: '',
+        popupParams: null,
+      } : null}
+      todayCheckin={dailyCheckinPopup ? {
+        checkinId: '',
+        userId: '',
+        checkinDate: '',
+        mood: dailyCheckinPopup.mood ?? null,
+        productivity: dailyCheckinPopup.productivity ?? null,
+        createdAt: '',
+      } : null}
+      onClose={() => setDailyCheckinPopup(null)}
+    />
+  )
 
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   /* ── RENDER ── */
@@ -397,124 +540,127 @@ const QuizPage: React.FC = () => {
   /* ── Phase: SUBMITTED ──────────────────────────── */
   if (phase === 'submitted') {
     return shell(
-      <div style={{ fontFamily: 'monospace' }}>
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none',
-            color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, marginBottom: 32, padding: 0,
-            textTransform: 'uppercase', letterSpacing: 1
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-        >
-          <ArrowLeft style={{ width: 16, height: 16 }} />
-          [ {t('quiz.goBack')} ]
-        </button>
+      <>
+        <div style={{ fontFamily: 'monospace' }}>
+          {/* Back Button */}
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none',
+              color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, marginBottom: 32, padding: 0,
+              textTransform: 'uppercase', letterSpacing: 1
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+          >
+            <ArrowLeft style={{ width: 16, height: 16 }} />
+            [ {t('quiz.goBack')} ]
+          </button>
 
-        {/* Global Result Card */}
-        <div style={{
-          background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2,
-          padding: 32, marginBottom: 32, position: 'relative'
-        }}>
-          {submitResult?.passed ? (
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, var(--success-primary) 0%, transparent 100%)' }} />
-          ) : (
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, var(--danger-primary) 0%, transparent 100%)' }} />
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                <span style={{ color: submitResult?.passed ? 'var(--success-primary)' : 'var(--danger-primary)', fontWeight: 700, fontSize: 18 }}>
-                  {submitResult?.passed ? t('quiz.resultSuccess', { defaultValue: '[ SUCCESS ]' }) : t('quiz.resultFailed', { defaultValue: '[ FAILED ]' })}
-                </span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-                  // {new Date(submitResult?.endTime || new Date()).toLocaleString()}
-                </span>
-              </div>
-              <h2 style={{
-                fontSize: 24, fontWeight: 700, margin: '0 0 8px 0',
-                color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 12
-              }}>
-                <span style={{ color: submitResult?.passed ? 'var(--success-primary)' : 'var(--danger-primary)' }}>{'>'}</span>
-                {submitResult?.passed ? t('quiz.passedMsg', { defaultValue: 'CHÚC MỪNG! BẠN ĐẠT YÊU CẦU' }) : t('quiz.failedMsg', { defaultValue: 'RẤT TIẾC! BẠN CHƯA ĐẠT YÊU CẦU' })}
-                <span style={{ animation: 'blink 1s step-end infinite', color: submitResult?.passed ? 'var(--success-primary)' : 'var(--danger-primary)', fontWeight: 300 }}>_</span>
-              </h2>
-            </div>
-
-            {submitResult && (
-              <div style={{ display: 'flex', gap: 24 }}>
-                <div style={{ background: 'var(--bg-main)', border: '1px dashed var(--border-base)', padding: '16px 24px', borderRadius: 2, minWidth: 120 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-disabled)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{t('quiz.scoreLabel', { defaultValue: 'SCORE' })}</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {submitResult.score} <span style={{ fontSize: 14, color: 'var(--text-disabled)' }}>/ {submitResult.totalPoints}</span>
-                  </div>
-                </div>
-                <div style={{ background: 'var(--bg-main)', border: '1px dashed var(--border-base)', padding: '16px 24px', borderRadius: 2, minWidth: 120 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-disabled)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{t('quiz.percentageLabel', { defaultValue: 'PERCENTAGE' })}</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: submitResult.passed ? 'var(--success-primary)' : 'var(--danger-primary)' }}>
-                    {submitResult.percentage}%
-                  </div>
-                </div>
-              </div>
+          {/* Global Result Card */}
+          <div style={{
+            background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2,
+            padding: 32, marginBottom: 32, position: 'relative'
+          }}>
+            {submitResult?.passed ? (
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, var(--success-primary) 0%, transparent 100%)' }} />
+            ) : (
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, var(--danger-primary) 0%, transparent 100%)' }} />
             )}
-          </div>
-        </div>
 
-        {/* Question Details List */}
-        {submitResult?.questionResults && (
-          <div style={{ marginTop: 40 }}>
-            <h3 style={{ fontSize: 16, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {'//'} {t('quiz.viewDetails', { defaultValue: 'VIEW_DETAILS' })}
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {submitResult.questionResults.map((qr: any, idx: number) => {
-                const isCorrect = qr.isCorrect
-                const qColor = isCorrect ? 'var(--success-primary)' : 'var(--danger-primary)'
-                return (
-                  <div key={qr.questionId} style={{
-                    background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
-                    borderRadius: 2, padding: 24,
-                    borderLeft: `3px solid ${qColor}`
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 15 }}>
-                        [ {t('quiz.questionPrefix', { defaultValue: 'Q' })}{String(idx + 1).padStart(2, '0')} ]
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', background: 'var(--bg-main)', border: '1px dashed var(--border-base)', padding: '4px 12px', borderRadius: 2 }}>
-                        {qr.earnedPoints} / {qr.points} pt
-                      </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <span style={{ color: submitResult?.passed ? 'var(--success-primary)' : 'var(--danger-primary)', fontWeight: 700, fontSize: 18 }}>
+                    {submitResult?.passed ? t('quiz.resultSuccess', { defaultValue: '[ SUCCESS ]' }) : t('quiz.resultFailed', { defaultValue: '[ FAILED ]' })}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                    // {new Date(submitResult?.endTime || new Date()).toLocaleString()}
+                  </span>
+                </div>
+                <h2 style={{
+                  fontSize: 24, fontWeight: 700, margin: '0 0 8px 0',
+                  color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 12
+                }}>
+                  <span style={{ color: submitResult?.passed ? 'var(--success-primary)' : 'var(--danger-primary)' }}>{'>'}</span>
+                  {submitResult?.passed ? t('quiz.passedMsg', { defaultValue: 'CHÚC MỪNG! BẠN ĐẠT YÊU CẦU' }) : t('quiz.failedMsg', { defaultValue: 'RẤT TIẾC! BẠN CHƯA ĐẠT YÊU CẦU' })}
+                  <span style={{ animation: 'blink 1s step-end infinite', color: submitResult?.passed ? 'var(--success-primary)' : 'var(--danger-primary)', fontWeight: 300 }}>_</span>
+                </h2>
+              </div>
+
+              {submitResult && (
+                <div style={{ display: 'flex', gap: 24 }}>
+                  <div style={{ background: 'var(--bg-main)', border: '1px dashed var(--border-base)', padding: '16px 24px', borderRadius: 2, minWidth: 120 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-disabled)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{t('quiz.scoreLabel', { defaultValue: 'SCORE' })}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {submitResult.score} <span style={{ fontSize: 14, color: 'var(--text-disabled)' }}>/ {submitResult.totalPoints}</span>
                     </div>
-                    <p style={{ margin: '0 0 24px 0', fontSize: 15, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                      {qr.questionText}
-                    </p>
+                  </div>
+                  <div style={{ background: 'var(--bg-main)', border: '1px dashed var(--border-base)', padding: '16px 24px', borderRadius: 2, minWidth: 120 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-disabled)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{t('quiz.percentageLabel', { defaultValue: 'PERCENTAGE' })}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: submitResult.passed ? 'var(--success-primary)' : 'var(--danger-primary)' }}>
+                      {submitResult.percentage}%
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, fontSize: 14 }}>
-                      <div style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--bg-main)', borderRadius: 2, border: '1px dashed var(--border-base)' }}>
-                        <span style={{ color: 'var(--text-secondary)', minWidth: 100, fontWeight: 600 }}>{'>'} {t('quiz.userAns', { defaultValue: 'USER_ANS' })}:</span>
-                        <span style={{ color: isCorrect ? 'var(--success-primary)' : 'var(--danger-primary)', fontWeight: 700, wordBreak: 'break-word' }}>
-                          {qr.userAnswer || t('quiz.nullOrEmpty', { defaultValue: '[ NULL_OR_EMPTY ]' })}
-                        </span>
+          {/* Question Details List */}
+          {submitResult?.questionResults && (
+            <div style={{ marginTop: 40 }}>
+              <h3 style={{ fontSize: 16, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {'//'} {t('quiz.viewDetails', { defaultValue: 'VIEW_DETAILS' })}
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {submitResult.questionResults.map((qr: any, idx: number) => {
+                  const isCorrect = qr.isCorrect
+                  const qColor = isCorrect ? 'var(--success-primary)' : 'var(--danger-primary)'
+                  return (
+                    <div key={qr.questionId} style={{
+                      background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
+                      borderRadius: 2, padding: 24,
+                      borderLeft: `3px solid ${qColor}`
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 15 }}>
+                          [ {t('quiz.questionPrefix', { defaultValue: 'Q' })}{String(idx + 1).padStart(2, '0')} ]
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', background: 'var(--bg-main)', border: '1px dashed var(--border-base)', padding: '4px 12px', borderRadius: 2 }}>
+                          {qr.earnedPoints} / {qr.points} pt
+                        </div>
                       </div>
-                      {!isCorrect && qr.correctAnswer && (
-                        <div style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--bg-main)', borderRadius: 2, border: `1px dashed var(--success-primary)` }}>
-                          <span style={{ color: 'var(--text-secondary)', minWidth: 100, fontWeight: 600 }}>{'>'} {t('quiz.expected', { defaultValue: 'EXPECTED' })}:</span>
-                          <span style={{ color: 'var(--success-primary)', fontWeight: 700, wordBreak: 'break-word' }}>
-                            {qr.correctAnswer}
+                      <p style={{ margin: '0 0 24px 0', fontSize: 15, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                        {qr.questionText}
+                      </p>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, fontSize: 14 }}>
+                        <div style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--bg-main)', borderRadius: 2, border: '1px dashed var(--border-base)' }}>
+                          <span style={{ color: 'var(--text-secondary)', minWidth: 100, fontWeight: 600 }}>{'>'} {t('quiz.userAns', { defaultValue: 'USER_ANS' })}:</span>
+                          <span style={{ color: isCorrect ? 'var(--success-primary)' : 'var(--danger-primary)', fontWeight: 700, wordBreak: 'break-word' }}>
+                            {formatAnswerForDisplay(qr.userAnswer) || t('quiz.nullOrEmpty', { defaultValue: '[ NULL_OR_EMPTY ]' })}
                           </span>
                         </div>
-                      )}
+                        {!isCorrect && qr.correctAnswer && (
+                          <div style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--bg-main)', borderRadius: 2, border: `1px dashed var(--success-primary)` }}>
+                            <span style={{ color: 'var(--text-secondary)', minWidth: 100, fontWeight: 600 }}>{'>'} {t('quiz.expected', { defaultValue: 'EXPECTED' })}:</span>
+                            <span style={{ color: 'var(--success-primary)', fontWeight: 700, wordBreak: 'break-word' }}>
+                              {formatAnswerForDisplay(qr.correctAnswer)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-      </div>
+        </div>
+        {renderDailyCheckinPopup()}
+      </>
     )
   }
 
@@ -675,6 +821,8 @@ const QuizPage: React.FC = () => {
           {error}
         </div>
       )}
+
+      {renderDailyCheckinPopup()}
     </>
   )
 }
