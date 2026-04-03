@@ -38,6 +38,71 @@
       "action": "Cập nhật gói"
     }
   },
+  "achievements": {
+    "title": "Thành tựu của bạn",
+    "subtitle": "Theo dõi huy hiệu, điểm và tiến độ lên cấp.",
+    "refresh": "Làm mới",
+    "points": "điểm",
+    "newBadge": "Mới",
+    "loadingFiltered": "Đang cập nhật danh sách...",
+    "locked": "Chưa mở khóa",
+    "unlockedAt": "Mở khóa: {{time}}",
+    "empty": "Không có thành tựu phù hợp với bộ lọc hiện tại.",
+    "newUnlockToast": "Bạn vừa mở khóa {{name}} (+{{points}} điểm)",
+    "levelUp": {
+      "title": "LÊN CẤP!",
+      "message": "Bạn đã đạt Cấp {{level}}"
+    },
+    "fallback": {
+      "unknownName": "Thành tựu",
+      "noDescription": "Chưa có mô tả."
+    },
+    "filters": {
+      "all": "Tất cả",
+      "unlockedOnly": "Đã mở khóa",
+      "categoryAll": "Mọi danh mục",
+      "searchPlaceholder": "Tìm theo tên thành tựu..."
+    },
+    "stats": {
+      "unlocked": "Đã mở khóa",
+      "totalPoints": "Tổng điểm",
+      "currentLevel": "Cấp hiện tại",
+      "progressToNextLevel": "Tiến độ lên cấp tiếp theo",
+      "pointsToNextLevel": "Còn {{points}} điểm để lên cấp"
+    },
+    "categories": {
+      "LearningMilestone": "Mốc học tập",
+      "Consistency": "Đều đặn",
+      "Focus": "Tập trung",
+      "Goals": "Mục tiêu",
+      "Social": "Cộng đồng",
+      "Special": "Đặc biệt"
+    },
+    "catalogByName": {
+      "perfectionist": { "name": "Người cầu toàn" },
+      "focused_learner": { "name": "Người học tập trung" },
+      "deep_focus": { "name": "Tập trung sâu" },
+      "speed_demon": { "name": "Tăng tốc" },
+      "early_bird": { "name": "Dậy sớm" },
+      "night_owl": { "name": "Cú đêm" },
+      "weekend_warrior": { "name": "Chiến binh cuối tuần" },
+      "profile_complete": { "name": "Hồ sơ hoàn chỉnh" }
+    },
+    "catalogByDescription": {
+      "get_100_score_on_a_task_verification": "Đạt 100% điểm trong một lần xác thực nhiệm vụ.",
+      "complete_a_90_minute_focus_session": "Hoàn thành một phiên tập trung từ 90 phút trở lên.",
+      "complete_a_focus_session_30_minutes_early": "Hoàn thành một phiên tập trung sớm hơn 30 phút.",
+      "study_between_5_8_am": "Học trong khung giờ 5-8 giờ sáng.",
+      "study_between_10_pm_2_am": "Học trong khung giờ 10 giờ tối - 2 giờ sáng.",
+      "complete_a_focus_session_on_weekend": "Hoàn thành một phiên tập trung vào cuối tuần.",
+      "complete_your_first_focus_session": "Hoàn thành phiên tập trung đầu tiên của bạn.",
+      "complete_your_user_profile": "Hoàn tất hồ sơ người dùng của bạn."
+    },
+    "errors": {
+      "loadInit": "Không thể tải dữ liệu thành tựu ban đầu.",
+      "loadList": "Không thể tải danh sách thành tựu."
+    }
+  },
   "goals": {
     "searchPlaceholder": "tìm mục tiêu...",
     "loading": "đang tải mục tiêu...",
@@ -111,20 +176,37 @@
     "lessons": "{{count}} bài học"
   },
   "profile": {
+    "brandName": "Hồ sơ",
+    "brandSubtitleMentor": "Giảng dạy",
+    "brandSubtitleStudent": "Học tập",
     "editProfile": "chỉnh sửa hồ sơ",
     "personalInfo": "Thông tin cá nhân",
     "upload": "tải lên",
+    "avatarAlt": "ảnh đại diện",
+    "phonePlaceholder": "0123456789",
+    "fields": {
+      "firstName": "Tên",
+      "lastName": "Họ",
+      "email": "Email",
+      "phone": "Số điện thoại",
+      "dateOfBirth": "Ngày sinh",
+      "address": "Địa chỉ",
+      "bio": "Tiểu sử"
+    },
     "noBio": "Chưa thêm tiểu sử.",
     "updateProfile": "Cập nhật hồ sơ",
     "bioPlaceholder": "Giới thiệu về bạn...",
     "updating": "đang cập nhật...",
     "update": "cập nhật",
     "phoneError": "Số điện thoại phải có 10 chữ số và bắt đầu bằng 0",
+    "phoneRequiredOnceSet": "Số điện thoại đã có trước đó nên không được để trống; vui lòng nhập đủ 10 số và bắt đầu bằng 0",
     "dobRequired": "Vui lòng nhập ngày sinh",
     "dobInvalid": "Ngày sinh không hợp lệ",
     "dobFuture": "Ngày sinh không thể ở tương lai",
+    "noChanges": "Không có thay đổi để cập nhật",
     "updateSuccess": "Cập nhật hồ sơ thành công",
     "updateFailed": "Cập nhật thất bại",
+    "validationFailed": "Dữ liệu không hợp lệ, vui lòng kiểm tra lại thông tin",
     "avatarOnlyImages": "Chỉ chấp nhận file hình ảnh",
     "avatarMaxSize": "Kích thước tối đa 10MB",
     "avatarUploading": "Đang tải avatar...",
@@ -309,14 +391,36 @@
     "close": "Đóng",
     "minimize": "Thu nhỏ",
     "maximize": "Phóng to",
+    "chapterSessionBadge": "Chapter Session",
+    "lessonContextNote": "Chỉ đổi ngữ cảnh bài học, không tạo session mới",
+    "unknownLesson": "Bài học chưa xác định",
     "welcomeMessage": "Xin chào! Tôi là AI Tutor của bạn. Hãy hỏi tôi bất cứ điều gì về bài học này!",
     "typeMessage": "Nhập câu hỏi của bạn...",
     "sendMessage": "Gửi tin nhắn",
     "thinking": "Đang suy nghĩ...",
+    "sendingMessage": "Đang gửi tin nhắn...",
+    "resolvingSession": "Đang khởi tạo session theo chapter...",
     "loadingHistory": "Đang tải lịch sử trò chuyện...",
     "clearChat": "Xóa cuộc trò chuyện",
     "errorSendingMessage": "Lỗi khi gửi tin nhắn",
-    "matchScore": "Độ phù hợp"
+    "matchScore": "Độ phù hợp",
+    "errors": {
+      "UNAUTHORIZED": "Bạn chưa được cấp quyền dùng tutor chat.",
+      "EMPTY_MESSAGE": "Vui lòng nhập nội dung trước khi gửi.",
+      "AI_CONFIG_NOT_FOUND": "Không tìm thấy cấu hình AI.",
+      "CONVERSATION_NOT_FOUND": "Không tìm thấy cuộc hội thoại tutor.",
+      "AI_RESPONSE_FAILED": "AI chưa thể phản hồi. Vui lòng thử lại.",
+      "CHAPTER_NOT_FOUND": "Không tìm thấy chapter.",
+      "LESSON_NOT_FOUND": "Không tìm thấy bài học.",
+      "LESSON_NOT_IN_CHAPTER": "Bài học không thuộc chapter đã chọn.",
+      "LEARNING_PATH_NOT_FOUND": "Không tìm thấy lộ trình học.",
+      "ACCESS_DENIED": "Bạn không có quyền truy cập ngữ cảnh tutor này.",
+      "CONVERSATION_CONTEXT_MISMATCH": "Ngữ cảnh cuộc hội thoại không khớp chapter hiện tại.",
+      "CONTEXT_REQUIRED": "Cần ngữ cảnh bài học để gửi tin nhắn.",
+      "TUTOR_MESSAGE_LIMIT_EXCEEDED": "Bạn đã dùng hết lượt nhắn tutor.",
+      "CONVERSATION_ID_REQUIRED": "Session tutor chưa sẵn sàng.",
+      "UNEXPECTED_ERROR": "Lỗi tutor không mong muốn. Vui lòng thử lại."
+    }
   },
   "dashboard": {
     "goals": "Mục tiêu",

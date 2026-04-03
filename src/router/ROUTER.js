@@ -14,6 +14,7 @@ const ROUTER = {
   // Private routes
   STUDENT_DASHBOARD: "/dashboard",
   STUDENT_OVERVIEW: "/overview",
+  STUDENT_ACHIEVEMENTS: "/achievements",
   MY_PLANS: "/my-plans",
   GOALS: "/goals",
   PROFILE: "/profile", // Student profile

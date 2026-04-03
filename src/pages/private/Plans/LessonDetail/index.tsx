@@ -65,6 +65,35 @@ const ORDER: LessonSectionKey[] = [
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+const TUTOR_CONVERSATION_CACHE_KEY = 'tutorConversationByChapter'
+
+const readTutorConversationCache = (): Record<string, string> => {
+  try {
+    const raw = sessionStorage.getItem(TUTOR_CONVERSATION_CACHE_KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const getCachedTutorConversationId = (chapterId: string | null | undefined): string | null => {
+  if (!chapterId) return null
+  const cache = readTutorConversationCache()
+  return typeof cache[chapterId] === 'string' ? cache[chapterId] : null
+}
+
+const setCachedTutorConversationId = (chapterId: string | null | undefined, conversationId: string | null | undefined) => {
+  if (!chapterId || !conversationId) return
+  try {
+    const cache = readTutorConversationCache()
+    cache[chapterId] = conversationId
+    sessionStorage.setItem(TUTOR_CONVERSATION_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // ignore cache failures
+  }
+}
+
 const extractSectionByMarkers = (markdown: string, key: LessonSectionKey): string => {
   const start = `<!-- SECTION:${key}:start -->`
   const end = `<!-- SECTION:${key}:end -->`
@@ -146,6 +175,9 @@ const LessonDetailPage: React.FC = () => {
 
   // Tutor conversation state
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [resolvedChapterId, setResolvedChapterId] = useState<string | null>(null)
+  const [isResolvingTutorConversation, setIsResolvingTutorConversation] = useState<boolean>(false)
+  const [tutorResolveErrorCode, setTutorResolveErrorCode] = useState<string | null>(null)
 
   const toggleFocusMode = async () => {
     if (!isFocusMode) {
@@ -211,6 +243,21 @@ const LessonDetailPage: React.FC = () => {
   const lessonReadLabel = isLessonRead
     ? t('lessonDetail.readCompleted', 'Marked as completed')
     : t('lessonDetail.markRead', 'Mark lesson as completed')
+
+  useEffect(() => {
+    if (!currentChapterId) return
+
+    const cachedConversationId = getCachedTutorConversationId(currentChapterId)
+    if (cachedConversationId) {
+      setConversationId(cachedConversationId)
+      setResolvedChapterId(currentChapterId)
+      setTutorResolveErrorCode(null)
+      return
+    }
+
+    setConversationId(null)
+    setResolvedChapterId(null)
+  }, [currentChapterId])
 
   const handleBack = () => {
     if (skeleton?.pathId || skeleton?.id) {
@@ -318,13 +365,18 @@ const LessonDetailPage: React.FC = () => {
 
   // Resolve tutor conversation when entering lesson
   useEffect(() => {
-    if (!lessonId || !skeleton?.pathId) return
+    if (!lessonId) return
 
     const resolveConversation = async () => {
       try {
+        setIsResolvingTutorConversation(true)
+        setTutorResolveErrorCode(null)
+
+        const cachedConversationId = getCachedTutorConversationId(currentChapterId)
+
         const result = await requestResolveTutorConversation(
-          skeleton.pathId, // learningPathId
-          currentChapterId, // chapterId
+          null, // learningPathId
+          null, // chapterId
           lessonId, // lessonId
           true, // createIfMissing
           () => {
@@ -332,22 +384,65 @@ const LessonDetailPage: React.FC = () => {
           },
           (data) => {
             // onResolved
-            setConversationId(data.conversationId)
-          }
+            const incomingConversationId = data?.conversationId || null
+            const shouldKeepCachedConversation = Boolean(
+              cachedConversationId &&
+              incomingConversationId &&
+              incomingConversationId !== cachedConversationId &&
+              data?.created === true,
+            )
+
+            const finalConversationId = shouldKeepCachedConversation
+              ? cachedConversationId
+              : incomingConversationId
+
+            if (finalConversationId) {
+              setConversationId(finalConversationId)
+              setCachedTutorConversationId(currentChapterId, finalConversationId)
+            }
+
+            setResolvedChapterId(currentChapterId || null)
+            setTutorResolveErrorCode(null)
+          },
+          (resolveError) => {
+            setTutorResolveErrorCode(resolveError?.code || 'UNEXPECTED_ERROR')
+          },
         )
 
         // Set conversation data from result
-        if (result?.conversationId) {
-          setConversationId(result.conversationId)
+        if (result?.conversationId || cachedConversationId) {
+          const incomingConversationId = result?.conversationId || null
+          const shouldKeepCachedConversation = Boolean(
+            cachedConversationId &&
+            incomingConversationId &&
+            incomingConversationId !== cachedConversationId &&
+            result?.created === true,
+          )
+
+          const finalConversationId = shouldKeepCachedConversation
+            ? cachedConversationId
+            : (incomingConversationId || cachedConversationId)
+
+          if (finalConversationId) {
+            setConversationId(finalConversationId)
+            setCachedTutorConversationId(currentChapterId, finalConversationId)
+          }
+
+          setResolvedChapterId(currentChapterId || null)
+          setTutorResolveErrorCode(null)
         }
       } catch (error: any) {
         console.warn('Failed to resolve tutor conversation:', error.message)
         // Don't show error to user, just continue without conversation
+        setConversationId(null)
+        setTutorResolveErrorCode(error?.code || 'UNEXPECTED_ERROR')
+      } finally {
+        setIsResolvingTutorConversation(false)
       }
     }
 
     resolveConversation()
-  }, [lessonId, skeleton?.pathId, currentChapterId])
+  }, [lessonId, currentChapterId])
 
   // Fetch lesson content
   useEffect(() => {
@@ -715,9 +810,13 @@ const LessonDetailPage: React.FC = () => {
       {/* AI Tutor Chatbot - Only show in lesson pages */}
       <TutorChatbot
         conversationId={conversationId}
-        learningPathId={skeleton?.pathId || null}
+        learningPathId={null}
         chapterId={currentChapterId || null}
         lessonId={lessonId || null}
+        chapterTitle={displayLesson.chapterTitle || null}
+        lessonTitle={displayLesson.title || null}
+        isResolvingSession={isResolvingTutorConversation}
+        resolveErrorCode={tutorResolveErrorCode}
       />
       
       {!isFocusMode && <Footer />}

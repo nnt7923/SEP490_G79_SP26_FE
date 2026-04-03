@@ -52,6 +52,7 @@ const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetai
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
 const TaskPage = React.lazy(() => import('../pages/private/Task'))
 const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
+const StudentAchievements = React.lazy(() => import('../pages/private/Student/Achievements'))
 const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
@@ -66,17 +67,12 @@ const Fallback = () => <PageSkeleton />
 
 const router = createBrowserRouter([
   {
-    element: <Suspense fallback={<PageSkeleton />}> <GuestRoute /> </Suspense>,
+    element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
+    handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
     children: [
-      {
-        element: <Suspense fallback={<PageSkeleton />}> <LayoutCommon /> </Suspense>,
-        handle: { breadcrumb: ROUTER_META[ROUTER.HOME]?.breadcrumb },
-        children: [
-          { index: true, path: ROUTER.HOME, element: <Home /> },
-          { path: ROUTER.CLASSES, element: <div>Classes</div> },
-          { path: ROUTER.ABOUT, element: <About /> },
-        ],
-      },
+      { index: true, path: ROUTER.HOME, element: <Home /> },
+      { path: ROUTER.CLASSES, element: <div>Classes</div> },
+      { path: ROUTER.ABOUT, element: <About /> },
     ],
   },
   {
@@ -108,6 +104,7 @@ const router = createBrowserRouter([
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/detail', element: <MyPlansDetail /> },
           { path: ROUTER.GOALS, element: <Goals /> },
+          { path: ROUTER.STUDENT_ACHIEVEMENTS, element: <StudentAchievements /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
           { path: ROUTER.NOTIFICATIONS, element: <NotificationsPage /> },
           { path: ROUTER.PLANS, element: <Plans /> },

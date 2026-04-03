@@ -72,6 +72,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 a {
   font-weight: 500;
   color: var(--accent-primary);

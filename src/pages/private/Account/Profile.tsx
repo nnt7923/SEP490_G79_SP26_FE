@@ -16,6 +16,20 @@ interface ProfileForm extends Partial<User> {
     dateOfBirth?: string
 }
 
+type EditableProfileField = 'firstName' | 'lastName' | 'phone' | 'bio' | 'address' | 'dateOfBirth'
+
+const EDITABLE_PROFILE_FIELDS: EditableProfileField[] = ['firstName', 'lastName', 'phone', 'bio', 'address', 'dateOfBirth']
+const NULLABLE_PROFILE_FIELDS: EditableProfileField[] = ['phone', 'bio', 'address', 'dateOfBirth']
+
+function normalizeComparableValue(field: EditableProfileField, value: unknown): string {
+    const raw = typeof value === 'string' ? value : value == null ? '' : String(value)
+    if (field === 'dateOfBirth') {
+        if (!raw) return ''
+        return dayjs(raw).isValid() ? dayjs(raw).format('YYYY-MM-DD') : raw
+    }
+    return raw.trim()
+}
+
 const Profile: React.FC = () => {
     const { user, updateProfile, updatingProfile, uploadAvatar } = useAuthStore()
     const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -40,7 +54,10 @@ const Profile: React.FC = () => {
     const sidebarConfig = {
         navItems,
         actions: [],
-        brand: { name: 'Profile', subtitle: roleName === 'mentor' ? 'Teaching' : 'Learning' },
+        brand: {
+            name: t('profile.brandName'),
+            subtitle: roleName === 'mentor' ? t('profile.brandSubtitleMentor') : t('profile.brandSubtitleStudent')
+        },
     }
 
     useEffect(() => {
@@ -63,33 +80,87 @@ const Profile: React.FC = () => {
         setForm(prev => prev ? { ...prev, [field]: value } : prev)
     }
 
+    const resolveProfileErrorMessage = (rawMessage?: string) => {
+        const normalized = (rawMessage || '').trim().toLowerCase()
+        if (!normalized) return t('profile.updateFailed')
+
+        if (normalized.includes('validation failed') || normalized.includes('validation error')) {
+            return t('profile.validationFailed')
+        }
+
+        return rawMessage || t('profile.updateFailed')
+    }
+
+    const buildChangedPayload = (): Partial<ProfileForm> => {
+        if (!user || !form) return {}
+
+        const payload: Partial<ProfileForm> = {}
+
+        EDITABLE_PROFILE_FIELDS.forEach((field) => {
+            const nextValue = normalizeComparableValue(field, form[field])
+            const currentValue = normalizeComparableValue(field, user[field])
+
+            if (nextValue !== currentValue) {
+                if (NULLABLE_PROFILE_FIELDS.includes(field) && nextValue === '') {
+                    payload[field] = null as any
+                } else if (field === 'dateOfBirth') {
+                    payload[field] = (nextValue || null) as any
+                } else {
+                    payload[field] = nextValue as any
+                }
+            }
+        })
+
+        return payload
+    }
+
     if (!user || !form) return <div style={{ padding: 24, color: 'var(--text-secondary)', fontSize: 13 }}>{tc('status.loading')}</div>
 
-    const validate = (): boolean => {
+    const validate = (payload: Partial<ProfileForm>): boolean => {
         const newErrors: Record<string, string> = {}
         const phoneRegex = /^0\d{9}$/
-        if (form.phone && form.phone.trim() !== '' && !phoneRegex.test(form.phone)) {
-            newErrors.phone = t('profile.phoneError')
+
+        const hadPhoneBefore = normalizeComparableValue('phone', user.phone) !== ''
+        if (Object.prototype.hasOwnProperty.call(payload, 'phone')) {
+            const nextPhone = payload.phone == null ? '' : String(payload.phone).trim()
+
+            if (nextPhone === '') {
+                if (hadPhoneBefore) {
+                    newErrors.phone = t('profile.phoneRequiredOnceSet')
+                }
+            } else if (!phoneRegex.test(nextPhone)) {
+                newErrors.phone = t('profile.phoneError')
+            }
         }
-        if (!form.dateOfBirth || form.dateOfBirth.trim() === '') {
-            newErrors.dateOfBirth = t('profile.dobRequired')
-        } else {
-            const dob = dayjs(form.dateOfBirth)
-            if (!dob.isValid()) newErrors.dateOfBirth = t('profile.dobInvalid')
-            else if (dob.isAfter(dayjs())) newErrors.dateOfBirth = t('profile.dobFuture')
+
+        if (Object.prototype.hasOwnProperty.call(payload, 'dateOfBirth')) {
+            const dateValue = payload.dateOfBirth
+            if (dateValue && String(dateValue).trim() !== '') {
+                const dob = dayjs(String(dateValue))
+                if (!dob.isValid()) newErrors.dateOfBirth = t('profile.dobInvalid')
+                else if (dob.isAfter(dayjs())) newErrors.dateOfBirth = t('profile.dobFuture')
+            }
         }
+
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
 
     const handleSubmit = async () => {
-        if (!validate()) return
-        const res = await updateProfile(form)
+        const payload = buildChangedPayload()
+        if (Object.keys(payload).length === 0) {
+            setToast({ message: t('profile.noChanges', { defaultValue: 'Không có thay đổi để cập nhật' }), progress: 100, status: 'error' })
+            return
+        }
+
+        if (!validate(payload)) return
+
+        const res = await updateProfile(payload)
         if (res?.isOk) {
             setToast({ message: res.msg || t('profile.updateSuccess'), progress: 100, status: 'success' })
             setOpen(false)
         } else {
-            setToast({ message: res?.msg || t('profile.updateFailed'), progress: 100, status: 'error' })
+            setToast({ message: resolveProfileErrorMessage(res?.msg), progress: 100, status: 'error' })
         }
     }
 
@@ -143,7 +214,7 @@ const Profile: React.FC = () => {
                             <div style={{ position: 'relative' }}>
                                 <div style={{ width: 80, height: 80, borderRadius: 2, border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', overflow: 'hidden', position: 'relative' }}>
                                     {user.avatarUrl?.trim() ? (
-                                        <img src={user.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={user.avatarUrl} alt={t('profile.avatarAlt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                         <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)' }}>{getInitials(user.firstName, user.lastName)}</span>
                                     )}
@@ -181,12 +252,12 @@ const Profile: React.FC = () => {
                     <div style={{ padding: 24 }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                             {[
-                                { label: 'First Name', value: user.firstName || tc('status.notUpdated') },
-                                { label: 'Last Name', value: user.lastName || tc('status.notUpdated') },
-                                { label: 'Email', value: user.email },
-                                { label: 'Phone', value: user.phone || tc('status.notUpdated') },
-                                { label: 'Date of Birth', value: formatDate(user.dateOfBirth) },
-                                { label: 'Address', value: user.address || tc('status.notUpdated') },
+                                { label: t('profile.fields.firstName'), value: user.firstName || tc('status.notUpdated') },
+                                { label: t('profile.fields.lastName'), value: user.lastName || tc('status.notUpdated') },
+                                { label: t('profile.fields.email'), value: user.email },
+                                { label: t('profile.fields.phone'), value: user.phone || tc('status.notUpdated') },
+                                { label: t('profile.fields.dateOfBirth'), value: formatDate(user.dateOfBirth) },
+                                { label: t('profile.fields.address'), value: user.address || tc('status.notUpdated') },
                             ].map((info) => (
                                 <div key={info.label} style={infoCardStyle}>
                                     <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{info.label}</p>
@@ -195,7 +266,7 @@ const Profile: React.FC = () => {
                             ))}
                         </div>
                         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--gray-200)' }}>
-                            <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Bio</h3>
+                            <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('profile.fields.bio')}</h3>
                             <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.6 }}>{user.bio || t('profile.noBio')}</p>
                         </div>
                     </div>
@@ -216,10 +287,10 @@ const Profile: React.FC = () => {
                         <div style={{ padding: 20 }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 {[
-                                    { field: 'firstName' as keyof ProfileForm, label: 'First Name', type: 'text' },
-                                    { field: 'lastName' as keyof ProfileForm, label: 'Last Name', type: 'text' },
-                                    { field: 'phone' as keyof ProfileForm, label: 'Phone', type: 'text', placeholder: '0123456789' },
-                                    { field: 'dateOfBirth' as keyof ProfileForm, label: 'Date of Birth', type: 'date' },
+                                    { field: 'firstName' as keyof ProfileForm, label: t('profile.fields.firstName'), type: 'text' },
+                                    { field: 'lastName' as keyof ProfileForm, label: t('profile.fields.lastName'), type: 'text' },
+                                    { field: 'phone' as keyof ProfileForm, label: t('profile.fields.phone'), type: 'text', placeholder: t('profile.phonePlaceholder') },
+                                    { field: 'dateOfBirth' as keyof ProfileForm, label: t('profile.fields.dateOfBirth'), type: 'date' },
                                 ].map(({ field, label, type, placeholder }) => (
                                     <div key={field}>
                                         <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</label>
@@ -230,12 +301,12 @@ const Profile: React.FC = () => {
                                     </div>
                                 ))}
                                 <div style={{ gridColumn: 'span 2' }}>
-                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Address</label>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('profile.fields.address')}</label>
                                     <input type="text" value={form.address || ''} onChange={(e) => handleChange('address', e.target.value)} style={inputStyle}
                                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
-                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Bio</label>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('profile.fields.bio')}</label>
                                     <textarea value={form.bio || ''} onChange={(e) => handleChange('bio', e.target.value)} placeholder={t('profile.bioPlaceholder')}
                                         style={{ ...inputStyle, resize: 'none', minHeight: 100 }}
                                         onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }} />

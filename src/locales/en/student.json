@@ -38,6 +38,71 @@
       "action": "Update plan"
     }
   },
+  "achievements": {
+    "title": "Your Achievements",
+    "subtitle": "Track badges, points, and level progression.",
+    "refresh": "Refresh",
+    "points": "points",
+    "newBadge": "New",
+    "loadingFiltered": "Updating list...",
+    "locked": "Locked",
+    "unlockedAt": "Unlocked: {{time}}",
+    "empty": "No achievements match your current filters.",
+    "newUnlockToast": "You just unlocked {{name}} (+{{points}} points)",
+    "levelUp": {
+      "title": "LEVEL UP!",
+      "message": "You reached Level {{level}}"
+    },
+    "fallback": {
+      "unknownName": "Achievement",
+      "noDescription": "No description yet."
+    },
+    "filters": {
+      "all": "All",
+      "unlockedOnly": "Unlocked",
+      "categoryAll": "All categories",
+      "searchPlaceholder": "Search achievement name..."
+    },
+    "stats": {
+      "unlocked": "Unlocked",
+      "totalPoints": "Total points",
+      "currentLevel": "Current level",
+      "progressToNextLevel": "Progress to next level",
+      "pointsToNextLevel": "{{points}} points to next level"
+    },
+    "categories": {
+      "LearningMilestone": "Learning milestone",
+      "Consistency": "Consistency",
+      "Focus": "Focus",
+      "Goals": "Goals",
+      "Social": "Social",
+      "Special": "Special"
+    },
+    "catalogByName": {
+      "perfectionist": { "name": "Perfectionist" },
+      "focused_learner": { "name": "Focused Learner" },
+      "deep_focus": { "name": "Deep Focus" },
+      "speed_demon": { "name": "Speed Demon" },
+      "early_bird": { "name": "Early Bird" },
+      "night_owl": { "name": "Night Owl" },
+      "weekend_warrior": { "name": "Weekend Warrior" },
+      "profile_complete": { "name": "Profile Complete" }
+    },
+    "catalogByDescription": {
+      "get_100_score_on_a_task_verification": "Get 100% score on a task verification.",
+      "complete_a_90_minute_focus_session": "Complete a 90+ minute focus session.",
+      "complete_a_focus_session_30_minutes_early": "Complete a focus session 30+ minutes early.",
+      "study_between_5_8_am": "Study between 5-8 AM.",
+      "study_between_10_pm_2_am": "Study between 10 PM - 2 AM.",
+      "complete_a_focus_session_on_weekend": "Complete a focus session on weekend.",
+      "complete_your_first_focus_session": "Complete your first focus session.",
+      "complete_your_user_profile": "Complete your user profile."
+    },
+    "errors": {
+      "loadInit": "Failed to load initial achievement data.",
+      "loadList": "Failed to load achievements list."
+    }
+  },
   "goals": {
     "searchPlaceholder": "search goals...",
     "loading": "loading goals...",
@@ -111,20 +176,37 @@
     "lessons": "{{count}} lessons"
   },
   "profile": {
+    "brandName": "Profile",
+    "brandSubtitleMentor": "Teaching",
+    "brandSubtitleStudent": "Learning",
     "editProfile": "edit profile",
     "personalInfo": "Personal Information",
     "upload": "upload",
+    "avatarAlt": "avatar",
+    "phonePlaceholder": "0123456789",
+    "fields": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "phone": "Phone",
+      "dateOfBirth": "Date of Birth",
+      "address": "Address",
+      "bio": "Bio"
+    },
     "noBio": "No bio added yet.",
     "updateProfile": "Update Profile",
     "bioPlaceholder": "Tell us about yourself...",
     "updating": "updating...",
     "update": "update",
     "phoneError": "Phone number must contain 10 digits and start with 0",
+    "phoneRequiredOnceSet": "Since a phone number was previously set, it cannot be left blank; please enter 10 digits starting with 0",
     "dobRequired": "Please enter date of birth",
     "dobInvalid": "Invalid date of birth",
     "dobFuture": "Date of birth cannot be in the future",
+    "noChanges": "No changes to update",
     "updateSuccess": "Profile updated successfully",
     "updateFailed": "Update failed",
+    "validationFailed": "Invalid data, please review your profile information",
     "avatarOnlyImages": "Only image files are allowed",
     "avatarMaxSize": "Maximum file size is 10MB",
     "avatarUploading": "Uploading avatar...",
@@ -309,14 +391,36 @@
     "close": "Close",
     "minimize": "Minimize",
     "maximize": "Maximize",
+    "chapterSessionBadge": "Chapter Session",
+    "lessonContextNote": "Lesson context only, no new session",
+    "unknownLesson": "Unknown lesson",
     "welcomeMessage": "Hello! I'm your AI Tutor. Ask me anything about this lesson!",
     "typeMessage": "Type your question...",
     "sendMessage": "Send message",
     "thinking": "Thinking...",
+    "sendingMessage": "Sending message...",
+    "resolvingSession": "Resolving chapter session...",
     "loadingHistory": "Loading chat history...",
     "clearChat": "Clear chat",
     "errorSendingMessage": "Error sending message",
-    "matchScore": "Match Score"
+    "matchScore": "Match Score",
+    "errors": {
+      "UNAUTHORIZED": "You are not authorized to use tutor chat.",
+      "EMPTY_MESSAGE": "Please enter a message before sending.",
+      "AI_CONFIG_NOT_FOUND": "AI configuration was not found.",
+      "CONVERSATION_NOT_FOUND": "Tutor conversation was not found.",
+      "AI_RESPONSE_FAILED": "AI could not generate a response. Please try again.",
+      "CHAPTER_NOT_FOUND": "Chapter was not found.",
+      "LESSON_NOT_FOUND": "Lesson was not found.",
+      "LESSON_NOT_IN_CHAPTER": "This lesson does not belong to the selected chapter.",
+      "LEARNING_PATH_NOT_FOUND": "Learning path was not found.",
+      "ACCESS_DENIED": "You do not have access to this tutor context.",
+      "CONVERSATION_CONTEXT_MISMATCH": "Conversation context mismatch. Please open tutor again in this chapter.",
+      "CONTEXT_REQUIRED": "Lesson context is required to send this message.",
+      "TUTOR_MESSAGE_LIMIT_EXCEEDED": "You reached your tutor message limit.",
+      "CONVERSATION_ID_REQUIRED": "Tutor session is not ready yet.",
+      "UNEXPECTED_ERROR": "Unexpected tutor error. Please try again."
+    }
   },
   "dashboard": {
     "goals": "Goals",

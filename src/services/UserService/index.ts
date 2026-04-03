@@ -22,6 +22,10 @@ export interface UsersQuery {
   sortDescending?: boolean
 }
 
+export interface UsersListOptions {
+  forceRefresh?: boolean
+}
+
 export interface UsersPage {
   items: any[]
   pageNumber: number
@@ -236,19 +240,22 @@ export async function changePassword(payload: any) {
   return res?.data ?? res
 }
 
-export async function listUsersPaged(query?: UsersQuery): Promise<UsersPage> {
+export async function listUsersPaged(query?: UsersQuery, options?: UsersListOptions): Promise<UsersPage> {
   const params = buildUsersQueryParams(query)
   const cacheKey = params.toString() || 'default'
+  const forceRefresh = Boolean(options?.forceRefresh)
 
-  const memoryEntry = usersPagedMemoryCache.get(cacheKey)
-  if (memoryEntry && memoryEntry.expiresAt > Date.now()) {
-    return memoryEntry.data
-  }
+  if (!forceRefresh) {
+    const memoryEntry = usersPagedMemoryCache.get(cacheKey)
+    if (memoryEntry && memoryEntry.expiresAt > Date.now()) {
+      return memoryEntry.data
+    }
 
-  const storageEntry = readUsersPagedStorageCache(cacheKey)
-  if (storageEntry) {
-    usersPagedMemoryCache.set(cacheKey, storageEntry)
-    return storageEntry.data
+    const storageEntry = readUsersPagedStorageCache(cacheKey)
+    if (storageEntry) {
+      usersPagedMemoryCache.set(cacheKey, storageEntry)
+      return storageEntry.data
+    }
   }
 
   const queryString = params.toString()

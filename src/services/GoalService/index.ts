@@ -24,7 +24,14 @@ export interface Goal {
   isSystemDefined: boolean
   isActive: boolean
   createdAt: string
+  durationDays?: number
   [key: string]: any
+}
+
+function normalizeDurationDays(goal: any): number {
+  const raw = goal?.durationDays ?? goal?.durationInDays ?? goal?.days
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function extractGoalItems(root: any): any[] {
@@ -41,16 +48,16 @@ function extractGoalItems(root: any): any[] {
 
 function normalizeGoal(goal: any): Goal {
   return {
+    ...goal,
     goalId: goal?.goalId ?? goal?.id,
     title: goal?.title ?? goal?.name ?? 'Goal',
     description: goal?.description ?? null,
     isSystemDefined: goal?.isSystemDefined ?? false,
     isActive: goal?.isActive ?? true,
     createdAt: goal?.createdAt,
-    durationDays: goal?.durationDays,
+    durationDays: normalizeDurationDays(goal),
     isCompleted: goal?.isCompleted,
     completedAt: goal?.completedAt ?? null,
-    ...goal,
   }
 }
 
@@ -106,14 +113,14 @@ export async function listGoals(): Promise<Goal[]> {
 
   // Normalize to consistent Goal shape
   return items.map((g: any) => ({
+    ...g,
     goalId: g?.goalId ?? g?.id,
     title: g?.title ?? g?.name ?? 'Goal',
     description: g?.description ?? null,
-    durationDays: g?.durationDays,
+    durationDays: normalizeDurationDays(g),
     isCompleted: g?.isCompleted,
     completedAt: g?.completedAt ?? null,
     createdAt: g?.createdAt,
-    ...g,
   }))
 }
 
@@ -194,13 +201,14 @@ export async function createGoal(payload: {
   const data: any = res?.data ?? res
   clearMyGoalsCache()
   return {
+    ...data,
     goalId: data?.goalId ?? data?.id,
     title: data?.title ?? data?.name,
     description: data?.description ?? null,
     isSystemDefined: data?.isSystemDefined ?? false,
     isActive: data?.isActive ?? true,
     createdAt: data?.createdAt,
-    ...data,
+    durationDays: normalizeDurationDays(data),
   }
 }
 
@@ -225,13 +233,14 @@ export async function updateGoal(
   const data: any = res?.data ?? res
   clearMyGoalsCache()
   return {
+    ...data,
     goalId: data?.goalId ?? data?.id ?? String(id),
     title: data?.title ?? data?.name,
     description: data?.description ?? null,
     isSystemDefined: data?.isSystemDefined ?? false,
     isActive: data?.isActive ?? true,
     createdAt: data?.createdAt,
-    ...data,
+    durationDays: normalizeDurationDays(data),
   }
 }
 
