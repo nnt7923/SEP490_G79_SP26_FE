@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
 import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory } from '../../../services'
@@ -43,6 +43,8 @@ interface PlansPageProps {
 
 export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1)
+  const stepContentRef = useRef<HTMLDivElement | null>(null)
+  const prevStepRef = useRef<number>(1)
   const { t } = useTranslation('student')
   const { t: tm } = useTranslation('mentor')
   const isMentorVariant = variant === 'mentorAiDraft'
@@ -1007,6 +1009,31 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     [language, selectedGoals, level, languageSelection, generating]
   )
 
+  useEffect(() => {
+    const previousStep = prevStepRef.current
+    if (step >= 2 && previousStep !== step) {
+      requestAnimationFrame(() => {
+        const target = stepContentRef.current
+        if (!target) return
+
+        const rect = target.getBoundingClientRect()
+        const targetCenter = window.scrollY + rect.top + rect.height / 2
+        const viewportCenter = window.innerHeight / 2
+        const nextTop = Math.max(targetCenter - viewportCenter, 0)
+        const reducedMotion =
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+        window.scrollTo({
+          top: 121,
+          behavior: reducedMotion ? 'auto' : 'smooth',
+        })
+      })
+    }
+
+    prevStepRef.current = step
+  }, [step])
+
   const isStepValid = (s: number) => {
     if (s === 1) return !!language
     if (s === 2) return selectedGoals.length > 0 && selectedGoals.length <= 2
@@ -1284,7 +1311,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
       <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
-        <div style={{ width: '100%' }}>
+        <div ref={stepContentRef} style={{ width: '100%' }}>
           {/* Stepper */}
           <Stepper currentStep={step} totalSteps={totalSteps} onChangeStep={handleStepChange} />
 

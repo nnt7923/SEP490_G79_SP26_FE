@@ -1090,6 +1090,35 @@ export async function requestAdoptSuggestedLearningPath(
 }
 
 // ==== Send tutor message (pure SignalR) ====
+export type TutorHubErrorCode =
+  | 'UNAUTHORIZED'
+  | 'EMPTY_MESSAGE'
+  | 'AI_CONFIG_NOT_FOUND'
+  | 'CONVERSATION_NOT_FOUND'
+  | 'AI_RESPONSE_FAILED'
+  | 'CHAPTER_NOT_FOUND'
+  | 'LESSON_NOT_FOUND'
+  | 'LESSON_NOT_IN_CHAPTER'
+  | 'LEARNING_PATH_NOT_FOUND'
+  | 'ACCESS_DENIED'
+  | 'CONVERSATION_CONTEXT_MISMATCH'
+  | 'CONTEXT_REQUIRED'
+  | 'TUTOR_MESSAGE_LIMIT_EXCEEDED'
+  | 'CONVERSATION_ID_REQUIRED'
+  | 'UNEXPECTED_ERROR'
+
+export interface TutorHubError extends Error {
+  code: TutorHubErrorCode | string
+}
+
+function normalizeTutorHubError(rawError: any, fallbackMessage: string): TutorHubError {
+  const errorCode = rawError?.errorCode || rawError?.code || 'UNEXPECTED_ERROR'
+  const errorMessage = rawError?.errorMessage || rawError?.message || fallbackMessage
+  const normalized = new Error(errorMessage) as TutorHubError
+  normalized.code = errorCode
+  return normalized
+}
+
 export async function sendTutorMessage(
   conversationId: string | null,
   learningPathId: string | null,
@@ -1097,10 +1126,11 @@ export async function sendTutorMessage(
   lessonId: string | null,
   message: string,
   onMessageStarted?: () => void,
-  onMessageReceived?: (data: any) => void
+  onMessageReceived?: (data: any) => void,
+  onMessageError?: (error: TutorHubError) => void
 ): Promise<any> {
   if (!message || message.trim().length === 0) {
-    return Promise.reject(new Error('Message cannot be empty'))
+    return Promise.reject(normalizeTutorHubError({ errorCode: 'EMPTY_MESSAGE', errorMessage: 'Message cannot be empty' }, 'Message cannot be empty'))
   }
 
   // single-flight: return running promise for same message
@@ -1141,46 +1171,10 @@ export async function sendTutorMessage(
         if (done) return
         done = true
         cleanup()
-        
-        // Handle specific error codes
-        const errorCode = err?.errorCode
-        let errorMessage = err?.errorMessage || err?.message || 'Failed to send tutor message'
-        
-        switch (errorCode) {
-          case 'UNAUTHORIZED':
-            errorMessage = 'You are not authorized to use the tutor'
-            break
-          case 'EMPTY_MESSAGE':
-            errorMessage = 'Message cannot be empty'
-            break
-          case 'AI_CONFIG_NOT_FOUND':
-            errorMessage = 'AI configuration not found'
-            break
-          case 'CONVERSATION_NOT_FOUND':
-            errorMessage = 'Conversation not found'
-            break
-          case 'LEARNING_PATH_NOT_FOUND':
-            errorMessage = 'Learning path not found'
-            break
-          case 'CHAPTER_NOT_FOUND':
-            errorMessage = 'Chapter not found'
-            break
-          case 'LESSON_NOT_FOUND':
-            errorMessage = 'Lesson not found'
-            break
-          case 'ACCESS_DENIED':
-            errorMessage = 'Access denied to this resource'
-            break
-          case 'AI_RESPONSE_FAILED':
-            errorMessage = 'AI failed to generate response'
-            break
-          case 'UNEXPECTED_ERROR':
-          default:
-            errorMessage = errorMessage || 'An unexpected error occurred'
-            break
-        }
-        
-        reject(new Error(errorMessage))
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to send tutor message')
+        onMessageError?.(normalizedError)
+        reject(normalizedError)
       }
 
       // timeout safety
@@ -1227,10 +1221,11 @@ export async function requestTutorMessages(
   pageNumber: number = 1,
   pageSize: number = 30,
   onLoading?: () => void,
-  onMessagesLoaded?: (data: any) => void
+  onMessagesLoaded?: (data: any) => void,
+  onMessagesError?: (error: TutorHubError) => void
 ): Promise<any> {
   if (!conversationId) {
-    return Promise.reject(new Error('conversationId is required for requesting tutor messages'))
+    return Promise.reject(normalizeTutorHubError({ errorCode: 'CONVERSATION_ID_REQUIRED', errorMessage: 'conversationId is required for requesting tutor messages' }, 'conversationId is required for requesting tutor messages'))
   }
 
   // single-flight: return running promise for same conversationId-page
@@ -1271,31 +1266,10 @@ export async function requestTutorMessages(
         if (done) return
         done = true
         cleanup()
-        
-        // Handle specific error codes
-        const errorCode = err?.errorCode
-        let errorMessage = err?.errorMessage || err?.message || 'Failed to load tutor messages'
-        
-        switch (errorCode) {
-          case 'CONVERSATION_NOT_FOUND':
-            errorMessage = 'Conversation not found'
-            break
-          case 'UNAUTHORIZED':
-            errorMessage = 'You are not authorized to view this conversation'
-            break
-          case 'INVALID_PAGE_NUMBER':
-            errorMessage = 'Invalid page number'
-            break
-          case 'INVALID_PAGE_SIZE':
-            errorMessage = 'Invalid page size'
-            break
-          case 'UNEXPECTED_ERROR':
-          default:
-            errorMessage = errorMessage || 'An unexpected error occurred'
-            break
-        }
-        
-        reject(new Error(errorMessage))
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to load tutor messages')
+        onMessagesError?.(normalizedError)
+        reject(normalizedError)
       }
 
       // timeout safety
@@ -1341,7 +1315,8 @@ export async function requestResolveTutorConversation(
   lessonId: string | null,
   createIfMissing: boolean = true,
   onLoading?: () => void,
-  onResolved?: (data: any) => void
+  onResolved?: (data: any) => void,
+  onResolveError?: (error: TutorHubError) => void
 ): Promise<any> {
   // single-flight: return running promise for same context
   const key = `resolve-${learningPathId || 'null'}-${chapterId || 'null'}-${lessonId || 'null'}`
@@ -1381,34 +1356,10 @@ export async function requestResolveTutorConversation(
         if (done) return
         done = true
         cleanup()
-        
-        // Handle specific error codes
-        const errorCode = err?.errorCode
-        let errorMessage = err?.errorMessage || err?.message || 'Failed to resolve tutor conversation'
-        
-        switch (errorCode) {
-          case 'LEARNING_PATH_NOT_FOUND':
-            errorMessage = 'Learning path not found'
-            break
-          case 'CHAPTER_NOT_FOUND':
-            errorMessage = 'Chapter not found'
-            break
-          case 'LESSON_NOT_FOUND':
-            errorMessage = 'Lesson not found'
-            break
-          case 'UNAUTHORIZED':
-            errorMessage = 'You are not authorized to access this conversation'
-            break
-          case 'CONVERSATION_CREATION_FAILED':
-            errorMessage = 'Failed to create conversation'
-            break
-          case 'UNEXPECTED_ERROR':
-          default:
-            errorMessage = errorMessage || 'An unexpected error occurred'
-            break
-        }
-        
-        reject(new Error(errorMessage))
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to resolve tutor conversation')
+        onResolveError?.(normalizedError)
+        reject(normalizedError)
       }
 
       // timeout safety
