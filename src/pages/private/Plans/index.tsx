@@ -105,7 +105,8 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   // Pagination for system goals and my goals separately
   const [currentSystemGoalPage, setCurrentSystemGoalPage] = useState<number>(1)
   const [currentMyGoalPage, setCurrentMyGoalPage] = useState<number>(1)
-  const goalsPerPage = 15
+  const [myGoalsPanelOpen, setMyGoalsPanelOpen] = useState<boolean>(false)
+  const goalsPerPage = 12
   const [generating, setGenerating] = useState<boolean>(false)
   
   // Toast state
@@ -1492,185 +1493,268 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 </div>
               </div>
 
-              {/* System Goals Section */}
-              <div style={{ marginBottom: 40 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    {t('plans.suggestGoals')}
-                    {totalSystemGoals > 0 && (
-                      <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
-                        {t('plans.goalsCount', { count: totalSystemGoals })}
-                      </span>
-                    )}
-                  </h3>
-                </div>
-                
-                {!language ? (
-                  <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                    {t('plans.selectSubjectFirst')}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, position: 'relative' }}>
+                  <div>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      {t('plans.suggestGoals')}
+                      {totalSystemGoals > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
+                          {t('plans.goalsCount', { count: totalSystemGoals })}
+                        </span>
+                      )}
+                    </h3>
                   </div>
-                ) : (
-                  <>
-                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
-                      {goalsLoading ? (
-                        Array.from({ length: 3 }).map((_, i) => (
-                          <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                              <div className="flex-1">
-                                <div className="w-32 h-5 bg-th-hover rounded" />
+
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setMyGoalsPanelOpen((prev) => !prev)}
+                      style={{
+                        minWidth: 220,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        padding: '8px 12px',
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 2,
+                        background: 'var(--bg-main)',
+                        color: 'var(--text-primary)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span>{t('plans.myGoals')} ({totalMyGoals})</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{myGoalsPanelOpen ? '▲' : '▼'}</span>
+                    </button>
+
+                    {myGoalsPanelOpen ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)',
+                          right: 0,
+                          width: 360,
+                          border: '1px solid var(--border-base)',
+                          borderRadius: 2,
+                          background: 'var(--bg-surface)',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                          zIndex: 30,
+                          padding: 10,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
+                          style={{
+                            width: '100%',
+                            padding: '6px 10px',
+                            marginBottom: 8,
+                            background: 'var(--text-primary)',
+                            color: 'var(--bg-surface-short)',
+                            border: '1px solid var(--text-primary)',
+                            borderRadius: 2,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {'>'} {t('plans.addGoal')}
+                        </button>
+
+                        {!language ? (
+                          <div className="text-center py-5 text-muted" style={{ fontSize: 12 }}>
+                            {t('plans.selectSubjectFirst')}
+                          </div>
+                        ) : (
+                          <>
+                            <section
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr',
+                                gap: 8,
+                                maxHeight: 360,
+                                overflowY: 'auto',
+                                paddingRight: 2,
+                              }}
+                              aria-label="my-goals"
+                            >
+                              {goalsLoading ? (
+                                Array.from({ length: 6 }).map((_, i) => (
+                                  <div
+                                    key={`my-skel-${i}`}
+                                    className="animate-pulse border border-bd-muted bg-th-card"
+                                    style={{ padding: '10px 12px', borderRadius: 2, minHeight: 40 }}
+                                  >
+                                    <div className="w-32 h-4 bg-th-hover rounded" />
+                                  </div>
+                                ))
+                              ) : goalsError ? (
+                                <div className="text-center py-5 text-status-red" style={{ fontSize: 12 }}>
+                                  {t('plans.failedLoadYourGoals')}: {goalsError}
+                                </div>
+                              ) : currentPageMyGoals.length > 0 ? (
+                                currentPageMyGoals.map((g: any) => {
+                                  const id = g?.id ?? g?.goalId ?? g?.key
+                                  const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                                  const isSelected = selectedGoals.includes(String(id))
+                                  const isDisabled = !isSelected && selectedGoals.length >= 2
+
+                                  return (
+                                    <div
+                                      key={String(id)}
+                                      role="button"
+                                      aria-pressed={isSelected}
+                                      aria-disabled={isDisabled}
+                                      onClick={() => {
+                                        if (!isDisabled) toggleGoal(String(id))
+                                      }}
+                                      style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'auto minmax(0,1fr) auto',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        padding: '8px 10px',
+                                        border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-base)'}`,
+                                        background: isSelected ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+                                        borderRadius: 2,
+                                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                        opacity: isDisabled ? 0.55 : 1,
+                                        minHeight: 40,
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          width: 7,
+                                          height: 7,
+                                          borderRadius: 999,
+                                          background: isSelected ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                        }}
+                                      />
+                                      <div
+                                        style={{
+                                          fontSize: 12,
+                                          fontWeight: isSelected ? 700 : 600,
+                                          color: 'var(--text-primary)',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                        title={title}
+                                      >
+                                        {isSelected ? `> ${title}` : `$ ${title}`}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation()
+                                          handleStartEditGoal(String(id))
+                                        }}
+                                        style={{
+                                          padding: '3px 7px',
+                                          border: '1px solid var(--border-base)',
+                                          borderRadius: 2,
+                                          background: 'var(--bg-main)',
+                                          color: 'var(--text-secondary)',
+                                          fontSize: 10,
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        edit
+                                      </button>
+                                    </div>
+                                  )
+                                })
+                              ) : (
+                                <div className="text-center py-5 text-muted" style={{ fontSize: 12 }}>
+                                  {t('plans.noPersonalGoals')}
+                                </div>
+                              )}
+                            </section>
+
+                            <PaginationControls
+                              currentPage={currentMyGoalPage}
+                              totalPages={totalMyPages}
+                              onPageChange={setCurrentMyGoalPage}
+                              label={t('plans.myGoals')}
+                            />
+                          </>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                  {!language ? (
+                    <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                      {t('plans.selectSubjectFirst')}
+                    </div>
+                  ) : (
+                    <>
+                      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
+                        {goalsLoading ? (
+                          Array.from({ length: 3 }).map((_, i) => (
+                            <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-th-hover rounded-xl" />
+                                <div className="flex-1">
+                                  <div className="w-32 h-5 bg-th-hover rounded" />
+                                </div>
                               </div>
                             </div>
+                          ))
+                        ) : goalsError ? (
+                          <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                            {t('plans.failedLoadSystemGoals')}: {goalsError}
                           </div>
-                        ))
-                      ) : goalsError ? (
-                        <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                          {t('plans.failedLoadSystemGoals')}: {goalsError}
-                        </div>
-                      ) : currentPageSystemGoals.length > 0 ? (
-                        currentPageSystemGoals.map((g: any, idx: number) => {
-                          const id = g?.id ?? g?.goalId ?? g?.key
-                          const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                          const globalIndex = systemStartIndex + idx // Calculate global index for color palette
-                          return (
-                            <SingleGoalCard
-                              key={String(id)}
-                              id={String(id)}
-                              title={title}
-                              colorClass={palette[globalIndex % palette.length]}
-                              icon='🔖'
-                              active={selectedGoals.includes(String(id))}
-                              disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
-                              onToggle={toggleGoal}
-                              onStartEdit={() => { }}
-                              onDelete={() => { }}
-                              isEditing={false}
-                              editingTitle=""
-                              setEditingTitle={() => { }}
-                              onSaveEdit={() => { }}
-                              onCancelEdit={() => { }}
-                              saving={false}
-                              deleting={false}
-                              isSystemGoal={true}
-                            />
-                          )
-                        })
-                      ) : totalSystemGoals === 0 ? (
-                        <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                          {t('plans.noSystemGoals')}
-                        </div>
-                      ) : null}
-                    </section>
+                        ) : currentPageSystemGoals.length > 0 ? (
+                          currentPageSystemGoals.map((g: any, idx: number) => {
+                            const id = g?.id ?? g?.goalId ?? g?.key
+                            const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                            const globalIndex = systemStartIndex + idx
+                            return (
+                              <SingleGoalCard
+                                key={String(id)}
+                                id={String(id)}
+                                title={title}
+                                colorClass={palette[globalIndex % palette.length]}
+                                icon='🔖'
+                                active={selectedGoals.includes(String(id))}
+                                disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
+                                onToggle={toggleGoal}
+                                onStartEdit={() => { }}
+                                onDelete={() => { }}
+                                isEditing={false}
+                                editingTitle=""
+                                setEditingTitle={() => { }}
+                                onSaveEdit={() => { }}
+                                onCancelEdit={() => { }}
+                                saving={false}
+                                deleting={false}
+                                isSystemGoal={true}
+                              />
+                            )
+                          })
+                        ) : totalSystemGoals === 0 ? (
+                          <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                            {t('plans.noSystemGoals')}
+                          </div>
+                        ) : null}
+                      </section>
 
-                    {/* System Goals Pagination */}
-                    <PaginationControls
-                      currentPage={currentSystemGoalPage}
-                      totalPages={totalSystemPages}
-                      onPageChange={setCurrentSystemGoalPage}
-                      label={t('plans.suggestGoals')}
-                    />
-                  </>
-                )}
+                      <PaginationControls
+                        currentPage={currentSystemGoalPage}
+                        totalPages={totalSystemPages}
+                        onPageChange={setCurrentSystemGoalPage}
+                        label={t('plans.suggestGoals')}
+                      />
+                    </>
+                  )}
               </div>
-
-              {/* My Goals Section */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    {t('plans.myGoals')}
-                    {totalMyGoals > 0 && (
-                      <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
-                        {t('plans.goalsCount', { count: totalMyGoals })}
-                      </span>
-                    )}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
-                    style={{ 
-                      padding: '6px 16px', 
-                      background: 'var(--text-primary)', 
-                      color: 'var(--bg-surface-short)', 
-                      border: '1px solid var(--text-primary)', 
-                      borderRadius: 2, 
-                      fontSize: 12, 
-                      fontWeight: 600, 
-                      cursor: 'pointer', 
-                      transition: 'background 0.2s' 
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} 
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
-                  >
-                    {'>'} {t('plans.addGoal')}
-                  </button>
-                </div>
-                
-                {!language ? (
-                  <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                    {t('plans.selectSubjectFirst')}
-                  </div>
-                ) : (
-                  <>
-                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
-                      {goalsLoading ? (
-                        Array.from({ length: 3 }).map((_, i) => (
-                          <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                              <div className="flex-1">
-                                <div className="w-32 h-5 bg-th-hover rounded" />
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : goalsError ? (
-                        <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                          {t('plans.failedLoadYourGoals')}: {goalsError}
-                        </div>
-                      ) : currentPageMyGoals.length > 0 ? (
-                        currentPageMyGoals.map((g: any, idx: number) => {
-                          const id = g?.id ?? g?.goalId ?? g?.key
-                          const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                          const globalIndex = myStartIndex + idx // Calculate global index for color palette
-                          return (
-                            <SingleGoalCard
-                              key={String(id)}
-                              id={String(id)}
-                              title={title}
-                              colorClass={palette[globalIndex % palette.length]}
-                              icon='🔖'
-                              active={selectedGoals.includes(String(id))}
-                              disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
-                              onToggle={toggleGoal}
-                              onStartEdit={handleStartEditGoal}
-                              onDelete={() => { }}
-                              isEditing={false}
-                              editingTitle=""
-                              setEditingTitle={() => { }}
-                              onSaveEdit={() => { }}
-                              onCancelEdit={() => { }}
-                              saving={false}
-                              deleting={false}
-                              isSystemGoal={false}
-                            />
-                          )
-                        })
-                      ) : totalMyGoals === 0 ? (
-                        <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                          {t('plans.noPersonalGoals')}
-                        </div>
-                      ) : null}
-                    </section>
-
-                    {/* My Goals Pagination */}
-                    <PaginationControls
-                      currentPage={currentMyGoalPage}
-                      totalPages={totalMyPages}
-                      onPageChange={setCurrentMyGoalPage}
-                      label={t('plans.myGoals')}
-                    />
-                  </>
-                )}
                 
                 {/* Add Goal Modal */}
                 {showAddGoal && (
@@ -1901,7 +1985,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     </div>
                   </div>
                 )}
-              </div>
 
             </motion.div>
           )}
@@ -2128,7 +2211,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 title={t('plans.step4Title')}
                 subtitle={t('plans.step4Subtitle')}
                 icon="$"
-                selectedValue={languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined}
+                selectedValue={languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? t('plans.languageVietnamese') : t('plans.languageEnglish')) : undefined}
               />
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, maxWidth: 700, margin: '0 auto' }} aria-label="language-selection">
                 {/* Vietnamese Option */}
@@ -2144,7 +2227,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
                 >
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.Vietnamese ? '> ' : '$ '}Tiếng Việt</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.Vietnamese ? '> ' : '$ '}{t('plans.languageVietnamese')}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.vietnameseDesc')}</div>
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.Vietnamese ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
                     {languageSelection === LanguageSelection.Vietnamese ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
@@ -2165,7 +2248,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
                 >
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.English ? '> ' : '$ '}English</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.English ? '> ' : '$ '}{t('plans.languageEnglish')}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.englishDesc')}</div>
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.English ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
                     {languageSelection === LanguageSelection.English ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
@@ -2200,7 +2283,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                             }).join(', ')
                         : undefined },
                     { label: `$ ${t('plans.difficultyLevel')}`, val: level },
-                    { label: `$ ${t('plans.contentLanguage')}`, val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined }
+                    { label: `$ ${t('plans.contentLanguage')}`, val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? t('plans.languageVietnamese') : t('plans.languageEnglish')) : undefined }
                   ].map((sum, i) => (
                     <div key={i} style={{ padding: 16, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)' }}>
                       <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px 0' }}>{sum.label}</h3>

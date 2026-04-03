@@ -291,6 +291,8 @@
     "step4Subtitle": "chọn ngôn ngữ bạn muốn cho tài liệu học tập AI tạo ra",
     "vietnameseDesc": "Học với nội dung bằng tiếng việt, dễ hiểu và phù hợp với người việt",
     "englishDesc": "Học với nội dung tiếng Anh, được sử dụng rộng rãi trong ngành công nghệ.",
+    "languageVietnamese": "Tiếng Việt",
+    "languageEnglish": "Tiếng Anh",
     "selected": "đã chọn",
     "clickToSelect": "nhấn để chọn",
     "step5Title": "xem lại & tạo",

@@ -590,34 +590,47 @@ const StudentIndex: React.FC = () => {
     }
 
     try {
-      const result = await LearningPathService.getUserLearningPaths(userId, {
-        pageNumber: 1,
-        pageSize: 200,
-        sortDescending: true,
-      })
-      const paths = Array.isArray(result?.items) ? result.items : []
+      const pageSize = 200
+      let pageNumber = 1
+      let totalPages = 1
 
-      let foundPath = learningPathId
-        ? paths.find((path: any) => String(path?.pathId ?? path?.id ?? '').trim() === learningPathId)
-        : null
+      while (pageNumber <= totalPages) {
+        const result = await LearningPathService.getUserLearningPaths(userId, {
+          pageNumber,
+          pageSize,
+          sortDescending: true,
+        })
+        const paths = Array.isArray(result?.items) ? result.items : []
 
-      if (!foundPath) {
-        foundPath = paths.find((path: any) =>
-          Array.isArray(path?.chapters) && path.chapters.some((chapter: any) =>
-            Array.isArray(chapter?.lessons) && chapter.lessons.some((lesson: any) => {
-              const currentLessonId = String(lesson?.id ?? lesson?.lessonId ?? '').trim()
-              return currentLessonId === lessonId
-            })
+        let foundPath = learningPathId
+          ? paths.find((path: any) => String(path?.pathId ?? path?.id ?? '').trim() === learningPathId)
+          : null
+
+        if (!foundPath) {
+          foundPath = paths.find((path: any) =>
+            Array.isArray(path?.chapters) && path.chapters.some((chapter: any) =>
+              Array.isArray(chapter?.lessons) && chapter.lessons.some((lesson: any) => {
+                const currentLessonId = String(lesson?.id ?? lesson?.lessonId ?? '').trim()
+                return currentLessonId === lessonId
+              })
+            )
           )
-        )
+        }
+
+        const foundPathId = String(foundPath?.pathId ?? foundPath?.id ?? '').trim()
+        if (foundPathId && foundPath) {
+          learningPathSkeletonCacheRef.current.set(foundPathId, foundPath)
+          return foundPath
+        }
+
+        const totalCount = Number(result?.totalCount ?? 0)
+        totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+        if (paths.length === 0) break
+
+        pageNumber += 1
       }
 
-      const foundPathId = String(foundPath?.pathId ?? foundPath?.id ?? '').trim()
-      if (foundPathId && foundPath) {
-        learningPathSkeletonCacheRef.current.set(foundPathId, foundPath)
-      }
-
-      return foundPath || null
+      return null
     } catch {
       return null
     }

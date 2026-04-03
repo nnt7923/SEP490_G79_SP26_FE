@@ -291,6 +291,8 @@
     "step4Subtitle": "select your preferred language for the ai generated learning materials",
     "vietnameseDesc": "Learn with Vietnamese content, easy to understand and suitable for Vietnamese learners",
     "englishDesc": "Learn with english content, widely used in the tech industry.",
+    "languageVietnamese": "Vietnamese",
+    "languageEnglish": "English",
     "selected": "selected",
     "clickToSelect": "click to select",
     "step5Title": "review & generate",
