@@ -153,6 +153,18 @@ const normalizeTier = (value: string): 'Free' | 'Paid' | 'Unknown' => {
   return 'Unknown'
 }
 
+const extractRoleName = (detail: Record<string, unknown> | null | undefined) => {
+  if (!detail) return ''
+
+  const roleObject = detail.role
+  if (roleObject && typeof roleObject === 'object') {
+    const roleName = String((roleObject as Record<string, unknown>).name ?? '').trim()
+    if (roleName) return roleName
+  }
+
+  return String(detail.roleName ?? detail.userRole ?? '').trim()
+}
+
 const normalizeUsageTypeKey = (value: string): string => {
   return String(value || '').trim().toLowerCase().replace(/[\s_-]/g, '')
 }
@@ -313,6 +325,7 @@ const AdminAIUsageSpendingPage: React.FC = () => {
   const [userDetailError, setUserDetailError] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedUserDetail, setSelectedUserDetail] = useState<Record<string, unknown> | null>(null)
+  const [topSpenderProfiles, setTopSpenderProfiles] = useState<Record<string, { email: string; username: string; role: string }>>({})
   const [currency, setCurrency] = useState<CurrencyCode>('USD')
   const [usdToVndRate, setUsdToVndRate] = useState<number | null>(null)
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false)
@@ -532,12 +545,7 @@ const AdminAIUsageSpendingPage: React.FC = () => {
 
   const getUserRole = (detail: Record<string, unknown> | null) => {
     if (!detail) return '-'
-    const roleObject = detail.role
-    if (roleObject && typeof roleObject === 'object') {
-      const roleName = String((roleObject as Record<string, unknown>).name ?? '').trim()
-      if (roleName) return roleName
-    }
-    const roleName = String(detail.roleName ?? detail.userRole ?? '').trim()
+    const roleName = extractRoleName(detail)
     return roleName || '-'
   }
 
@@ -608,18 +616,111 @@ const AdminAIUsageSpendingPage: React.FC = () => {
     return dailyFromLogs
   }, [freeCostUsd, logs, paidCostUsd, summaryDaily, trendLogs])
 
-  const usageTypeCostData = useMemo(() => {
-    const map = new Map<string, number>()
+  const usageTypeCostByTier = useMemo(() => {
+    const paidMap = new Map<string, number>()
+    const freeMap = new Map<string, number>()
 
     summaryItems.forEach((item) => {
       const key = item.usageType || 'Unknown'
-      map.set(key, (map.get(key) || 0) + item.costUsd)
+      const tier = normalizeTier(item.tier)
+      if (tier === 'Paid') {
+        paidMap.set(key, (paidMap.get(key) || 0) + item.costUsd)
+        return
+      }
+
+      if (tier === 'Free') {
+        freeMap.set(key, (freeMap.get(key) || 0) + item.costUsd)
+      }
     })
 
-    return Array.from(map.entries()).map(([usageType, costUsd]) => ({ usageType, costUsd }))
+    const toSortedArray = (map: Map<string, number>) =>
+      Array.from(map.entries())
+        .map(([usageType, costUsd]) => ({ usageType, costUsd }))
+        .sort((left, right) => right.costUsd - left.costUsd)
+
+    return {
+      paid: toSortedArray(paidMap),
+      free: toSortedArray(freeMap),
+    }
   }, [summaryItems])
 
-  const usageTypeTotalCost = usageTypeCostData.reduce((sum, item) => sum + item.costUsd, 0)
+  const usageTypePaidTotalCost = usageTypeCostByTier.paid.reduce((sum, item) => sum + item.costUsd, 0)
+  const usageTypeFreeTotalCost = usageTypeCostByTier.free.reduce((sum, item) => sum + item.costUsd, 0)
+  const allTopSpenderRows = useMemo(() => {
+    const source = trendLogs.length > 0 ? trendLogs : logs
+    const map = new Map<string, { costUsd: number; totalTokens: number; requests: number }>()
+
+    source.forEach((item) => {
+      const userId = String(item.userId || '').trim()
+      if (!userId) return
+
+      const current = map.get(userId) || { costUsd: 0, totalTokens: 0, requests: 0 }
+      current.costUsd += item.costUsd
+      current.totalTokens += item.totalTokens
+      current.requests += 1
+      map.set(userId, current)
+    })
+
+    return Array.from(map.entries())
+      .map(([userId, values]) => ({ userId, ...values }))
+      .sort((left, right) => right.costUsd - left.costUsd)
+  }, [logs, trendLogs])
+
+  const topSpenderRows = useMemo(() => {
+    return allTopSpenderRows
+      .filter((item) => String(topSpenderProfiles[item.userId]?.role || '').trim().toLowerCase() === 'student')
+      .slice(0, 5)
+  }, [allTopSpenderRows, topSpenderProfiles])
+
+  const maxTopSpenderCost = Math.max(...topSpenderRows.map((item) => item.costUsd), 0)
+
+  useEffect(() => {
+    const missingUserIds = allTopSpenderRows
+      .slice(0, 30)
+      .map((item) => item.userId)
+      .filter((userId) => userId && !topSpenderProfiles[userId])
+
+    if (missingUserIds.length === 0) {
+      return
+    }
+
+    let cancelled = false
+
+    const loadProfiles = async () => {
+      const fetchedEntries = await Promise.all(
+        missingUserIds.map(async (userId) => {
+          try {
+            const response = await UserService.getUserById(userId)
+            const normalized = normalizeUserDetail(response)
+            const email = String(normalized?.email ?? '').trim() || '-'
+            const username = String(normalized?.username ?? normalized?.userName ?? '').trim() || '-'
+            const role = extractRoleName(normalized).trim() || '-'
+            return [userId, { email, username, role }] as const
+          } catch {
+            return [userId, { email: '-', username: '-', role: '-' }] as const
+          }
+        }),
+      )
+
+      if (cancelled) {
+        return
+      }
+
+      setTopSpenderProfiles((previous) => {
+        const next = { ...previous }
+        fetchedEntries.forEach(([userId, profile]) => {
+          next[userId] = profile
+        })
+        return next
+      })
+    }
+
+    void loadProfiles()
+
+    return () => {
+      cancelled = true
+    }
+  }, [allTopSpenderRows, topSpenderProfiles])
   const maxDailyCost = Math.max(...dailyTrendData.map((item) => item.totalCostUsd), 0)
   const costLabelCurrency = currency === 'VND' ? 'VND' : 'USD'
   const exchangeRateLocale = i18n.language?.startsWith('vi') ? 'vi-VN' : 'en-US'
@@ -641,16 +742,16 @@ const AdminAIUsageSpendingPage: React.FC = () => {
     setCurrency(nextCurrency)
   }
 
-  const donutSegments = useMemo(() => {
-    if (usageTypeTotalCost <= 0) return []
+  const buildUsageTypeDonutSegments = (items: Array<{ usageType: string; costUsd: number }>, totalCost: number) => {
+    if (totalCost <= 0) return []
 
     const radius = 64
     const circumference = 2 * Math.PI * radius
     let accumulatedOffset = 0
     const colors = ['#2563eb', '#0ea5e9', '#14b8a6', '#f59e0b', '#a855f7', '#ef4444', '#64748b']
 
-    return usageTypeCostData.map((item, index) => {
-      const fraction = item.costUsd / usageTypeTotalCost
+    return items.map((item, index) => {
+      const fraction = item.costUsd / totalCost
       const dash = circumference * fraction
       const offset = -accumulatedOffset
       accumulatedOffset += dash
@@ -663,7 +764,17 @@ const AdminAIUsageSpendingPage: React.FC = () => {
         percent: fraction * 100,
       }
     })
-  }, [usageTypeCostData, usageTypeTotalCost])
+  }
+
+  const paidDonutSegments = useMemo(
+    () => buildUsageTypeDonutSegments(usageTypeCostByTier.paid, usageTypePaidTotalCost),
+    [usageTypeCostByTier.paid, usageTypePaidTotalCost],
+  )
+
+  const freeDonutSegments = useMemo(
+    () => buildUsageTypeDonutSegments(usageTypeCostByTier.free, usageTypeFreeTotalCost),
+    [usageTypeCostByTier.free, usageTypeFreeTotalCost],
+  )
 
   const startIndex = logs.length === 0 ? 0 : (pageNumber - 1) * pageSize + 1
   const endIndex = Math.min(pageNumber * pageSize, totalCount)
@@ -921,95 +1032,181 @@ const AdminAIUsageSpendingPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="bg-th-card border border-bd-strong p-4">
               <div className="text-sm font-bold text-heading mb-4 inline-flex items-center gap-2">
                 <BarChart3 size={16} className="text-status-blue" />
-                {t('aiSpending.dailyTrend')}
+                {t('aiSpending.topSpenders')}
               </div>
 
               {summaryLoading ? (
                 <div className="h-[260px] bg-th-page animate-pulse" />
-              ) : dailyTrendData.length === 0 ? (
+              ) : topSpenderRows.length === 0 ? (
                 <div className="h-[260px] flex items-center justify-center text-sm text-muted">{t('aiSpending.noDataInRange')}</div>
               ) : (
-                <div className="h-[260px] flex items-end gap-2 overflow-x-auto pb-2">
-                  {dailyTrendData.map((item) => {
-                    const freeHeight = maxDailyCost > 0 && item.freeCostUsd > 0 ? Math.max(4, (item.freeCostUsd / maxDailyCost) * 180) : 0
-                    const paidHeight = maxDailyCost > 0 && item.paidCostUsd > 0 ? Math.max(4, (item.paidCostUsd / maxDailyCost) * 180) : 0
-                    return (
-                      <div key={item.dayKey} className="flex flex-col items-center min-w-[48px]" title={`${item.dayKey} | Free: ${formatCostByCurrency(item.freeCostUsd, currency, usdToVndRate)} | Paid: ${formatCostByCurrency(item.paidCostUsd, currency, usdToVndRate)}`}>
-                        <div className="w-8 flex flex-col justify-end">
-                          {paidHeight > 0 ? <div style={{ height: `${paidHeight}px` }} className="bg-orange-500" /> : null}
-                          {freeHeight > 0 ? <div style={{ height: `${freeHeight}px` }} className={`bg-emerald-500 ${paidHeight > 0 ? 'border-t border-white' : ''}`} /> : null}
+                <div className="space-y-4 min-w-0">
+                  <div className="border border-bd bg-th-page/50 p-3">
+                    <div className="text-xs text-muted mb-1">{t('aiSpending.topSpendersHint')}</div>
+                    <div className="text-sm font-bold text-heading">{t('aiSpending.topSpendersShareHint')}</div>
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 min-w-0">
+                    {topSpenderRows.map((row) => {
+                      const profile = topSpenderProfiles[row.userId]
+                      const profileLabel = profile
+                        ? `${profile.email} | ${profile.username}`
+                        : '... | ...'
+                      const sharePercent = totalCostUsd > 0 ? (row.costUsd / totalCostUsd) * 100 : 0
+                      return (
+                        <div key={`top-spender-${row.userId}`} className="space-y-1.5">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-xs">
+                            <div className="inline-flex items-center gap-2 min-w-0">
+                              <span className="w-3 h-3 inline-block bg-blue-500" />
+                              <button
+                                type="button"
+                                className="truncate font-semibold text-heading text-left hover:text-status-blue cursor-pointer"
+                                title={profileLabel}
+                                onClick={() => openUserDetailModal(row.userId)}
+                              >
+                                {profileLabel}
+                              </button>
+                            </div>
+                            <div className="text-status-blue font-semibold whitespace-nowrap">{sharePercent.toFixed(1)}%</div>
+                          </div>
+
+                          <div className="h-3 bg-th-page overflow-hidden">
+                            <div
+                              className="h-full"
+                              style={{
+                                width: `${maxTopSpenderCost > 0 ? Math.max(6, (row.costUsd / maxTopSpenderCost) * 100) : 0}%`,
+                                background: '#3b82f6',
+                              }}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-[11px] text-muted tabular-nums">
+                            <span>{t('aiSpending.cost', { currency: costLabelCurrency })}: {formatCostByCurrency(row.costUsd, currency, usdToVndRate)}</span>
+                            <span className="text-right">{t('aiSpending.totalTokens')}: {formatToken(row.totalTokens)}</span>
+                          </div>
                         </div>
-                        <span className="text-[10px] text-muted mt-2">{formatDayLabel(item.dayKey)}</span>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
               )}
-
-              <div className="flex gap-4 text-xs mt-3">
-                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-orange-500 inline-block" />{t('aiSpending.paid')}</span>
-                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-emerald-500 inline-block" />{t('aiSpending.free')}</span>
-              </div>
             </div>
 
-            <div className="bg-th-card border border-bd-strong p-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+              <div className="bg-th-card border border-bd-strong p-4 h-full min-h-[420px] flex flex-col">
+                <div className="text-sm font-bold text-heading mb-4 inline-flex items-center gap-2">
+                  <BarChart3 size={16} className="text-status-blue" />
+                  {t('aiSpending.dailyTrend')}
+                </div>
+
+                {summaryLoading ? (
+                  <div className="h-[300px] bg-th-page animate-pulse" />
+                ) : dailyTrendData.length === 0 ? (
+                  <div className="h-[300px] flex items-center justify-center text-sm text-muted">{t('aiSpending.noDataInRange')}</div>
+                ) : (
+                  <div className="h-[300px] flex items-end gap-2 overflow-x-auto pb-2">
+                    {dailyTrendData.map((item) => {
+                      const freeHeight = maxDailyCost > 0 && item.freeCostUsd > 0 ? Math.max(4, (item.freeCostUsd / maxDailyCost) * 180) : 0
+                      const paidHeight = maxDailyCost > 0 && item.paidCostUsd > 0 ? Math.max(4, (item.paidCostUsd / maxDailyCost) * 180) : 0
+                      return (
+                        <div key={item.dayKey} className="flex flex-col items-center min-w-[48px]" title={`${item.dayKey} | Free: ${formatCostByCurrency(item.freeCostUsd, currency, usdToVndRate)} | Paid: ${formatCostByCurrency(item.paidCostUsd, currency, usdToVndRate)}`}>
+                          <div className="w-8 flex flex-col justify-end">
+                            {paidHeight > 0 ? <div style={{ height: `${paidHeight}px` }} className="bg-orange-500" /> : null}
+                            {freeHeight > 0 ? <div style={{ height: `${freeHeight}px` }} className={`bg-emerald-500 ${paidHeight > 0 ? 'border-t border-white' : ''}`} /> : null}
+                          </div>
+                          <span className="text-[10px] text-muted mt-2">{formatDayLabel(item.dayKey)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <div className="flex gap-4 text-xs mt-3">
+                  <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-orange-500 inline-block" />{t('aiSpending.paid')}</span>
+                  <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-emerald-500 inline-block" />{t('aiSpending.free')}</span>
+                </div>
+              </div>
+
+              <div className="bg-th-card border border-bd-strong p-4 h-full min-h-[420px] flex flex-col">
               <div className="text-sm font-bold text-heading mb-4 inline-flex items-center gap-2">
                 <PieChart size={16} className="text-status-blue" />
                 {t('aiSpending.usageTypeSplit')}
               </div>
 
               {summaryLoading ? (
-                <div className="h-[260px] bg-th-page animate-pulse" />
-              ) : usageTypeCostData.length === 0 || usageTypeTotalCost <= 0 ? (
-                <div className="h-[260px] flex items-center justify-center text-sm text-muted">{t('aiSpending.noDataInRange')}</div>
+                <div className="h-[300px] bg-th-page animate-pulse" />
+              ) : (usageTypePaidTotalCost + usageTypeFreeTotalCost) <= 0 ? (
+                <div className="h-[300px] flex items-center justify-center text-sm text-muted">{t('aiSpending.noDataInRange')}</div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(260px,1fr)] gap-4 items-center min-w-0">
-                  <div className="flex justify-center">
-                    <svg width="180" height="180" viewBox="0 0 180 180">
-                      <circle cx="90" cy="90" r="64" fill="transparent" stroke="var(--bg-page)" strokeWidth="24" />
-                      {donutSegments.map((segment) => (
-                        <circle
-                          key={segment.usageType}
-                          cx="90"
-                          cy="90"
-                          r="64"
-                          fill="transparent"
-                          stroke={segment.stroke}
-                          strokeWidth="24"
-                          strokeDasharray={`${segment.dash} ${2 * Math.PI * 64}`}
-                          strokeDashoffset={segment.offset}
-                          transform="rotate(-90 90 90)"
-                        />
-                      ))}
-                      <text x="90" y="86" textAnchor="middle" className="fill-current text-heading" style={{ fontSize: 14, fontWeight: 700 }}>
-                        {t('aiSpending.total')}
-                      </text>
-                      <text x="90" y="106" textAnchor="middle" className="fill-current text-body" style={{ fontSize: 12 }}>
-                        {formatCostByCurrency(usageTypeTotalCost, currency, usdToVndRate)}
-                      </text>
-                    </svg>
-                  </div>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 min-w-0">
+                  {[{
+                    key: 'paid',
+                    label: t('aiSpending.paid'),
+                    totalCost: usageTypePaidTotalCost,
+                    segments: paidDonutSegments,
+                  }, {
+                    key: 'free',
+                    label: t('aiSpending.free'),
+                    totalCost: usageTypeFreeTotalCost,
+                    segments: freeDonutSegments,
+                  }].map((group) => (
+                    <div key={group.key} className="border border-bd p-4 bg-th-card min-w-0 rounded-sm">
+                      <div className="text-xs font-bold text-heading mb-4">{t('aiSpending.total')} {group.label}</div>
+                      {group.totalCost <= 0 ? (
+                        <div className="h-[180px] flex items-center justify-center text-xs text-muted">{t('aiSpending.noDataInRange')}</div>
+                      ) : (
+                        <div className="grid grid-cols-1 2xl:grid-cols-[140px_minmax(0,1fr)] gap-4 items-center min-w-0">
+                          <div className="flex justify-center">
+                            <svg width="140" height="140" viewBox="0 0 140 140">
+                              <circle cx="70" cy="70" r="50" fill="transparent" stroke="var(--bg-page)" strokeWidth="18" />
+                              {group.segments.map((segment) => (
+                                <circle
+                                  key={`${group.key}-${segment.usageType}`}
+                                  cx="70"
+                                  cy="70"
+                                  r="50"
+                                  fill="transparent"
+                                  stroke={segment.stroke}
+                                  strokeWidth="18"
+                                  strokeDasharray={`${segment.dash} ${2 * Math.PI * 50}`}
+                                  strokeDashoffset={segment.offset}
+                                  transform="rotate(-90 70 70)"
+                                />
+                              ))}
+                              <text x="70" y="68" textAnchor="middle" className="fill-current text-heading" style={{ fontSize: 13, fontWeight: 700 }}>
+                                {group.label}
+                              </text>
+                              <text x="70" y="84" textAnchor="middle" className="fill-current text-body" style={{ fontSize: 11 }}>
+                                {formatCostByCurrency(group.totalCost, currency, usdToVndRate)}
+                              </text>
+                            </svg>
+                          </div>
 
-                  <div className="space-y-2 min-w-0">
-                    {donutSegments.map((segment) => (
-                      <div key={segment.usageType} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-xs">
-                        <div className="inline-flex items-center gap-2 min-w-0">
-                          <span className="w-3 h-3 inline-block" style={{ background: segment.stroke }} />
-                          <span className="truncate" title={getUsageTypeLabel(segment.usageType)}>{getUsageTypeLabel(segment.usageType)}</span>
+                          <div className="space-y-2 min-w-0 pr-1">
+                            {group.segments.map((segment) => (
+                              <div key={`${group.key}-${segment.usageType}-legend`} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 text-[11px]">
+                                <div className="inline-flex items-center gap-2 min-w-0">
+                                  <span className="w-3 h-3 inline-block" style={{ background: segment.stroke }} />
+                                  <span className="truncate" title={getUsageTypeLabel(segment.usageType)}>{getUsageTypeLabel(segment.usageType)}</span>
+                                </div>
+                                <div className="text-right tabular-nums leading-tight shrink-0">
+                                  <div className="font-bold text-heading">{formatCostByCurrency(segment.costUsd, currency, usdToVndRate)}</div>
+                                  <div className="text-status-blue font-semibold">{segment.percent.toFixed(1)}%</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="text-right tabular-nums leading-tight whitespace-nowrap">
-                          <div className="font-bold text-heading">{formatCostByCurrency(segment.costUsd, currency, usdToVndRate)}</div>
-                          <div className="text-status-blue font-semibold">{segment.percent.toFixed(1)}%</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
+              </div>
             </div>
           </div>
 
