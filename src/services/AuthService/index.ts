@@ -127,13 +127,15 @@ export async function verifyOtp(payload: { Email: string; Otp: string }) {
   }
 
   const msg: string = data?.message ?? data?.msg ?? 'OTP verified successfully.'
+  const purpose: string | undefined = data?.purpose ?? data?.data?.purpose
+  const resetToken: string | undefined = data?.resetToken ?? data?.data?.resetToken
 
   // If backend provides token/user, return them; otherwise only return ok + message
-  if (token && user?.id) return { user, token, isOk: true, msg }
-  return { isOk: true, msg }
+  if (token && user?.id) return { user, token, purpose, resetToken, message: msg, isOk: true, msg }
+  return { purpose, resetToken, message: msg, isOk: true, msg }
 }
 
-export async function resendOtp(payload: { Email: string }) {
+export async function resendOtp(payload: { Email: string; Purpose?: string }) {
   const res: any = await api.post(resendOtpUrl, payload)
   return res?.data ?? res
 }
@@ -143,8 +145,32 @@ export async function forgotPassword(payload: { Email: string }) {
   return res?.data ?? res
 }
 
-export async function resetPassword(payload: { Token: string; Password: string; Email?: string }) {
-  const res: any = await api.post(resetPasswordUrl, payload)
+export async function resetPassword(payload: {
+  resetToken?: string
+  newPassword?: string
+  email?: string
+  Token?: string
+  Password?: string
+  Email?: string
+}) {
+  const resetToken = payload.resetToken ?? payload.Token
+  const newPassword = payload.newPassword ?? payload.Password
+  const email = payload.email ?? payload.Email
+
+  const requestBody: Record<string, string> = {
+    resetToken: resetToken ?? '',
+    newPassword: newPassword ?? '',
+    // Backward compatibility for old backend contracts (safe if ignored).
+    ResetToken: resetToken ?? '',
+    NewPassword: newPassword ?? '',
+  }
+
+  if (email) {
+    requestBody.email = email
+    requestBody.Email = email
+  }
+
+  const res: any = await api.post(resetPasswordUrl, requestBody)
   const data = res?.data ?? res
   return data
 }

@@ -29,18 +29,11 @@ const ForgotPassword: React.FC = () => {
       setSubmitting(true)
       const res: any = await AuthService.forgotPassword({ Email: mail })
       const data = res ?? {}
-      const resetToken: string | undefined = data?.resetToken ?? data?.token ?? data?.data?.resetToken ?? data?.data?.token
       const toastMsg: string = data?.message ?? data?.msg ?? t('forgotPassword.resetLinkSent')
 
-      if (resetToken) {
-        navigate(`${ROUTER.RESET_PASSWORD}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(mail)}`, {
-          state: { toast: t('forgotPassword.setNewPassword') },
-        })
-      } else {
-        navigate(`${ROUTER.RESET_PASSWORD}?email=${encodeURIComponent(mail)}`, {
-          state: { toast: toastMsg },
-        })
-      }
+      navigate(`${ROUTER.VERIFY_OTP}?email=${encodeURIComponent(mail)}&purpose=reset-password`, {
+        state: { toast: toastMsg },
+      })
     } catch (err: any) {
       setError(extractErrorMessage(err, t('forgotPassword.failed')))
     } finally {

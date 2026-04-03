@@ -60,7 +60,7 @@ describe('DailyCheckinPopup', () => {
     expect(html).toContain('Check-in unlocked')
     expect(html).toContain('You are now on a 3-day streak.')
     expect(html).toContain('Current streak: 3')
-    expect(html).toContain('Focused')
+     expect(html).toContain('Focused')
     expect(html).toContain('4/5')
   })
 
