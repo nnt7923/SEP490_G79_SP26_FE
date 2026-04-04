@@ -72,9 +72,9 @@
   },
   "sidebar": {
     "overview": "Overview",
-    "myPlans": "My Plans",
+    "myPlans": "My Learning Paths",
     "goals": "Goals",
-    "progress": "Progress",
+    "progress": "Generate Path",
     "resources": "Resources",
     "achievements": "Achievements",
     "upgrade": "Upgrade",

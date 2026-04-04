@@ -165,15 +165,17 @@
     "selectGoal": "select a goal to view details"
   },
   "myPlans": {
-    "searchPlaceholder": "search plans...",
-    "loading": "loading plans...",
-    "noPlansFound": "No plans found",
-    "noPlansMatch": "No plans match your search.",
+    "searchPlaceholder": "search learning paths...",
+    "loading": "loading learning paths...",
+    "noPlansFound": "No learning paths found",
+    "noPlansMatch": "No learning paths match your search.",
     "startCreating": "Start creating your first learning path!",
-    "untitled": "Untitled Plan",
+    "untitled": "Untitled Learning Path",
     "noDescription": "No description",
+    "progressLabel": "Progress",
     "chapters": "{{count}} chapters",
-    "lessons": "{{count}} lessons"
+    "lessons": "{{count}} lessons",
+    "progressPercent": "Progress: {{percent}}%"
   },
   "profile": {
     "brandName": "Profile",
@@ -438,7 +440,7 @@
       "statDue3Days": "Due in 3 days",
       "statNotStarted": "Not started",
       "statCompletedToday": "Completed",
-      "priorityQueueTitle": "Priority Queue",
+      "priorityQueueTitle": "Task List",
       "priorityQueueSubtitle": "Top tasks to act on now across Lesson/Task/Quiz and all paths.",
       "emptyPriority": "No priority items right now.",
       "sevenDaysTitle": "Next 7 days",
@@ -465,6 +467,10 @@
       "learningPathFilterLabel": "Learning path",
       "overdueFilterActive": "Showing overdue items from the Urgent card.",
       "clearOverdueFilter": "Clear overdue filter",
+      "dueSoonFilterActive": "Showing items due in the next 3 days.",
+      "notStartedFilterActive": "Showing not-started items.",
+      "completedFilterActive": "Showing completed items.",
+      "clearQuickFilter": "Clear quick filter",
       "emptyTypeItems": "No {{type}} items.",
       "unknownChapter": "Unknown chapter",
       "loading": "Loading timeline...",

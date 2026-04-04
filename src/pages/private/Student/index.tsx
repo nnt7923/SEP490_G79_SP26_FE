@@ -183,7 +183,7 @@ const StudentIndex: React.FC = () => {
   const [timelineLoading, setTimelineLoading] = React.useState(true)
   const [timelineError, setTimelineError] = React.useState<string | null>(null)
   const [activeDayKey, setActiveDayKey] = React.useState<string>('')
-  const [priorityScope, setPriorityScope] = React.useState<'all' | 'overdue'>('all')
+  const [priorityScope, setPriorityScope] = React.useState<'all' | 'overdue' | 'dueSoon' | 'notStarted' | 'completed'>('all')
   const [selectedPriorityPathKey, setSelectedPriorityPathKey] = React.useState<string>(PRIORITY_ALL_PATH_KEY)
   const [selectedPriorityType, setSelectedPriorityType] = React.useState<PriorityType>('Lesson')
   const [selectedSevenDayPathKey, setSelectedSevenDayPathKey] = React.useState<string>(PRIORITY_ALL_PATH_KEY)
@@ -309,8 +309,30 @@ const StudentIndex: React.FC = () => {
 
   const scopedPriorityCandidates = React.useMemo(() => {
     if (priorityScope === 'all') return priorityCandidates
-    return priorityCandidates.filter((item) => item.isOverdue || parseDueTime(item.dueAtUtc) < nowTs)
-  }, [priorityCandidates, priorityScope, nowTs])
+
+    if (priorityScope === 'overdue') {
+      return priorityCandidates.filter((item) => item.isOverdue || parseDueTime(item.dueAtUtc) < nowTs)
+    }
+
+    if (priorityScope === 'dueSoon') {
+      return priorityCandidates.filter((item) => {
+        const dueTs = parseDueTime(item.dueAtUtc)
+        return dueTs >= nowTs && dueTs <= nowTs + 3 * DAY_MS
+      })
+    }
+
+    if (priorityScope === 'notStarted') {
+      return priorityCandidates.filter((item) => String(item.status || '').toLowerCase() === 'pending')
+    }
+
+    return items
+      .filter((item) => item.isCompleted)
+      .sort((left, right) => {
+        const dueDiff = parseDueTime(left.dueAtUtc) - parseDueTime(right.dueAtUtc)
+        if (dueDiff !== 0) return dueDiff
+        return String(left.title || '').localeCompare(String(right.title || ''))
+      })
+  }, [priorityCandidates, priorityScope, nowTs, items])
 
   const priorityPathOptions = React.useMemo(() => {
     const map = new Map<string, PriorityPathOption>()
@@ -337,12 +359,68 @@ const StudentIndex: React.FC = () => {
     return scopedPriorityCandidates.filter((item) => buildPriorityPathKey(item) === selectedPriorityPathKey)
   }, [scopedPriorityCandidates, selectedPriorityPathKey, buildPriorityPathKey])
 
-  const handleUrgentCardClick = React.useCallback(() => {
-    setPriorityScope('overdue')
+  const applyPriorityScope = React.useCallback((scope: 'overdue' | 'dueSoon' | 'notStarted' | 'completed') => {
+    setPriorityScope(scope)
     setSelectedPriorityPathKey(PRIORITY_ALL_PATH_KEY)
     setPriorityPages({ Lesson: 1, Task: 1, Quiz: 1 })
     priorityQueueRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
+
+  const handleUrgentCardClick = React.useCallback(() => {
+    applyPriorityScope('overdue')
+  }, [applyPriorityScope])
+
+  const handleDueSoonCardClick = React.useCallback(() => {
+    applyPriorityScope('dueSoon')
+  }, [applyPriorityScope])
+
+  const handleNotStartedCardClick = React.useCallback(() => {
+    applyPriorityScope('notStarted')
+  }, [applyPriorityScope])
+
+  const handleCompletedCardClick = React.useCallback(() => {
+    applyPriorityScope('completed')
+  }, [applyPriorityScope])
+
+  const activePriorityFilterLabel = React.useMemo(() => {
+    if (priorityScope === 'overdue') return t('dashboard.timeline.overdueFilterActive')
+    if (priorityScope === 'dueSoon') return t('dashboard.timeline.dueSoonFilterActive')
+    if (priorityScope === 'notStarted') return t('dashboard.timeline.notStartedFilterActive')
+    if (priorityScope === 'completed') return t('dashboard.timeline.completedFilterActive')
+    return ''
+  }, [priorityScope, t])
+
+  const activePriorityFilterStyle = React.useMemo(() => {
+    if (priorityScope === 'completed') {
+      return {
+        border: 'var(--success-primary)',
+        background: 'var(--bg-green-tint)',
+        color: 'var(--success-primary)',
+      }
+    }
+
+    if (priorityScope === 'dueSoon') {
+      return {
+        border: 'var(--warning-primary)',
+        background: 'var(--bg-yellow-tint)',
+        color: 'var(--warning-primary)',
+      }
+    }
+
+    if (priorityScope === 'notStarted') {
+      return {
+        border: 'var(--accent-primary)',
+        background: 'var(--bg-main)',
+        color: 'var(--accent-primary)',
+      }
+    }
+
+    return {
+      border: 'var(--danger-primary)',
+      background: 'var(--bg-red-tint)',
+      color: 'var(--danger-primary)',
+    }
+  }, [priorityScope])
 
   const priorityGroupedItems = React.useMemo(() => {
 
@@ -876,11 +954,14 @@ const StudentIndex: React.FC = () => {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
               {[
-                { label: t('dashboard.timeline.statUrgent'), value: overdueItems.length, color: 'var(--danger-primary)', bg: 'var(--bg-red-tint)', onClick: handleUrgentCardClick },
-                { label: t('dashboard.timeline.statDue3Days'), value: dueSoonItems.length, color: 'var(--warning-primary)', bg: 'var(--bg-yellow-tint)' },
-                { label: t('dashboard.timeline.statNotStarted'), value: notStartedItems.length, color: 'var(--accent-primary)', bg: 'var(--bg-main)' },
-                { label: t('dashboard.timeline.statCompletedToday'), value: completedTodayCount, color: 'var(--success-primary)', bg: 'var(--bg-green-tint)' },
+                { label: t('dashboard.timeline.statUrgent'), value: overdueItems.length, color: 'var(--danger-primary)', bg: 'var(--bg-red-tint)', scope: 'overdue' as const, onClick: handleUrgentCardClick },
+                { label: t('dashboard.timeline.statDue3Days'), value: dueSoonItems.length, color: 'var(--warning-primary)', bg: 'var(--bg-yellow-tint)', scope: 'dueSoon' as const, onClick: handleDueSoonCardClick },
+                { label: t('dashboard.timeline.statNotStarted'), value: notStartedItems.length, color: 'var(--accent-primary)', bg: 'var(--bg-main)', scope: 'notStarted' as const, onClick: handleNotStartedCardClick },
+                { label: t('dashboard.timeline.statCompletedToday'), value: completedTodayCount, color: 'var(--success-primary)', bg: 'var(--bg-green-tint)', scope: 'completed' as const, onClick: handleCompletedCardClick },
               ].map((card) => (
+                (() => {
+                  const isActive = priorityScope === card.scope
+                  return (
                 <div
                   key={card.label}
                   onClick={card.onClick}
@@ -898,12 +979,18 @@ const StudentIndex: React.FC = () => {
                     borderRadius: 2,
                     background: card.bg,
                     padding: '10px 12px',
-                    cursor: card.onClick ? 'pointer' : 'default'
+                    cursor: card.onClick ? 'pointer' : 'default',
+                    boxShadow: isActive ? `0 0 0 2px ${card.color}` : 'none',
+                    transform: isActive ? 'translateY(-1px)' : 'none',
+                    transition: 'box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease',
+                    opacity: priorityScope !== 'all' && !isActive ? 0.75 : 1,
                   }}
                 >
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{card.label}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: isActive ? card.color : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: isActive ? 700 : 600 }}>{card.label}</p>
                   <p style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 700, color: card.color }}>{card.value}</p>
                 </div>
+                  )
+                })()
               ))}
             </div>
           )}
@@ -1134,15 +1221,15 @@ const StudentIndex: React.FC = () => {
               <div ref={priorityQueueRef} style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 16 }}>
                 <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('dashboard.timeline.priorityQueueTitle')}</h3>
 
-                {priorityScope === 'overdue' && (
-                  <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, background: 'var(--bg-red-tint)', color: 'var(--danger-primary)', fontSize: 11, padding: '8px 10px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                    <span>{t('dashboard.timeline.overdueFilterActive')}</span>
+                {priorityScope !== 'all' && (
+                  <div style={{ border: `1px solid ${activePriorityFilterStyle.border}`, borderRadius: 2, background: activePriorityFilterStyle.background, color: activePriorityFilterStyle.color, fontSize: 11, padding: '8px 10px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <span>{activePriorityFilterLabel}</span>
                     <button
                       type="button"
                       onClick={() => setPriorityScope('all')}
-                      style={{ border: '1px solid var(--danger-primary)', background: 'var(--bg-main)', color: 'var(--danger-primary)', borderRadius: 2, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}
+                      style={{ border: `1px solid ${activePriorityFilterStyle.border}`, background: 'var(--bg-main)', color: activePriorityFilterStyle.color, borderRadius: 2, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}
                     >
-                      {t('dashboard.timeline.clearOverdueFilter')}
+                      {t('dashboard.timeline.clearQuickFilter')}
                     </button>
                   </div>
                 )}
@@ -1242,6 +1329,7 @@ const StudentIndex: React.FC = () => {
                               {pagedItems.map((item) => {
                                 const pathKey = String(item.learningPathId || item.learningPathTitle || 'unknown')
                                 const chipColor = getPathChipColor(pathKey)
+                                const isCompleted = Boolean(item.isCompleted)
                                 const isOverdue = !item.isCompleted && (item.isOverdue || parseDueTime(item.dueAtUtc) < nowTs)
                                 const statusColor = item.isCompleted
                                   ? 'var(--success-primary)'
@@ -1263,21 +1351,30 @@ const StudentIndex: React.FC = () => {
                                     }}
                                     style={{
                                       border: '1px solid var(--border-base)',
-                                      borderLeft: isOverdue ? '3px solid var(--danger-primary)' : undefined,
+                                      borderLeft: isCompleted
+                                        ? '3px solid var(--success-primary)'
+                                        : isOverdue
+                                          ? '3px solid var(--danger-primary)'
+                                          : undefined,
                                       borderRadius: 2,
                                       padding: 10,
-                                      background: isOverdue ? 'rgba(207, 34, 46, 0.07)' : 'var(--bg-surface-short)',
+                                      background: isCompleted
+                                        ? 'var(--bg-green-tint)'
+                                        : isOverdue
+                                          ? 'rgba(207, 34, 46, 0.07)'
+                                          : 'var(--bg-surface-short)',
+                                      boxShadow: isCompleted ? 'inset 0 0 0 1px rgba(22, 163, 74, 0.15)' : 'none',
                                       cursor: 'pointer'
                                     }}
                                   >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
                                       <div style={{ flex: 1, minWidth: 0 }}>
-                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{item.title || '—'}</p>
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: isCompleted ? 'var(--success-primary)' : 'var(--text-primary)' }}>{item.title || '—'}</p>
                                         <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-secondary)' }}>
                                           {item.learningPathTitle || t('dashboard.timeline.unknownPath')}
                                         </p>
                                       </div>
-                                      <span style={{ fontSize: 10, padding: '2px 8px', border: '1px solid var(--border-base)', borderRadius: 999, color: 'var(--text-secondary)', background: 'var(--bg-main)', textTransform: 'uppercase', fontWeight: 700 }}>
+                                      <span style={{ fontSize: 10, padding: '2px 8px', border: isCompleted ? '1px solid var(--success-primary)' : '1px solid var(--border-base)', borderRadius: 999, color: isCompleted ? 'var(--success-primary)' : 'var(--text-secondary)', background: 'var(--bg-main)', textTransform: 'uppercase', fontWeight: 700 }}>
                                         {getTimelineItemTypeLabel(item.itemType)}
                                       </span>
                                     </div>

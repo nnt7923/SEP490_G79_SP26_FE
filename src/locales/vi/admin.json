@@ -54,7 +54,9 @@
     "banSuccess": "Đã cấm người dùng thành công",
     "unbanSuccess": "Đã mở cấm người dùng thành công",
     "banFailed": "Không thể cập nhật trạng thái người dùng",
-    "showing": "hiển thị: {{filtered}}/{{total}}"
+    "showing": "hiển thị: {{filtered}}/{{total}}",
+    "activeStatus": "đang hoạt động",
+    "pageOption": "{{size}} / trang"
   },
   "reports": {
     "title": "báo_cáo_admin",
@@ -66,7 +68,8 @@
     "size": "kích thước",
     "createdAt": "ngày tạo",
     "action": "thao tác",
-    "noReportsFound": "không tìm thấy báo cáo"
+    "noReportsFound": "không tìm thấy báo cáo",
+    "download": "tải xuống"
   },
   "apiKey": {
     "title": "api_keys",
@@ -76,7 +79,9 @@
     "editConfiguration": "sửa_cấu_hình",
     "addNewConfiguration": "thêm_cấu_hình_mới",
     "providerName": "tên_nhà_cung_cấp:",
+    "providerPlaceholder": "ví dụ: Groq, OpenAI",
     "apiKeyLabel": "api_key:",
+    "apiKeyPlaceholder": "secret_key",
     "apiKeyUpdatePlaceholder": "Nhập API key mới (không bắt buộc)",
     "apiKeyNotShownHint": "API key hiện tại được ẩn. Để trống nếu muốn giữ nguyên.",
     "aiUsageType": "loại_sử_dụng_ai:",
@@ -91,6 +96,9 @@
     "noProperties": "chưa có thuộc tính. nhấn để thêm",
     "key": "khóa:",
     "value": "giá trị:",
+    "additionalPropKeyPlaceholder": "ví dụ: Model",
+    "additionalPropValuePlaceholder": "ví dụ: gpt-4",
+    "removeProperty": "Xóa thuộc tính",
     "enableConfig": "bật_cấu_hình",
     "saving": "đang lưu...",
     "save": "lưu",
@@ -110,6 +118,8 @@
     "assistant": "Trợ Lý",
     "unknown": "Không Xác Định",
     "cfg": "cấu hình",
+    "details": "chi tiết",
+    "configJsonLabel": "config_json:",
     "active": "hoạt động",
     "inactive": "không hoạt động",
     "addSuccess": "Đã thêm cấu hình thành công",
@@ -143,6 +153,8 @@
     "featureKey": "tính năng",
     "limitCount": "số lượt",
     "windowType": "chu kỳ",
+    "planTypePlaceholder": "Ví dụ: Standard",
+    "namePlaceholder": "Ví dụ: Pro",
     "isEnabled": "bật",
     "enabled": "Bật",
     "disabled": "Tắt",
@@ -238,7 +250,18 @@
     "allTables": "Tất cả các bảng",
     "allActions": "Tất cả thao tác",
     "refresh": "Làm mới",
-    "showing": "Hiển thị {{start}} - {{end}} / {{total}}"
+    "showing": "Hiển thị {{start}} - {{end}} / {{total}}",
+    "fromDate": "Từ ngày",
+    "toDate": "Đến ngày",
+    "sortBy": "Sắp xếp theo",
+    "sortTimestamp": "Thời gian",
+    "sortAction": "Thao tác",
+    "sortTableName": "Tên bảng",
+    "descending": "Mới nhất trước",
+    "ascending": "Cũ nhất trước",
+    "reset": "Đặt lại",
+    "resetFilters": "Đặt lại bộ lọc",
+    "ipAddress": "Địa chỉ IP"
   },
   "billing": {
     "title": "Giao dịch thanh toán",

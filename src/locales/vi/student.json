@@ -165,15 +165,17 @@
     "selectGoal": "chọn mục tiêu để xem chi tiết"
   },
   "myPlans": {
-    "searchPlaceholder": "tìm kế hoạch...",
-    "loading": "đang tải kế hoạch...",
-    "noPlansFound": "Không tìm thấy kế hoạch",
-    "noPlansMatch": "Không có kế hoạch nào phù hợp với tìm kiếm.",
+    "searchPlaceholder": "tìm lộ trình...",
+    "loading": "đang tải lộ trình...",
+    "noPlansFound": "Không tìm thấy lộ trình",
+    "noPlansMatch": "Không có lộ trình nào phù hợp với tìm kiếm.",
     "startCreating": "Bắt đầu tạo lộ trình học tập đầu tiên!",
-    "untitled": "Kế hoạch chưa đặt tên",
+    "untitled": "Lộ trình chưa đặt tên",
     "noDescription": "Không có mô tả",
+    "progressLabel": "Tiến độ",
     "chapters": "{{count}} chương",
-    "lessons": "{{count}} bài học"
+    "lessons": "{{count}} bài học",
+    "progressPercent": "Tiến độ: {{percent}}%"
   },
   "profile": {
     "brandName": "Hồ sơ",
@@ -438,7 +440,7 @@
       "statDue3Days": "Sắp đến hạn (3 ngày)",
       "statNotStarted": "Chưa bắt đầu",
       "statCompletedToday": "Đã hoàn thành",
-      "priorityQueueTitle": "Danh sách ưu tiên",
+      "priorityQueueTitle": "Danh sách công việc",
       "priorityQueueSubtitle": "Top việc nên làm ngay, đã trộn Lesson/Task/Quiz từ các lộ trình.",
       "emptyPriority": "Hiện chưa có việc ưu tiên.",
       "sevenDaysTitle": "7 ngày tới",
@@ -465,6 +467,10 @@
       "learningPathFilterLabel": "Lộ trình",
       "overdueFilterActive": "Đang hiển thị các mục quá hạn từ thẻ Việc khẩn.",
       "clearOverdueFilter": "Bỏ lọc quá hạn",
+      "dueSoonFilterActive": "Đang hiển thị các mục sắp đến hạn (3 ngày).",
+      "notStartedFilterActive": "Đang hiển thị các mục chưa bắt đầu.",
+      "completedFilterActive": "Đang hiển thị các mục đã hoàn thành.",
+      "clearQuickFilter": "Bỏ lọc nhanh",
       "emptyTypeItems": "Không có mục {{type}}.",
       "unknownChapter": "Chương chưa xác định",
       "loading": "Đang tải timeline...",

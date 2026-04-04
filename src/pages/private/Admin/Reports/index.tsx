@@ -38,7 +38,7 @@ const AdminReportsPage: React.FC = () => {
                </div>
                <button
                  className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
-                 title="Generat New Report"
+                 title={t('reports.generateNew')}
                >
                  <FileText className="w-4 h-4" />
                   {t('reports.generateNew')}
@@ -82,7 +82,7 @@ const AdminReportsPage: React.FC = () => {
                    <div className="col-span-1 flex justify-end">
                      <button
                        className="p-2 text-status-blue hover:text-status-blue-dark hover:bg-status-blue-bg rounded-sm transition-colors cursor-pointer"
-                       title="Download"
+                       title={t('reports.download')}
                      >
                        <Download className="w-4 h-4" />
                      </button>

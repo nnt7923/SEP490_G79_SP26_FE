@@ -54,7 +54,9 @@
     "banSuccess": "User banned successfully",
     "unbanSuccess": "User unbanned successfully",
     "banFailed": "Failed to update user status",
-    "showing": "showing: {{filtered}}/{{total}}"
+    "showing": "showing: {{filtered}}/{{total}}",
+    "activeStatus": "active",
+    "pageOption": "{{size}} / page"
   },
   "reports": {
     "title": "admin_reports",
@@ -66,7 +68,8 @@
     "size": "size",
     "createdAt": "created_at",
     "action": "action",
-    "noReportsFound": "no_reports_found()"
+    "noReportsFound": "no_reports_found()",
+    "download": "download"
   },
   "apiKey": {
     "title": "api_keys",
@@ -76,7 +79,9 @@
     "editConfiguration": "edit_configuration",
     "addNewConfiguration": "add_new_configuration",
     "providerName": "provider_name:",
+    "providerPlaceholder": "e.g. Groq, OpenAI",
     "apiKeyLabel": "api_key:",
+    "apiKeyPlaceholder": "secret_key",
     "apiKeyUpdatePlaceholder": "Enter new API key (optional)",
     "apiKeyNotShownHint": "Current API key is hidden. Leave empty to keep existing key.",
     "aiUsageType": "ai_usage_type:",
@@ -91,6 +96,9 @@
     "noProperties": "no_properties. click_to_add()",
     "key": "key:",
     "value": "value:",
+    "additionalPropKeyPlaceholder": "e.g. Model",
+    "additionalPropValuePlaceholder": "e.g. gpt-4",
+    "removeProperty": "Remove property",
     "enableConfig": "enable_config",
     "saving": "saving...",
     "save": "save",
@@ -110,6 +118,8 @@
     "assistant": "Assistant",
     "unknown": "Unknown",
     "cfg": "cfg",
+    "details": "details",
+    "configJsonLabel": "config_json:",
     "active": "active",
     "inactive": "inactive",
     "addSuccess": "Configuration added successfully",
@@ -143,6 +153,8 @@
     "featureKey": "feature",
     "limitCount": "quota",
     "windowType": "cycle",
+    "planTypePlaceholder": "e.g. Standard",
+    "namePlaceholder": "e.g. Pro",
     "isEnabled": "enabled",
     "enabled": "On",
     "disabled": "Off",
@@ -238,7 +250,18 @@
     "allTables": "All Tables",
     "allActions": "All Actions",
     "refresh": "Refresh",
-    "showing": "Showing {{start}} - {{end}} of {{total}}"
+    "showing": "Showing {{start}} - {{end}} of {{total}}",
+    "fromDate": "From Date",
+    "toDate": "To Date",
+    "sortBy": "Sort By",
+    "sortTimestamp": "Timestamp",
+    "sortAction": "Action",
+    "sortTableName": "Table Name",
+    "descending": "Newest First",
+    "ascending": "Oldest First",
+    "reset": "Reset",
+    "resetFilters": "Reset Filters",
+    "ipAddress": "IP Address"
   },
   "billing": {
     "title": "Billing Transactions",

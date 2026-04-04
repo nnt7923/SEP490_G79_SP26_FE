@@ -306,7 +306,7 @@ const AdminApiKeyPage: React.FC = () => {
       setShowForm(false)
       resetForm()
       await fetchList()
-      setNotice('Configuration updated successfully')
+      setNotice(t('apiKey.updateSuccess'))
       
       // Scroll to top to show success message
       setTimeout(() => {
@@ -403,7 +403,7 @@ const AdminApiKeyPage: React.FC = () => {
                   <input
                     type="text"
                     className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                    placeholder="e.g. Groq, OpenAI"
+                    placeholder={t('apiKey.providerPlaceholder')}
                     value={providerName}
                     onChange={(e) => setProviderName(e.target.value)}
                   />
@@ -414,7 +414,7 @@ const AdminApiKeyPage: React.FC = () => {
                   <input
                     type="password"
                     className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                    placeholder={isEditMode ? t('apiKey.apiKeyUpdatePlaceholder', 'Enter new API key (optional)') : 'secret_key'}
+                    placeholder={isEditMode ? t('apiKey.apiKeyUpdatePlaceholder', 'Enter new API key (optional)') : t('apiKey.apiKeyPlaceholder')}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                   />
@@ -431,10 +431,10 @@ const AdminApiKeyPage: React.FC = () => {
                   value={aiUsageType}
                   onChange={(e) => setAiUsageType(Number(e.target.value) as AIUsageType)}
                 >
-                  <option value={AIUsageType.StructureGeneration}>StructureGeneration</option>
-                  <option value={AIUsageType.ContentGeneration}>ContentGeneration</option>
-                  <option value={AIUsageType.Verification}>Verification</option>
-                  <option value={AIUsageType.Assistant}>Assistant</option>
+                  <option value={AIUsageType.StructureGeneration}>{t('apiKey.structureGeneration')}</option>
+                  <option value={AIUsageType.ContentGeneration}>{t('apiKey.contentGeneration')}</option>
+                  <option value={AIUsageType.Verification}>{t('apiKey.verification')}</option>
+                  <option value={AIUsageType.Assistant}>{t('apiKey.assistant')}</option>
                 </select>
                 <p className="text-xs text-muted mt-2">{t('apiKey.selectUsageType')}</p>
               </div>
@@ -471,21 +471,21 @@ const AdminApiKeyPage: React.FC = () => {
                     additionalProps.map((prop, idx) => (
                       <div key={idx} className="flex gap-3 items-end bg-th-card p-3 border border-bd">
                         <div className="flex-1">
-                          <label className="block text-xs font-bold text-muted mb-2">key:</label>
+                          <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.key')}</label>
                           <input
                             type="text"
                             className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                            placeholder="e.g. Model"
+                            placeholder={t('apiKey.additionalPropKeyPlaceholder')}
                             value={prop.key}
                             onChange={(e) => updateAdditionalProp(idx, 'key', e.target.value)}
                           />
                         </div>
                         <div className="flex-1">
-                          <label className="block text-xs font-bold text-muted mb-2">value:</label>
+                          <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.value')}</label>
                           <input
                             type="text"
                             className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                            placeholder="e.g. gpt-4"
+                            placeholder={t('apiKey.additionalPropValuePlaceholder')}
                             value={prop.value}
                             onChange={(e) => updateAdditionalProp(idx, 'value', e.target.value)}
                           />
@@ -494,7 +494,7 @@ const AdminApiKeyPage: React.FC = () => {
                           type="button"
                           onClick={() => removeAdditionalProp(idx)}
                           className="px-3 py-2 border border-red-500 text-status-red hover:bg-status-red-bg transition-colors font-bold text-sm"
-                          title="Remove property"
+                          title={t('apiKey.removeProperty')}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -570,7 +570,7 @@ const AdminApiKeyPage: React.FC = () => {
                       <div className="text-left flex items-center gap-2">
                         <h3 className="text-sm font-bold text-heading uppercase">{typeInfo.label}</h3>
                         <p className="text-xs text-muted">
-                           [{totalConfigs} cfg]
+                          [{totalConfigs} {t('apiKey.cfg')}]
                         </p>
                       </div>
                     </div>
@@ -589,12 +589,12 @@ const AdminApiKeyPage: React.FC = () => {
                           <div key={tierSection.key} className="bg-th-card border border-bd-strong">
                             <div className="px-3 py-2 border-b border-bd flex items-center justify-between bg-th-input">
                               <h4 className="text-xs font-bold text-heading uppercase">{tierSection.label}</h4>
-                              <span className="text-xs text-muted">[{tierSection.items.length} cfg]</span>
+                              <span className="text-xs text-muted">[{tierSection.items.length} {t('apiKey.cfg')}]</span>
                             </div>
 
                             <div className="p-3 space-y-3">
                               {tierSection.items.length === 0 && (
-                                <p className="text-xs text-muted">{t('apiKey.noConfigsInTier', 'No configurations in this tier')}</p>
+                                <p className="text-xs text-muted">{t('apiKey.noConfigsInTier')}</p>
                               )}
 
                               {tierSection.items.map((it: any, idx: number) => {
@@ -637,7 +637,7 @@ const AdminApiKeyPage: React.FC = () => {
                                             className="px-3 py-1 border border-bd-strong text-label text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                                           >
                                             {itemExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                            {t('apiKey.details', 'Details')}
+                                            {t('apiKey.details')}
                                           </button>
                                           <button
                                             type="button"
@@ -664,7 +664,7 @@ const AdminApiKeyPage: React.FC = () => {
                                         <div className="space-y-4">
                                           {Object.keys(cj).length > 0 && (
                                             <div>
-                                              <div className="text-xs font-bold text-muted uppercase mb-1">config_json:</div>
+                                              <div className="text-xs font-bold text-muted uppercase mb-1">{t('apiKey.configJsonLabel')}</div>
                                               <div className="grid grid-cols-2 gap-2">
                                                 {Object.entries(cj).map(([key, value]) => (
                                                   <div key={key} className="bg-th-page px-3 py-2 border border-bd">

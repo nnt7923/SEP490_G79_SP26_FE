@@ -416,9 +416,9 @@ const AuditLogs: React.FC = () => {
                 value={sortBy}
                 onChange={e => { setSortBy(Number(e.target.value)); setPage(1); }}
               >
-                <option value={0}>Timestamp</option>
-                <option value={1}>Action</option>
-                <option value={2}>Table Name</option>
+                <option value={0}>{t('auditLogs.sortTimestamp')}</option>
+                <option value={1}>{t('auditLogs.sortAction')}</option>
+                <option value={2}>{t('auditLogs.sortTableName')}</option>
               </select>
               <select
                 className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
@@ -594,7 +594,7 @@ const AuditLogs: React.FC = () => {
               <button
                 onClick={() => setSelectedLog(null)}
                 className="p-1 hover:bg-th-input text-muted transition-colors"
-                title="Close"
+                title={t('auditLogs.close')}
               >
                 <X size={20} />
               </button>
@@ -628,7 +628,7 @@ const AuditLogs: React.FC = () => {
                 </div>
                 <div><span className="text-muted text-sm">{t('auditLogs.tableName')}</span><p className="font-semibold text-heading mt-1">{selectedLog.tableName || '-'}</p></div>
                 <div><span className="text-muted text-sm">{t('auditLogs.user')}</span><p className="font-semibold text-heading mt-1">{selectedLog.username || '-'}</p></div>
-                <div className="col-span-2"><span className="text-muted text-sm">IP Address</span><p className="font-semibold text-heading mt-1">{selectedLog.ipAddress || '-'}</p></div>
+                <div className="col-span-2"><span className="text-muted text-sm">{t('auditLogs.ipAddress')}</span><p className="font-semibold text-heading mt-1">{selectedLog.ipAddress || '-'}</p></div>
               </div>
 
               {selectedLog.action === 'Added' && (

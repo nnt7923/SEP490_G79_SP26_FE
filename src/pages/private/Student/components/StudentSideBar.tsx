@@ -24,7 +24,7 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
       icon: <Target size={18} />,
     },
     {
-      label: 'Progress',
+      label: 'Generate Path',
       path: '/plans',
       icon: <TrendingUp size={18} />,
     },
