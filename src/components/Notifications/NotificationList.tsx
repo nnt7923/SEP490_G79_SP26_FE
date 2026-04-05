@@ -1,8 +1,14 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { NotificationDto } from '../../types/notification'
-import { formatNotificationDate, getNotificationSeverityTone } from './utils'
-import { getUpdateContext } from '../../services/LearningPathShareService'
+import { formatNotificationDate, getNotificationSeverityTone, resolveNotificationText } from './utils'
+import {
+  extractShareIdFromNotification,
+  getCachedShareUpdateContext,
+  getCachedShareUpdateContextRecord,
+  isShareVersionUpdatedNotification,
+  loadShareUpdateContext,
+} from './shareUpdateContextCache'
 
 interface NotificationListProps {
   items: NotificationDto[]
@@ -29,120 +35,100 @@ const NotificationList: React.FC<NotificationListProps> = ({
   const [shareUpdateContextById, setShareUpdateContextById] = React.useState<Record<string, {
     mentorUserName?: string
     sourceLearningPathTitle?: string
-  }>>({})
+  }>>(getCachedShareUpdateContextRecord)
   const loadingShareContextIdsRef = React.useRef<Set<string>>(new Set())
-
-  const extractShareId = React.useCallback((notification: NotificationDto): string | null => {
-    const direct = String(notification.action?.targetId || '').trim()
-    if (direct) return direct
-
-    const targetUrl = String(notification.action?.targetUrl || '').trim()
-    const match = targetUrl.match(/^\/learning-path-shares\/([^/]+)\/updates(?:\?.*)?$/i)
-      || targetUrl.match(/^\/learningpath-shares\/([^/]+)\/updates(?:\?.*)?$/i)
-    return match?.[1] || null
-  }, [])
+  const [loadingShareContextIds, setLoadingShareContextIds] = React.useState<Record<string, true>>({})
 
   React.useEffect(() => {
-    const shareIds = items
-      .filter((item) => String(item.type || '').trim() === 'ShareVersionUpdated')
-      .map((item) => extractShareId(item))
-      .filter((id): id is string => Boolean(id))
+    const shareIds = Array.from(new Set(items
+      .filter((item) => isShareVersionUpdatedNotification(item.type))
+      .map((item) => extractShareIdFromNotification(item))
+      .filter((id): id is string => Boolean(id))))
 
     if (shareIds.length === 0) return
 
     let active = true
     shareIds.forEach((shareId) => {
+      const cached = getCachedShareUpdateContext(shareId)
+      if (cached) {
+        if (!shareUpdateContextById[shareId]) {
+          setShareUpdateContextById((prev) => ({
+            ...prev,
+            [shareId]: cached,
+          }))
+        }
+        return
+      }
+
       if (shareUpdateContextById[shareId]) return
       if (loadingShareContextIdsRef.current.has(shareId)) return
 
       loadingShareContextIdsRef.current.add(shareId)
+      setLoadingShareContextIds((prev) => ({ ...prev, [shareId]: true }))
 
-      void getUpdateContext(shareId)
+      void loadShareUpdateContext(shareId)
         .then((context) => {
-          if (!active) return
+          if (!active || !context) return
           setShareUpdateContextById((prev) => ({
             ...prev,
-            [shareId]: {
-              mentorUserName: String(context.mentorUserName || '').trim() || undefined,
-              sourceLearningPathTitle: String(context.sourceLearningPathTitle || '').trim() || undefined,
-            },
+            [shareId]: context,
           }))
         })
         .catch(() => {})
         .finally(() => {
           loadingShareContextIdsRef.current.delete(shareId)
+          setLoadingShareContextIds((prev) => {
+            const next = { ...prev }
+            delete next[shareId]
+            return next
+          })
         })
     })
 
     return () => {
       active = false
     }
-  }, [extractShareId, items, shareUpdateContextById])
-
-  const translateNotificationField = (value?: string | null, fallbackKey?: string) => {
-    const raw = String(value || '').trim()
-    if (raw) {
-      const translated = t(raw)
-      if (translated !== raw) return translated
-
-      const looksLikeI18nKey = raw.includes('.') && !raw.includes(' ')
-      if (looksLikeI18nKey && fallbackKey) {
-        const fallback = t(fallbackKey)
-        if (fallback !== fallbackKey) return fallback
-      }
-
-      return raw
-    }
-
-    if (fallbackKey) {
-      return t(fallbackKey)
-    }
-
-    return ''
-  }
+  }, [items, shareUpdateContextById])
 
   const getShareVersionNotificationText = React.useCallback((notification: NotificationDto) => {
-    const shareId = extractShareId(notification)
+    const shareId = extractShareIdFromNotification(notification)
     const context = shareId ? shareUpdateContextById[shareId] : undefined
     const mentorName = String(context?.mentorUserName || '').trim()
     const pathTitle = String(context?.sourceLearningPathTitle || '').trim()
 
     if (mentorName && pathTitle) {
       return {
-        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: 'Lộ trình {{pathTitle}} có phiên bản mới' }),
+        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: '{{pathTitle}} has a new version' }),
         message: t('notification.shareVersionUpdated.messageDetailed', {
           mentorName,
           pathTitle,
-          defaultValue: 'Mentor {{mentorName}} vừa cập nhật lộ trình {{pathTitle}}.',
+          defaultValue: 'Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.',
         }),
       }
     }
 
     if (pathTitle) {
       return {
-        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: 'Lộ trình {{pathTitle}} có phiên bản mới' }),
+        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: '{{pathTitle}} has a new version' }),
         message: t('notification.shareVersionUpdated.messagePathOnly', {
           pathTitle,
-          defaultValue: 'Lộ trình {{pathTitle}} vừa có phiên bản mới từ mentor.',
+          defaultValue: 'The shared learning path {{pathTitle}} has a new version from your mentor.',
         }),
       }
     }
 
     if (mentorName) {
       return {
-        title: t('notification.shareVersionUpdated.title', { defaultValue: 'Lộ trình được mentor cập nhật' }),
+        title: t('notification.shareVersionUpdated.title', { defaultValue: 'Learning path updated by mentor' }),
         message: t('notification.shareVersionUpdated.messageMentorOnly', {
           mentorName,
-          defaultValue: 'Mentor {{mentorName}} vừa cập nhật lộ trình chia sẻ.',
+          defaultValue: 'Mentor {{mentorName}} updated a shared learning path.',
         }),
       }
     }
 
-    return {
-      title: translateNotificationField(notification.title, 'notification.shareVersionUpdated.title'),
-      message: translateNotificationField(notification.message, 'notification.shareVersionUpdated.message'),
-    }
-  }, [extractShareId, shareUpdateContextById, t])
+    return resolveNotificationText(notification, t)
+  }, [shareUpdateContextById, t])
 
   if (loading) {
     return (
@@ -174,16 +160,25 @@ const NotificationList: React.FC<NotificationListProps> = ({
         {items.map((notification) => {
           const tone = getNotificationSeverityTone(notification.severity)
           const muted = notification.isRead
-          const isShareVersionUpdated = String(notification.type || '').trim() === 'ShareVersionUpdated'
-          const shareText = isShareVersionUpdated ? getShareVersionNotificationText(notification) : null
-          const titleText = shareText?.title || translateNotificationField(
-            notification.title,
-            isShareVersionUpdated ? 'notification.shareVersionUpdated.title' : undefined,
-          )
-          const messageText = shareText?.message || translateNotificationField(
-            notification.message,
-            isShareVersionUpdated ? 'notification.shareVersionUpdated.message' : undefined,
-          )
+          const baseText = resolveNotificationText(notification, t)
+          const shareId = isShareVersionUpdatedNotification(notification.type)
+            ? extractShareIdFromNotification(notification)
+            : null
+          const hasShareContext = Boolean(shareId && shareUpdateContextById[shareId])
+          const isShareContextLoading = Boolean(shareId && loadingShareContextIds[shareId])
+
+          const shareText = isShareVersionUpdatedNotification(notification.type)
+            ? (hasShareContext
+              ? getShareVersionNotificationText(notification)
+              : (isShareContextLoading
+                ? {
+                  title: t('notification.shareVersionUpdated.loadingTitle', { defaultValue: 'Loading update details...' }),
+                  message: t('notification.shareVersionUpdated.loadingMessage', { defaultValue: 'Fetching mentor and learning path details.' }),
+                }
+                : getShareVersionNotificationText(notification)))
+            : baseText
+          const titleText = shareText.title
+          const messageText = shareText.message
           return (
             <button
               key={notification.notificationId}

@@ -115,7 +115,12 @@
       "titleDetailed": "Lộ trình {{pathTitle}} có phiên bản mới",
       "messageDetailed": "Mentor {{mentorName}} vừa cập nhật lộ trình {{pathTitle}}.",
       "messagePathOnly": "Lộ trình {{pathTitle}} vừa có phiên bản mới từ mentor.",
-      "messageMentorOnly": "Mentor {{mentorName}} vừa cập nhật một lộ trình chia sẻ."
+      "messageMentorOnly": "Mentor {{mentorName}} vừa cập nhật một lộ trình chia sẻ.",
+      "loadingTitle": "Đang tải chi tiết cập nhật...",
+      "loadingMessage": "Đang lấy thông tin mentor và lộ trình."
+    },
+    "default": {
+      "title": "Thông báo"
     }
   },
   "toast": {

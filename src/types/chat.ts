@@ -192,18 +192,12 @@ export interface LearningPathShareVersionChangeSummaryDto {
   addedLessonCount: number
   removedLessonCount: number
   updatedLessonCount: number
-  addedTaskCount: number
-  removedTaskCount: number
-  updatedTaskCount: number
   addedChapters: string[]
   removedChapters: string[]
   updatedChapters: string[]
   addedLessons: string[]
   removedLessons: string[]
   updatedLessons: string[]
-  addedTasks: string[]
-  removedTasks: string[]
-  updatedTasks: string[]
 }
 
 export interface LearningPathShareUpdateContextDto {

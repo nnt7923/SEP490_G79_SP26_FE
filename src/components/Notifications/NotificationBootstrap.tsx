@@ -7,6 +7,7 @@ import {
   ensureBrowserNotificationPermission,
   showBrowserNotification,
 } from './browser'
+import { prefetchShareUpdateContextsFromNotifications } from './shareUpdateContextCache'
 
 const NotificationBootstrap: React.FC = () => {
   const token = useAuthStore((state) => state.token)
@@ -30,10 +31,15 @@ const NotificationBootstrap: React.FC = () => {
         await bootstrap()
         if (!active) return
         void ensureBrowserNotificationPermission()
+        void prefetchShareUpdateContextsFromNotifications([
+          ...useAppNotificationStore.getState().items,
+          ...useAppNotificationStore.getState().panelItems,
+        ])
 
         unsubscribe = await subscribeToNotifications({
           onReceiveNotification: (payload) => {
             const notification = NotificationService.normalizeRealtimeNotification(payload)
+            void prefetchShareUpdateContextsFromNotifications([notification])
             const existing = [
               ...useAppNotificationStore.getState().items,
               ...useAppNotificationStore.getState().panelItems,

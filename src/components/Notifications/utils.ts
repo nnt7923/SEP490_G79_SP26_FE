@@ -7,6 +7,86 @@ export type NotificationNavigationTarget = {
   state?: Record<string, unknown>
 }
 
+type TranslateFn = (key: string) => string
+
+const SHARE_VERSION_UPDATED_TITLE_KEY = 'notification.shareVersionUpdated.title'
+const SHARE_VERSION_UPDATED_MESSAGE_KEY = 'notification.shareVersionUpdated.message'
+const NOTIFICATION_DEFAULT_TITLE_KEY = 'notification.default.title'
+
+function normalizeText(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim()
+}
+
+function looksLikeI18nKey(value: string): boolean {
+  return value.includes('.') && !value.includes(' ')
+}
+
+function isShareVersionUpdatedType(type?: string | null): boolean {
+  const normalized = String(type || '').trim().toLowerCase()
+  return normalized === 'shareversionupdated' || normalized === '9'
+}
+
+function translateKeyIfExists(key: string, t: TranslateFn): string | null {
+  const translated = t(key)
+  if (translated !== key) return translated
+  return null
+}
+
+function fallbackTitleByType(type?: string | null, raw?: string | null, t?: TranslateFn): string {
+  const rawText = normalizeText(raw)
+  if (rawText && !looksLikeI18nKey(rawText)) return rawText
+
+  if (isShareVersionUpdatedType(type)) {
+    const translated = t ? translateKeyIfExists(SHARE_VERSION_UPDATED_TITLE_KEY, t) : null
+    return translated || 'Learning path updated'
+  }
+
+  const translatedDefault = t ? translateKeyIfExists(NOTIFICATION_DEFAULT_TITLE_KEY, t) : null
+  return translatedDefault || 'Notification'
+}
+
+function fallbackMessageByType(type?: string | null, raw?: string | null, t?: TranslateFn): string {
+  const rawText = normalizeText(raw)
+  if (rawText && !looksLikeI18nKey(rawText)) return rawText
+
+  if (isShareVersionUpdatedType(type)) {
+    const translated = t ? translateKeyIfExists(SHARE_VERSION_UPDATED_MESSAGE_KEY, t) : null
+    return translated || 'A newer shared learning path version is available. Review changes and choose how to sync.'
+  }
+
+  return ''
+}
+
+function resolveFieldValue(
+  rawValue: string,
+  type: string | null | undefined,
+  t: TranslateFn,
+  fallback: (type?: string | null, raw?: string | null, t?: TranslateFn) => string,
+): string {
+  if (rawValue) {
+    const translated = translateKeyIfExists(rawValue, t)
+    if (translated) return translated
+
+    if (!looksLikeI18nKey(rawValue)) return rawValue
+  }
+
+  return fallback(type, rawValue, t)
+}
+
+export function resolveNotificationText(
+  notification: Pick<NotificationDto, 'type' | 'title' | 'message'>,
+  t: TranslateFn,
+): { title: string; message: string } {
+  const rawTitle = normalizeText(notification.title)
+  const rawMessage = normalizeText(notification.message)
+
+  const title = resolveFieldValue(rawTitle, notification.type, t, fallbackTitleByType)
+  const message = resolveFieldValue(rawMessage, notification.type, t, fallbackMessageByType)
+
+  return { title, message }
+}
+
 function extractShareIdFromUpdatePath(path: string): string | null {
   const trimmed = String(path || '').trim()
   const match = trimmed.match(/^\/learning-path-shares\/([^/]+)\/updates(?:\?.*)?$/i)

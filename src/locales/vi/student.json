@@ -812,6 +812,7 @@
     "latestVersion": "Phiên bản mới nhất",
     "newVersionBadge": "Có phiên bản mới",
     "changeSummaryTitle": "Tóm tắt thay đổi",
+    "updatedLessonsRule": "Mục bài học đã cập nhật trong phần này chỉ phản ánh thay đổi tiêu đề bài học. Thay đổi nội dung/tiến độ không nằm trong changeSummary.",
     "noDetailedComparison": "Không có dữ liệu so sánh chi tiết.",
     "none": "Không có",
     "showLess": "Thu gọn",
@@ -824,10 +825,7 @@
       "updatedChapters": "Chương đã cập nhật",
       "addedLessons": "Bài học thêm mới",
       "removedLessons": "Bài học đã xóa",
-      "updatedLessons": "Bài học đã cập nhật",
-      "addedTasks": "Nhiệm vụ thêm mới",
-      "removedTasks": "Nhiệm vụ đã xóa",
-      "updatedTasks": "Nhiệm vụ đã cập nhật"
+      "updatedLessons": "Bài học đã cập nhật"
     },
     "groups": {
       "addedChapters": "Danh sách chương thêm mới",
@@ -835,10 +833,7 @@
       "updatedChapters": "Danh sách chương đã cập nhật",
       "addedLessons": "Danh sách bài học thêm mới",
       "removedLessons": "Danh sách bài học đã xóa",
-      "updatedLessons": "Danh sách bài học đã cập nhật",
-      "addedTasks": "Danh sách nhiệm vụ thêm mới",
-      "removedTasks": "Danh sách nhiệm vụ đã xóa",
-      "updatedTasks": "Danh sách nhiệm vụ đã cập nhật"
+      "updatedLessons": "Danh sách bài học đã cập nhật"
     },
     "actions": {
       "createNew": "Tạo lộ trình mới từ bản mới nhất",

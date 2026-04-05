@@ -812,6 +812,7 @@
     "latestVersion": "Latest version",
     "newVersionBadge": "New version available",
     "changeSummaryTitle": "Change summary",
+    "updatedLessonsRule": "Updated lessons in this summary only reflect lesson title changes. Content/progress changes are not included.",
     "noDetailedComparison": "No detailed comparison data available.",
     "none": "None",
     "showLess": "Show less",
@@ -824,10 +825,7 @@
       "updatedChapters": "Updated chapters",
       "addedLessons": "Added lessons",
       "removedLessons": "Removed lessons",
-      "updatedLessons": "Updated lessons",
-      "addedTasks": "Added tasks",
-      "removedTasks": "Removed tasks",
-      "updatedTasks": "Updated tasks"
+      "updatedLessons": "Updated lessons"
     },
     "groups": {
       "addedChapters": "Added chapters",
@@ -835,10 +833,7 @@
       "updatedChapters": "Updated chapters",
       "addedLessons": "Added lessons",
       "removedLessons": "Removed lessons",
-      "updatedLessons": "Updated lessons",
-      "addedTasks": "Added tasks",
-      "removedTasks": "Removed tasks",
-      "updatedTasks": "Updated tasks"
+      "updatedLessons": "Updated lessons"
     },
     "actions": {
       "createNew": "Create New From Latest",

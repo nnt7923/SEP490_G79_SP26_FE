@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { resolveNotificationNavigationTarget } from './utils'
+import { resolveNotificationNavigationTarget, resolveNotificationText } from './utils'
+
+const translateMap: Record<string, string> = {
+  'notification.shareVersionUpdated.title': 'Learning path updated by mentor',
+  'notification.shareVersionUpdated.message': 'A newer shared learning path version is available.',
+  'notification.default.title': 'Notification',
+}
+
+const t = (key: string) => translateMap[key] ?? key
 
 describe('notification navigation resolver', () => {
   it('routes task notifications to learning path detail and keeps selected task metadata', () => {
@@ -169,5 +177,71 @@ describe('notification navigation resolver', () => {
     })
 
     expect(target).toEqual({ path: '/learning-path-shares/share-789/updates' })
+  })
+})
+
+describe('notification text resolver', () => {
+  it('resolves title and message from payload i18n keys', () => {
+    const text = resolveNotificationText(
+      {
+        type: 'TaskOverdue',
+        title: 'notification.shareVersionUpdated.title',
+        message: 'notification.shareVersionUpdated.message',
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Learning path updated by mentor',
+      message: 'A newer shared learning path version is available.',
+    })
+  })
+
+  it('falls back by ShareVersionUpdated type when payload key is missing', () => {
+    const text = resolveNotificationText(
+      {
+        type: 'ShareVersionUpdated',
+        title: 'notification.unknown.title',
+        message: 'notification.unknown.message',
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Learning path updated by mentor',
+      message: 'A newer shared learning path version is available.',
+    })
+  })
+
+  it('supports legacy numeric type value 9 for ShareVersionUpdated fallback', () => {
+    const text = resolveNotificationText(
+      {
+        type: '9',
+        title: '',
+        message: '',
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Learning path updated by mentor',
+      message: 'A newer shared learning path version is available.',
+    })
+  })
+
+  it('uses default title fallback for non-share unresolved keys', () => {
+    const text = resolveNotificationText(
+      {
+        type: 'TaskOverdue',
+        title: 'notification.unknown.title',
+        message: 'notification.unknown.message',
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Notification',
+      message: '',
+    })
   })
 })

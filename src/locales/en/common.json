@@ -115,7 +115,12 @@
       "titleDetailed": "{{pathTitle}} has a new version",
       "messageDetailed": "Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.",
       "messagePathOnly": "The shared learning path {{pathTitle}} has a new version from your mentor.",
-      "messageMentorOnly": "Mentor {{mentorName}} updated a shared learning path."
+      "messageMentorOnly": "Mentor {{mentorName}} updated a shared learning path.",
+      "loadingTitle": "Loading update details...",
+      "loadingMessage": "Fetching mentor and learning path details."
+    },
+    "default": {
+      "title": "Notification"
     }
   },
   "toast": {

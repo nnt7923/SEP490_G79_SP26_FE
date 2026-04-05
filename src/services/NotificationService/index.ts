@@ -13,6 +13,17 @@ function toSafeString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function toNotificationType(value: unknown): string | null {
+  const stringValue = toSafeString(value)
+  if (stringValue) return stringValue
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+
+  return null
+}
+
 function toBoolean(value: unknown, fallback: boolean = false): boolean {
   if (typeof value === 'boolean') return value
   if (typeof value === 'string') {
@@ -59,7 +70,7 @@ function normalizeNotification(raw: unknown): NotificationDto {
   return {
     notificationId: String(record.notificationId ?? record.id ?? ''),
     userId: String(record.userId ?? ''),
-    type: toSafeString(record.type),
+    type: toNotificationType(record.type),
     title: String(record.title ?? 'Notification'),
     message: toSafeString(record.message),
     createdAt: String(record.createdAt ?? ''),

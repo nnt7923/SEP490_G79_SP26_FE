@@ -151,9 +151,6 @@ const ShareUpdatesPage: React.FC = () => {
       { key: 'addedLessonCount', label: t('shareUpdates.counts.addedLessons', { defaultValue: 'Added lessons' }), value: summary.addedLessonCount, tone: 'added' as const },
       { key: 'removedLessonCount', label: t('shareUpdates.counts.removedLessons', { defaultValue: 'Removed lessons' }), value: summary.removedLessonCount, tone: 'removed' as const },
       { key: 'updatedLessonCount', label: t('shareUpdates.counts.updatedLessons', { defaultValue: 'Updated lessons' }), value: summary.updatedLessonCount, tone: 'updated' as const },
-      { key: 'addedTaskCount', label: t('shareUpdates.counts.addedTasks', { defaultValue: 'Added tasks' }), value: summary.addedTaskCount, tone: 'added' as const },
-      { key: 'removedTaskCount', label: t('shareUpdates.counts.removedTasks', { defaultValue: 'Removed tasks' }), value: summary.removedTaskCount, tone: 'removed' as const },
-      { key: 'updatedTaskCount', label: t('shareUpdates.counts.updatedTasks', { defaultValue: 'Updated tasks' }), value: summary.updatedTaskCount, tone: 'updated' as const },
     ]
   }, [context?.changeSummary, t])
 
@@ -168,9 +165,6 @@ const ShareUpdatesPage: React.FC = () => {
       { key: 'addedLessons', label: t('shareUpdates.groups.addedLessons', { defaultValue: 'Added lessons' }), items: summary.addedLessons, tone: 'added' as const },
       { key: 'removedLessons', label: t('shareUpdates.groups.removedLessons', { defaultValue: 'Removed lessons' }), items: summary.removedLessons, tone: 'removed' as const },
       { key: 'updatedLessons', label: t('shareUpdates.groups.updatedLessons', { defaultValue: 'Updated lessons' }), items: summary.updatedLessons, tone: 'updated' as const },
-      { key: 'addedTasks', label: t('shareUpdates.groups.addedTasks', { defaultValue: 'Added tasks' }), items: summary.addedTasks, tone: 'added' as const },
-      { key: 'removedTasks', label: t('shareUpdates.groups.removedTasks', { defaultValue: 'Removed tasks' }), items: summary.removedTasks, tone: 'removed' as const },
-      { key: 'updatedTasks', label: t('shareUpdates.groups.updatedTasks', { defaultValue: 'Updated tasks' }), items: summary.updatedTasks, tone: 'updated' as const },
     ]
   }, [context?.changeSummary, t])
 
@@ -266,6 +260,11 @@ const ShareUpdatesPage: React.FC = () => {
 
           <section style={{ border: '1px solid var(--border-base)', borderRadius: 12, background: 'var(--bg-surface)', padding: 18, marginBottom: 16 }}>
             <h2 style={{ margin: '0 0 10px', color: 'var(--text-primary)', fontSize: 18 }}>{t('shareUpdates.changeSummaryTitle', { defaultValue: 'Change summary' })}</h2>
+            <p style={{ margin: '0 0 12px', color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.5 }}>
+              {t('shareUpdates.updatedLessonsRule', {
+                defaultValue: 'Updated lessons in this summary only reflect lesson title changes. Content/progress changes are not included.',
+              })}
+            </p>
             {!hasSummary ? (
               <div style={{ border: '1px dashed var(--border-base)', borderRadius: 8, padding: 12, color: 'var(--text-secondary)', fontSize: 13 }}>
                 {t('shareUpdates.noDetailedComparison', { defaultValue: 'No detailed comparison data available.' })}
