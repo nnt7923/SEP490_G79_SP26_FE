@@ -175,7 +175,9 @@
     "progressLabel": "Tiến độ",
     "chapters": "{{count}} chương",
     "lessons": "{{count}} bài học",
-    "progressPercent": "Tiến độ: {{percent}}%"
+    "progressPercent": "Tiến độ: {{percent}}%",
+    "sharedBy": "Được chia sẻ bởi {{name}}",
+    "newVersionBadge": "Có phiên bản mới"
   },
   "profile": {
     "brandName": "Hồ sơ",
@@ -781,6 +783,7 @@
     "previewWaitingResponse": "Chưa có phản hồi",
     "previewGoals": "Mục tiêu",
     "previewChapter": "Chương",
+    "previewSupersededByNewVersion": "Bản chia sẻ này đã bị thay thế bởi phiên bản mới hơn từ mentor. Vui lòng xem thông báo cập nhật mới nhất.",
     "reply": "Trả lời",
     "replyingTo": "Đang trả lời {{name}}",
     "replyUnavailable": "Tin nhắn đã bị xóa hoặc không còn khả dụng",
@@ -794,6 +797,70 @@
     "errorSend": "Không thể gửi tin nhắn",
     "accessDenied": "Bạn không có quyền truy cập",
     "connectionError": "Lỗi kết nối, đang thử lại..."
+  },
+  "shareUpdates": {
+    "brandName": "Cập nhật chia sẻ",
+    "title": "Cập nhật phiên bản lộ trình",
+    "subtitle": "Xem thay đổi từ mentor và chọn cách đồng bộ lộ trình của bạn.",
+    "loading": "Đang tải thay đổi phiên bản mới nhất...",
+    "backToPlans": "Quay lại lộ trình của tôi",
+    "errorTitle": "Không thể mở màn hình review cập nhật",
+    "retry": "Thử lại",
+    "sharedBy": "Được chia sẻ bởi",
+    "sourceTitle": "Lộ trình nguồn",
+    "currentVersion": "Phiên bản hiện tại",
+    "latestVersion": "Phiên bản mới nhất",
+    "newVersionBadge": "Có phiên bản mới",
+    "changeSummaryTitle": "Tóm tắt thay đổi",
+    "noDetailedComparison": "Không có dữ liệu so sánh chi tiết.",
+    "none": "Không có",
+    "showLess": "Thu gọn",
+    "showMore": "Xem thêm {{count}} mục",
+    "actionsTitle": "Chọn hành động cập nhật",
+    "actionsHint": "Chọn một hành động bên dưới. Danh sách lộ trình sẽ được làm mới ngay sau khi hoàn tất.",
+    "counts": {
+      "addedChapters": "Chương thêm mới",
+      "removedChapters": "Chương đã xóa",
+      "updatedChapters": "Chương đã cập nhật",
+      "addedLessons": "Bài học thêm mới",
+      "removedLessons": "Bài học đã xóa",
+      "updatedLessons": "Bài học đã cập nhật",
+      "addedTasks": "Nhiệm vụ thêm mới",
+      "removedTasks": "Nhiệm vụ đã xóa",
+      "updatedTasks": "Nhiệm vụ đã cập nhật"
+    },
+    "groups": {
+      "addedChapters": "Danh sách chương thêm mới",
+      "removedChapters": "Danh sách chương đã xóa",
+      "updatedChapters": "Danh sách chương đã cập nhật",
+      "addedLessons": "Danh sách bài học thêm mới",
+      "removedLessons": "Danh sách bài học đã xóa",
+      "updatedLessons": "Danh sách bài học đã cập nhật",
+      "addedTasks": "Danh sách nhiệm vụ thêm mới",
+      "removedTasks": "Danh sách nhiệm vụ đã xóa",
+      "updatedTasks": "Danh sách nhiệm vụ đã cập nhật"
+    },
+    "actions": {
+      "createNew": "Tạo lộ trình mới từ bản mới nhất",
+      "updateCurrent": "Cập nhật lộ trình hiện tại lên bản mới nhất",
+      "keepCurrent": "Giữ nguyên lộ trình hiện tại",
+      "creating": "Đang tạo...",
+      "updating": "Đang cập nhật...",
+      "saving": "Đang lưu...",
+      "createNewSuccess": "Đã tạo lộ trình mới từ phiên bản chia sẻ mới nhất.",
+      "updateCurrentSuccess": "Đã cập nhật lộ trình hiện tại lên phiên bản chia sẻ mới nhất.",
+      "keepCurrentSuccess": "Đã giữ lộ trình hiện tại và bỏ qua phiên bản này."
+    },
+    "errors": {
+      "invalidShareId": "Mã chia sẻ không hợp lệ.",
+      "shareNotFound": "Không tìm thấy chia sẻ.",
+      "loadFailed": "Không thể tải ngữ cảnh cập nhật.",
+      "accessDenied": "Bạn không có quyền thao tác với chia sẻ này.",
+      "invalidShareState": "Chia sẻ không còn ở trạng thái hợp lệ. Vui lòng làm mới danh sách lộ trình.",
+      "noNewVersion": "Hiện không còn phiên bản mới. Hệ thống sẽ làm mới danh sách của bạn.",
+      "pathNotFound": "Dữ liệu lộ trình đã thay đổi trên máy chủ. Vui lòng đồng bộ lại.",
+      "applyFailed": "Không thể áp dụng hành động cập nhật."
+    }
   },
   "channelChat": {
     "title": "Cộng đồng",

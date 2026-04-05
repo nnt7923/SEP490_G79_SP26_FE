@@ -108,6 +108,16 @@
     "pageLabel": "Trang {{page}}",
     "unreadCountLabel": "{{count}} chưa đọc"
   },
+  "notification": {
+    "shareVersionUpdated": {
+      "title": "Lộ trình được mentor cập nhật",
+      "message": "Đã có phiên bản lộ trình chia sẻ mới. Hãy xem thay đổi và chọn cách đồng bộ.",
+      "titleDetailed": "Lộ trình {{pathTitle}} có phiên bản mới",
+      "messageDetailed": "Mentor {{mentorName}} vừa cập nhật lộ trình {{pathTitle}}.",
+      "messagePathOnly": "Lộ trình {{pathTitle}} vừa có phiên bản mới từ mentor.",
+      "messageMentorOnly": "Mentor {{mentorName}} vừa cập nhật một lộ trình chia sẻ."
+    }
+  },
   "toast": {
     "loading": "Đang xử lý",
     "success": "Thành công",

@@ -5,6 +5,7 @@
 
 export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare'
 export type ShareStatus = 'Pending' | 'Accepted' | 'Rejected'
+export type LearningPathShareUpdateAction = 'CreateNewFromLatest' | 'UpdateCurrentToLatest' | 'KeepCurrent'
 
 /** 3.1 ConversationDTO */
 export interface DirectConversationDto {
@@ -62,6 +63,12 @@ export interface LearningPathShareDto {
   status: ShareStatus
   sentAt: string
   respondedAt: string | null
+  acceptedPathId?: string | null
+  sourceVersionAtAccept?: number | null
+  ignoredSourceVersion?: number | null
+  lastNotifiedSourceVersion?: number | null
+  isTrackingEnabled?: boolean
+  invalidatedReason?: string | null
 }
 
 /** 3.5 Pending LearningPathShare Summary DTO */
@@ -174,7 +181,44 @@ export interface LearningPathSharePreviewDto {
   status: ShareStatus
   sentAt: string
   respondedAt: string | null
+  invalidatedReason?: string | null
   learningPath: LearningPathSharePreviewPathDto
+}
+
+export interface LearningPathShareVersionChangeSummaryDto {
+  addedChapterCount: number
+  removedChapterCount: number
+  updatedChapterCount: number
+  addedLessonCount: number
+  removedLessonCount: number
+  updatedLessonCount: number
+  addedTaskCount: number
+  removedTaskCount: number
+  updatedTaskCount: number
+  addedChapters: string[]
+  removedChapters: string[]
+  updatedChapters: string[]
+  addedLessons: string[]
+  removedLessons: string[]
+  updatedLessons: string[]
+  addedTasks: string[]
+  removedTasks: string[]
+  updatedTasks: string[]
+}
+
+export interface LearningPathShareUpdateContextDto {
+  shareId: string
+  sourceLearningPathId: string
+  sourceLearningPathTitle: string
+  acceptedPathId: string
+  mentorId: string
+  mentorUserName: string
+  currentSourceVersion: number
+  latestSourceVersion: number
+  hasNewVersion: boolean
+  ignoredSourceVersion: number | null
+  lastNotifiedSourceVersion: number
+  changeSummary: LearningPathShareVersionChangeSummaryDto | null
 }
 
 export interface LearningPathShareCardData {

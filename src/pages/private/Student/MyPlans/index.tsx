@@ -5,6 +5,7 @@ import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
+import useChatStore from '../../../../store/useChatStore'
 import { useTranslation } from 'react-i18next'
 
 const clampPercent = (value: unknown) => {
@@ -58,6 +59,7 @@ const MyPlansPage: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0)
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
+  const receivedLearningPathShares = useChatStore((state) => state.receivedLearningPathShares)
 
 
 
@@ -163,6 +165,15 @@ const MyPlansPage: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filteredPlans.map((plan) => {
               const planId = String(plan.pathId || plan.id || '').trim()
+              const fallbackShare = receivedLearningPathShares.find(
+                (share) => share.status === 'Accepted' && String(share.pathId || '').trim() === planId,
+              )
+              const sharedByUserName = String(
+                plan.sharedByUserName ||
+                fallbackShare?.mentorName ||
+                '',
+              ).trim()
+              const hasSourceUpdate = Boolean(plan.hasSourceUpdate)
               const progressPercent = clampPercent(
                 planId
                   ? (planProgressMap[planId] ?? plan?.progressPercent ?? plan?.completionPercent ?? 0)
@@ -196,8 +207,33 @@ const MyPlansPage: React.FC = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 14 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' }}>{plan.title || t('myPlans.untitled')}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {plan.title || t('myPlans.untitled')}
+                        </h3>
+                        {hasSourceUpdate && (
+                          <span
+                            style={{
+                              flexShrink: 0,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: '#854d0e',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              borderRadius: 999,
+                              padding: '2px 8px',
+                              background: 'rgba(245, 158, 11, 0.12)',
+                            }}
+                          >
+                            {t('myPlans.newVersionBadge', { defaultValue: 'Có phiên bản mới' })}
+                          </span>
+                        )}
+                      </div>
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.description || t('myPlans.noDescription')}</p>
+                      {sharedByUserName && (
+                        <div style={{ marginBottom: 10, fontSize: 11, color: 'var(--text-secondary)' }}>
+                          {t('myPlans.sharedBy', { defaultValue: 'Được chia sẻ bởi {{name}}', name: sharedByUserName })}
+                        </div>
+                      )}
                       <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)', flexWrap: 'wrap' }}>
                         <span>{t('myPlans.chapters', { count: plan.chapterCount || plan.chapters?.length || 0 })}</span>
                         <span>{t('myPlans.lessons', { count: plan.lessons?.length || 0 })}</span>

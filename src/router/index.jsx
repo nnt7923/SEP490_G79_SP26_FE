@@ -56,6 +56,7 @@ const StudentAchievements = React.lazy(() => import('../pages/private/Student/Ac
 const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
+const StudentShareUpdatesPage = React.lazy(() => import('../pages/private/Student/Chat/ShareUpdates'))
 const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat')) 
 const StudentChannelChatPage = React.lazy(() => import('../pages/private/Student/ChannelChat'))
 const MentorChannelChatPage = React.lazy(() => import('../pages/private/Mentor/ChannelChat'))
@@ -115,6 +116,7 @@ const router = createBrowserRouter([
           { path: ROUTER.FOCUS_SESSION, element: <FocusSession /> },
           { path: ROUTER.CHAT, element: <StudentChatPage /> },
           { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
+          { path: ROUTER.LEARNING_PATH_SHARE_UPDATES, element: <StudentShareUpdatesPage /> },
           { path: ROUTER.CHANNEL_CHAT, element: <StudentChannelChatPage /> },
           { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },

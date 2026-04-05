@@ -175,7 +175,9 @@
     "progressLabel": "Progress",
     "chapters": "{{count}} chapters",
     "lessons": "{{count}} lessons",
-    "progressPercent": "Progress: {{percent}}%"
+    "progressPercent": "Progress: {{percent}}%",
+    "sharedBy": "Shared by {{name}}",
+    "newVersionBadge": "New version"
   },
   "profile": {
     "brandName": "Profile",
@@ -781,6 +783,7 @@
     "previewWaitingResponse": "Waiting for response",
     "previewGoals": "Goals",
     "previewChapter": "Chapter",
+    "previewSupersededByNewVersion": "This share was replaced by a newer mentor version. Please review the latest share update notification.",
     "reply": "Reply",
     "replyingTo": "Replying to {{name}}",
     "replyUnavailable": "This message was deleted or is no longer available",
@@ -794,6 +797,70 @@
     "errorSend": "Failed to send message",
     "accessDenied": "You do not have access",
     "connectionError": "Connection error, retrying..."
+  },
+  "shareUpdates": {
+    "brandName": "Share Updates",
+    "title": "Learning path version update",
+    "subtitle": "Review changes from your mentor and choose how to sync your learning path.",
+    "loading": "Loading latest version changes...",
+    "backToPlans": "Back to My Plans",
+    "errorTitle": "Cannot open update review",
+    "retry": "Retry",
+    "sharedBy": "Shared by",
+    "sourceTitle": "Source learning path",
+    "currentVersion": "Current version",
+    "latestVersion": "Latest version",
+    "newVersionBadge": "New version available",
+    "changeSummaryTitle": "Change summary",
+    "noDetailedComparison": "No detailed comparison data available.",
+    "none": "None",
+    "showLess": "Show less",
+    "showMore": "Show {{count}} more",
+    "actionsTitle": "Choose update action",
+    "actionsHint": "Pick one action below. Your learning path list will refresh right after completion.",
+    "counts": {
+      "addedChapters": "Added chapters",
+      "removedChapters": "Removed chapters",
+      "updatedChapters": "Updated chapters",
+      "addedLessons": "Added lessons",
+      "removedLessons": "Removed lessons",
+      "updatedLessons": "Updated lessons",
+      "addedTasks": "Added tasks",
+      "removedTasks": "Removed tasks",
+      "updatedTasks": "Updated tasks"
+    },
+    "groups": {
+      "addedChapters": "Added chapters",
+      "removedChapters": "Removed chapters",
+      "updatedChapters": "Updated chapters",
+      "addedLessons": "Added lessons",
+      "removedLessons": "Removed lessons",
+      "updatedLessons": "Updated lessons",
+      "addedTasks": "Added tasks",
+      "removedTasks": "Removed tasks",
+      "updatedTasks": "Updated tasks"
+    },
+    "actions": {
+      "createNew": "Create New From Latest",
+      "updateCurrent": "Update Current To Latest",
+      "keepCurrent": "Keep Current",
+      "creating": "Creating...",
+      "updating": "Updating...",
+      "saving": "Saving...",
+      "createNewSuccess": "Created a new learning path from the latest shared version.",
+      "updateCurrentSuccess": "Updated your current learning path to the latest shared version.",
+      "keepCurrentSuccess": "Kept your current learning path and ignored this version."
+    },
+    "errors": {
+      "invalidShareId": "Invalid share ID.",
+      "shareNotFound": "Share not found.",
+      "loadFailed": "Failed to load update context.",
+      "accessDenied": "You are not allowed to access this share.",
+      "invalidShareState": "This share is no longer in a valid state. Please refresh your learning paths.",
+      "noNewVersion": "No new version is available anymore. Your list will be refreshed.",
+      "pathNotFound": "Learning path data has changed on the server. Please sync again.",
+      "applyFailed": "Could not apply update action."
+    }
   },
   "channelChat": {
     "title": "Community",

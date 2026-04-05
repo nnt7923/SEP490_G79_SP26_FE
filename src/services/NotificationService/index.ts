@@ -31,13 +31,15 @@ function toSafeNumber(value: unknown, fallback: number): number {
 function normalizeAction(raw: unknown): NotificationAction {
   const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
   const targetTypeRaw = toSafeString(record.targetType)
-  const targetType = (
-    targetTypeRaw === 'task' ||
-    targetTypeRaw === 'chapter' ||
-    targetTypeRaw === 'lesson' ||
-    targetTypeRaw === 'learningPath' ||
-    targetTypeRaw === 'subscription'
-  ) ? targetTypeRaw : null
+  const targetTypeNormalized = String(targetTypeRaw || '').toLowerCase()
+
+  let targetType: NotificationAction['targetType'] = null
+  if (targetTypeNormalized === 'task') targetType = 'task'
+  else if (targetTypeNormalized === 'chapter') targetType = 'chapter'
+  else if (targetTypeNormalized === 'lesson') targetType = 'lesson'
+  else if (targetTypeNormalized === 'learningpath') targetType = 'learningPath'
+  else if (targetTypeNormalized === 'learningpathshareupdate') targetType = 'learningPathShareUpdate'
+  else if (targetTypeNormalized === 'subscription') targetType = 'subscription'
 
   return {
     targetType,

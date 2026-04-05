@@ -1,6 +1,8 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { NotificationDto } from '../../types/notification'
 import { formatNotificationDate, getNotificationSeverityTone } from './utils'
+import { getUpdateContext } from '../../services/LearningPathShareService'
 
 interface NotificationListProps {
   items: NotificationDto[]
@@ -23,6 +25,125 @@ const NotificationList: React.FC<NotificationListProps> = ({
   titleOnly = false,
   footer,
 }) => {
+  const { t } = useTranslation('common')
+  const [shareUpdateContextById, setShareUpdateContextById] = React.useState<Record<string, {
+    mentorUserName?: string
+    sourceLearningPathTitle?: string
+  }>>({})
+  const loadingShareContextIdsRef = React.useRef<Set<string>>(new Set())
+
+  const extractShareId = React.useCallback((notification: NotificationDto): string | null => {
+    const direct = String(notification.action?.targetId || '').trim()
+    if (direct) return direct
+
+    const targetUrl = String(notification.action?.targetUrl || '').trim()
+    const match = targetUrl.match(/^\/learning-path-shares\/([^/]+)\/updates(?:\?.*)?$/i)
+      || targetUrl.match(/^\/learningpath-shares\/([^/]+)\/updates(?:\?.*)?$/i)
+    return match?.[1] || null
+  }, [])
+
+  React.useEffect(() => {
+    const shareIds = items
+      .filter((item) => String(item.type || '').trim() === 'ShareVersionUpdated')
+      .map((item) => extractShareId(item))
+      .filter((id): id is string => Boolean(id))
+
+    if (shareIds.length === 0) return
+
+    let active = true
+    shareIds.forEach((shareId) => {
+      if (shareUpdateContextById[shareId]) return
+      if (loadingShareContextIdsRef.current.has(shareId)) return
+
+      loadingShareContextIdsRef.current.add(shareId)
+
+      void getUpdateContext(shareId)
+        .then((context) => {
+          if (!active) return
+          setShareUpdateContextById((prev) => ({
+            ...prev,
+            [shareId]: {
+              mentorUserName: String(context.mentorUserName || '').trim() || undefined,
+              sourceLearningPathTitle: String(context.sourceLearningPathTitle || '').trim() || undefined,
+            },
+          }))
+        })
+        .catch(() => {})
+        .finally(() => {
+          loadingShareContextIdsRef.current.delete(shareId)
+        })
+    })
+
+    return () => {
+      active = false
+    }
+  }, [extractShareId, items, shareUpdateContextById])
+
+  const translateNotificationField = (value?: string | null, fallbackKey?: string) => {
+    const raw = String(value || '').trim()
+    if (raw) {
+      const translated = t(raw)
+      if (translated !== raw) return translated
+
+      const looksLikeI18nKey = raw.includes('.') && !raw.includes(' ')
+      if (looksLikeI18nKey && fallbackKey) {
+        const fallback = t(fallbackKey)
+        if (fallback !== fallbackKey) return fallback
+      }
+
+      return raw
+    }
+
+    if (fallbackKey) {
+      return t(fallbackKey)
+    }
+
+    return ''
+  }
+
+  const getShareVersionNotificationText = React.useCallback((notification: NotificationDto) => {
+    const shareId = extractShareId(notification)
+    const context = shareId ? shareUpdateContextById[shareId] : undefined
+    const mentorName = String(context?.mentorUserName || '').trim()
+    const pathTitle = String(context?.sourceLearningPathTitle || '').trim()
+
+    if (mentorName && pathTitle) {
+      return {
+        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: 'Lộ trình {{pathTitle}} có phiên bản mới' }),
+        message: t('notification.shareVersionUpdated.messageDetailed', {
+          mentorName,
+          pathTitle,
+          defaultValue: 'Mentor {{mentorName}} vừa cập nhật lộ trình {{pathTitle}}.',
+        }),
+      }
+    }
+
+    if (pathTitle) {
+      return {
+        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: 'Lộ trình {{pathTitle}} có phiên bản mới' }),
+        message: t('notification.shareVersionUpdated.messagePathOnly', {
+          pathTitle,
+          defaultValue: 'Lộ trình {{pathTitle}} vừa có phiên bản mới từ mentor.',
+        }),
+      }
+    }
+
+    if (mentorName) {
+      return {
+        title: t('notification.shareVersionUpdated.title', { defaultValue: 'Lộ trình được mentor cập nhật' }),
+        message: t('notification.shareVersionUpdated.messageMentorOnly', {
+          mentorName,
+          defaultValue: 'Mentor {{mentorName}} vừa cập nhật lộ trình chia sẻ.',
+        }),
+      }
+    }
+
+    return {
+      title: translateNotificationField(notification.title, 'notification.shareVersionUpdated.title'),
+      message: translateNotificationField(notification.message, 'notification.shareVersionUpdated.message'),
+    }
+  }, [extractShareId, shareUpdateContextById, t])
+
   if (loading) {
     return (
       <div style={{ padding: compact ? 16 : 20, color: 'var(--text-secondary)', fontSize: 13 }}>
@@ -53,6 +174,16 @@ const NotificationList: React.FC<NotificationListProps> = ({
         {items.map((notification) => {
           const tone = getNotificationSeverityTone(notification.severity)
           const muted = notification.isRead
+          const isShareVersionUpdated = String(notification.type || '').trim() === 'ShareVersionUpdated'
+          const shareText = isShareVersionUpdated ? getShareVersionNotificationText(notification) : null
+          const titleText = shareText?.title || translateNotificationField(
+            notification.title,
+            isShareVersionUpdated ? 'notification.shareVersionUpdated.title' : undefined,
+          )
+          const messageText = shareText?.message || translateNotificationField(
+            notification.message,
+            isShareVersionUpdated ? 'notification.shareVersionUpdated.message' : undefined,
+          )
           return (
             <button
               key={notification.notificationId}
@@ -100,11 +231,11 @@ const NotificationList: React.FC<NotificationListProps> = ({
                     )}
                   </div>
                   <div style={{ color: titleOnly ? 'var(--text-primary)' : tone.text, fontSize: compact ? 13 : 14, fontWeight: 700, lineHeight: 1.4 }}>
-                    {notification.title}
+                    {titleText || notification.title}
                   </div>
-                  {!titleOnly && notification.message && (
+                  {!titleOnly && messageText && (
                     <div style={{ marginTop: 6, color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.5 }}>
-                      {notification.message}
+                      {messageText}
                     </div>
                   )}
                 </div>

@@ -129,6 +129,12 @@ export type SkeletonResponse = {
   pathId?: string
   title?: string
   description?: string | null
+  sharedByUserId?: string | null
+  sharedByUserName?: string | null
+  sourceLearningPathId?: string | null
+  sourceVersion?: number | null
+  sourceLatestVersion?: number | null
+  hasSourceUpdate?: boolean
   chapterDtos?: Array<{
     chapterId: string
     title: string
@@ -257,6 +263,12 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
 
   return {
     ...payload,
+    sharedByUserId: payload?.sharedByUserId ?? payload?.SharedByUserId ?? null,
+    sharedByUserName: payload?.sharedByUserName ?? payload?.SharedByUserName ?? null,
+    sourceLearningPathId: payload?.sourceLearningPathId ?? payload?.SourceLearningPathId ?? null,
+    sourceVersion: payload?.sourceVersion ?? payload?.SourceVersion ?? null,
+    sourceLatestVersion: payload?.sourceLatestVersion ?? payload?.SourceLatestVersion ?? null,
+    hasSourceUpdate: Boolean(payload?.hasSourceUpdate ?? payload?.HasSourceUpdate),
     chapters,
     lessons,
   } as SkeletonResponse

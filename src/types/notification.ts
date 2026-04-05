@@ -5,6 +5,7 @@ export type NotificationTargetType =
   | 'chapter'
   | 'lesson'
   | 'learningPath'
+  | 'learningPathShareUpdate'
   | 'subscription'
   | null
 

@@ -11,6 +11,7 @@ import { FileText, Target, BookOpen, GraduationCap, AlertTriangle, ArrowRight } 
 import useAppNotificationStore from '../../../store/useAppNotificationStore'
 import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
 import useNotificationStore from '../../../store/useNotificationStore'
+import useChatStore from '../../../store/useChatStore'
 import type { NotificationDto } from '../../../types/notification'
 import SubscriptionService from '../../../services/SubscriptionService'
 
@@ -24,6 +25,7 @@ const StudentOverview: React.FC = () => {
   const panelItems = useAppNotificationStore((state) => state.panelItems)
   const markAsRead = useAppNotificationStore((state) => state.markAsRead)
   const showToast = useNotificationStore((state) => state.showToast)
+  const receivedLearningPathShares = useChatStore((state) => state.receivedLearningPathShares)
   const [plansCount, setPlansCount] = React.useState(0)
   const [recentPlans, setRecentPlans] = React.useState<any[]>([])
   const [recentGoals, setRecentGoals] = React.useState<any[]>([])
@@ -286,8 +288,32 @@ const StudentOverview: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {recentPlans.map((plan, idx) => (
                         <button key={plan.pathId || plan.id || idx} type="button" onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })} style={{ padding: 12, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.2s', width: '100%' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-                          <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.title || t('overview.recentPlans.untitled')}</h3>
+                          {(() => {
+                            const pathId = String(plan.pathId || plan.id || '').trim()
+                            const fallbackShare = receivedLearningPathShares.find(
+                              (share) => share.status === 'Accepted' && String(share.pathId || '').trim() === pathId,
+                            )
+                            const sharedByUserName = String(plan.sharedByUserName || fallbackShare?.mentorName || '').trim()
+
+                            return (
+                              <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{plan.title || t('overview.recentPlans.untitled')}</h3>
+                            {!!plan.hasSourceUpdate && (
+                              <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#854d0e', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 999, padding: '2px 6px', background: 'rgba(245, 158, 11, 0.12)' }}>
+                                {t('myPlans.newVersionBadge', { defaultValue: 'Có phiên bản mới' })}
+                              </span>
+                            )}
+                          </div>
                           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{t('overview.recentPlans.chapters', { count: plan.chapterCount || plan.chapters?.length || 0 })} {plan.createdAt && `· ${new Date(plan.createdAt).toLocaleDateString()}`}</p>
+                          {sharedByUserName && (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                              {t('myPlans.sharedBy', { defaultValue: 'Được chia sẻ bởi {{name}}', name: sharedByUserName })}
+                            </p>
+                          )}
+                              </>
+                            )
+                          })()}
                         </button>
                       ))}
                     </div>

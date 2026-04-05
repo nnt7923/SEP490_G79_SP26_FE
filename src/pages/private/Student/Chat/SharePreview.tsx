@@ -13,7 +13,9 @@ import {
   getSharePreview,
   rejectShare,
 } from '../../../../services/LearningPathShareService'
+import { clearUserLearningPathsCache } from '../../../../services/LearningPathService'
 import useChatStore from '../../../../store/useChatStore'
+import useAuthStore from '../../../../store/useAuthStore'
 import { useTranslation } from 'react-i18next'
 import type {
   LearningPathSharePreviewDto,
@@ -31,6 +33,7 @@ const SharePreviewPage: React.FC = () => {
   const location = useLocation() as { state?: PreviewLocationState }
   const navigate = useNavigate()
   const { t } = useTranslation('student')
+  const { user } = useAuthStore()
   const { patchShareMessage, removePendingShare, upsertReceivedShare } = useChatStore()
   const [preview, setPreview] = useState<LearningPathSharePreviewDto | null>(null)
   const [loading, setLoading] = useState(true)
@@ -51,6 +54,9 @@ const SharePreviewPage: React.FC = () => {
     () => chapters.find((chapter) => chapter.chapterId === activeChapterId) ?? chapters[0] ?? null,
     [activeChapterId, chapters]
   )
+  const isSupersededShare =
+    preview?.status === 'Rejected' &&
+    String(preview?.invalidatedReason || '').trim().toUpperCase() === 'SUPERSEDED_BY_NEW_VERSION'
 
   const syncShareState = (source: LearningPathSharePreviewDto, nextStatus: ShareStatus, respondedAt?: string | null) => {
     const normalizedRespondedAt = respondedAt ?? source.respondedAt ?? null
@@ -142,6 +148,7 @@ const SharePreviewPage: React.FC = () => {
     try {
       if (decision === 'accept') {
         await acceptShare(preview.shareId)
+        clearUserLearningPathsCache(user?.id)
       } else {
         await rejectShare(preview.shareId)
       }
@@ -269,6 +276,14 @@ const SharePreviewPage: React.FC = () => {
                       <span>{t('chat.previewRespondedAt', { defaultValue: 'Responded at' })}: {preview.respondedAt ? formatDateTime(preview.respondedAt) : t('chat.previewWaitingResponse', { defaultValue: 'Waiting for response' })}</span>
                     </div>
                   </div>
+
+                  {isSupersededShare && (
+                    <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 4, padding: 12, fontSize: 12, color: '#92400e', lineHeight: 1.5 }}>
+                      {t('chat.previewSupersededByNewVersion', {
+                        defaultValue: 'This share was replaced by a newer version from your mentor. Please review the latest version update notification.',
+                      })}
+                    </div>
+                  )}
 
                   {preview.status === 'Pending' && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

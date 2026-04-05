@@ -89,4 +89,85 @@ describe('notification navigation resolver', () => {
 
     expect(target).toEqual({ path: '/subscription' })
   })
+
+  it('routes learningPathShareUpdate notifications to the share update review page', () => {
+    const target = resolveNotificationNavigationTarget({
+      notificationId: 'n-4',
+      userId: 'u-1',
+      type: 'ShareVersionUpdated',
+      title: 'Learning path updated',
+      message: null,
+      createdAt: '2026-03-30T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'High',
+      channels: ['Web'],
+      action: {
+        targetType: 'learningPathShareUpdate',
+        targetId: 'share-123',
+        targetUrl: '/learning-path-shares/share-123/updates',
+        route: '/learningpath-shares/:shareId/updates',
+        taskId: null,
+        chapterId: null,
+        lessonId: null,
+        learningPathId: 'path-1',
+      },
+    })
+
+    expect(target).toEqual({ path: '/learning-path-shares/share-123/updates' })
+  })
+
+  it('supports update-context targetUrl path even without targetType', () => {
+    const target = resolveNotificationNavigationTarget({
+      notificationId: 'n-5',
+      userId: 'u-1',
+      type: 'ShareVersionUpdated',
+      title: 'Learning path updated',
+      message: null,
+      createdAt: '2026-03-30T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'High',
+      channels: ['Web'],
+      action: {
+        targetType: null,
+        targetId: null,
+        targetUrl: '/learning-path-shares/share-456/updates',
+        route: '/learningpath-shares/:shareId/updates',
+        taskId: null,
+        chapterId: null,
+        lessonId: null,
+        learningPathId: null,
+      },
+    })
+
+    expect(target).toEqual({ path: '/learning-path-shares/share-456/updates' })
+  })
+
+  it('normalizes legacy learningpath-shares targetUrl to canonical route', () => {
+    const target = resolveNotificationNavigationTarget({
+      notificationId: 'n-6',
+      userId: 'u-1',
+      type: 'ShareVersionUpdated',
+      title: 'Learning path updated',
+      message: null,
+      createdAt: '2026-03-30T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'High',
+      channels: ['Web'],
+      action: {
+        targetType: null,
+        targetId: null,
+        targetUrl: '/learningpath-shares/share-789/updates',
+        route: '/learningpath-shares/:shareId/updates',
+        taskId: null,
+        chapterId: null,
+        lessonId: null,
+        learningPathId: null,
+      },
+    })
+
+    expect(target).toEqual({ path: '/learning-path-shares/share-789/updates' })
+  })
 })

@@ -7,6 +7,13 @@ export type NotificationNavigationTarget = {
   state?: Record<string, unknown>
 }
 
+function extractShareIdFromUpdatePath(path: string): string | null {
+  const trimmed = String(path || '').trim()
+  const match = trimmed.match(/^\/learning-path-shares\/([^/]+)\/updates(?:\?.*)?$/i)
+    || trimmed.match(/^\/learningpath-shares\/([^/]+)\/updates(?:\?.*)?$/i)
+  return match?.[1] || null
+}
+
 function isSupportedNotificationPath(path: string): boolean {
   if (!path.startsWith('/')) return false
 
@@ -15,6 +22,8 @@ function isSupportedNotificationPath(path: string): boolean {
     path === ROUTER.SUBSCRIPTION_CURRENT ||
     path === ROUTER.MY_PLANS ||
     path === ROUTER.NOTIFICATIONS ||
+    path.startsWith('/learning-path-shares/') ||
+    path.startsWith('/learningpath-shares/') ||
     path.startsWith('/lesson/') ||
     path.startsWith('/quiz/') ||
     path.startsWith('/my-plans/detail')
@@ -129,11 +138,27 @@ export function resolveNotificationNavigationTarget(notification: NotificationDt
     return { path: ROUTER.MY_PLANS }
   }
 
+  if (action?.targetType === 'learningPathShareUpdate') {
+    const shareId = String(action.targetId || '').trim() || extractShareIdFromUpdatePath(targetUrl)
+    if (shareId) {
+      return {
+        path: ROUTER.LEARNING_PATH_SHARE_UPDATES.replace(':shareId', shareId),
+      }
+    }
+  }
+
   if (action?.targetType === 'subscription') {
     if (notificationType === 'PlanExpired' || notificationType === 'PlanExpiringSoon') {
       return { path: ROUTER.SUBSCRIPTION }
     }
     return { path: ROUTER.SUBSCRIPTION_CURRENT }
+  }
+
+  const shareIdFromTargetUrl = extractShareIdFromUpdatePath(targetUrl)
+  if (shareIdFromTargetUrl) {
+    return {
+      path: ROUTER.LEARNING_PATH_SHARE_UPDATES.replace(':shareId', shareIdFromTargetUrl),
+    }
   }
 
   if (isSupportedNotificationPath(targetUrl)) {
