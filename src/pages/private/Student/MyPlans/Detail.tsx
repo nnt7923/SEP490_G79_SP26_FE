@@ -645,7 +645,14 @@ const MyPlansDetailPage: React.FC = () => {
                                     className="lesson-link"
                                     onClick={() => {
                                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch { }
-                                      navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
+                                      navigate(`/lesson/${lesson.id}`, {
+                                        state: {
+                                          skeleton: plan,
+                                          chapterId: chapter.id,
+                                          chapterTitle: chapter.title,
+                                          lessonTitle: lesson.title,
+                                        }
+                                      })
                                     }}
                                     whileHover={{ x: 4 }}
                                     style={{

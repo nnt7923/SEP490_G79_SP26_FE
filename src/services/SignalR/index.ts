@@ -52,6 +52,7 @@ const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
 const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
 const inflightTutorMessages = new Map<string, Promise<any>>()
 const inflightTutorMessageHistory = new Map<string, Promise<any>>()
+const inflightTutorSummaryHistory = new Map<string, Promise<any>>()
 const inflightTutorConversationResolve = new Map<string, Promise<any>>()
 
 // ==== Utils ====
@@ -1111,6 +1112,143 @@ export interface TutorHubError extends Error {
   code: TutorHubErrorCode | string
 }
 
+export type TutorConversationResolvedPayload = {
+  conversationId: string
+  created: boolean
+}
+
+export type TutorMessageHistoryItem = {
+  messageId?: string
+  conversationId?: string
+  userMessageId?: string
+  assistantMessageId?: string
+  userMessage?: string
+  assistantMessage?: string
+  role?: string
+  senderRole?: string
+  type?: string
+  content?: string
+  message?: string
+  createdAt?: string
+}
+
+export type TutorMessagesPageResponse = {
+  items: TutorMessageHistoryItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export type TutorSummaryHistoryItem = {
+  summaryId: string
+  conversationId: string
+  summaryContent: string
+  messageCount: number
+  startMessageCreatedAt: string | null
+  endMessageCreatedAt: string | null
+  createdAt: string
+}
+
+export type TutorSummariesPageResponse = {
+  items: TutorSummaryHistoryItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export type TutorChatResponse = {
+  conversationId: string
+  userMessageId: string
+  assistantMessageId: string
+  assistantMessage: string
+  createdAt: string
+  contextUsagePercent: number
+}
+
+function normalizeTutorMessagesPagePayload(payload: any): TutorMessagesPageResponse {
+  const items = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.Items)
+      ? payload.Items
+      : []
+
+  const pageSize = Number(payload?.pageSize ?? payload?.PageSize ?? items.length ?? 0)
+  const totalCount = Number(payload?.totalCount ?? payload?.TotalCount ?? items.length ?? 0)
+  const totalPages = Number(payload?.totalPages ?? payload?.TotalPages ?? (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1))
+
+  return {
+    items,
+    pageNumber: Number(payload?.pageNumber ?? payload?.PageNumber ?? 1),
+    pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 1,
+    totalCount: Number.isFinite(totalCount) && totalCount >= 0 ? totalCount : items.length,
+    totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 1,
+    hasPreviousPage: Boolean(payload?.hasPreviousPage ?? payload?.HasPreviousPage),
+    hasNextPage: Boolean(payload?.hasNextPage ?? payload?.HasNextPage),
+  }
+}
+
+function normalizeTutorSummariesPagePayload(payload: any): TutorSummariesPageResponse {
+  const rawItems = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.Items)
+      ? payload.Items
+      : []
+
+  const items: TutorSummaryHistoryItem[] = rawItems.map((item: any) => ({
+    summaryId: String(item?.summaryId ?? item?.SummaryId ?? item?.id ?? ''),
+    conversationId: String(item?.conversationId ?? item?.ConversationId ?? ''),
+    summaryContent: String(item?.summaryContent ?? item?.SummaryContent ?? item?.content ?? ''),
+    messageCount: Number(item?.messageCount ?? item?.MessageCount ?? 0) || 0,
+    startMessageCreatedAt: item?.startMessageCreatedAt ?? item?.StartMessageCreatedAt ?? null,
+    endMessageCreatedAt: item?.endMessageCreatedAt ?? item?.EndMessageCreatedAt ?? null,
+    createdAt: String(item?.createdAt ?? item?.CreatedAt ?? ''),
+  }))
+
+  const pageSize = Number(payload?.pageSize ?? payload?.PageSize ?? items.length ?? 0)
+  const totalCount = Number(payload?.totalCount ?? payload?.TotalCount ?? items.length ?? 0)
+  const totalPages = Number(payload?.totalPages ?? payload?.TotalPages ?? (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1))
+
+  return {
+    items,
+    pageNumber: Number(payload?.pageNumber ?? payload?.PageNumber ?? 1),
+    pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 1,
+    totalCount: Number.isFinite(totalCount) && totalCount >= 0 ? totalCount : items.length,
+    totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 1,
+    hasPreviousPage: Boolean(payload?.hasPreviousPage ?? payload?.HasPreviousPage),
+    hasNextPage: Boolean(payload?.hasNextPage ?? payload?.HasNextPage),
+  }
+}
+
+function normalizeTutorChatResponse(payload: any): TutorChatResponse {
+  return {
+    conversationId: String(payload?.conversationId ?? payload?.ConversationId ?? ''),
+    userMessageId: String(payload?.userMessageId ?? payload?.UserMessageId ?? ''),
+    assistantMessageId: String(payload?.assistantMessageId ?? payload?.AssistantMessageId ?? ''),
+    assistantMessage: String(payload?.assistantMessage ?? payload?.AssistantMessage ?? ''),
+    createdAt: String(payload?.createdAt ?? payload?.CreatedAt ?? new Date().toISOString()),
+    contextUsagePercent: Number(payload?.contextUsagePercent ?? payload?.ContextUsagePercent ?? 0) || 0,
+  }
+}
+
+function normalizeTutorConversationResolvedPayload(payload: any): TutorConversationResolvedPayload {
+  return {
+    conversationId: String(payload?.conversationId ?? payload?.ConversationId ?? ''),
+    created: Boolean(payload?.created ?? payload?.Created),
+  }
+}
+
+function normalizeTutorPageSize(pageSize: number): number {
+  const numeric = Number(pageSize)
+  if (!Number.isFinite(numeric)) return 30
+  return Math.min(100, Math.max(1, Math.floor(numeric)))
+}
+
 function normalizeTutorHubError(rawError: any, fallbackMessage: string): TutorHubError {
   const errorCode = rawError?.errorCode || rawError?.code || 'UNEXPECTED_ERROR'
   const errorMessage = rawError?.errorMessage || rawError?.message || fallbackMessage
@@ -1126,9 +1264,9 @@ export async function sendTutorMessage(
   lessonId: string | null,
   message: string,
   onMessageStarted?: () => void,
-  onMessageReceived?: (data: any) => void,
+  onMessageReceived?: (data: TutorChatResponse) => void,
   onMessageError?: (error: TutorHubError) => void
-): Promise<any> {
+): Promise<TutorChatResponse> {
   if (!message || message.trim().length === 0) {
     return Promise.reject(normalizeTutorHubError({ errorCode: 'EMPTY_MESSAGE', errorMessage: 'Message cannot be empty' }, 'Message cannot be empty'))
   }
@@ -1143,7 +1281,7 @@ export async function sendTutorMessage(
   const p = (async () => {
     const hub = await getTutorHub()
 
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<TutorChatResponse>((resolve, reject) => {
       let done = false
       const cleanup = () => {
         hub.off('TutorMessageStarted', handleStarted)
@@ -1158,12 +1296,18 @@ export async function sendTutorMessage(
 
       const handleReceived = (data: any) => {
         if (data) {
-          onMessageReceived?.(data)
+          const normalized = normalizeTutorChatResponse(data)
+
+          if (conversationId && normalized.conversationId && normalized.conversationId !== conversationId) {
+            return
+          }
+
+          onMessageReceived?.(normalized)
           
           if (done) return
           done = true
           cleanup()
-          resolve(data)
+          resolve(normalized)
         }
       }
 
@@ -1221,15 +1365,17 @@ export async function requestTutorMessages(
   pageNumber: number = 1,
   pageSize: number = 30,
   onLoading?: () => void,
-  onMessagesLoaded?: (data: any) => void,
+  onMessagesLoaded?: (data: TutorMessagesPageResponse) => void,
   onMessagesError?: (error: TutorHubError) => void
-): Promise<any> {
+): Promise<TutorMessagesPageResponse> {
   if (!conversationId) {
     return Promise.reject(normalizeTutorHubError({ errorCode: 'CONVERSATION_ID_REQUIRED', errorMessage: 'conversationId is required for requesting tutor messages' }, 'conversationId is required for requesting tutor messages'))
   }
 
+  const normalizedPageSize = normalizeTutorPageSize(pageSize)
+
   // single-flight: return running promise for same conversationId-page
-  const key = `messages-${conversationId}-${pageNumber}-${pageSize}`
+  const key = `messages-${conversationId}-${pageNumber}-${normalizedPageSize}`
   if (inflightTutorMessageHistory.has(key)) {
     return inflightTutorMessageHistory.get(key)!
   }
@@ -1238,7 +1384,7 @@ export async function requestTutorMessages(
   const p = (async () => {
     const hub = await getTutorHub()
 
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<TutorMessagesPageResponse>((resolve, reject) => {
       let done = false
       const cleanup = () => {
         hub.off('TutorMessagesLoading', handleLoading)
@@ -1253,12 +1399,24 @@ export async function requestTutorMessages(
 
       const handleLoaded = (data: any) => {
         if (data) {
-          onMessagesLoaded?.(data)
+          const normalized = normalizeTutorMessagesPagePayload(data)
+          const payloadConversationId = String(
+            data?.conversationId
+            ?? data?.ConversationId
+            ?? normalized.items?.[0]?.conversationId
+            ?? ''
+          )
+
+          if (payloadConversationId && payloadConversationId !== conversationId) {
+            return
+          }
+
+          onMessagesLoaded?.(normalized)
           
           if (done) return
           done = true
           cleanup()
-          resolve(data)
+          resolve(normalized)
         }
       }
 
@@ -1296,7 +1454,7 @@ export async function requestTutorMessages(
         hub.invoke('RequestTutorMessages',
           conversationId,
           pageNumber,
-          pageSize
+          normalizedPageSize
         ).catch(handleErrorWrap)
       } catch (e) {
         handleErrorWrap(e)
@@ -1308,6 +1466,105 @@ export async function requestTutorMessages(
   return p
 }
 
+export async function requestTutorSummaries(
+  conversationId: string,
+  pageNumber: number = 1,
+  pageSize: number = 20,
+  onLoading?: () => void,
+  onSummariesLoaded?: (data: TutorSummariesPageResponse) => void,
+  onSummariesError?: (error: TutorHubError) => void
+): Promise<TutorSummariesPageResponse> {
+  if (!conversationId) {
+    return Promise.reject(
+      normalizeTutorHubError(
+        { errorCode: 'CONVERSATION_ID_REQUIRED', errorMessage: 'conversationId is required for requesting tutor summaries' },
+        'conversationId is required for requesting tutor summaries'
+      )
+    )
+  }
+
+  const normalizedPageSize = normalizeTutorPageSize(pageSize)
+  const key = `summaries-${conversationId}-${pageNumber}-${normalizedPageSize}`
+  if (inflightTutorSummaryHistory.has(key)) {
+    return inflightTutorSummaryHistory.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<TutorSummariesPageResponse>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorSummariesLoading', handleLoading)
+        hub.off('TutorSummariesLoaded', handleLoaded)
+        hub.off('TutorSummariesError', handleError)
+        inflightTutorSummaryHistory.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleLoaded = (data: any) => {
+        if (!data) return
+
+        const normalized = normalizeTutorSummariesPagePayload(data)
+        const payloadConversationId = String(
+          data?.conversationId
+          ?? data?.ConversationId
+          ?? normalized.items?.[0]?.conversationId
+          ?? ''
+        )
+
+        if (payloadConversationId && payloadConversationId !== conversationId) {
+          return
+        }
+
+        onSummariesLoaded?.(normalized)
+
+        if (done) return
+        done = true
+        cleanup()
+        resolve(normalized)
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to load tutor summaries')
+        onSummariesError?.(normalizedError)
+        reject(normalizedError)
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor summaries request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleLoadedWrap = (data: any) => { clearTo(); handleLoaded(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorSummariesLoading', handleLoading)
+      hub.on('TutorSummariesLoaded', handleLoadedWrap)
+      hub.on('TutorSummariesError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestTutorSummaries', conversationId, pageNumber, normalizedPageSize).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorSummaryHistory.set(key, p)
+  return p
+}
+
 // ==== Request resolve tutor conversation (pure SignalR) ====
 export async function requestResolveTutorConversation(
   learningPathId: string | null,
@@ -1315,9 +1572,9 @@ export async function requestResolveTutorConversation(
   lessonId: string | null,
   createIfMissing: boolean = true,
   onLoading?: () => void,
-  onResolved?: (data: any) => void,
+  onResolved?: (data: TutorConversationResolvedPayload) => void,
   onResolveError?: (error: TutorHubError) => void
-): Promise<any> {
+): Promise<TutorConversationResolvedPayload> {
   // single-flight: return running promise for same context
   const key = `resolve-${learningPathId || 'null'}-${chapterId || 'null'}-${lessonId || 'null'}`
   if (inflightTutorConversationResolve.has(key)) {
@@ -1328,7 +1585,7 @@ export async function requestResolveTutorConversation(
   const p = (async () => {
     const hub = await getTutorHub()
 
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<TutorConversationResolvedPayload>((resolve, reject) => {
       let done = false
       const cleanup = () => {
         hub.off('TutorConversationResolveStarted', handleStarted)
@@ -1343,12 +1600,13 @@ export async function requestResolveTutorConversation(
 
       const handleResolved = (data: any) => {
         if (data) {
-          onResolved?.(data)
+          const normalized = normalizeTutorConversationResolvedPayload(data)
+          onResolved?.(normalized)
           
           if (done) return
           done = true
           cleanup()
-          resolve(data)
+          resolve(normalized)
         }
       }
 
@@ -1538,6 +1796,7 @@ export async function disconnectHubs(): Promise<void> {
     inflightAdoptSuggestedPath.clear()
     inflightTutorMessages.clear()
     inflightTutorMessageHistory.clear()
+    inflightTutorSummaryHistory.clear()
     inflightTutorConversationResolve.clear()
     notificationReceiveListeners.clear()
     notificationUnreadCountListeners.clear()

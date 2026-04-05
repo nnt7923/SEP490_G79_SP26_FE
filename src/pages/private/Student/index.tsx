@@ -762,9 +762,11 @@ const StudentIndex: React.FC = () => {
     if (itemType === 'lesson') {
       const lessonId = readTimelineIdField(item, ['lessonId', 'LessonId', 'itemId', 'id'])
       if (!lessonId) return
+      const chapterId = readTimelineIdField(item, ['chapterId', 'ChapterId'])
       const lessonTitle = String(item.title ?? '').trim()
       const chapterTitle = String(item.chapterTitle ?? item.learningPathTitle ?? '').trim()
       const lessonState = {
+        chapterId,
         lessonTitle,
         chapterTitle,
       }
