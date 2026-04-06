@@ -203,9 +203,21 @@ const ResultPage: React.FC = () => {
   }, [activeChapterId])
 
   // Handle lesson click - navigate to lesson detail page
-  const handleLessonClick = (lessonId: string) => {
-    // Navigate to lesson detail page with skeleton data
-    navigate(`/lesson/${lessonId}`, { state: { skeleton } })
+  const handleLessonClick = (
+    lessonId: string,
+    chapterId?: string | null,
+    chapterTitle?: string,
+    lessonTitle?: string,
+  ) => {
+    // Navigate to lesson detail page with skeleton and chapter context
+    navigate(`/lesson/${lessonId}`, {
+      state: {
+        skeleton,
+        chapterId: chapterId || null,
+        chapterTitle: chapterTitle || null,
+        lessonTitle: lessonTitle || null,
+      },
+    })
   }
 
   const isLessonCompleted = (lesson: any) => {
@@ -408,7 +420,14 @@ const ResultPage: React.FC = () => {
                                 <div style={{ flex: 1 }}>
                                   <button
                                     className="lesson-link"
-                                    onClick={() => handleLessonClick(lesson.id)}
+                                    onClick={() =>
+                                      handleLessonClick(
+                                        lesson.id,
+                                        chapter?.id ?? chapter?.chapterId ?? null,
+                                        chapter?.title,
+                                        lesson?.title,
+                                      )
+                                    }
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
                                       fontSize: 15, fontWeight: 600, color: lessonCompleted ? 'var(--success-primary)' : 'var(--text-primary)', cursor: 'pointer',

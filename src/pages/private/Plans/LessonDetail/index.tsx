@@ -97,6 +97,11 @@ const setCachedTutorConversationId = (chapterId: string | null | undefined, conv
   }
 }
 
+const normalizeEntityId = (value: unknown): string => {
+  const normalized = String(value ?? '').trim()
+  return normalized
+}
+
 const extractSectionByMarkers = (markdown: string, key: LessonSectionKey): string => {
   const start = `<!-- SECTION:${key}:start -->`
   const end = `<!-- SECTION:${key}:end -->`
@@ -216,17 +221,34 @@ const LessonDetailPage: React.FC = () => {
     return skeleton.chapters.flatMap((chapter: any, chapterIdx: number) => 
       (chapter.lessons || []).map((lesson: any, lessonIdx: number) => ({
         ...lesson,
+        id: normalizeEntityId(lesson?.id ?? lesson?.lessonId),
         chapterTitle: chapter.title,
         chapterIndex: chapterIdx,
-        chapterId: chapter.id,
+        chapterId: normalizeEntityId(chapter?.id ?? chapter?.chapterId),
         lessonIndex: lessonIdx
       }))
     )
   }, [skeleton])
 
+  const chapterIdFromState = useMemo(() => {
+    return normalizeEntityId(location?.state?.chapterId ?? location?.state?.activeChapterId) || null
+  }, [location?.state?.activeChapterId, location?.state?.chapterId])
+
   const currentLessonIndex = useMemo(() => {
-    return allLessons.findIndex((l: any) => l.id === lessonId)
-  }, [allLessons, lessonId])
+    const targetLessonId = normalizeEntityId(lessonId)
+    if (!targetLessonId) return -1
+
+    if (chapterIdFromState) {
+      const indexByChapter = allLessons.findIndex(
+        (lesson: any) =>
+          normalizeEntityId(lesson.id) === targetLessonId &&
+          normalizeEntityId(lesson.chapterId) === chapterIdFromState
+      )
+      if (indexByChapter >= 0) return indexByChapter
+    }
+
+    return allLessons.findIndex((l: any) => normalizeEntityId(l.id) === targetLessonId)
+  }, [allLessons, lessonId, chapterIdFromState])
 
   const currentLesson = allLessons[currentLessonIndex]
   const displayLesson = useMemo(() => {
@@ -242,7 +264,7 @@ const LessonDetailPage: React.FC = () => {
   }, [currentLesson, lessonId, location?.state?.chapterTitle, location?.state?.lessonTitle, t])
   const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null
   const nextLesson = currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
-  const currentChapterId = currentLesson?.chapterId
+  const currentChapterId = normalizeEntityId(currentLesson?.chapterId) || chapterIdFromState || null
   const isLessonContentReady = !loading && !error && md.trim().length > 0
   const canShowMarkRead = isLessonContentReady
   const canShowLessonNavigation = isLessonContentReady
@@ -251,7 +273,10 @@ const LessonDetailPage: React.FC = () => {
     : t('lessonDetail.markRead', 'Mark lesson as completed')
 
   useEffect(() => {
-    if (!currentChapterId) return
+    if (!currentChapterId) {
+      setConversationId(null)
+      return
+    }
 
     const cachedConversationId = getCachedTutorConversationId(currentChapterId)
     if (cachedConversationId) {
@@ -380,35 +405,35 @@ const LessonDetailPage: React.FC = () => {
   // Resolve tutor conversation when entering lesson
   useEffect(() => {
     if (!lessonId) return
+    if (!currentChapterId) {
+      setConversationId(null)
+      return
+    }
+
+    let cancelled = false
 
     const resolveConversation = async () => {
       try {
         setIsResolvingTutorConversation(true)
         setTutorResolveErrorCode(null)
 
-        const cachedConversationId = getCachedTutorConversationId(currentChapterId)
+        const learningPathId = String(skeleton?.pathId || skeleton?.id || '').trim() || null
+        const chapterIdForTutor = String(currentChapterId || '').trim() || null
+        const lessonIdForTutor = String(lessonId || '').trim() || null
 
         const result = await requestResolveTutorConversation(
-          null, // learningPathId
-          null, // chapterId
-          lessonId, // lessonId
+          learningPathId,
+          chapterIdForTutor,
+          lessonIdForTutor,
           true, // createIfMissing
           () => {
             // onLoading - already set loading above
           },
           (data) => {
             // onResolved
+            if (cancelled) return
             const incomingConversationId = data?.conversationId || null
-            const shouldKeepCachedConversation = Boolean(
-              cachedConversationId &&
-              incomingConversationId &&
-              incomingConversationId !== cachedConversationId &&
-              data?.created === true,
-            )
-
-            const finalConversationId = shouldKeepCachedConversation
-              ? cachedConversationId
-              : incomingConversationId
+            const finalConversationId = incomingConversationId
 
             if (finalConversationId) {
               setConversationId(finalConversationId)
@@ -422,19 +447,12 @@ const LessonDetailPage: React.FC = () => {
           },
         )
 
-        // Set conversation data from result
-        if (result?.conversationId || cachedConversationId) {
-          const incomingConversationId = result?.conversationId || null
-          const shouldKeepCachedConversation = Boolean(
-            cachedConversationId &&
-            incomingConversationId &&
-            incomingConversationId !== cachedConversationId &&
-            result?.created === true,
-          )
+        if (cancelled) return
 
-          const finalConversationId = shouldKeepCachedConversation
-            ? cachedConversationId
-            : (incomingConversationId || cachedConversationId)
+        // Set conversation data from result
+        if (result?.conversationId) {
+          const incomingConversationId = result?.conversationId || null
+          const finalConversationId = incomingConversationId
 
           if (finalConversationId) {
             setConversationId(finalConversationId)
@@ -444,17 +462,23 @@ const LessonDetailPage: React.FC = () => {
           setTutorResolveErrorCode(null)
         }
       } catch (error: any) {
+        if (cancelled) return
         console.warn('Failed to resolve tutor conversation:', error.message)
         // Don't show error to user, just continue without conversation
         setConversationId(null)
         setTutorResolveErrorCode(error?.code || 'UNEXPECTED_ERROR')
       } finally {
-        setIsResolvingTutorConversation(false)
+        if (!cancelled) {
+          setIsResolvingTutorConversation(false)
+        }
       }
     }
 
     resolveConversation()
-  }, [lessonId, currentChapterId])
+    return () => {
+      cancelled = true
+    }
+  }, [lessonId, currentChapterId, skeleton?.id, skeleton?.pathId])
 
   // Fetch lesson content
   useEffect(() => {
@@ -686,7 +710,14 @@ const LessonDetailPage: React.FC = () => {
                 <div style={{ display: 'flex', gap: 24, justifyContent: 'space-between' }}>
                   {prevLesson ? (
                     <button
-                      onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
+                      onClick={() => navigate(`/lesson/${prevLesson.id}`, {
+                        state: {
+                          skeleton,
+                          chapterId: normalizeEntityId(prevLesson?.chapterId) || null,
+                          chapterTitle: prevLesson?.chapterTitle,
+                          lessonTitle: prevLesson?.title,
+                        }
+                      })}
                       style={{
                         flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
                         borderRadius: 6, cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8
@@ -701,7 +732,14 @@ const LessonDetailPage: React.FC = () => {
 
                   {nextLesson ? (
                     <button
-                      onClick={() => navigate(`/lesson/${nextLesson.id}`, { state: { skeleton } })}
+                      onClick={() => navigate(`/lesson/${nextLesson.id}`, {
+                        state: {
+                          skeleton,
+                          chapterId: normalizeEntityId(nextLesson?.chapterId) || null,
+                          chapterTitle: nextLesson?.chapterTitle,
+                          lessonTitle: nextLesson?.title,
+                        }
+                      })}
                       style={{
                         flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
                         borderRadius: 6, cursor: 'pointer', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 8
@@ -835,8 +873,9 @@ const LessonDetailPage: React.FC = () => {
       
       {/* AI Tutor Chatbot - Only show in lesson pages */}
       <TutorChatbot
+        key={`tutor-chat-${currentChapterId || 'none'}`}
         conversationId={conversationId}
-        learningPathId={null}
+        learningPathId={String(skeleton?.pathId || skeleton?.id || '').trim() || null}
         chapterId={currentChapterId || null}
         lessonId={lessonId || null}
         chapterTitle={displayLesson.chapterTitle || null}

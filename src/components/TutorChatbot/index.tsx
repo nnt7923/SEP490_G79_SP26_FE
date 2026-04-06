@@ -1,6 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Send, X, Minimize2, Maximize2, Bot, User, Loader2 } from 'lucide-react'
-import { sendTutorMessage, requestTutorMessages, type TutorHubError } from '../../services/SignalR'
+import {
+  sendTutorMessage,
+  requestTutorMessages,
+  requestTutorSummaries,
+  type TutorHubError,
+  type TutorMessagesPageResponse,
+  type TutorSummaryHistoryItem,
+} from '../../services/SignalR'
 import Toast from '../Toast'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
@@ -12,11 +19,38 @@ interface Message {
   content: string
   timestamp: Date
   isLoading?: boolean
+  contextUsagePercent?: number
+}
+
+type ChatTab = 'messages' | 'summaries'
+
+const createEmptySummaryState = (): SummaryState => ({
+  items: [],
+  pageNumber: 1,
+  pageSize: SUMMARY_PAGE_SIZE,
+  totalCount: 0,
+  totalPages: 1,
+  hasPreviousPage: false,
+  hasNextPage: false,
+})
+
+type SummaryState = {
+  items: TutorSummaryHistoryItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
 }
 
 const TUTOR_MESSAGE_CACHE_KEY = 'tutorMessagesByConversation'
+const TUTOR_CONTEXT_USAGE_CACHE_KEY = 'tutorContextUsageByConversation'
+const MESSAGE_PAGE_SIZE = 100
+const MESSAGE_INITIAL_TARGET = 120
+const SUMMARY_PAGE_SIZE = 20
 
-const readTutorMessageCache = (): Record<string, Array<{ id: string; type: 'user' | 'assistant'; content: string; timestamp: string }>> => {
+const readTutorMessageCache = (): Record<string, Array<{ id: string; type: 'user' | 'assistant'; content: string; timestamp: string; contextUsagePercent?: number }>> => {
   try {
     const raw = sessionStorage.getItem(TUTOR_MESSAGE_CACHE_KEY)
     const parsed = raw ? JSON.parse(raw) : {}
@@ -39,6 +73,7 @@ const writeTutorMessageCache = (
         type: message.type,
         content: message.content,
         timestamp: message.timestamp.toISOString(),
+        contextUsagePercent: message.contextUsagePercent,
       }))
     sessionStorage.setItem(TUTOR_MESSAGE_CACHE_KEY, JSON.stringify(cache))
   } catch {
@@ -55,18 +90,100 @@ const getCachedTutorMessages = (conversationId: string): Message[] => {
       type: item.type,
       content: item.content,
       timestamp: new Date(item.timestamp),
+      contextUsagePercent: parseContextUsagePercent(item.contextUsagePercent),
     }))
   } catch {
     return []
   }
 }
 
-const normalizeHistoryItems = (payload: any): any[] => {
+const readTutorContextUsageCache = (): Record<string, number> => {
+  try {
+    const raw = sessionStorage.getItem(TUTOR_CONTEXT_USAGE_CACHE_KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const getCachedTutorContextUsagePercent = (conversationId: string | null | undefined): number | null => {
+  if (!conversationId) return null
+  try {
+    const cache = readTutorContextUsageCache()
+    const value = Number(cache[conversationId])
+    return Number.isFinite(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+const setCachedTutorContextUsagePercent = (conversationId: string | null | undefined, contextUsagePercent: number | null | undefined) => {
+  if (!conversationId) return
+  const value = Number(contextUsagePercent)
+  if (!Number.isFinite(value)) return
+
+  try {
+    const cache = readTutorContextUsageCache()
+    cache[conversationId] = value
+    sessionStorage.setItem(TUTOR_CONTEXT_USAGE_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // ignore cache failures
+  }
+}
+
+const parseContextUsagePercent = (value: unknown): number | undefined => {
+  if (value === null || value === undefined || value === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const extractContextUsagePercent = (payload: any): number | undefined => {
+  return parseContextUsagePercent(payload?.contextUsagePercent ?? payload?.ContextUsagePercent)
+}
+
+const normalizeHistoryItems = (payload: TutorMessagesPageResponse | any): any[] => {
   if (Array.isArray(payload?.items)) return payload.items
   if (Array.isArray(payload?.Items)) return payload.Items
   if (Array.isArray(payload?.data?.items)) return payload.data.items
   if (Array.isArray(payload?.data?.Items)) return payload.data.Items
   return []
+}
+
+const readTutorContextThresholdPercent = (): number => {
+  const fallback = 70
+  try {
+    const candidateRaw =
+      sessionStorage.getItem('aiConfigJson')
+      || localStorage.getItem('aiConfigJson')
+      || sessionStorage.getItem('configJson')
+      || localStorage.getItem('configJson')
+
+    if (!candidateRaw) return fallback
+
+    const parsed = JSON.parse(candidateRaw)
+    const direct = Number(
+      parsed?.contextWindowWarningPercent
+      ?? parsed?.summaryTriggerPercent
+      ?? parsed?.ContextWindowWarningPercent
+      ?? parsed?.SummaryTriggerPercent
+    )
+
+    if (Number.isFinite(direct) && direct > 0 && direct <= 100) {
+      return direct
+    }
+
+    return fallback
+  } catch {
+    return fallback
+  }
+}
+
+const formatSummaryTime = (value?: string | null) => {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return parsed.toLocaleString()
 }
 
 interface TutorChatbotProps {
@@ -82,6 +199,7 @@ interface TutorChatbotProps {
 
 const TutorChatbot: React.FC<TutorChatbotProps> = ({
   conversationId = null,
+  learningPathId = null,
   chapterId = null,
   lessonId = null,
   chapterTitle = null,
@@ -97,11 +215,20 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
   const [inputMessage, setInputMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId)
+  const [activeTab, setActiveTab] = useState<ChatTab>('messages')
   const [messagesLoaded, setMessagesLoaded] = useState(false)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [loadingSummaries, setLoadingSummaries] = useState(false)
+  const [summariesLoaded, setSummariesLoaded] = useState(false)
+  const [latestContextUsagePercent, setLatestContextUsagePercent] = useState<number | null>(null)
+  const [isUsageHovering, setIsUsageHovering] = useState(false)
+  const [usageTooltipPosition, setUsageTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [summaryState, setSummaryState] = useState<SummaryState>(createEmptySummaryState)
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'warning' | 'info' } | null>(null)
+  const [contextThresholdPercent] = useState<number>(() => readTutorContextThresholdPercent())
 
   const previousChapterIdRef = useRef<string | null>(chapterId)
+  const previousConversationIdRef = useRef<string | null>(conversationId || null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -160,7 +287,7 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
     })
 
     return () => window.cancelAnimationFrame(frameId)
-  }, [isOpen, isMinimized, currentConversationId, messagesLoaded, loadingHistory])
+  }, [isOpen, isMinimized, currentConversationId, messagesLoaded, loadingHistory, loadingSummaries, activeTab])
 
   useEffect(() => {
     if (isOpen && !isMinimized && inputRef.current) {
@@ -174,13 +301,31 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
       setMessages([])
       setMessagesLoaded(false)
       setCurrentConversationId(null)
+      setSummariesLoaded(false)
+      setSummaryState(createEmptySummaryState())
+      setLatestContextUsagePercent(null)
+      setActiveTab('messages')
     }
     previousChapterIdRef.current = chapterId
   }, [chapterId])
 
   useEffect(() => {
-    setCurrentConversationId(conversationId || null)
+    const nextConversationId = conversationId || null
+    const previousConversationId = previousConversationIdRef.current
+    const conversationChanged = previousConversationId !== nextConversationId
+
+    setCurrentConversationId(nextConversationId)
     setMessagesLoaded(false)
+    setSummariesLoaded(false)
+
+    if (conversationChanged) {
+      setMessages([])
+      setSummaryState(createEmptySummaryState())
+      setLatestContextUsagePercent(getCachedTutorContextUsagePercent(nextConversationId))
+      setActiveTab('messages')
+    }
+
+    previousConversationIdRef.current = nextConversationId
   }, [conversationId])
 
   useEffect(() => {
@@ -189,8 +334,25 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
     if (cachedMessages.length > 0) {
       setMessages(cachedMessages)
       setMessagesLoaded(true)
+      const lastAssistantWithContext = [...cachedMessages]
+        .reverse()
+        .find((message) => message.type === 'assistant' && typeof message.contextUsagePercent === 'number')
+      setLatestContextUsagePercent(
+        typeof lastAssistantWithContext?.contextUsagePercent === 'number'
+          ? lastAssistantWithContext.contextUsagePercent
+          : getCachedTutorContextUsagePercent(currentConversationId)
+      )
+      return
     }
+
+    setLatestContextUsagePercent(getCachedTutorContextUsagePercent(currentConversationId))
   }, [currentConversationId])
+
+  useEffect(() => {
+    if (!currentConversationId) return
+    if (typeof latestContextUsagePercent !== 'number') return
+    setCachedTutorContextUsagePercent(currentConversationId, latestContextUsagePercent)
+  }, [currentConversationId, latestContextUsagePercent])
 
   useEffect(() => {
     if (!currentConversationId) return
@@ -203,7 +365,20 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
     setToast({ message: mapTutorErrorCodeToMessage(resolveErrorCode), type: 'error' })
   }, [resolveErrorCode])
 
-  // Load message history when chat is opened and we have a conversation ID
+  // Prefetch message history right after conversation is resolved/available
+  useEffect(() => {
+    if (!currentConversationId || messagesLoaded || loadingHistory) return
+    loadMessageHistory(currentConversationId)
+  }, [currentConversationId, messagesLoaded, loadingHistory])
+
+  // Load summaries when summaries tab is opened
+  useEffect(() => {
+    if (activeTab !== 'summaries') return
+    if (!currentConversationId || summariesLoaded || loadingSummaries) return
+    loadSummaryHistory(currentConversationId)
+  }, [activeTab, currentConversationId, summariesLoaded, loadingSummaries])
+
+  // Keep old behavior: also fetch history when opening chat if needed
   useEffect(() => {
     if (isOpen && !isMinimized && currentConversationId && !messagesLoaded && !loadingHistory) {
       loadMessageHistory(currentConversationId)
@@ -213,18 +388,30 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
   const loadMessageHistory = async (targetConversationId: string) => {
     setLoadingHistory(true)
     try {
-      const result = await requestTutorMessages(
-        targetConversationId,
-        1,
-        30,
-        undefined,
-        undefined,
-        (error) => {
-          setToast({ message: mapTutorErrorCodeToMessage(error?.code), type: 'error' })
-        },
-      )
+      let currentPage = 1
+      let hasNextPage = true
+      const aggregatedItems: any[] = []
 
-      const historyItems = normalizeHistoryItems(result)
+      while (hasNextPage && aggregatedItems.length < MESSAGE_INITIAL_TARGET) {
+        const pageResult = await requestTutorMessages(
+          targetConversationId,
+          currentPage,
+          MESSAGE_PAGE_SIZE,
+          undefined,
+          undefined,
+          (error) => {
+            setToast({ message: mapTutorErrorCodeToMessage(error?.code), type: 'error' })
+          },
+        )
+
+        const pageItems = normalizeHistoryItems(pageResult)
+        aggregatedItems.push(...pageItems)
+
+        hasNextPage = Boolean(pageResult?.hasNextPage)
+        currentPage += 1
+      }
+
+      const historyItems = aggregatedItems
 
       if (historyItems.length > 0) {
         const historyMessages: Message[] = historyItems.flatMap((item: any) => {
@@ -239,15 +426,19 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
               })
             }
             if (item?.assistantMessage) {
+              const contextUsagePercent = extractContextUsagePercent(item)
               mixed.push({
                 id: item?.assistantMessageId || `assistant-${Date.now()}-${Math.random()}`,
                 type: 'assistant',
                 content: item.assistantMessage,
                 timestamp: new Date(item?.createdAt || Date.now()),
+                ...(typeof contextUsagePercent === 'number' ? { contextUsagePercent } : {}),
               })
             }
             return mixed
           }
+
+          const contextUsagePercent = extractContextUsagePercent(item)
 
           return [{
           id: item.messageId || `msg-${Date.now()}-${Math.random()}`,
@@ -257,10 +448,26 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
               : 'assistant',
           content: item.content || item.message || '',
           timestamp: new Date(item.createdAt || Date.now()),
+          ...(typeof contextUsagePercent === 'number' ? { contextUsagePercent } : {}),
           }]
         })
         setMessages(historyMessages)
         writeTutorMessageCache(targetConversationId, historyMessages)
+
+        const lastAssistantWithContext = [...historyMessages]
+          .reverse()
+          .find((message) => message.type === 'assistant' && typeof message.contextUsagePercent === 'number')
+        setLatestContextUsagePercent(
+          typeof lastAssistantWithContext?.contextUsagePercent === 'number'
+            ? lastAssistantWithContext.contextUsagePercent
+            : getCachedTutorContextUsagePercent(targetConversationId)
+        )
+
+        if (typeof lastAssistantWithContext?.contextUsagePercent === 'number') {
+          setCachedTutorContextUsagePercent(targetConversationId, lastAssistantWithContext.contextUsagePercent)
+        }
+      } else {
+        setLatestContextUsagePercent(getCachedTutorContextUsagePercent(targetConversationId))
       }
 
       setMessagesLoaded(true)
@@ -270,6 +477,42 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
       setMessagesLoaded(true)
     } finally {
       setLoadingHistory(false)
+    }
+  }
+
+  const loadSummaryHistory = async (targetConversationId: string, forceReload: boolean = false) => {
+    if (loadingSummaries) return
+    if (summariesLoaded && !forceReload) return
+
+    setLoadingSummaries(true)
+    try {
+      const result = await requestTutorSummaries(
+        targetConversationId,
+        1,
+        SUMMARY_PAGE_SIZE,
+        undefined,
+        undefined,
+        (error) => {
+          setToast({ message: mapTutorErrorCodeToMessage(error?.code), type: 'error' })
+        },
+      )
+
+      setSummaryState({
+        items: result.items,
+        pageNumber: result.pageNumber,
+        pageSize: result.pageSize,
+        totalCount: result.totalCount,
+        totalPages: result.totalPages,
+        hasPreviousPage: result.hasPreviousPage,
+        hasNextPage: result.hasNextPage,
+      })
+      setSummariesLoaded(true)
+    } catch (error: any) {
+      const tutorError = error as TutorHubError
+      setToast({ message: mapTutorErrorCodeToMessage(tutorError?.code), type: 'error' })
+      setSummariesLoaded(true)
+    } finally {
+      setLoadingSummaries(false)
     }
   }
 
@@ -308,20 +551,41 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
     try {
       const result = await sendTutorMessage(
         currentConversationId,
-        null,
-        null,
+        learningPathId,
+        chapterId,
         lessonId,
         message,
         () => {
           setIsSending(true)
         },
         (data) => {
+          const contextUsagePercent = extractContextUsagePercent(data)
           // Message received
           const assistantMessage: Message = {
             id: data.assistantMessageId || `assistant-${Date.now()}`,
             type: 'assistant',
             content: data.assistantMessage || '',
-            timestamp: new Date(data.createdAt || Date.now())
+            timestamp: new Date(data.createdAt || Date.now()),
+            ...(typeof contextUsagePercent === 'number' ? { contextUsagePercent } : {}),
+          }
+
+          if (typeof assistantMessage.contextUsagePercent === 'number') {
+            setLatestContextUsagePercent(assistantMessage.contextUsagePercent)
+            setCachedTutorContextUsagePercent(currentConversationId, assistantMessage.contextUsagePercent)
+            if (assistantMessage.contextUsagePercent >= contextThresholdPercent) {
+              setActiveTab('summaries')
+              const targetConversationId = data.conversationId || currentConversationId
+              if (targetConversationId) {
+                loadSummaryHistory(targetConversationId, true)
+              }
+              setToast({
+                message: t('tutorChat.contextWarning', {
+                  percent: assistantMessage.contextUsagePercent.toFixed(2),
+                  threshold: contextThresholdPercent,
+                }),
+                type: 'info',
+              })
+            }
           }
 
           // Update conversation ID if this is a new conversation
@@ -341,11 +605,18 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
 
       // Fallback if onMessageReceived wasn't called
       if (result && !messages.find(m => m.id === result.assistantMessageId)) {
+        const contextUsagePercent = extractContextUsagePercent(result)
         const assistantMessage: Message = {
           id: result.assistantMessageId || `assistant-${Date.now()}`,
           type: 'assistant',
           content: result.assistantMessage || '',
-          timestamp: new Date(result.createdAt || Date.now())
+          timestamp: new Date(result.createdAt || Date.now()),
+          ...(typeof contextUsagePercent === 'number' ? { contextUsagePercent } : {}),
+        }
+
+        if (typeof assistantMessage.contextUsagePercent === 'number') {
+          setLatestContextUsagePercent(assistantMessage.contextUsagePercent)
+          setCachedTutorContextUsagePercent(currentConversationId, assistantMessage.contextUsagePercent)
         }
 
         if (result.conversationId && !currentConversationId) {
@@ -400,34 +671,42 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
     : (isExpanded
       ? 'min(620px, calc(100vh - 140px))'
       : 'min(500px, calc(100vh - 140px))')
+  const usagePercentValue = Math.min(100, Math.max(0, Number(latestContextUsagePercent ?? 0)))
+  const usageIndicatorColor = usagePercentValue >= contextThresholdPercent
+    ? 'color-mix(in oklab, var(--warning-primary) 88%, #f59e0b)'
+    : 'color-mix(in oklab, var(--accent-primary) 72%, #22c55e)'
+  const usageIndicatorTrack = 'color-mix(in oklab, var(--border-base) 72%, var(--bg-main))'
 
   if (!isOpen) {
     return (
       <div style={{ position: 'fixed', bottom: 116, right: 20, zIndex: 1000 }}>
         <button
           onClick={toggleOpen}
+          aria-label={t('tutorChat.openTutor')}
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            background: 'linear-gradient(145deg, color-mix(in oklab, var(--accent-primary) 20%, var(--bg-surface)), color-mix(in oklab, #22D3EE 10%, var(--bg-surface)))',
-            border: '1px solid color-mix(in oklab, var(--accent-primary) 26%, var(--border-base))',
-            color: 'color-mix(in oklab, var(--accent-primary) 66%, #334155)',
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: 'linear-gradient(160deg, color-mix(in oklab, var(--bg-surface) 90%, var(--accent-primary)) 0%, color-mix(in oklab, var(--bg-surface) 84%, #38bdf8) 100%)',
+            border: '1px solid color-mix(in oklab, var(--accent-primary) 24%, var(--border-base))',
+            color: 'color-mix(in oklab, var(--accent-primary) 72%, var(--text-primary))',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 10px 24px rgba(37, 99, 235, 0.18)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18), 0 1px 0 rgba(255, 255, 255, 0.52) inset',
             transition: 'all 0.22s ease',
             position: 'relative'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-1px)'
-            e.currentTarget.style.boxShadow = '0 12px 28px rgba(37, 99, 235, 0.24)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+            e.currentTarget.style.boxShadow = '0 16px 30px rgba(15, 23, 42, 0.24), 0 1px 0 rgba(255, 255, 255, 0.58) inset'
+            e.currentTarget.style.borderColor = 'color-mix(in oklab, var(--accent-primary) 38%, var(--border-base))'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'translateY(0px)'
-            e.currentTarget.style.boxShadow = '0 10px 24px rgba(37, 99, 235, 0.18)'
+            e.currentTarget.style.boxShadow = '0 12px 28px rgba(15, 23, 42, 0.18), 0 1px 0 rgba(255, 255, 255, 0.52) inset'
+            e.currentTarget.style.borderColor = 'color-mix(in oklab, var(--accent-primary) 24%, var(--border-base))'
           }}
           title={t('tutorChat.openTutor')}
         >
@@ -437,32 +716,39 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <svg 
-              width="28" 
-              height="28" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              <circle cx="9" cy="10" r="1"/>
-              <circle cx="15" cy="10" r="1"/>
-              <path d="M9 14s1.5 1 3 1 3-1 3-1"/>
-            </svg>
+            <div
+              style={{
+                position: 'absolute',
+                inset: -5,
+                borderRadius: 12,
+                background: 'radial-gradient(circle at 30% 28%, color-mix(in oklab, white 56%, var(--accent-primary)) 0%, rgba(255, 255, 255, 0) 62%)',
+                pointerEvents: 'none',
+              }}
+            />
+            <Bot size={24} strokeWidth={2.1} />
           </div>
 
           <div style={{
             position: 'absolute',
             top: 7,
             right: 7,
-            width: 10,
-            height: 10,
+            width: 12,
+            height: 12,
             borderRadius: '50%',
-            background: 'color-mix(in oklab, #10B981 88%, white)',
-            border: '2px solid var(--bg-surface)'
+            background: 'color-mix(in oklab, #10b981 32%, white)',
+            pointerEvents: 'none',
+          }} />
+
+          <div style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: '#10B981',
+            border: '1.5px solid color-mix(in oklab, var(--bg-surface) 88%, white)',
+            boxShadow: '0 0 0 1px rgba(15, 23, 42, 0.08)'
           }} />
         </button>
       </div>
@@ -624,6 +910,12 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
                     <span>{t('tutorChat.loadingHistory')}</span>
                   </div>
                 )}
+                {loadingSummaries && (
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>{t('tutorChat.loadingSummaries')}</span>
+                  </div>
+                )}
                 {isSending && (
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Loader2 size={12} className="animate-spin" />
@@ -632,17 +924,55 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
                 )}
               </div>
 
-              <div
-                style={{
-                  flex: 1,
-                  padding: '14px 12px',
-                  overflowY: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                  background: 'linear-gradient(180deg, color-mix(in oklab, var(--accent-primary) 3%, var(--bg-main)) 0%, var(--bg-main) 34%)'
-                }}
-              >
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid color-mix(in oklab, var(--accent-primary) 14%, var(--border-base))', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'inline-flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('messages')}
+                    style={{
+                      border: activeTab === 'messages' ? '1px solid var(--accent-primary)' : '1px solid var(--border-base)',
+                      background: activeTab === 'messages' ? 'var(--bg-main)' : 'transparent',
+                      color: activeTab === 'messages' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      borderRadius: 999,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('tutorChat.messagesTab')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('summaries')}
+                    style={{
+                      border: activeTab === 'summaries' ? '1px solid var(--accent-primary)' : '1px solid var(--border-base)',
+                      background: activeTab === 'summaries' ? 'var(--bg-main)' : 'transparent',
+                      color: activeTab === 'summaries' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      borderRadius: 999,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('tutorChat.summariesTab')} ({summaryState.totalCount})
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === 'messages' ? (
+                <div
+                  style={{
+                    flex: 1,
+                    padding: '14px 12px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    background: 'linear-gradient(180deg, color-mix(in oklab, var(--accent-primary) 3%, var(--bg-main)) 0%, var(--bg-main) 34%)'
+                  }}
+                >
                 {messages.length === 0 && !loadingHistory && (
                   <div
                     style={{
@@ -794,7 +1124,61 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
-              </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    flex: 1,
+                    padding: '14px 12px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    background: 'linear-gradient(180deg, color-mix(in oklab, var(--accent-primary) 3%, var(--bg-main)) 0%, var(--bg-main) 34%)'
+                  }}
+                >
+                  {summaryState.items.length === 0 && !loadingSummaries ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 12, padding: '16px 0' }}>
+                      {t('tutorChat.noSummaries')}
+                    </div>
+                  ) : (
+                    <>
+                      {summaryState.items.map((summary) => (
+                        <div
+                          key={summary.summaryId}
+                          style={{
+                            border: '1px solid var(--border-base)',
+                            borderRadius: 10,
+                            padding: '10px 12px',
+                            background: 'var(--bg-surface)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {t('tutorChat.summaryLabel')}
+                            </span>
+                            <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                              {t('tutorChat.summaryMessages', { count: summary.messageCount })}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+                            {summary.summaryContent || '—'}
+                          </p>
+                          <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                            <span>{t('tutorChat.summaryRange', { start: formatSummaryTime(summary.startMessageCreatedAt), end: formatSummaryTime(summary.endMessageCreatedAt) })}</span>
+                            <span>{formatSummaryTime(summary.createdAt)}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {summaryState.totalPages > 1 && (
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right' }}>
+                          {t('tutorChat.summaryPage', { page: summaryState.pageNumber, total: summaryState.totalPages })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               <div
                 style={{
@@ -803,7 +1187,60 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
                   background: 'linear-gradient(180deg, color-mix(in oklab, var(--accent-primary) 5%, var(--bg-surface)), color-mix(in oklab, #06B6D4 2%, var(--bg-surface)))'
                 }}
               >
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div
+                    onMouseEnter={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect()
+                      setUsageTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top })
+                      setIsUsageHovering(true)
+                    }}
+                    onMouseMove={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect()
+                      setUsageTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top })
+                    }}
+                    onMouseLeave={() => setIsUsageHovering(false)}
+                    onFocus={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect()
+                      setUsageTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top })
+                      setIsUsageHovering(true)
+                    }}
+                    onBlur={() => setIsUsageHovering(false)}
+                    tabIndex={0}
+                    role="img"
+                    aria-label={t('tutorChat.contextUsageHover', { percent: usagePercentValue.toFixed(1) })}
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      position: 'relative',
+                      cursor: 'help',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: '50%',
+                        background: `conic-gradient(${usageIndicatorColor} ${usagePercentValue}%, ${usageIndicatorTrack} ${usagePercentValue}% 100%)`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          background: 'color-mix(in oklab, var(--bg-surface) 92%, var(--bg-main))',
+                        }}
+                      />
+                    </div>
+                  </div>
                   <input
                     ref={inputRef}
                     type="text"
@@ -857,6 +1294,30 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
           )}
         </div>
       </div>
+
+      {isUsageHovering && (
+        <div
+          style={{
+            position: 'fixed',
+            left: usageTooltipPosition.x,
+            top: usageTooltipPosition.y - 10,
+            transform: 'translate(-50%, -100%)',
+            padding: '6px 8px',
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#e5e7eb',
+            background: 'rgba(15, 23, 42, 0.96)',
+            border: '1px solid rgba(148, 163, 184, 0.35)',
+            boxShadow: '0 6px 16px rgba(2, 6, 23, 0.38)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            zIndex: 1400,
+          }}
+        >
+          {t('tutorChat.contextUsageHover', { percent: usagePercentValue.toFixed(1) })}
+        </div>
+      )}
 
       {toast && (
         <div style={{ position: 'fixed', top: 84, right: 20, zIndex: 1200 }}>
