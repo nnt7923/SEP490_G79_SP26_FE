@@ -7,6 +7,7 @@ import {
   hasShareVersionUpdatedSnapshot,
   resolveNotificationText,
   resolveShareVersionUpdatedNotificationText,
+  resolveShareVersionUpdatedTitleParts,
 } from './utils'
 import {
   extractShareIdFromNotification,
@@ -139,6 +140,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
           const hasSnapshot = hasShareVersionUpdatedSnapshot(notification)
           const hasShareContext = Boolean(shareId && shareUpdateContextById[shareId])
           const isShareContextLoading = Boolean(shareId && loadingShareContextIds[shareId])
+          const shareContext = shareId ? shareUpdateContextById[shareId] : undefined
 
           const shareText = isShareVersionUpdatedNotification(notification.type)
             ? (hasShareContext
@@ -150,6 +152,9 @@ const NotificationList: React.FC<NotificationListProps> = ({
                 }
                 : getShareVersionNotificationText(notification)))
             : baseText
+          const shareTitleParts = isShareVersionUpdatedNotification(notification.type)
+            ? resolveShareVersionUpdatedTitleParts(notification, shareContext)
+            : null
           const titleText = shareText.title
           const messageText = shareText.message
           return (
@@ -199,7 +204,40 @@ const NotificationList: React.FC<NotificationListProps> = ({
                     )}
                   </div>
                   <div style={{ color: titleOnly ? 'var(--text-primary)' : tone.text, fontSize: compact ? 13 : 14, fontWeight: 700, lineHeight: 1.4 }}>
-                    {titleText || notification.title}
+                    {shareTitleParts ? (
+                      <>
+                        <span style={{ color: titleOnly ? 'var(--text-primary)' : tone.text, fontWeight: 700 }}>
+                          {t('notification.shareVersionUpdated.titleLead', { defaultValue: 'Lộ trình' })}{' '}
+                        </span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 900 }}>
+                          {shareTitleParts.pathTitle}
+                        </span>
+                        <span style={{ color: titleOnly ? 'var(--text-primary)' : tone.text, fontWeight: 700 }}>
+                          {' '}
+                          {t('notification.shareVersionUpdated.titleBridge', { defaultValue: 'đã có phiên bản mới' })}
+                        </span>
+                        {shareTitleParts.version != null && (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              marginLeft: 8,
+                              padding: '2px 9px',
+                              borderRadius: 999,
+                              background: tone.accent,
+                              border: `1px solid ${tone.accent}`,
+                              color: '#fff',
+                              fontWeight: 800,
+                              letterSpacing: 0.2,
+                              boxShadow: `0 0 0 1px ${tone.accent}22`,
+                            }}
+                          >
+                            ver {shareTitleParts.version}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      titleText || notification.title
+                    )}
                   </div>
                   {!titleOnly && messageText && (
                     <div style={{ marginTop: 6, color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.5 }}>

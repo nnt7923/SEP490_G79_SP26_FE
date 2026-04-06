@@ -14,6 +14,11 @@ type ShareUpdateContextLike = {
   sourceLearningPathTitle?: string
 }
 
+export type ShareVersionUpdatedTitleParts = {
+  pathTitle: string
+  version: number | null
+}
+
 const SHARE_VERSION_UPDATED_TITLE_KEY = 'notification.shareVersionUpdated.title'
 const SHARE_VERSION_UPDATED_MESSAGE_KEY = 'notification.shareVersionUpdated.message'
 const NOTIFICATION_DEFAULT_TITLE_KEY = 'notification.default.title'
@@ -106,6 +111,23 @@ export function hasShareVersionUpdatedSnapshot(
   )
 }
 
+export function resolveShareVersionUpdatedTitleParts(
+  notification: Pick<NotificationDto, 'notifiedPathTitle' | 'notifiedSourceVersion'>,
+  fallbackContext?: ShareUpdateContextLike,
+): ShareVersionUpdatedTitleParts | null {
+  const pathTitle = stripTrailingVersionLabel(
+    normalizeText(notification.notifiedPathTitle)
+    || normalizeText(fallbackContext?.sourceLearningPathTitle),
+  )
+
+  if (!pathTitle) return null
+
+  return {
+    pathTitle,
+    version: notification.notifiedSourceVersion,
+  }
+}
+
 export function resolveShareVersionUpdatedNotificationText(
   notification: Pick<NotificationDto, 'type' | 'title' | 'message' | 'notifiedPathTitle' | 'notifiedMentorUserName' | 'notifiedSourceVersion'>,
   t: TranslateFn,
@@ -117,13 +139,11 @@ export function resolveShareVersionUpdatedNotificationText(
     return baseText
   }
 
-  const pathTitle = stripTrailingVersionLabel(
-    normalizeText(notification.notifiedPathTitle)
-    || normalizeText(fallbackContext?.sourceLearningPathTitle)
-  )
+  const titleParts = resolveShareVersionUpdatedTitleParts(notification, fallbackContext)
+  const pathTitle = titleParts?.pathTitle || ''
   const mentorName = normalizeText(notification.notifiedMentorUserName)
     || normalizeText(fallbackContext?.mentorUserName)
-  const sourceVersion = notification.notifiedSourceVersion
+  const sourceVersion = titleParts?.version ?? null
   const detailedTitle = pathTitle
     ? t(
       sourceVersion != null

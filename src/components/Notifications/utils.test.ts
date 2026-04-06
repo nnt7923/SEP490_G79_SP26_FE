@@ -4,6 +4,7 @@ import {
   resolveNotificationNavigationTarget,
   resolveNotificationText,
   resolveShareVersionUpdatedNotificationText,
+  resolveShareVersionUpdatedTitleParts,
 } from './utils'
 
 const translateMap: Record<string, string> = {
@@ -373,5 +374,20 @@ describe('notification text resolver', () => {
       notifiedSourceVersion: null,
       notifiedMentorUserName: '',
     })).toBe(false)
+  })
+
+  it('extracts highlighted title parts and strips duplicated trailing version from path title', () => {
+    expect(resolveShareVersionUpdatedTitleParts({
+      notifiedPathTitle: 'ABC ver 13',
+      notifiedSourceVersion: 13,
+    })).toEqual({
+      pathTitle: 'ABC',
+      version: 13,
+    })
+
+    expect(resolveShareVersionUpdatedTitleParts({
+      notifiedPathTitle: null,
+      notifiedSourceVersion: 13,
+    })).toBeNull()
   })
 })
