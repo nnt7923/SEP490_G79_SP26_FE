@@ -39,6 +39,11 @@ function toSafeNumber(value: unknown, fallback: number): number {
   return Number.isFinite(numeric) ? numeric : fallback
 }
 
+function toNullableNumber(value: unknown): number | null {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
 function normalizeAction(raw: unknown): NotificationAction {
   const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
   const targetTypeRaw = toSafeString(record.targetType)
@@ -73,6 +78,9 @@ function normalizeNotification(raw: unknown): NotificationDto {
     type: toNotificationType(record.type),
     title: String(record.title ?? 'Notification'),
     message: toSafeString(record.message),
+    notifiedPathTitle: toSafeString(record.notifiedPathTitle),
+    notifiedSourceVersion: toNullableNumber(record.notifiedSourceVersion),
+    notifiedMentorUserName: toSafeString(record.notifiedMentorUserName),
     createdAt: String(record.createdAt ?? ''),
     isRead: toBoolean(record.isRead),
     readAt: toSafeString(record.readAt),

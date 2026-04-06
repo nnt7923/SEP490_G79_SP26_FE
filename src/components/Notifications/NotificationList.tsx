@@ -1,7 +1,13 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { NotificationDto } from '../../types/notification'
-import { formatNotificationDate, getNotificationSeverityTone, resolveNotificationText } from './utils'
+import {
+  formatNotificationDate,
+  getNotificationSeverityTone,
+  hasShareVersionUpdatedSnapshot,
+  resolveNotificationText,
+  resolveShareVersionUpdatedNotificationText,
+} from './utils'
 import {
   extractShareIdFromNotification,
   getCachedShareUpdateContext,
@@ -41,7 +47,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
 
   React.useEffect(() => {
     const shareIds = Array.from(new Set(items
-      .filter((item) => isShareVersionUpdatedNotification(item.type))
+      .filter((item) => isShareVersionUpdatedNotification(item.type) && !hasShareVersionUpdatedSnapshot(item))
       .map((item) => extractShareIdFromNotification(item))
       .filter((id): id is string => Boolean(id))))
 
@@ -93,41 +99,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
   const getShareVersionNotificationText = React.useCallback((notification: NotificationDto) => {
     const shareId = extractShareIdFromNotification(notification)
     const context = shareId ? shareUpdateContextById[shareId] : undefined
-    const mentorName = String(context?.mentorUserName || '').trim()
-    const pathTitle = String(context?.sourceLearningPathTitle || '').trim()
-
-    if (mentorName && pathTitle) {
-      return {
-        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: '{{pathTitle}} has a new version' }),
-        message: t('notification.shareVersionUpdated.messageDetailed', {
-          mentorName,
-          pathTitle,
-          defaultValue: 'Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.',
-        }),
-      }
-    }
-
-    if (pathTitle) {
-      return {
-        title: t('notification.shareVersionUpdated.titleDetailed', { pathTitle, defaultValue: '{{pathTitle}} has a new version' }),
-        message: t('notification.shareVersionUpdated.messagePathOnly', {
-          pathTitle,
-          defaultValue: 'The shared learning path {{pathTitle}} has a new version from your mentor.',
-        }),
-      }
-    }
-
-    if (mentorName) {
-      return {
-        title: t('notification.shareVersionUpdated.title', { defaultValue: 'Learning path updated by mentor' }),
-        message: t('notification.shareVersionUpdated.messageMentorOnly', {
-          mentorName,
-          defaultValue: 'Mentor {{mentorName}} updated a shared learning path.',
-        }),
-      }
-    }
-
-    return resolveNotificationText(notification, t)
+    return resolveShareVersionUpdatedNotificationText(notification, t, context)
   }, [shareUpdateContextById, t])
 
   if (loading) {
@@ -164,13 +136,14 @@ const NotificationList: React.FC<NotificationListProps> = ({
           const shareId = isShareVersionUpdatedNotification(notification.type)
             ? extractShareIdFromNotification(notification)
             : null
+          const hasSnapshot = hasShareVersionUpdatedSnapshot(notification)
           const hasShareContext = Boolean(shareId && shareUpdateContextById[shareId])
           const isShareContextLoading = Boolean(shareId && loadingShareContextIds[shareId])
 
           const shareText = isShareVersionUpdatedNotification(notification.type)
             ? (hasShareContext
               ? getShareVersionNotificationText(notification)
-              : (isShareContextLoading
+              : (!hasSnapshot && isShareContextLoading
                 ? {
                   title: t('notification.shareVersionUpdated.loadingTitle', { defaultValue: 'Loading update details...' }),
                   message: t('notification.shareVersionUpdated.loadingMessage', { defaultValue: 'Fetching mentor and learning path details.' }),

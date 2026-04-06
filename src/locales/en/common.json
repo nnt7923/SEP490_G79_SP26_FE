@@ -113,6 +113,7 @@
       "title": "Learning path updated by mentor",
       "message": "A newer shared learning path version is available. Review changes and choose how to sync.",
       "titleDetailed": "{{pathTitle}} has a new version",
+      "titleDetailedWithVersion": "Learning path {{pathTitle}} has a new version ver {{version}}",
       "messageDetailed": "Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.",
       "messagePathOnly": "The shared learning path {{pathTitle}} has a new version from your mentor.",
       "messageMentorOnly": "Mentor {{mentorName}} updated a shared learning path.",

@@ -7,7 +7,12 @@ export type NotificationNavigationTarget = {
   state?: Record<string, unknown>
 }
 
-type TranslateFn = (key: string) => string
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string
+
+type ShareUpdateContextLike = {
+  mentorUserName?: string
+  sourceLearningPathTitle?: string
+}
 
 const SHARE_VERSION_UPDATED_TITLE_KEY = 'notification.shareVersionUpdated.title'
 const SHARE_VERSION_UPDATED_MESSAGE_KEY = 'notification.shareVersionUpdated.message'
@@ -16,6 +21,10 @@ const NOTIFICATION_DEFAULT_TITLE_KEY = 'notification.default.title'
 function normalizeText(value: unknown): string {
   if (typeof value !== 'string') return ''
   return value.trim()
+}
+
+function stripTrailingVersionLabel(value: string): string {
+  return value.replace(/\s+(?:ver|version)\s*\d+\s*$/i, '').trim()
 }
 
 function looksLikeI18nKey(value: string): boolean {
@@ -85,6 +94,81 @@ export function resolveNotificationText(
   const message = resolveFieldValue(rawMessage, notification.type, t, fallbackMessageByType)
 
   return { title, message }
+}
+
+export function hasShareVersionUpdatedSnapshot(
+  notification: Pick<NotificationDto, 'notifiedPathTitle' | 'notifiedMentorUserName' | 'notifiedSourceVersion'>,
+): boolean {
+  return Boolean(
+    normalizeText(notification.notifiedPathTitle)
+    || normalizeText(notification.notifiedMentorUserName)
+    || notification.notifiedSourceVersion != null,
+  )
+}
+
+export function resolveShareVersionUpdatedNotificationText(
+  notification: Pick<NotificationDto, 'type' | 'title' | 'message' | 'notifiedPathTitle' | 'notifiedMentorUserName' | 'notifiedSourceVersion'>,
+  t: TranslateFn,
+  fallbackContext?: ShareUpdateContextLike,
+): { title: string; message: string } {
+  const baseText = resolveNotificationText(notification, t)
+
+  if (!isShareVersionUpdatedType(notification.type)) {
+    return baseText
+  }
+
+  const pathTitle = stripTrailingVersionLabel(
+    normalizeText(notification.notifiedPathTitle)
+    || normalizeText(fallbackContext?.sourceLearningPathTitle)
+  )
+  const mentorName = normalizeText(notification.notifiedMentorUserName)
+    || normalizeText(fallbackContext?.mentorUserName)
+  const sourceVersion = notification.notifiedSourceVersion
+  const detailedTitle = pathTitle
+    ? t(
+      sourceVersion != null
+        ? 'notification.shareVersionUpdated.titleDetailedWithVersion'
+        : 'notification.shareVersionUpdated.titleDetailed',
+      {
+        pathTitle,
+        version: sourceVersion,
+        defaultValue: 'Learning path {{pathTitle}} has a new version ver {{version}}',
+      },
+    )
+    : baseText.title
+
+  if (mentorName && pathTitle) {
+    return {
+      title: detailedTitle,
+      message: t('notification.shareVersionUpdated.messageDetailed', {
+        mentorName,
+        pathTitle,
+        defaultValue: 'Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.',
+      }),
+    }
+  }
+
+  if (pathTitle) {
+    return {
+      title: detailedTitle,
+      message: t('notification.shareVersionUpdated.messagePathOnly', {
+        pathTitle,
+        defaultValue: 'The shared learning path {{pathTitle}} has a new version from your mentor.',
+      }),
+    }
+  }
+
+  if (mentorName) {
+    return {
+      title: baseText.title,
+      message: t('notification.shareVersionUpdated.messageMentorOnly', {
+        mentorName,
+        defaultValue: 'Mentor {{mentorName}} updated a shared learning path.',
+      }),
+    }
+  }
+
+  return baseText
 }
 
 function extractShareIdFromUpdatePath(path: string): string | null {

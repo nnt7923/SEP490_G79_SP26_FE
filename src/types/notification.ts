@@ -26,6 +26,9 @@ export interface NotificationDto {
   type: string | null
   title: string
   message: string | null
+  notifiedPathTitle: string | null
+  notifiedSourceVersion: number | null
+  notifiedMentorUserName: string | null
   createdAt: string
   isRead: boolean
   readAt: string | null

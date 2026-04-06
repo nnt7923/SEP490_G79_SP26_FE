@@ -1,5 +1,6 @@
 import { getUpdateContext } from '../../services/LearningPathShareService'
 import type { NotificationDto } from '../../types/notification'
+import { hasShareVersionUpdatedSnapshot } from './utils'
 
 export type ShareUpdateContextSummary = {
   mentorUserName?: string
@@ -63,7 +64,7 @@ export async function loadShareUpdateContext(shareId: string): Promise<ShareUpda
 export async function prefetchShareUpdateContextsFromNotifications(notifications: NotificationDto[]): Promise<void> {
   const shareIds = Array.from(new Set(
     notifications
-      .filter((notification) => isShareVersionUpdatedNotification(notification.type))
+      .filter((notification) => isShareVersionUpdatedNotification(notification.type) && !hasShareVersionUpdatedSnapshot(notification))
       .map((notification) => extractShareIdFromNotification(notification))
       .filter((shareId): shareId is string => Boolean(shareId)),
   ))

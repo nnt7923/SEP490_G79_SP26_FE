@@ -1,13 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { resolveNotificationNavigationTarget, resolveNotificationText } from './utils'
+import {
+  hasShareVersionUpdatedSnapshot,
+  resolveNotificationNavigationTarget,
+  resolveNotificationText,
+  resolveShareVersionUpdatedNotificationText,
+} from './utils'
 
 const translateMap: Record<string, string> = {
   'notification.shareVersionUpdated.title': 'Learning path updated by mentor',
   'notification.shareVersionUpdated.message': 'A newer shared learning path version is available.',
+  'notification.shareVersionUpdated.titleDetailed': '{{pathTitle}} has a new version',
+  'notification.shareVersionUpdated.titleDetailedWithVersion': 'Learning path {{pathTitle}} has a new version ver {{version}}',
+  'notification.shareVersionUpdated.messageDetailed': 'Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.',
+  'notification.shareVersionUpdated.messagePathOnly': 'The shared learning path {{pathTitle}} has a new version from your mentor.',
+  'notification.shareVersionUpdated.messageMentorOnly': 'Mentor {{mentorName}} updated a shared learning path.',
   'notification.default.title': 'Notification',
 }
 
-const t = (key: string) => translateMap[key] ?? key
+const t = (key: string, options?: Record<string, unknown>) => {
+  const template = translateMap[key]
+  if (!template) return key
+
+  return template.replace(/\{\{(\w+)\}\}/g, (_, token: string) => {
+    const value = options?.[token]
+    return value == null ? '' : String(value)
+  })
+}
 
 describe('notification navigation resolver', () => {
   it('routes task notifications to learning path detail and keeps selected task metadata', () => {
@@ -17,6 +35,9 @@ describe('notification navigation resolver', () => {
       type: 'TaskOverdue',
       title: 'Task overdue',
       message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
       createdAt: '2026-03-30T07:00:00Z',
       isRead: false,
       readAt: null,
@@ -51,6 +72,9 @@ describe('notification navigation resolver', () => {
       type: 'PlanExpired',
       title: 'Plan expired',
       message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
       createdAt: '2026-03-30T07:00:00Z',
       isRead: false,
       readAt: null,
@@ -78,6 +102,9 @@ describe('notification navigation resolver', () => {
       type: 'PlanExpiringSoon',
       title: 'Plan expiring soon',
       message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
       createdAt: '2026-03-30T07:00:00Z',
       isRead: false,
       readAt: null,
@@ -105,6 +132,9 @@ describe('notification navigation resolver', () => {
       type: 'ShareVersionUpdated',
       title: 'Learning path updated',
       message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
       createdAt: '2026-03-30T07:00:00Z',
       isRead: false,
       readAt: null,
@@ -132,6 +162,9 @@ describe('notification navigation resolver', () => {
       type: 'ShareVersionUpdated',
       title: 'Learning path updated',
       message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
       createdAt: '2026-03-30T07:00:00Z',
       isRead: false,
       readAt: null,
@@ -159,6 +192,9 @@ describe('notification navigation resolver', () => {
       type: 'ShareVersionUpdated',
       title: 'Learning path updated',
       message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
       createdAt: '2026-03-30T07:00:00Z',
       isRead: false,
       readAt: null,
@@ -243,5 +279,99 @@ describe('notification text resolver', () => {
       title: 'Notification',
       message: '',
     })
+  })
+
+  it('prefers notification snapshot fields for share update copy', () => {
+    const text = resolveShareVersionUpdatedNotificationText(
+      {
+        type: 'ShareVersionUpdated',
+        title: 'notification.shareVersionUpdated.title',
+        message: 'notification.shareVersionUpdated.message',
+        notifiedPathTitle: 'Fullstack Path',
+        notifiedSourceVersion: 4,
+        notifiedMentorUserName: 'mentor-x',
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Learning path Fullstack Path has a new version ver 4',
+      message: 'Mentor mentor-x updated the shared learning path Fullstack Path.',
+    })
+  })
+
+  it('falls back to cached legacy context only when snapshot fields are missing', () => {
+    const text = resolveShareVersionUpdatedNotificationText(
+      {
+        type: 'ShareVersionUpdated',
+        title: 'notification.shareVersionUpdated.title',
+        message: 'notification.shareVersionUpdated.message',
+        notifiedPathTitle: null,
+        notifiedSourceVersion: null,
+        notifiedMentorUserName: null,
+      },
+      t,
+      {
+        sourceLearningPathTitle: 'Legacy Path',
+        mentorUserName: 'mentor-legacy',
+      },
+    )
+
+    expect(text).toEqual({
+      title: 'Legacy Path has a new version',
+      message: 'Mentor mentor-legacy updated the shared learning path Legacy Path.',
+    })
+  })
+
+  it('uses versioned title when path and version are available without mentor snapshot', () => {
+    const text = resolveShareVersionUpdatedNotificationText(
+      {
+        type: 'ShareVersionUpdated',
+        title: 'notification.shareVersionUpdated.title',
+        message: 'notification.shareVersionUpdated.message',
+        notifiedPathTitle: 'React Basics',
+        notifiedSourceVersion: 9,
+        notifiedMentorUserName: null,
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Learning path React Basics has a new version ver 9',
+      message: 'The shared learning path React Basics has a new version from your mentor.',
+    })
+  })
+
+  it('removes duplicated trailing version from path title before composing versioned title', () => {
+    const text = resolveShareVersionUpdatedNotificationText(
+      {
+        type: 'ShareVersionUpdated',
+        title: 'notification.shareVersionUpdated.title',
+        message: 'notification.shareVersionUpdated.message',
+        notifiedPathTitle: 'ABC ver 13',
+        notifiedSourceVersion: 13,
+        notifiedMentorUserName: null,
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Learning path ABC has a new version ver 13',
+      message: 'The shared learning path ABC has a new version from your mentor.',
+    })
+  })
+
+  it('detects snapshot presence from any share update snapshot field', () => {
+    expect(hasShareVersionUpdatedSnapshot({
+      notifiedPathTitle: null,
+      notifiedSourceVersion: 2,
+      notifiedMentorUserName: null,
+    })).toBe(true)
+
+    expect(hasShareVersionUpdatedSnapshot({
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: '',
+    })).toBe(false)
   })
 })

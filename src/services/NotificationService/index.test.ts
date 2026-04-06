@@ -28,6 +28,9 @@ describe('NotificationService', () => {
             type: 'PlanExpired',
             title: 'Expired',
             message: 'Your plan expired',
+            notifiedPathTitle: 'React Path',
+            notifiedSourceVersion: '7',
+            notifiedMentorUserName: 'mentor-a',
             createdAt: '2026-03-30T07:00:00Z',
             isRead: false,
             readAt: null,
@@ -57,6 +60,9 @@ describe('NotificationService', () => {
           type: 'PlanExpired',
           title: 'Expired',
           message: 'Your plan expired',
+          notifiedPathTitle: 'React Path',
+          notifiedSourceVersion: 7,
+          notifiedMentorUserName: 'mentor-a',
           createdAt: '2026-03-30T07:00:00Z',
           isRead: false,
           readAt: null,
@@ -79,6 +85,66 @@ describe('NotificationService', () => {
       totalCount: 45,
       hasNextPage: true,
       hasPreviousPage: true,
+    })
+  })
+
+  it('normalizes realtime snapshot fields and tolerates missing snapshot data', () => {
+    expect(NotificationService.normalizeRealtimeNotification({
+      notificationId: 'n-rt-1',
+      userId: 'u-2',
+      type: 'ShareVersionUpdated',
+      title: 'notification.shareVersionUpdated.title',
+      message: 'notification.shareVersionUpdated.message',
+      notifiedPathTitle: 'Backend Track',
+      notifiedSourceVersion: 12,
+      notifiedMentorUserName: 'mentor-b',
+      createdAt: '2026-03-30T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'High',
+      channels: ['Web'],
+      action: {
+        targetType: 'learningPathShareUpdate',
+        targetId: 'share-1',
+        targetUrl: '/learning-path-shares/share-1/updates',
+      },
+    })).toEqual({
+      notificationId: 'n-rt-1',
+      userId: 'u-2',
+      type: 'ShareVersionUpdated',
+      title: 'notification.shareVersionUpdated.title',
+      message: 'notification.shareVersionUpdated.message',
+      notifiedPathTitle: 'Backend Track',
+      notifiedSourceVersion: 12,
+      notifiedMentorUserName: 'mentor-b',
+      createdAt: '2026-03-30T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'High',
+      channels: ['Web'],
+      action: {
+        targetType: 'learningPathShareUpdate',
+        targetId: 'share-1',
+        targetUrl: '/learning-path-shares/share-1/updates',
+        route: null,
+        taskId: null,
+        chapterId: null,
+        lessonId: null,
+        learningPathId: null,
+      },
+    })
+
+    expect(NotificationService.normalizeRealtimeNotification({
+      notificationId: 'n-rt-2',
+      title: 'Notification',
+      createdAt: '2026-03-30T07:00:00Z',
+      notifiedPathTitle: null,
+      notifiedSourceVersion: 'not-a-number',
+      notifiedMentorUserName: '',
+    })).toMatchObject({
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
     })
   })
 
