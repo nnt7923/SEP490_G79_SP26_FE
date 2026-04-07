@@ -851,12 +851,18 @@
       "createNew": "Create New From Latest",
       "updateCurrent": "Update Current To Latest",
       "keepCurrent": "Keep Current",
+      "disableNotifications": "Turn off update notifications for this learning path",
+      "disableNotificationsConfirmTitle": "Turn off update notifications?",
+      "disableNotificationsConfirm": "Turn off notifications",
+      "disableNotificationsDescription": "You will keep your current learning path, but you will stop receiving notifications for newer versions of this share.",
+      "cancel": "Cancel",
       "creating": "Creating...",
       "updating": "Updating...",
       "saving": "Saving...",
       "createNewSuccess": "Created a new learning path from the latest shared version.",
       "updateCurrentSuccess": "Updated your current learning path to the latest shared version.",
-      "keepCurrentSuccess": "Kept your current learning path and ignored this version."
+      "keepCurrentSuccess": "Kept your current learning path and ignored this version.",
+      "disableNotificationsSuccess": "Kept your current learning path and turned off future update notifications for this share."
     },
     "errors": {
       "invalidShareId": "Invalid share ID.",

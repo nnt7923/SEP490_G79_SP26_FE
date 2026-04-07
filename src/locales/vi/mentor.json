@@ -118,6 +118,8 @@
     "sharing": "Đang gửi...",
     "shareSuccess": "Đã gửi lộ trình thành công",
     "shareAlreadyPending": "Lộ trình này đang chờ phản hồi từ học viên",
+    "shareMissingChapterTask": "Mỗi chapter phải có ít nhất 1 task trước khi chia sẻ.",
+    "shareMissingLessonQuiz": "Mỗi lesson phải có ít nhất 1 quiz trước khi chia sẻ.",
     "shareError": "Không thể chia sẻ lộ trình",
     "sharePathBtn": "Chia sẻ cho học viên",
     "pendingInvite": "Đang chờ",
@@ -157,6 +159,14 @@
     "detailLoadFailed": "Không thể tải AI draft",
     "detailNotFound": "Không tìm thấy AI draft"
   },
+  "learningPath": {
+    "draft": {
+      "save": {
+        "noMeaningfulChange": "Không có thay đổi đáng kể. Giữ nguyên phiên bản hiện tại.",
+        "versionBumped": "Đã lưu draft và tạo phiên bản mới."
+      }
+    }
+  },
   "drafts": {
     "brandName": "Drafts",
     "brandSubtitle": "Mentor",
@@ -169,6 +179,8 @@
     "expand": "Mở rộng",
     "manualCreateSuccess": "Tạo manual draft thành công",
     "manualUpdateSuccess": "Cập nhật draft thành công",
+    "noMeaningfulChange": "Không có thay đổi đáng kể",
+    "versionBumped": "Đã cập nhật phiên bản draft",
     "aiGenerateSuccess": "Tạo AI draft thành công",
     "createManualCta": "Tạo Manual Draft",
     "createManualTitle": "Tạo Manual Draft",
@@ -256,11 +268,16 @@
     "quizTitle": "Tên quiz",
     "quizTitleHint": "Đặt tiêu đề ngắn, bám đúng concept cần kiểm tra, ví dụ: React state basics.",
     "generateQuizByAi": "Generate câu hỏi bằng AI",
+    "generateAllLessonQuizzesByAi": "Generate quiz cho tất cả lesson bằng AI",
     "generatingQuiz": "Đang generate...",
+    "generatingAllLessonQuizzes": "Đang generate quiz cho tất cả lesson...",
     "saveBeforeGenerateQuiz": "Hãy lưu draft trước khi generate câu hỏi quiz bằng AI.",
     "quizGenerateSuccess": "Generate câu hỏi quiz bằng AI thành công.",
     "quizGenerateFailed": "Không thể generate câu hỏi quiz bằng AI.",
     "quizGenerateEmpty": "AI không trả về câu hỏi quiz nào.",
+    "noQuizzesToGenerate": "Chưa có quiz nào để generate.",
+    "quizGenerateAllSuccess": "Đã generate câu hỏi AI cho {{count}} quiz.",
+    "quizGenerateAllPartial": "Hoàn tất generate quiz với kết quả một phần. Thành công: {{generated}}, lỗi: {{failed}}, rỗng: {{empty}}, bỏ qua: {{skipped}}.",
     "quizJson": "JSON câu hỏi quiz",
     "quizJsonHint": "Dùng builder mode để sửa bình thường. Raw JSON phù hợp khi dán output AI hoặc sửa hàng loạt payload quiz.",
     "addChapter": "Thêm chapter",

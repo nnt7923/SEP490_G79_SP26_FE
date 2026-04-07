@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import Layout from '../../../../components/Layout'
+import ConfirmDialog from '../../../../components/ConfirmDialog'
 import Toast from '../../../../components/Toast'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import ROUTER from '../../../../router/ROUTER'
@@ -14,8 +15,11 @@ import type {
   LearningPathShareUpdateContextDto,
 } from '../../../../types/chat'
 import { clearUserLearningPathsCache } from '../../../../services/LearningPathService'
+import { clearCachedShareUpdateContext } from '../../../../components/Notifications/shareUpdateContextCache'
 import useAuthStore from '../../../../store/useAuthStore'
+import useAppNotificationStore from '../../../../store/useAppNotificationStore'
 import { useTranslation } from 'react-i18next'
+import { shouldShowShareUpdateBadge } from '../shareVersionBadge'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
 
@@ -32,11 +36,14 @@ const ShareUpdatesPage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { t } = useTranslation('student')
+  const refreshNotificationPanel = useAppNotificationStore((state) => state.refreshPanel)
+  const fetchNotificationUnreadCount = useAppNotificationStore((state) => state.fetchUnreadCount)
   const [loading, setLoading] = useState(true)
   const [context, setContext] = useState<LearningPathShareUpdateContextDto | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(null)
   const [actionLoading, setActionLoading] = useState<LearningPathShareUpdateAction | null>(null)
+  const [showDisableNotificationsConfirm, setShowDisableNotificationsConfirm] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
   const sidebarConfig = {
@@ -93,16 +100,30 @@ const ShareUpdatesPage: React.FC = () => {
     setActionLoading(action)
     try {
       await applyUpdate(context.shareId, action)
+      clearCachedShareUpdateContext(context.shareId)
       clearUserLearningPathsCache(user?.id)
+      const notificationState = useAppNotificationStore.getState()
+      await Promise.allSettled([
+        refreshNotificationPanel(),
+        fetchNotificationUnreadCount(),
+        notificationState.bootstrapped
+          ? notificationState.fetchPage({
+              pageNumber: notificationState.pageNumber,
+              pageSize: notificationState.pageSize,
+              unreadOnly: notificationState.unreadOnly,
+            })
+          : Promise.resolve(),
+      ])
 
       const successMessage =
         action === 'CreateNewFromLatest'
           ? t('shareUpdates.actions.createNewSuccess', { defaultValue: 'Created a new learning path from the latest shared version.' })
           : action === 'UpdateCurrentToLatest'
             ? t('shareUpdates.actions.updateCurrentSuccess', { defaultValue: 'Updated your current learning path to the latest shared version.' })
-            : t('shareUpdates.actions.keepCurrentSuccess', { defaultValue: 'Kept your current learning path and ignored this version.' })
+            : t('shareUpdates.actions.disableNotificationsSuccess', { defaultValue: 'Kept your current learning path and turned off future update notifications for this share.' })
 
       setToast({ message: successMessage, type: 'success' })
+      setShowDisableNotificationsConfirm(false)
       navigate(ROUTER.MY_PLANS)
     } catch (err: any) {
       const status = err?.response?.status
@@ -213,6 +234,7 @@ const ShareUpdatesPage: React.FC = () => {
   }
 
   const hasSummary = !!context.changeSummary
+  const hasNewVersion = shouldShowShareUpdateBadge(context)
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -250,7 +272,7 @@ const ShareUpdatesPage: React.FC = () => {
               <span style={{ fontSize: 12, color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 999, padding: '5px 10px', background: 'var(--bg-main)' }}>
                 {t('shareUpdates.latestVersion', { defaultValue: 'Latest version' })}: v{context.latestSourceVersion}
               </span>
-              {context.hasNewVersion && (
+              {hasNewVersion && (
                 <span style={{ fontSize: 12, color: '#854d0e', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 999, padding: '5px 10px', background: 'rgba(245, 158, 11, 0.1)' }}>
                   {t('shareUpdates.newVersionBadge', { defaultValue: 'New version available' })}
                 </span>
@@ -356,16 +378,27 @@ const ShareUpdatesPage: React.FC = () => {
               <button
                 type="button"
                 disabled={!!actionLoading}
-                onClick={() => { void handleApplyUpdate('KeepCurrent') }}
+                onClick={() => setShowDisableNotificationsConfirm(true)}
                 style={{ border: '1px solid var(--border-base)', borderRadius: 8, padding: '12px 14px', background: 'var(--bg-main)', color: 'var(--text-primary)', fontWeight: 700, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.65 : 1 }}
               >
-                {actionLoading === 'KeepCurrent'
+                {actionLoading === 'DisableUpdateNotifications'
                   ? t('shareUpdates.actions.saving', { defaultValue: 'Saving...' })
-                  : t('shareUpdates.actions.keepCurrent', { defaultValue: 'Keep Current' })}
+                  : t('shareUpdates.actions.disableNotifications', { defaultValue: 'Turn off update notifications for this learning path' })}
               </button>
             </div>
           </section>
         </div>
+
+        <ConfirmDialog
+          isOpen={showDisableNotificationsConfirm}
+          variant="warning"
+          title={t('shareUpdates.actions.disableNotificationsConfirmTitle', { defaultValue: 'Turn off update notifications?' })}
+          message={t('shareUpdates.actions.disableNotificationsDescription', { defaultValue: 'You will keep your current learning path, but you will stop receiving notifications for newer versions of this share.' })}
+          confirmText={t('shareUpdates.actions.disableNotificationsConfirm', { defaultValue: 'Turn off notifications' })}
+          cancelText={t('shareUpdates.actions.cancel', { defaultValue: 'Cancel' })}
+          onCancel={() => setShowDisableNotificationsConfirm(false)}
+          onConfirm={() => { void handleApplyUpdate('DisableUpdateNotifications') }}
+        />
 
         {toast && <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 120 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div>}
       </div>

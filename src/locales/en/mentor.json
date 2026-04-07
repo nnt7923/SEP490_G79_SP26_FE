@@ -118,6 +118,8 @@
     "sharing": "Sending...",
     "shareSuccess": "Learning path sent successfully",
     "shareAlreadyPending": "This learning path is already pending a response",
+    "shareMissingChapterTask": "Each chapter must have at least 1 task before sharing.",
+    "shareMissingLessonQuiz": "Each lesson must have at least 1 quiz before sharing.",
     "shareError": "Failed to share learning path",
     "sharePathBtn": "Share with student",
     "pendingInvite": "Pending",
@@ -157,6 +159,14 @@
     "detailLoadFailed": "Failed to load AI draft",
     "detailNotFound": "AI draft not found"
   },
+  "learningPath": {
+    "draft": {
+      "save": {
+        "noMeaningfulChange": "No meaningful changes detected. Current version is kept.",
+        "versionBumped": "Draft saved and a new version has been created."
+      }
+    }
+  },
   "drafts": {
     "brandName": "Drafts",
     "brandSubtitle": "Mentor",
@@ -169,6 +179,8 @@
     "expand": "Expand",
     "manualCreateSuccess": "Manual draft created successfully",
     "manualUpdateSuccess": "Draft updated successfully",
+    "noMeaningfulChange": "No meaningful changes detected",
+    "versionBumped": "Draft version updated",
     "aiGenerateSuccess": "AI draft generated successfully",
     "createManualCta": "Create Manual Draft",
     "createManualTitle": "Create Manual Draft",
@@ -256,11 +268,16 @@
     "quizTitle": "Quiz Title",
     "quizTitleHint": "Use a short title focused on the concept being checked, for example: React state basics.",
     "generateQuizByAi": "Generate Questions by AI",
+    "generateAllLessonQuizzesByAi": "Generate All Lesson Quizzes by AI",
     "generatingQuiz": "Generating...",
+    "generatingAllLessonQuizzes": "Generating all lesson quizzes...",
     "saveBeforeGenerateQuiz": "Save the draft before generating AI quiz questions.",
     "quizGenerateSuccess": "AI quiz questions generated successfully.",
     "quizGenerateFailed": "Failed to generate AI quiz questions.",
     "quizGenerateEmpty": "AI did not return quiz questions.",
+    "noQuizzesToGenerate": "No quizzes available to generate yet.",
+    "quizGenerateAllSuccess": "Generated AI quiz questions for {{count}} quizzes.",
+    "quizGenerateAllPartial": "Quiz generation finished with partial results. Generated: {{generated}}, failed: {{failed}}, empty: {{empty}}, skipped: {{skipped}}.",
     "quizJson": "Quiz Questions JSON",
     "quizJsonHint": "Use builder mode for normal editing. Raw JSON mode is useful when pasting AI output or bulk-fixing quiz payloads.",
     "addChapter": "Add Chapter",

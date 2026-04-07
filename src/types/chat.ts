@@ -5,7 +5,12 @@
 
 export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare'
 export type ShareStatus = 'Pending' | 'Accepted' | 'Rejected'
-export type LearningPathShareUpdateAction = 'CreateNewFromLatest' | 'UpdateCurrentToLatest' | 'KeepCurrent'
+export type LearningPathShareUpdateAction =
+  | 'CreateNewFromLatest'
+  | 'UpdateCurrentToLatest'
+  | 'DisableUpdateNotifications'
+  /** @deprecated Use `DisableUpdateNotifications` for new code. */
+  | 'KeepCurrent'
 
 /** 3.1 ConversationDTO */
 export interface DirectConversationDto {

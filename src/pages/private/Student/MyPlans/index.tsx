@@ -7,6 +7,7 @@ import LearningPathService, { type SkeletonResponse } from '../../../../services
 import useAuthStore from '../../../../store/useAuthStore'
 import useChatStore from '../../../../store/useChatStore'
 import { useTranslation } from 'react-i18next'
+import { shouldShowSourceUpdateBadge } from '../shareVersionBadge'
 
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)
@@ -173,7 +174,7 @@ const MyPlansPage: React.FC = () => {
                 fallbackShare?.mentorName ||
                 '',
               ).trim()
-              const hasSourceUpdate = Boolean(plan.hasSourceUpdate)
+              const hasSourceUpdate = shouldShowSourceUpdateBadge(plan)
               const progressPercent = clampPercent(
                 planId
                   ? (planProgressMap[planId] ?? plan?.progressPercent ?? plan?.completionPercent ?? 0)

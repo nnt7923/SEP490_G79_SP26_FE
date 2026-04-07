@@ -14,6 +14,7 @@ import useNotificationStore from '../../../store/useNotificationStore'
 import useChatStore from '../../../store/useChatStore'
 import type { NotificationDto } from '../../../types/notification'
 import SubscriptionService from '../../../services/SubscriptionService'
+import { shouldShowSourceUpdateBadge } from './shareVersionBadge'
 
 const StudentOverview: React.FC = () => {
   const { user } = useAuthStore()
@@ -299,7 +300,7 @@ const StudentOverview: React.FC = () => {
                               <>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                             <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{plan.title || t('overview.recentPlans.untitled')}</h3>
-                            {!!plan.hasSourceUpdate && (
+                            {shouldShowSourceUpdateBadge(plan) && (
                               <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#854d0e', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 999, padding: '2px 6px', background: 'rgba(245, 158, 11, 0.12)' }}>
                                 {t('myPlans.newVersionBadge', { defaultValue: 'Có phiên bản mới' })}
                               </span>

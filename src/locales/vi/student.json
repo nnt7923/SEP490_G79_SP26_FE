@@ -851,12 +851,18 @@
       "createNew": "Tạo lộ trình mới từ bản mới nhất",
       "updateCurrent": "Cập nhật lộ trình hiện tại lên bản mới nhất",
       "keepCurrent": "Giữ nguyên lộ trình hiện tại",
+      "disableNotifications": "Tắt thông báo cập nhật cho lộ trình này",
+      "disableNotificationsConfirmTitle": "Tắt thông báo cập nhật?",
+      "disableNotificationsConfirm": "Tắt thông báo",
+      "disableNotificationsDescription": "Bạn vẫn giữ lộ trình hiện tại, nhưng sẽ không nhận thông báo phiên bản mới nữa.",
+      "cancel": "Hủy",
       "creating": "Đang tạo...",
       "updating": "Đang cập nhật...",
       "saving": "Đang lưu...",
       "createNewSuccess": "Đã tạo lộ trình mới từ phiên bản chia sẻ mới nhất.",
       "updateCurrentSuccess": "Đã cập nhật lộ trình hiện tại lên phiên bản chia sẻ mới nhất.",
-      "keepCurrentSuccess": "Đã giữ lộ trình hiện tại và bỏ qua phiên bản này."
+      "keepCurrentSuccess": "Đã giữ lộ trình hiện tại và bỏ qua phiên bản này.",
+      "disableNotificationsSuccess": "Đã giữ lộ trình hiện tại và tắt các thông báo cập nhật tiếp theo cho chia sẻ này."
     },
     "errors": {
       "invalidShareId": "Mã chia sẻ không hợp lệ.",

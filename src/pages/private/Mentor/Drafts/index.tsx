@@ -9,6 +9,7 @@ import Toast from '../../../../components/Toast'
 import ROUTER from '../../../../router/ROUTER'
 import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
+import { resolveShareToStudentErrorMessage } from '../../../../services/LearningPathShareService/shareErrorMessage'
 import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
@@ -137,8 +138,7 @@ const MentorDraftsPage: React.FC = () => {
         },
       })
     } catch (err: any) {
-      const code = err?.response?.data?.errorCode
-      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : getApiErrorMessage(err, t('chat.shareError')))
+      setShareError(resolveShareToStudentErrorMessage(err, t, getApiErrorMessage(err, t('chat.shareError'))))
     } finally {
       setSharing(false)
     }

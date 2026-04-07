@@ -10,6 +10,7 @@ type Props = {
   activeLesson: EditableLesson | null
   generatingTaskChapterId: string | null
   generatingQuizId: string | null
+  generatingAllLessonQuizzes: boolean
   saving: boolean
   onAssessmentTabChange: (tab: AssessmentTab) => void
   onGenerateTasks: () => void
@@ -20,6 +21,7 @@ type Props = {
   onUpdateQuiz: (quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) => void
   onRemoveQuiz: (quizId: string) => void
   onGenerateQuiz: (quiz: EditableQuiz) => void
+  onGenerateAllLessonQuizzes: () => void
 }
 
 const TASK_TYPE_OPTIONS = ['Practice', 'Theory', 'Quizz']
@@ -32,6 +34,7 @@ const AssessmentsStep: React.FC<Props> = ({
   activeLesson,
   generatingTaskChapterId,
   generatingQuizId,
+  generatingAllLessonQuizzes,
   saving,
   onAssessmentTabChange,
   onGenerateTasks,
@@ -42,6 +45,7 @@ const AssessmentsStep: React.FC<Props> = ({
   onUpdateQuiz,
   onRemoveQuiz,
   onGenerateQuiz,
+  onGenerateAllLessonQuizzes,
 }) => {
   const { t } = useTranslation('mentor')
 
@@ -127,9 +131,20 @@ const AssessmentsStep: React.FC<Props> = ({
         title={t('drafts.lessonQuizzes')}
         subtitle={t('drafts.lessonQuizzesHint')}
         action={
-          <button type="button" style={getButtonStyle()} onClick={onAddQuiz}>
-            <Plus size={14} /> {t('drafts.addQuiz')}
-          </button>
+          <>
+            <button
+              type="button"
+              style={getButtonStyle({ disabled: generatingAllLessonQuizzes || saving })}
+              onClick={onGenerateAllLessonQuizzes}
+              disabled={generatingAllLessonQuizzes || saving}
+            >
+              {generatingAllLessonQuizzes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+              {generatingAllLessonQuizzes ? t('drafts.generatingAllLessonQuizzes') : t('drafts.generateAllLessonQuizzesByAi')}
+            </button>
+            <button type="button" style={getButtonStyle()} onClick={onAddQuiz}>
+              <Plus size={14} /> {t('drafts.addQuiz')}
+            </button>
+          </>
         }
       >
         {activeLesson.quizzes.length === 0 ? (
@@ -146,7 +161,7 @@ const AssessmentsStep: React.FC<Props> = ({
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
                       type="button"
-                      style={getButtonStyle({ disabled: !quiz.persistedId || generatingQuizId === quiz.id || saving })}
+                      style={getButtonStyle({ disabled: generatingQuizId === quiz.id || saving })}
                       onClick={() => onGenerateQuiz(quiz)}
                       disabled={generatingQuizId === quiz.id || saving}
                       title={!quiz.persistedId ? t('drafts.saveBeforeGenerateQuiz') : undefined}

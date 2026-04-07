@@ -129,6 +129,9 @@ export type SkeletonResponse = {
   pathId?: string
   title?: string
   description?: string | null
+  version?: number | null
+  previousVersion?: number | null
+  hasMeaningfulChange?: boolean
   sharedByUserId?: string | null
   sharedByUserName?: string | null
   sourceLearningPathId?: string | null
@@ -188,81 +191,137 @@ function unwrap<T>(res: any): T {
   return data as T
 }
 
+function pickArray<T = any>(...candidates: unknown[]): T[] | undefined {
+  let firstArray: T[] | undefined
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue
+    const arrayCandidate = candidate as T[]
+    if (!firstArray) firstArray = arrayCandidate
+    if (arrayCandidate.length > 0) return arrayCandidate
+  }
+  return firstArray
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+function toNullableBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true') return true
+    if (normalized === 'false') return false
+  }
+  return null
+}
+
 function normalizeSkeleton(payload: any): SkeletonResponse {
-  const hasChapterDtos = Array.isArray(payload?.chapterDtos)
-  const chapters: Chapter[] | undefined = hasChapterDtos
-    ? payload.chapterDtos.map((ch: any) => ({
-      ...ch,
-      id: ch?.chapterId ?? ch?.id,
-      title: ch?.title,
-      content: ch?.content ?? null,
-      orderIndex: ch?.orderIndex,
-      startDate: ch?.startDate ?? ch?.StartDate ?? null,
-      endDate: ch?.endDate ?? ch?.EndDate ?? null,
-      estimatedDays: ch?.estimatedDays ?? ch?.EstimatedDays ?? null,
-      lessons: Array.isArray(ch?.lessons)
-        ? ch.lessons.map((ls: any) => ({
-          ...ls,
-          id: ls?.lessonId ?? ls?.id,
-          title: ls?.title,
-          description: ls?.description ?? null,
-          content: ls?.content ?? null,
-          lessonDay: ls?.lessonDay ?? null,
-          quizzes: Array.isArray(ls?.quizzes)
-            ? ls.quizzes.map((q: any) => ({
-              ...q,
-              id: q?.quizzId ?? q?.id,
-              quizId: q?.quizId ?? q?.id,
-              quizzId: q?.quizzId ?? q?.id,
-              title: q?.title,
-              description: q?.description ?? null,
-              quizQuestionsJson: q?.quizQuestionsJson ?? q?.QuizQuestionsJson ?? null,
-            }))
-            : [],
-        }))
-        : [],
-      tasks: Array.isArray(ch?.tasks)
-        ? ch.tasks.map((t: any) => ({
-          ...t,
-          id: t?.taskId ?? t?.id,
-          title: t?.title,
-          description: t?.description ?? null,
-          priority: t?.priority ?? null,
-          taskStatus: t?.taskStatus ?? null,
-          dueDate: t?.dueDate ?? null,
-          taskType: t?.taskType ?? t?.TaskType ?? null,
-          quizQuestionsJson: t?.quizQuestionsJson ?? t?.QuizQuestionsJson ?? null,
-        }))
-        : [],
-    }))
-    : payload?.chapters
+  const chapterDtos = pickArray<any>(payload?.chapterDtos, payload?.ChapterDtos)
+  const chapterItems = chapterDtos ?? pickArray<any>(payload?.chapters, payload?.Chapters)
+  const hasChapterDtos = Array.isArray(chapterDtos)
+
+  const chapters: Chapter[] | undefined = chapterItems?.map((chapter: any) => {
+    const lessonItems = pickArray<any>(
+      chapter?.lessons,
+      chapter?.Lessons,
+      chapter?.lessonDtos,
+      chapter?.LessonDtos,
+    )
+    const taskItems = pickArray<any>(
+      chapter?.tasks,
+      chapter?.Tasks,
+      chapter?.taskDtos,
+      chapter?.TaskDtos,
+    )
+
+    return {
+      ...chapter,
+      id: chapter?.chapterId ?? chapter?.id,
+      title: chapter?.title ?? chapter?.Title,
+      content: chapter?.content ?? chapter?.Content ?? null,
+      orderIndex: chapter?.orderIndex ?? chapter?.OrderIndex,
+      startDate: chapter?.startDate ?? chapter?.StartDate ?? null,
+      endDate: chapter?.endDate ?? chapter?.EndDate ?? null,
+      estimatedDays: chapter?.estimatedDays ?? chapter?.EstimatedDays ?? null,
+      lessons: lessonItems?.map((lesson: any) => {
+        const quizItems = pickArray<any>(
+          lesson?.quizzes,
+          lesson?.Quizzes,
+          lesson?.quizDtos,
+          lesson?.QuizDtos,
+        )
+        return {
+          ...lesson,
+          id: lesson?.lessonId ?? lesson?.id,
+          title: lesson?.title ?? lesson?.Title,
+          description: lesson?.description ?? lesson?.Description ?? null,
+          content: lesson?.content ?? lesson?.Content ?? null,
+          lessonDay: lesson?.lessonDay ?? lesson?.LessonDay ?? null,
+          quizzes: quizItems?.map((quiz: any) => ({
+            ...quiz,
+            id: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
+            quizId: quiz?.quizId ?? quiz?.quizzId ?? quiz?.id,
+            quizzId: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
+            title: quiz?.title ?? quiz?.Title,
+            description: quiz?.description ?? quiz?.Description ?? null,
+            quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
+          })) ?? [],
+        }
+      }) ?? [],
+      tasks: taskItems?.map((task: any) => ({
+        ...task,
+        id: task?.taskId ?? task?.id,
+        title: task?.title ?? task?.Title,
+        description: task?.description ?? task?.Description ?? null,
+        priority: task?.priority ?? task?.Priority ?? null,
+        taskStatus: task?.taskStatus ?? task?.TaskStatus ?? null,
+        dueDate: task?.dueDate ?? task?.DueDate ?? null,
+        taskType: task?.taskType ?? task?.TaskType ?? null,
+        quizQuestionsJson: task?.quizQuestionsJson ?? task?.QuizQuestionsJson ?? task?.quizQuestions ?? task?.QuizQuestions ?? null,
+      })) ?? [],
+    }
+  })
 
   const lessons: Lesson[] | undefined = hasChapterDtos
-    ? (chapters || []).flatMap((ch) => ch.lessons || [])
-    : Array.isArray(payload?.lessons)
-      ? payload.lessons.map((ls: any) => ({
-        ...ls,
-        id: ls?.id ?? ls?.lessonId,
-        title: ls?.title,
-        description: ls?.description ?? null,
-        content: ls?.content ?? null,
-        lessonDay: ls?.lessonDay ?? null,
-        quizzes: Array.isArray(ls?.quizzes)
-          ? ls.quizzes.map((q: any) => ({
-            ...q,
-            id: q?.id ?? q?.quizzId,
-            quizId: q?.quizId ?? q?.id,
-            quizzId: q?.quizzId ?? q?.id,
-            title: q?.title,
-            description: q?.description ?? null,
-            quizQuestionsJson: q?.quizQuestionsJson ?? q?.QuizQuestionsJson ?? null,
-          }))
-          : [],
-      }))
-      : undefined
+    ? (chapters || []).flatMap((chapter) => chapter.lessons || [])
+    : pickArray<any>(payload?.lessons, payload?.Lessons)?.map((lesson: any) => {
+      const quizItems = pickArray<any>(
+        lesson?.quizzes,
+        lesson?.Quizzes,
+        lesson?.quizDtos,
+        lesson?.QuizDtos,
+      )
+      return {
+        ...lesson,
+        id: lesson?.id ?? lesson?.lessonId,
+        title: lesson?.title ?? lesson?.Title,
+        description: lesson?.description ?? lesson?.Description ?? null,
+        content: lesson?.content ?? lesson?.Content ?? null,
+        lessonDay: lesson?.lessonDay ?? lesson?.LessonDay ?? null,
+        quizzes: quizItems?.map((quiz: any) => ({
+          ...quiz,
+          id: quiz?.id ?? quiz?.quizId ?? quiz?.quizzId,
+          quizId: quiz?.quizId ?? quiz?.id ?? quiz?.quizzId,
+          quizzId: quiz?.quizzId ?? quiz?.id ?? quiz?.quizId,
+          title: quiz?.title ?? quiz?.Title,
+          description: quiz?.description ?? quiz?.Description ?? null,
+          quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
+        })) ?? [],
+      }
+    })
+
+  const normalizedVersion = toNullableNumber(payload?.version ?? payload?.Version)
+  const normalizedPreviousVersion = toNullableNumber(payload?.previousVersion ?? payload?.PreviousVersion)
+  const normalizedMeaningfulChange = toNullableBoolean(payload?.hasMeaningfulChange ?? payload?.HasMeaningfulChange)
 
   return {
     ...payload,
+    version: normalizedVersion,
+    previousVersion: normalizedPreviousVersion,
+    hasMeaningfulChange: normalizedMeaningfulChange ?? undefined,
     sharedByUserId: payload?.sharedByUserId ?? payload?.SharedByUserId ?? null,
     sharedByUserName: payload?.sharedByUserName ?? payload?.SharedByUserName ?? null,
     sourceLearningPathId: payload?.sourceLearningPathId ?? payload?.SourceLearningPathId ?? null,

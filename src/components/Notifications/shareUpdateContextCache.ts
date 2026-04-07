@@ -10,6 +10,19 @@ export type ShareUpdateContextSummary = {
 const shareUpdateContextCache = new Map<string, ShareUpdateContextSummary>()
 const shareUpdateContextInflight = new Map<string, Promise<ShareUpdateContextSummary | null>>()
 
+export function clearCachedShareUpdateContext(shareId?: string): void {
+  const normalizedShareId = String(shareId || '').trim()
+
+  if (!normalizedShareId) {
+    shareUpdateContextCache.clear()
+    shareUpdateContextInflight.clear()
+    return
+  }
+
+  shareUpdateContextCache.delete(normalizedShareId)
+  shareUpdateContextInflight.delete(normalizedShareId)
+}
+
 export function isShareVersionUpdatedNotification(type?: string | null): boolean {
   const normalized = String(type || '').trim().toLowerCase()
   return normalized === 'shareversionupdated' || normalized === '9'

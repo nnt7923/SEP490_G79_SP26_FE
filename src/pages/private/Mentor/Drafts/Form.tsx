@@ -11,6 +11,7 @@ import { useMentorSidebarConfig } from '../components/MentorSideBar'
 import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
+import { resolveShareToStudentErrorMessage } from '../../../../services/LearningPathShareService/shareErrorMessage'
 import { requestChapterTasks, requestQuizQuestions } from '../../../../services/SignalR'
 import { useResponsive } from '../../../../hook/useResponsive'
 import OverviewStep from './components/OverviewStep'
@@ -36,6 +37,7 @@ import {
   validateAiDraftInput,
   validateDraftForm,
 } from './editorState'
+import { resolveDraftUpdateSuccessMessage } from './saveDraftMessage'
 import type {
   AssessmentTab,
   DraftFormState,
@@ -82,6 +84,7 @@ const MentorDraftFormPage: React.FC = () => {
   const [generatingLessonId, setGeneratingLessonId] = useState<string | null>(null)
   const [generatingTaskChapterId, setGeneratingTaskChapterId] = useState<string | null>(null)
   const [generatingQuizId, setGeneratingQuizId] = useState<string | null>(null)
+  const [generatingAllLessonQuizzes, setGeneratingAllLessonQuizzes] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
   const [currentStep, setCurrentStep] = useState<EditorStep>('overview')
@@ -384,25 +387,176 @@ const MentorDraftFormPage: React.FC = () => {
   }
 
   const generateAiQuizQuestions = async (chapterId: string, lessonId: string, quiz: EditableQuiz) => {
-    if (!quiz.persistedId) {
-      setToast({ message: t('drafts.saveBeforeGenerateQuiz'), type: 'warning' })
-      return
+    const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === chapterId)
+    const lessonIndex = form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === lessonId) ?? -1
+    const quizIndex = form.chapters[chapterIndex]?.lessons[lessonIndex]?.quizzes.findIndex((item) => item.id === quiz.id) ?? -1
+
+    let targetQuiz = quiz
+
+    if (!targetQuiz.persistedId) {
+      if (!currentPathId || chapterIndex < 0 || lessonIndex < 0 || quizIndex < 0) {
+        setToast({ message: t('drafts.saveBeforeGenerateQuiz'), type: 'warning' })
+        return
+      }
+
+      setSaving(true)
+      try {
+        const response = await LearningPathService.updateManualDraft(currentPathId, buildPayload(form))
+        const latestDraft = await LearningPathService.getMyDraftDetail(currentPathId).catch(() => response)
+        const nextForm = hydrateDraftForm(latestDraft, form)
+        const nextChapter = nextForm.chapters[chapterIndex] ?? null
+        const nextLesson = nextChapter?.lessons[lessonIndex] ?? null
+        const nextQuiz = nextLesson?.quizzes[quizIndex] ?? null
+
+        setForm(nextForm)
+        setActiveChapterId(nextChapter?.id ?? nextForm.chapters[0]?.id ?? null)
+        setActiveLessonId(nextLesson?.id ?? nextChapter?.lessons[0]?.id ?? null)
+
+        if (!nextQuiz?.persistedId) {
+          setToast({ message: t('drafts.saveBeforeGenerateQuiz'), type: 'warning' })
+          return
+        }
+
+        targetQuiz = nextQuiz
+      } catch (err: any) {
+        setToast({ message: getApiErrorMessage(err, t('drafts.saveFailed')), type: 'error' })
+        return
+      } finally {
+        setSaving(false)
+      }
     }
-    setGeneratingQuizId(quiz.id)
+
+    setGeneratingQuizId(targetQuiz.id)
     try {
-      const result = await requestQuizQuestions(quiz.persistedId)
+      const persistedQuizId = targetQuiz.persistedId
+      if (!persistedQuizId) {
+        setToast({ message: t('drafts.saveBeforeGenerateQuiz'), type: 'warning' })
+        return
+      }
+
+      const result = await requestQuizQuestions(persistedQuizId)
       const rawJson = typeof result === 'string' ? result : result?.quizQuestionsJson ?? result?.QuizQuestionsJson ?? result?.questions ?? result
       const normalized = normalizeJsonField(rawJson)
       if (!normalized.trim()) {
         setToast({ message: t('drafts.quizGenerateEmpty'), type: 'warning' })
         return
       }
-      updateQuiz(chapterId, lessonId, quiz.id, (item) => ({ ...item, quizQuestionsJson: normalized }))
+      updateQuiz(chapterId, lessonId, targetQuiz.id, (item) => ({ ...item, quizQuestionsJson: normalized }))
       setToast({ message: t('drafts.quizGenerateSuccess'), type: 'success' })
     } catch (err: any) {
       setToast({ message: getApiErrorMessage(err, t('drafts.quizGenerateFailed')), type: 'error' })
     } finally {
       setGeneratingQuizId(null)
+    }
+  }
+
+  const applyQuizQuestionsToForm = (
+    sourceForm: DraftFormState,
+    chapterId: string,
+    lessonId: string,
+    quizId: string,
+    quizQuestionsJson: string,
+  ): DraftFormState => ({
+    ...sourceForm,
+    chapters: sourceForm.chapters.map((chapter) => {
+      if (chapter.id !== chapterId) return chapter
+      return {
+        ...chapter,
+        lessons: chapter.lessons.map((lesson) => {
+          if (lesson.id !== lessonId) return lesson
+          return {
+            ...lesson,
+            quizzes: lesson.quizzes.map((quiz) => quiz.id === quizId ? { ...quiz, quizQuestionsJson } : quiz),
+          }
+        }),
+      }
+    }),
+  })
+
+  const generateAiQuizQuestionsForAllLessons = async () => {
+    if (!currentPathId) {
+      setToast({ message: t('drafts.saveBeforeGenerateQuiz'), type: 'warning' })
+      return
+    }
+
+    const selectionSnapshot = createSelectionSnapshot(form, activeChapterId, activeLessonId)
+    setGeneratingAllLessonQuizzes(true)
+    setSaving(true)
+
+    try {
+      const response = await LearningPathService.updateManualDraft(currentPathId, buildPayload(form))
+      const latestDraft = await LearningPathService.getMyDraftDetail(currentPathId).catch(() => response)
+      let workingForm = hydrateDraftForm(latestDraft, form)
+      const nextSelection = restoreSelectionSnapshot(workingForm, selectionSnapshot)
+
+      setForm(workingForm)
+      setActiveChapterId(nextSelection.chapterId)
+      setActiveLessonId(nextSelection.lessonId)
+
+      const quizTargets = workingForm.chapters.flatMap((chapter) =>
+        chapter.lessons.flatMap((lesson) =>
+          lesson.quizzes.map((quiz) => ({
+            chapterId: chapter.id,
+            lessonId: lesson.id,
+            quizId: quiz.id,
+            persistedQuizId: quiz.persistedId,
+          })),
+        ),
+      )
+
+      if (quizTargets.length === 0) {
+        setToast({ message: t('drafts.noQuizzesToGenerate'), type: 'warning' })
+        return
+      }
+
+      let generatedCount = 0
+      let failedCount = 0
+      let emptyCount = 0
+      let skippedCount = 0
+
+      for (const target of quizTargets) {
+        if (!target.persistedQuizId) {
+          skippedCount += 1
+          continue
+        }
+
+        setGeneratingQuizId(target.quizId)
+        try {
+          const result = await requestQuizQuestions(target.persistedQuizId)
+          const rawJson = typeof result === 'string' ? result : result?.quizQuestionsJson ?? result?.QuizQuestionsJson ?? result?.questions ?? result
+          const normalized = normalizeJsonField(rawJson)
+          if (!normalized.trim()) {
+            emptyCount += 1
+            continue
+          }
+
+          generatedCount += 1
+          workingForm = applyQuizQuestionsToForm(workingForm, target.chapterId, target.lessonId, target.quizId, normalized)
+          setForm(workingForm)
+        } catch {
+          failedCount += 1
+        }
+      }
+
+      if (generatedCount > 0 && failedCount === 0 && emptyCount === 0 && skippedCount === 0) {
+        setToast({ message: t('drafts.quizGenerateAllSuccess', { count: generatedCount }), type: 'success' })
+      } else {
+        setToast({
+          message: t('drafts.quizGenerateAllPartial', {
+            generated: generatedCount,
+            failed: failedCount,
+            empty: emptyCount,
+            skipped: skippedCount,
+          }),
+          type: 'warning',
+        })
+      }
+    } catch (err: any) {
+      setToast({ message: getApiErrorMessage(err, t('drafts.quizGenerateFailed')), type: 'error' })
+    } finally {
+      setGeneratingQuizId(null)
+      setGeneratingAllLessonQuizzes(false)
+      setSaving(false)
     }
   }
 
@@ -412,16 +566,26 @@ const MentorDraftFormPage: React.FC = () => {
       setToast({ message: validationError, type: 'warning' })
       return
     }
+    const previousTitle = form.title
     setSaving(true)
     const selectionSnapshot = createSelectionSnapshot(form, activeChapterId, activeLessonId)
     try {
-      const response = isCreateMode ? await LearningPathService.createManualDraft(buildPayload(form)) : await LearningPathService.updateManualDraft(pathId as string, buildPayload(form))
-      const nextForm = hydrateDraftForm(response, form)
+      const response = isCreateMode
+        ? await LearningPathService.createManualDraft(buildPayload(form))
+        : await LearningPathService.updateManualDraft(pathId as string, buildPayload(form))
+      const resolvedPathId = String(response?.pathId ?? pathId ?? '')
+      const latestDraft = resolvedPathId
+        ? await LearningPathService.getMyDraftDetail(resolvedPathId).catch(() => response)
+        : response
+      const nextForm = hydrateDraftForm(latestDraft, form)
       const nextSelection = restoreSelectionSnapshot(nextForm, selectionSnapshot)
       setForm(nextForm)
       setActiveChapterId(nextSelection.chapterId)
       setActiveLessonId(nextSelection.lessonId)
-      setToast({ message: isCreateMode ? t('drafts.manualCreateSuccess') : t('drafts.manualUpdateSuccess'), type: 'success' })
+      const successMessage = isCreateMode
+        ? t('drafts.manualCreateSuccess')
+        : resolveDraftUpdateSuccessMessage(response, latestDraft, previousTitle, t)
+      setToast({ message: successMessage, type: 'success' })
       if (isCreateMode && response?.pathId) navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(response.pathId)), { replace: true, state: { draft: response } })
     } catch (err: any) {
       setToast({ message: getApiErrorMessage(err, t('drafts.saveFailed')), type: 'error' })
@@ -439,8 +603,7 @@ const MentorDraftFormPage: React.FC = () => {
       await shareToStudent(currentPathId, selectedStudentId)
       navigate(ROUTER.MENTOR_CHAT, { state: { conversationId: conversation.conversationId, toast: { message: t('chat.shareSuccess'), type: 'success' } satisfies ToastState } })
     } catch (err: any) {
-      const code = err?.response?.data?.errorCode
-      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : getApiErrorMessage(err, t('chat.shareError')))
+      setShareError(resolveShareToStudentErrorMessage(err, t, getApiErrorMessage(err, t('chat.shareError'))))
     } finally {
       setSharing(false)
     }
@@ -573,6 +736,7 @@ const MentorDraftFormPage: React.FC = () => {
                   activeLesson={activeLesson}
                   generatingTaskChapterId={generatingTaskChapterId}
                   generatingQuizId={generatingQuizId}
+                  generatingAllLessonQuizzes={generatingAllLessonQuizzes}
                   saving={saving}
                   onAssessmentTabChange={setAssessmentTab}
                   onGenerateTasks={generateAiTasks}
@@ -583,6 +747,7 @@ const MentorDraftFormPage: React.FC = () => {
                   onUpdateQuiz={(quizId, updater) => activeChapter && activeLesson ? updateQuiz(activeChapter.id, activeLesson.id, quizId, updater) : undefined}
                   onRemoveQuiz={(quizId) => activeChapter && activeLesson ? removeQuiz(activeChapter.id, activeLesson.id, quizId) : undefined}
                   onGenerateQuiz={(quiz) => activeChapter && activeLesson ? generateAiQuizQuestions(activeChapter.id, activeLesson.id, quiz) : undefined}
+                  onGenerateAllLessonQuizzes={generateAiQuizQuestionsForAllLessons}
                 />
               ) : null}
             </main>

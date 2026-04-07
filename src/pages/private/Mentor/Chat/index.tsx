@@ -27,6 +27,7 @@ import {
   getSentShares,
   shareToStudent,
 } from "../../../../services/LearningPathShareService";
+import { resolveShareToStudentErrorMessage } from "../../../../services/LearningPathShareService/shareErrorMessage";
 import MessageStatusIcon from "../../../../components/Chat/MessageStatusIcon";
 import type {
   DirectChatContactDto,
@@ -572,12 +573,7 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
       }
       hub.requestConversations().catch(() => {});
     } catch (err: any) {
-      const code = err?.response?.data?.errorCode;
-      setShareError(
-        code === "SHARE_ALREADY_PENDING"
-          ? t("chat.shareAlreadyPending")
-          : t("chat.shareError"),
-      );
+      setShareError(resolveShareToStudentErrorMessage(err, t, t("chat.shareError")));
     } finally {
       setSharing(false);
     }
