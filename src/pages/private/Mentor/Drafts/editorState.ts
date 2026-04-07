@@ -1,25 +1,84 @@
 import { LanguageSelection } from '../../../../services'
 import type { ManualDraftPayload, SkeletonResponse } from '../../../../services/LearningPathService'
 import { buildLessonContentFromSections, createEmptyLessonSections, parseLessonSections, type LessonSectionKey } from './lessonContentContract'
-import type { DraftFormState, EditableChapter, EditableLesson, EditableQuiz, EditableTask, Level } from './editorTypes'
+import type {
+  DraftFormState,
+  EditableChapter,
+  EditableLesson,
+  EditableMatchingPair,
+  EditableQuestion,
+  EditableQuiz,
+  EditableTask,
+  Level,
+  QuestionType,
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+} from './editorTypes'
 
 export const LEVEL_OPTIONS: Level[] = ['Beginner', 'Intermediate', 'Advanced']
-export const TASK_TYPE_OPTIONS = ['Practice', 'Theory', 'Quizz']
-export const TASK_STATUS_OPTIONS = ['Pending', 'InProgress', 'Completed']
+export const TASK_TYPE_OPTIONS: TaskType[] = ['Practice', 'Theory', 'Quizz']
+export const TASK_STATUS_OPTIONS: TaskStatus[] = ['Pending', 'InProgress', 'Completed']
+export const PRIORITY_OPTIONS: TaskPriority[] = ['Low', 'Medium', 'High']
+export const QUESTION_TYPE_OPTIONS: QuestionType[] = ['TrueFalse', 'MultipleChoice', 'SingleChoice', 'Matching', 'FillInTheBlank', 'Ordering']
 
 const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 const toDateInput = (value?: string | null) => value ? new Date(value).toISOString().slice(0, 10) : ''
 const toIsoDate = (value?: string) => value ? new Date(`${value}T00:00:00.000Z`).toISOString() : undefined
 const extractMarkdown = (payload: any): string => typeof payload === 'string' ? payload : payload?.content ?? payload?.markdown ?? payload?.body ?? payload?.text ?? ''
 
-export const normalizeJsonField = (value: unknown): string => {
-  if (typeof value === 'string') return value
-  if (value == null || value === '') return ''
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return String(value)
-  }
+const COMPLEXITY_TO_API: Record<Level, number> = {
+  Beginner: 1,
+  Intermediate: 2,
+  Advanced: 3,
+}
+
+const TASK_TYPE_TO_API: Record<TaskType, number> = {
+  Practice: 0,
+  Theory: 1,
+  Quizz: 2,
+}
+
+const TASK_PRIORITY_TO_API: Record<TaskPriority, number> = {
+  Low: 1,
+  Medium: 2,
+  High: 3,
+}
+
+const QUESTION_TYPE_TO_API: Record<QuestionType, number> = {
+  TrueFalse: 0,
+  MultipleChoice: 1,
+  SingleChoice: 2,
+  Matching: 3,
+  FillInTheBlank: 4,
+  Ordering: 5,
+}
+
+const LEVEL_FROM_API: Record<number, Level> = {
+  1: 'Beginner',
+  2: 'Intermediate',
+  3: 'Advanced',
+}
+
+const TASK_TYPE_FROM_API: Record<number, TaskType> = {
+  0: 'Practice',
+  1: 'Theory',
+  2: 'Quizz',
+}
+
+const TASK_PRIORITY_FROM_API: Record<number, TaskPriority> = {
+  1: 'Low',
+  2: 'Medium',
+  3: 'High',
+}
+
+const QUESTION_TYPE_FROM_API: Record<number, QuestionType> = {
+  0: 'TrueFalse',
+  1: 'MultipleChoice',
+  2: 'SingleChoice',
+  3: 'Matching',
+  4: 'FillInTheBlank',
+  5: 'Ordering',
 }
 
 type GenericObject = Record<string, unknown>
@@ -30,8 +89,44 @@ const asObject = (value: unknown): GenericObject | null => (
     : null
 )
 
-const QUIZ_ARRAY_KEYS = ['quizzes', 'Quizzes', 'quizDtos', 'QuizDtos', 'quizList', 'QuizList', 'items', 'Items'] as const
-const QUIZ_WRAPPER_KEYS = ['value', 'Value', 'data', 'Data', 'result', 'Result', 'payload', 'Payload', 'quizSkeleton', 'QuizSkeleton'] as const
+const parseMaybeJsonString = (value: unknown): unknown => {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) return value
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return value
+  }
+}
+
+const toPersistedId = (value: unknown): string | null => {
+  if (value == null || value === '') return null
+  return String(value)
+}
+
+const sanitizeStringArray = (value: unknown[] | undefined): string[] => {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => String(item ?? '').trim())
+    .filter((item) => item.length > 0)
+}
+
+const parseCommaSeparated = (value: string): string[] => (
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+)
+
+const parseSelectedAnswers = (correctAnswer: string, options: string[], fallback: string[] = []): string[] => {
+  const normalizedOptions = sanitizeStringArray(options)
+  const matchedOptions = normalizedOptions.filter((option) => correctAnswer.includes(option))
+  if (matchedOptions.length > 0) return matchedOptions
+
+  const parsedAnswers = parseCommaSeparated(correctAnswer)
+  return parsedAnswers.length > 0 ? parsedAnswers : fallback
+}
 
 const pickArray = (...candidates: unknown[]): unknown[] => {
   for (const candidate of candidates) {
@@ -47,10 +142,26 @@ const pickOptionalArray = (...candidates: unknown[]): unknown[] | undefined => {
   return undefined
 }
 
+export const normalizeJsonField = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (value == null || value === '') return ''
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+const QUIZ_ARRAY_KEYS = ['quizzes', 'Quizzes', 'quizDtos', 'QuizDtos', 'quizList', 'QuizList', 'items', 'Items'] as const
+const QUIZ_WRAPPER_KEYS = ['value', 'Value', 'data', 'Data', 'result', 'Result', 'payload', 'Payload', 'quizSkeleton', 'QuizSkeleton'] as const
+const QUESTION_ARRAY_KEYS = ['questions', 'Questions', 'questionDtos', 'QuestionDtos', 'quizQuestions', 'QuizQuestions', 'items', 'Items'] as const
+const QUESTION_WRAPPER_KEYS = ['value', 'Value', 'data', 'Data', 'result', 'Result', 'payload', 'Payload', 'quizQuestionsJson', 'QuizQuestionsJson'] as const
+
 const unwrapQuizPayloadCandidates = (payload: unknown): unknown[] => {
-  const payloadObject = asObject(payload)
+  const parsedPayload = parseMaybeJsonString(payload)
+  const payloadObject = asObject(parsedPayload)
   return [
-    payload,
+    parsedPayload,
     ...QUIZ_WRAPPER_KEYS.map((key) => payloadObject?.[key]),
   ]
 }
@@ -83,25 +194,26 @@ const findNestedQuizItems = (
   visited = new Set<unknown>(),
   depth = 0,
 ): { quizItems: unknown[]; hasQuizArray: boolean } => {
-  if (depth > 5 || payload == null) return { quizItems: [], hasQuizArray: false }
-  if (typeof payload === 'object') {
-    if (visited.has(payload)) return { quizItems: [], hasQuizArray: false }
-    visited.add(payload)
+  const parsedPayload = parseMaybeJsonString(payload)
+  if (depth > 5 || parsedPayload == null) return { quizItems: [], hasQuizArray: false }
+  if (typeof parsedPayload === 'object') {
+    if (visited.has(parsedPayload)) return { quizItems: [], hasQuizArray: false }
+    visited.add(parsedPayload)
   }
 
-  if (Array.isArray(payload)) {
-    if (payload.length === 0) return { quizItems: payload, hasQuizArray: true }
-    if (payload.some((item) => isQuizItemLike(item))) {
-      return { quizItems: payload, hasQuizArray: true }
+  if (Array.isArray(parsedPayload)) {
+    if (parsedPayload.length === 0) return { quizItems: parsedPayload, hasQuizArray: true }
+    if (parsedPayload.some((item) => isQuizItemLike(item))) {
+      return { quizItems: parsedPayload, hasQuizArray: true }
     }
-    for (const item of payload) {
+    for (const item of parsedPayload) {
       const nested = findNestedQuizItems(item, visited, depth + 1)
       if (nested.hasQuizArray) return nested
     }
     return { quizItems: [], hasQuizArray: false }
   }
 
-  const payloadObject = asObject(payload)
+  const payloadObject = asObject(parsedPayload)
   if (!payloadObject) return { quizItems: [], hasQuizArray: false }
 
   const directQuizItems = pickArray(...QUIZ_ARRAY_KEYS.map((key) => payloadObject[key]))
@@ -130,14 +242,15 @@ const extractQuizItems = (payload: unknown): { quizItems: unknown[]; hasQuizArra
   const candidates = unwrapQuizPayloadCandidates(payload)
 
   for (const candidate of candidates) {
-    if (Array.isArray(candidate)) {
+    const parsedCandidate = parseMaybeJsonString(candidate)
+    if (Array.isArray(parsedCandidate)) {
       return {
-        quizItems: candidate,
+        quizItems: parsedCandidate,
         hasQuizArray: true,
       }
     }
 
-    const candidateObject = asObject(candidate)
+    const candidateObject = asObject(parsedCandidate)
     if (!candidateObject) continue
 
     const nestedQuizItems = pickArray(...QUIZ_ARRAY_KEYS.map((key) => candidateObject[key]))
@@ -151,11 +264,6 @@ const extractQuizItems = (payload: unknown): { quizItems: unknown[]; hasQuizArra
   }
 
   return findNestedQuizItems(payload)
-}
-
-const toPersistedId = (value: unknown): string | null => {
-  if (value == null || value === '') return null
-  return String(value)
 }
 
 export type NormalizedQuizSkeletonItem = {
@@ -192,7 +300,6 @@ export const parseQuizSkeletonPayload = (payload: unknown): QuizSkeletonParseRes
       }
     })
 
-  // Keep structured object rows even if title/description/id are empty to avoid false-empty classification.
   const normalizedItems = items.filter((item, index) => {
     const source = quizItems[index]
     const sourceObject = asObject(source)
@@ -207,7 +314,331 @@ export const parseQuizSkeletonPayload = (payload: unknown): QuizSkeletonParseRes
   }
 }
 
-export const normalizeQuizSkeletonPayload = (payload: unknown): NormalizedQuizSkeletonItem[] => parseQuizSkeletonPayload(payload).items
+const isQuestionItemLike = (value: unknown): boolean => {
+  const parsedValue = parseMaybeJsonString(value)
+  if (typeof parsedValue === 'string') return parsedValue.trim().length > 0
+  const valueObject = asObject(parsedValue)
+  if (!valueObject) return false
+
+  return [
+    valueObject.id,
+    valueObject.questionId,
+    valueObject.QuestionId,
+    valueObject.questionText,
+    valueObject.QuestionText,
+    valueObject.correctAnswer,
+    valueObject.CorrectAnswer,
+    valueObject.points,
+    valueObject.Points,
+  ].some((item) => item != null && String(item).trim() !== '')
+}
+
+const unwrapQuestionPayloadCandidates = (payload: unknown): unknown[] => {
+  const parsedPayload = parseMaybeJsonString(payload)
+  const payloadObject = asObject(parsedPayload)
+
+  return [
+    parsedPayload,
+    payloadObject?.questions,
+    payloadObject?.Questions,
+    payloadObject?.quizQuestions,
+    payloadObject?.QuizQuestions,
+    payloadObject?.quizQuestionsJson,
+    payloadObject?.QuizQuestionsJson,
+    ...QUESTION_WRAPPER_KEYS.map((key) => payloadObject?.[key]),
+  ]
+}
+
+const findNestedQuestionItems = (
+  payload: unknown,
+  visited = new Set<unknown>(),
+  depth = 0,
+): { questionItems: unknown[]; hasQuestionArray: boolean } => {
+  const parsedPayload = parseMaybeJsonString(payload)
+  if (depth > 6 || parsedPayload == null) return { questionItems: [], hasQuestionArray: false }
+  if (typeof parsedPayload === 'object') {
+    if (visited.has(parsedPayload)) return { questionItems: [], hasQuestionArray: false }
+    visited.add(parsedPayload)
+  }
+
+  if (Array.isArray(parsedPayload)) {
+    if (parsedPayload.length === 0) return { questionItems: parsedPayload, hasQuestionArray: true }
+    if (parsedPayload.some((item) => isQuestionItemLike(item))) {
+      return { questionItems: parsedPayload, hasQuestionArray: true }
+    }
+    for (const item of parsedPayload) {
+      const nested = findNestedQuestionItems(item, visited, depth + 1)
+      if (nested.hasQuestionArray) return nested
+    }
+    return { questionItems: [], hasQuestionArray: false }
+  }
+
+  const payloadObject = asObject(parsedPayload)
+  if (!payloadObject) return { questionItems: [], hasQuestionArray: false }
+
+  const directQuestionItems = pickArray(...QUESTION_ARRAY_KEYS.map((key) => payloadObject[key]))
+  const hasDirectQuestionArray = QUESTION_ARRAY_KEYS.some((key) => Array.isArray(payloadObject[key]))
+  if (hasDirectQuestionArray) {
+    return {
+      questionItems: directQuestionItems,
+      hasQuestionArray: true,
+    }
+  }
+
+  for (const key of QUESTION_WRAPPER_KEYS) {
+    const nested = findNestedQuestionItems(payloadObject[key], visited, depth + 1)
+    if (nested.hasQuestionArray) return nested
+  }
+
+  for (const value of Object.values(payloadObject)) {
+    const nested = findNestedQuestionItems(value, visited, depth + 1)
+    if (nested.hasQuestionArray) return nested
+  }
+
+  return { questionItems: [], hasQuestionArray: false }
+}
+
+type QuestionCollectionParseResult = {
+  items: EditableQuestion[]
+  hasQuestionArray: boolean
+  rawItemCount: number
+}
+
+const extractQuestionItems = (payload: unknown): { questionItems: unknown[]; hasQuestionArray: boolean } => {
+  const candidates = unwrapQuestionPayloadCandidates(payload)
+
+  for (const candidate of candidates) {
+    const parsedCandidate = parseMaybeJsonString(candidate)
+    if (Array.isArray(parsedCandidate)) {
+      return {
+        questionItems: parsedCandidate,
+        hasQuestionArray: true,
+      }
+    }
+
+    const candidateObject = asObject(parsedCandidate)
+    if (!candidateObject) continue
+
+    const nestedQuestionItems = pickArray(...QUESTION_ARRAY_KEYS.map((key) => candidateObject[key]))
+    const hasNestedQuestionArray = QUESTION_ARRAY_KEYS.some((key) => Array.isArray(candidateObject[key]))
+    if (hasNestedQuestionArray) {
+      return {
+        questionItems: nestedQuestionItems,
+        hasQuestionArray: true,
+      }
+    }
+  }
+
+  return findNestedQuestionItems(payload)
+}
+
+export const normalizeTaskType = (value: unknown): TaskType => {
+  if (typeof value === 'number' && value in TASK_TYPE_FROM_API) return TASK_TYPE_FROM_API[value]
+  const trimmed = String(value ?? '').trim()
+  if (trimmed && Number.isFinite(Number(trimmed)) && Number(trimmed) in TASK_TYPE_FROM_API) {
+    return TASK_TYPE_FROM_API[Number(trimmed)]
+  }
+  if (trimmed === 'Quiz') return 'Quizz'
+  return TASK_TYPE_OPTIONS.includes(trimmed as TaskType) ? trimmed as TaskType : 'Practice'
+}
+
+export const normalizeTaskPriority = (value: unknown): TaskPriority | '' => {
+  if (value == null || value === '') return ''
+  if (typeof value === 'number' && value in TASK_PRIORITY_FROM_API) return TASK_PRIORITY_FROM_API[value]
+  const trimmed = String(value ?? '').trim()
+  if (trimmed && Number.isFinite(Number(trimmed)) && Number(trimmed) in TASK_PRIORITY_FROM_API) {
+    return TASK_PRIORITY_FROM_API[Number(trimmed)]
+  }
+  return PRIORITY_OPTIONS.includes(trimmed as TaskPriority) ? trimmed as TaskPriority : ''
+}
+
+export const normalizeTaskStatus = (value: unknown): TaskStatus => {
+  if (value === 0 || String(value).trim() === '0') return 'Pending'
+  if (value === 1 || String(value).trim() === '1') return 'InProgress'
+  if (value === 2 || String(value).trim() === '2') return 'Completed'
+  const normalized = String(value ?? '').trim()
+  return TASK_STATUS_OPTIONS.includes(normalized as TaskStatus) ? normalized as TaskStatus : 'Pending'
+}
+
+export const normalizeQuestionType = (value: unknown): QuestionType => {
+  if (typeof value === 'number' && value in QUESTION_TYPE_FROM_API) return QUESTION_TYPE_FROM_API[value]
+  const trimmed = String(value ?? '').trim()
+  if (trimmed && Number.isFinite(Number(trimmed)) && Number(trimmed) in QUESTION_TYPE_FROM_API) {
+    return QUESTION_TYPE_FROM_API[Number(trimmed)]
+  }
+  return QUESTION_TYPE_OPTIONS.includes(trimmed as QuestionType) ? trimmed as QuestionType : 'SingleChoice'
+}
+
+const normalizeLevel = (value: unknown): Level => {
+  if (typeof value === 'number' && value in LEVEL_FROM_API) return LEVEL_FROM_API[value]
+  const trimmed = String(value ?? '').trim()
+  if (trimmed && Number.isFinite(Number(trimmed)) && Number(trimmed) in LEVEL_FROM_API) {
+    return LEVEL_FROM_API[Number(trimmed)]
+  }
+  return LEVEL_OPTIONS.includes(trimmed as Level) ? trimmed as Level : 'Beginner'
+}
+
+const normalizeLanguage = (value: unknown) =>
+  value === 'English'
+    ? LanguageSelection.English
+    : value === 'VietNamese' || value === 'Vietnamese'
+      ? LanguageSelection.Vietnamese
+      : typeof value === 'number'
+        ? value
+        : LanguageSelection.Vietnamese
+
+const normalizeGoalWeightValue = (value: unknown) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 100
+  const normalized = numeric >= 0 && numeric <= 1 ? numeric * 100 : numeric
+  return Math.max(0, Math.min(100, Math.round(normalized)))
+}
+
+const normalizePointsString = (value: unknown): string => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '1'
+  return String(numeric)
+}
+
+const createMatchingPairs = (entries: string[], fallback: EditableMatchingPair[] = []): EditableMatchingPair[] => {
+  const pairs = entries
+    .map((entry) => String(entry ?? ''))
+    .map((entry, index) => {
+      const separatorIndex = entry.indexOf('::')
+      const left = separatorIndex >= 0 ? entry.slice(0, separatorIndex).trim() : entry.trim()
+      const right = separatorIndex >= 0 ? entry.slice(separatorIndex + 2).trim() : ''
+      const fallbackPair = fallback[index]
+
+      return {
+        id: fallbackPair?.id ?? uid('pair'),
+        left: left || fallbackPair?.left || '',
+        right: right || fallbackPair?.right || '',
+      }
+    })
+    .filter((pair) => pair.left || pair.right)
+
+  if (pairs.length > 0) return pairs
+  return fallback
+}
+
+const serializeMatchingPair = (pair: Pick<EditableMatchingPair, 'left' | 'right'>): string => `${pair.left.trim()}::${pair.right.trim()}`
+
+export const emptyMatchingPair = (): EditableMatchingPair => ({ id: uid('pair'), left: '', right: '' })
+
+export const emptyQuestion = (type: QuestionType = 'SingleChoice'): EditableQuestion => ({
+  id: uid('question'),
+  persistedId: null,
+  questionText: '',
+  type,
+  options: type === 'TrueFalse' ? ['True', 'False'] : [],
+  correctAnswer: type === 'TrueFalse' ? 'True' : '',
+  points: '1',
+  selectedAnswers: [],
+  matchingPairs: [],
+  orderingSequence: [],
+})
+
+const withNormalizedQuestionTypeState = (question: EditableQuestion): EditableQuestion => {
+  if (question.type === 'TrueFalse') {
+    return {
+      ...question,
+      options: ['True', 'False'],
+      selectedAnswers: [],
+      matchingPairs: [],
+      orderingSequence: [],
+      correctAnswer: question.correctAnswer === 'False' ? 'False' : 'True',
+    }
+  }
+
+  if (question.type === 'MultipleChoice') {
+    return {
+      ...question,
+      matchingPairs: [],
+      orderingSequence: [],
+    }
+  }
+
+  if (question.type === 'SingleChoice') {
+    return {
+      ...question,
+      selectedAnswers: [],
+      matchingPairs: [],
+      orderingSequence: [],
+    }
+  }
+
+  if (question.type === 'Matching') {
+    return {
+      ...question,
+      selectedAnswers: [],
+      orderingSequence: [],
+      options: question.options,
+    }
+  }
+
+  if (question.type === 'FillInTheBlank') {
+    return {
+      ...question,
+      options: [],
+      selectedAnswers: [],
+      matchingPairs: [],
+      orderingSequence: [],
+    }
+  }
+
+  return {
+    ...question,
+    selectedAnswers: [],
+    matchingPairs: [],
+  }
+}
+
+const hydrateQuestion = (question: unknown, fallback?: EditableQuestion): EditableQuestion => {
+  const parsedQuestion = parseMaybeJsonString(question)
+  const questionObject = asObject(parsedQuestion)
+  const questionPersistedId = toPersistedId(questionObject?.id ?? questionObject?.questionId ?? questionObject?.QuestionId)
+  const type = normalizeQuestionType(questionObject?.type ?? questionObject?.Type ?? fallback?.type)
+  const rawOptions = sanitizeStringArray(pickOptionalArray(questionObject?.options, questionObject?.Options) ?? fallback?.options)
+  const correctAnswer = String(questionObject?.correctAnswer ?? questionObject?.CorrectAnswer ?? fallback?.correctAnswer ?? '')
+  const baseQuestion: EditableQuestion = {
+    id: String(questionPersistedId ?? fallback?.id ?? uid('question')),
+    persistedId: questionPersistedId ?? fallback?.persistedId ?? null,
+    questionText: String(questionObject?.questionText ?? questionObject?.QuestionText ?? fallback?.questionText ?? ''),
+    type,
+    options: type === 'TrueFalse' ? ['True', 'False'] : rawOptions,
+    correctAnswer,
+    points: normalizePointsString(questionObject?.points ?? questionObject?.Points ?? fallback?.points),
+    selectedAnswers: type === 'MultipleChoice'
+      ? parseSelectedAnswers(correctAnswer, rawOptions, fallback?.selectedAnswers ?? [])
+      : [],
+    matchingPairs: type === 'Matching'
+      ? createMatchingPairs(
+        parseCommaSeparated(correctAnswer).length > 0
+          ? parseCommaSeparated(correctAnswer)
+          : rawOptions,
+        fallback?.matchingPairs,
+      )
+      : [],
+    orderingSequence: type === 'Ordering'
+      ? (parseCommaSeparated(correctAnswer).length > 0 ? parseCommaSeparated(correctAnswer) : (fallback?.orderingSequence ?? []))
+      : [],
+  }
+
+  return withNormalizedQuestionTypeState(baseQuestion)
+}
+
+const parseQuestionCollection = (payload: unknown): QuestionCollectionParseResult => {
+  const { questionItems, hasQuestionArray } = extractQuestionItems(payload)
+  const items = questionItems.map((item) => hydrateQuestion(item))
+
+  return {
+    items,
+    hasQuestionArray,
+    rawItemCount: questionItems.length,
+  }
+}
+
+export const parseGeneratedQuizQuestionsPayload = (payload: unknown): QuestionCollectionParseResult => parseQuestionCollection(payload)
 
 export const mergeLessonQuizzesWithSkeleton = (
   existingQuizzes: EditableQuiz[],
@@ -233,8 +664,8 @@ export const mergeLessonQuizzesWithSkeleton = (
       persistedId: skeletonQuiz.persistedId ?? matchedQuiz?.persistedId ?? null,
       title: skeletonQuiz.title.trim() || matchedQuiz?.title || '',
       description: skeletonQuiz.description.trim() || matchedQuiz?.description || '',
-      // Keep existing question JSON so manual edits are not lost when skeleton is regenerated.
-      quizQuestionsJson: matchedQuiz?.quizQuestionsJson ?? '',
+      dueDate: matchedQuiz?.dueDate ?? '',
+      questions: matchedQuiz?.questions ?? [],
     }
   })
 
@@ -242,54 +673,7 @@ export const mergeLessonQuizzesWithSkeleton = (
   return [...merged, ...remaining]
 }
 
-export const extractQuizQuestionsJsonPayload = (payload: unknown): string => {
-  if (typeof payload === 'string') return payload
-  if (payload == null || payload === '') return ''
-
-  const payloadObject = asObject(payload)
-  if (!payloadObject) return normalizeJsonField(payload)
-
-  const directQuestions =
-    payloadObject.quizQuestionsJson
-    ?? payloadObject.QuizQuestionsJson
-    ?? payloadObject.quizQuestions
-    ?? payloadObject.QuizQuestions
-    ?? payloadObject.questions
-    ?? payloadObject.Questions
-    ?? payloadObject.value
-    ?? payloadObject.Value
-
-  if (directQuestions != null) return normalizeJsonField(directQuestions)
-
-  return normalizeJsonField(payloadObject)
-}
-
-export const normalizeTaskType = (value: unknown): string => {
-  if (value === 0 || String(value).trim() === '0') return 'Practice'
-  if (value === 1 || String(value).trim() === '1') return 'Theory'
-  if (value === 2 || String(value).trim() === '2') return 'Quizz'
-  const normalized = String(value ?? '').trim()
-  return TASK_TYPE_OPTIONS.includes(normalized) ? normalized : 'Practice'
-}
-
-export const normalizeTaskStatus = (value: unknown): string => {
-  if (value === 0 || String(value).trim() === '0') return 'Pending'
-  if (value === 1 || String(value).trim() === '1') return 'InProgress'
-  if (value === 2 || String(value).trim() === '2') return 'Completed'
-  const normalized = String(value ?? '').trim()
-  return TASK_STATUS_OPTIONS.includes(normalized) ? normalized : 'Pending'
-}
-
-const normalizeLanguage = (value: unknown) =>
-  value === 'English'
-    ? LanguageSelection.English
-    : value === 'VietNamese' || value === 'Vietnamese'
-      ? LanguageSelection.Vietnamese
-      : typeof value === 'number'
-        ? value
-        : LanguageSelection.Vietnamese
-
-export const emptyQuiz = (): EditableQuiz => ({ id: uid('quiz'), persistedId: null, title: '', description: '', quizQuestionsJson: '' })
+export const emptyQuiz = (): EditableQuiz => ({ id: uid('quiz'), persistedId: null, title: '', description: '', dueDate: '', questions: [] })
 export const emptyTask = (): EditableTask => ({ id: uid('task'), persistedId: null, title: '', description: '', priority: '', taskStatus: 'Pending', dueDate: '', taskType: 'Practice', quizQuestionsJson: '' })
 export const emptyLesson = (): EditableLesson => ({ id: uid('lesson'), persistedId: null, title: '', lessonDay: '', sections: createEmptyLessonSections(), quizzes: [] })
 export const emptyChapter = (): EditableChapter => ({ id: uid('chapter'), persistedId: null, title: '', content: '', startDate: '', endDate: '', estimatedDays: '', lessons: [emptyLesson()], tasks: [] })
@@ -304,13 +688,6 @@ export const emptyForm = (): DraftFormState => ({
   endDate: '',
   chapters: [emptyChapter()],
 })
-
-const normalizeGoalWeightValue = (value: unknown) => {
-  const numeric = Number(value)
-  if (!Number.isFinite(numeric)) return 100
-  const normalized = numeric >= 0 && numeric <= 1 ? numeric * 100 : numeric
-  return Math.max(0, Math.min(100, Math.round(normalized)))
-}
 
 const extractGoals = (payload: any) => {
   const source = Array.isArray(payload?.goals)
@@ -336,6 +713,20 @@ const extractGoals = (payload: any) => {
   }
 
   return extractedGoals
+}
+
+const hydrateQuiz = (quiz: any, fallbackQuiz?: EditableQuiz): EditableQuiz => {
+  const quizPersistedId = toPersistedId(quiz?.id ?? quiz?.quizId ?? quiz?.quizzId ?? quiz?.QuizId ?? quiz?.QuizzId)
+  const parsedQuestions = parseQuestionCollection(quiz)
+
+  return {
+    id: String(quizPersistedId ?? fallbackQuiz?.id ?? uid('quiz')),
+    persistedId: quizPersistedId ?? fallbackQuiz?.persistedId ?? null,
+    title: String(quiz?.title ?? quiz?.Title ?? fallbackQuiz?.title ?? ''),
+    description: String(quiz?.description ?? quiz?.Description ?? fallbackQuiz?.description ?? ''),
+    dueDate: toDateInput(quiz?.dueDate ?? quiz?.DueDate ?? fallbackQuiz?.dueDate),
+    questions: parsedQuestions.hasQuestionArray ? parsedQuestions.items : (fallbackQuiz?.questions ?? []),
+  }
 }
 
 export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: DraftFormState | null): DraftFormState => {
@@ -366,21 +757,7 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
                 const quizPersistedId = quiz?.id ?? quiz?.quizId ?? quiz?.quizzId
                 const fallbackQuiz = fallbackLesson?.quizzes.find((item) => item.persistedId && item.persistedId === String(quizPersistedId))
                   ?? fallbackLesson?.quizzes[quizIndex]
-
-                return {
-                  id: String(quizPersistedId ?? fallbackQuiz?.id ?? uid('quiz')),
-                  persistedId: quizPersistedId != null ? String(quizPersistedId) : (fallbackQuiz?.persistedId ?? null),
-                  title: String(quiz?.title ?? quiz?.Title ?? fallbackQuiz?.title ?? ''),
-                  description: String(quiz?.description ?? quiz?.Description ?? fallbackQuiz?.description ?? ''),
-                  quizQuestionsJson: normalizeJsonField(
-                    quiz?.quizQuestionsJson
-                    ?? quiz?.QuizQuestionsJson
-                    ?? quiz?.quizQuestions
-                    ?? quiz?.QuizQuestions
-                    ?? fallbackQuiz?.quizQuestionsJson
-                    ?? '',
-                  ),
-                }
+                return hydrateQuiz(quiz, fallbackQuiz)
               })
               : (fallbackLesson?.quizzes ?? []),
           }
@@ -397,16 +774,16 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
         estimatedDays: chapter?.estimatedDays != null ? String(chapter.estimatedDays) : (fallbackChapter?.estimatedDays ?? ''),
         lessons,
         tasks: Array.isArray(chapter?.tasks) ? chapter.tasks.map((task: any) => ({
-        id: String(task?.id ?? task?.taskId ?? uid('task')),
-        persistedId: task?.id != null || task?.taskId != null ? String(task?.id ?? task?.taskId) : null,
-        title: task?.title ?? '',
-        description: task?.description ?? '',
-        priority: task?.priority != null ? String(task.priority) : '',
-        taskStatus: normalizeTaskStatus(task?.taskStatus ?? task?.TaskStatus),
-        dueDate: toDateInput(task?.dueDate ?? task?.DueDate),
-        taskType: normalizeTaskType(task?.taskType ?? task?.TaskType),
-        quizQuestionsJson: normalizeJsonField(task?.quizQuestionsJson ?? task?.QuizQuestionsJson),
-      })) : [],
+          id: String(task?.id ?? task?.taskId ?? uid('task')),
+          persistedId: task?.id != null || task?.taskId != null ? String(task?.id ?? task?.taskId) : null,
+          title: task?.title ?? '',
+          description: task?.description ?? '',
+          priority: normalizeTaskPriority(task?.priority ?? task?.Priority),
+          taskStatus: normalizeTaskStatus(task?.taskStatus ?? task?.TaskStatus),
+          dueDate: toDateInput(task?.dueDate ?? task?.DueDate),
+          taskType: normalizeTaskType(task?.taskType ?? task?.TaskType),
+          quizQuestionsJson: normalizeJsonField(task?.quizQuestionsJson ?? task?.QuizQuestionsJson),
+        })) : [],
       }
     })
     : fallback?.chapters?.length
@@ -423,7 +800,7 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
   return {
     subjectId: nextSubjectId,
     goals: extractedGoals.length > 0 ? extractedGoals : (fallback?.goals ?? []),
-    complexityLevel: (payload?.complexityLevel ?? payload?.ComplexityLevel ?? fallback?.complexityLevel ?? 'Beginner') as Level,
+    complexityLevel: normalizeLevel(payload?.complexityLevel ?? payload?.ComplexityLevel ?? fallback?.complexityLevel),
     languageSelection: normalizeLanguage(payload?.languageSelection ?? payload?.LanguageSelection ?? fallback?.languageSelection),
     title: nextTitle,
     description: nextDescription,
@@ -433,19 +810,81 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
   }
 }
 
+const isValidQuestionType = (value: string): value is QuestionType => QUESTION_TYPE_OPTIONS.includes(value as QuestionType)
+
 export const validateDraftForm = (form: DraftFormState): string | null => {
   if (!form.subjectId) return 'Subject is required.'
   if (!form.title.trim()) return 'Title is required.'
   if (form.goals.length === 0) return 'Select at least one goal.'
   if (form.goals.length === 1 && form.goals[0].weight !== 100) return 'Single goal must have weight 100.'
   if (form.goals.length === 2 && form.goals[0].weight + form.goals[1].weight !== 100) return 'Goal weights must total 100.'
+
   for (const chapter of form.chapters) {
     if (!chapter.title.trim()) return 'Every chapter needs a title.'
     if (!chapter.lessons.length) return `Chapter "${chapter.title || 'Untitled'}" needs at least one lesson.`
+
+    for (const task of chapter.tasks) {
+      if (!task.title.trim()) return `Every task needs a title in chapter "${chapter.title || 'Untitled'}".`
+      if (task.title.trim().length > 200) return `Task title must be 200 characters or fewer in chapter "${chapter.title || 'Untitled'}".`
+      if (!TASK_TYPE_OPTIONS.includes(task.taskType)) return `Task type is invalid for task "${task.title || 'Untitled'}".`
+    }
+
     for (const lesson of chapter.lessons) {
       if (!lesson.title.trim()) return `Every lesson needs a title in chapter "${chapter.title || 'Untitled'}".`
+
+      for (const quiz of lesson.quizzes) {
+        if (!quiz.title.trim()) return `Every quiz needs a title in lesson "${lesson.title || 'Untitled'}".`
+        if (quiz.title.trim().length > 200) return `Quiz title must be 200 characters or fewer in lesson "${lesson.title || 'Untitled'}".`
+
+        for (const question of quiz.questions) {
+          if (!question.questionText.trim()) return `Every question needs text in quiz "${quiz.title || 'Untitled'}".`
+          if (question.questionText.trim().length > 2000) return `Question text must be 2000 characters or fewer in quiz "${quiz.title || 'Untitled'}".`
+          if (!isValidQuestionType(question.type)) return `Question type is invalid in quiz "${quiz.title || 'Untitled'}".`
+
+          const points = Number(question.points)
+          if (!Number.isFinite(points) || points <= 0) {
+            return `Question points must be greater than 0 in quiz "${quiz.title || 'Untitled'}".`
+          }
+
+          if (question.type === 'TrueFalse') {
+            if (!['True', 'False'].includes(question.correctAnswer.trim())) return `True/False answer is invalid in quiz "${quiz.title || 'Untitled'}".`
+            continue
+          }
+
+          if (question.type === 'SingleChoice') {
+            if (sanitizeStringArray(question.options).length === 0) return `Single choice questions need at least one option in quiz "${quiz.title || 'Untitled'}".`
+            if (!question.correctAnswer.trim()) return `Single choice questions need a correct answer in quiz "${quiz.title || 'Untitled'}".`
+            continue
+          }
+
+          if (question.type === 'MultipleChoice') {
+            if (sanitizeStringArray(question.options).length === 0) return `Multiple choice questions need at least one option in quiz "${quiz.title || 'Untitled'}".`
+            if (question.selectedAnswers.filter((item) => item.trim()).length === 0) {
+              return `Multiple choice questions need at least one selected answer in quiz "${quiz.title || 'Untitled'}".`
+            }
+            continue
+          }
+
+          if (question.type === 'Matching') {
+            const validPairs = question.matchingPairs.filter((pair) => pair.left.trim() && pair.right.trim())
+            if (validPairs.length === 0) return `Matching questions need at least one valid pair in quiz "${quiz.title || 'Untitled'}".`
+            continue
+          }
+
+          if (question.type === 'Ordering') {
+            if (sanitizeStringArray(question.options).length < 2) return `Ordering questions need at least two options in quiz "${quiz.title || 'Untitled'}".`
+            if (sanitizeStringArray(question.orderingSequence).length < 2) return `Ordering questions need a valid answer order in quiz "${quiz.title || 'Untitled'}".`
+            continue
+          }
+
+          if (question.type === 'FillInTheBlank' && !question.correctAnswer.trim()) {
+            return `Fill in the blank questions need a correct answer in quiz "${quiz.title || 'Untitled'}".`
+          }
+        }
+      }
     }
   }
+
   return null
 }
 
@@ -457,59 +896,142 @@ export const validateAiDraftInput = (form: DraftFormState): string | null => {
   return null
 }
 
+const serializeQuestion = (question: EditableQuestion) => {
+  const questionText = question.questionText.trim()
+  const points = Number(question.points)
+  const normalizedPoints = Number.isFinite(points) && points > 0 ? points : 1
+
+  if (question.type === 'TrueFalse') {
+    return {
+      id: question.persistedId ?? undefined,
+      questionId: question.persistedId ?? undefined,
+      questionText,
+      type: QUESTION_TYPE_TO_API[question.type],
+      options: ['True', 'False'],
+      correctAnswer: question.correctAnswer.trim() === 'False' ? 'False' : 'True',
+      points: normalizedPoints,
+    }
+  }
+
+  if (question.type === 'MultipleChoice') {
+    return {
+      id: question.persistedId ?? undefined,
+      questionId: question.persistedId ?? undefined,
+      questionText,
+      type: QUESTION_TYPE_TO_API[question.type],
+      options: sanitizeStringArray(question.options),
+      correctAnswer: sanitizeStringArray(question.selectedAnswers).join(', '),
+      points: normalizedPoints,
+    }
+  }
+
+  if (question.type === 'SingleChoice') {
+    return {
+      id: question.persistedId ?? undefined,
+      questionId: question.persistedId ?? undefined,
+      questionText,
+      type: QUESTION_TYPE_TO_API[question.type],
+      options: sanitizeStringArray(question.options),
+      correctAnswer: question.correctAnswer.trim(),
+      points: normalizedPoints,
+    }
+  }
+
+  if (question.type === 'Matching') {
+    const validPairs = question.matchingPairs
+      .filter((pair) => pair.left.trim() && pair.right.trim())
+      .map((pair) => ({ left: pair.left.trim(), right: pair.right.trim() }))
+    const serializedPairs = validPairs.map((pair) => serializeMatchingPair(pair))
+
+    return {
+      id: question.persistedId ?? undefined,
+      questionId: question.persistedId ?? undefined,
+      questionText,
+      type: QUESTION_TYPE_TO_API[question.type],
+      options: serializedPairs,
+      correctAnswer: serializedPairs.join(','),
+      points: normalizedPoints,
+    }
+  }
+
+  if (question.type === 'FillInTheBlank') {
+    return {
+      id: question.persistedId ?? undefined,
+      questionId: question.persistedId ?? undefined,
+      questionText,
+      type: QUESTION_TYPE_TO_API[question.type],
+      options: [],
+      correctAnswer: question.correctAnswer.trim(),
+      points: normalizedPoints,
+    }
+  }
+
+  return {
+    id: question.persistedId ?? undefined,
+    questionId: question.persistedId ?? undefined,
+    questionText,
+    type: QUESTION_TYPE_TO_API[question.type],
+    options: sanitizeStringArray(question.options),
+    correctAnswer: sanitizeStringArray(question.orderingSequence).join(','),
+    points: normalizedPoints,
+  }
+}
+
 export const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
   subjectId: form.subjectId,
-  goals: form.goals,
-  complexityLevel: form.complexityLevel,
+  goals: form.goals.map((goal) => ({
+    goalId: goal.goalId,
+    weight: goal.weight,
+  })),
+  complexityLevel: COMPLEXITY_TO_API[form.complexityLevel],
   languageSelection: form.languageSelection,
   title: form.title.trim(),
-  description: form.description.trim() || undefined,
-  startDate: toIsoDate(form.startDate),
-  endDate: toIsoDate(form.endDate),
+  description: form.description.trim() || null,
+  startDate: toIsoDate(form.startDate) ?? null,
+  endDate: toIsoDate(form.endDate) ?? null,
   chapters: form.chapters.map((chapter) => ({
     id: chapter.persistedId ?? undefined,
     chapterId: chapter.persistedId ?? undefined,
     title: chapter.title.trim(),
-    content: chapter.content.trim() || undefined,
-    startDate: toIsoDate(chapter.startDate),
-    endDate: toIsoDate(chapter.endDate),
-    estimatedDays: chapter.estimatedDays ? Number(chapter.estimatedDays) : undefined,
-    tasks: chapter.tasks.map((task) => ({
-      id: task.persistedId ?? undefined,
-      taskId: task.persistedId ?? undefined,
-      title: task.title.trim(),
-      description: task.description.trim() || undefined,
-      priority: task.priority.trim() || undefined,
-      taskStatus: task.taskStatus.trim() || undefined,
-      dueDate: toIsoDate(task.dueDate),
-      taskType: task.taskType.trim() || undefined,
-      quizQuestionsJson: task.quizQuestionsJson.trim() || undefined,
-    })),
+    content: chapter.content.trim() || null,
+    startDate: toIsoDate(chapter.startDate) ?? null,
+    endDate: toIsoDate(chapter.endDate) ?? null,
+    estimatedDays: chapter.estimatedDays.trim() ? Number(chapter.estimatedDays) : null,
     lessons: chapter.lessons.map((lesson) => ({
       id: lesson.persistedId ?? undefined,
       lessonId: lesson.persistedId ?? undefined,
       title: lesson.title.trim(),
-      lessonDay: toIsoDate(lesson.lessonDay),
-      content: buildLessonContentFromSections(lesson.sections as Record<LessonSectionKey, string>),
+      lessonDay: toIsoDate(lesson.lessonDay) ?? null,
+      content: buildLessonContentFromSections(lesson.sections),
       quizzes: lesson.quizzes.map((quiz) => ({
         id: quiz.persistedId ?? undefined,
         quizId: quiz.persistedId ?? undefined,
         quizzId: quiz.persistedId ?? undefined,
         title: quiz.title.trim(),
-        description: quiz.description.trim() || undefined,
-        quizQuestionsJson: quiz.quizQuestionsJson.trim() || undefined,
+        description: quiz.description.trim() || null,
+        dueDate: toIsoDate(quiz.dueDate) ?? null,
+        questions: quiz.questions.map((question) => serializeQuestion(question)),
       })),
+    })),
+    tasks: chapter.tasks.map((task) => ({
+      id: task.persistedId ?? undefined,
+      taskId: task.persistedId ?? undefined,
+      title: task.title.trim(),
+      description: task.description.trim() || null,
+      priority: task.priority ? TASK_PRIORITY_TO_API[task.priority] : null,
+      taskStatus: task.taskStatus,
+      dueDate: toIsoDate(task.dueDate) ?? null,
+      taskType: TASK_TYPE_TO_API[task.taskType],
+      quizQuestionsJson: task.quizQuestionsJson.trim() || null,
     })),
   })),
 })
 
-type SelectionSnapshot = {
-  chapterId: string | null
-  chapterPersistedId: string | null
-  lessonId: string | null
-  lessonPersistedId: string | null
-  chapterIndex: number
-  lessonIndex: number
+export type SelectionSnapshot = {
+  activeChapterPersistedId: string | null
+  activeChapterId: string | null
+  activeLessonPersistedId: string | null
+  activeLessonId: string | null
 }
 
 export const createSelectionSnapshot = (
@@ -517,18 +1039,14 @@ export const createSelectionSnapshot = (
   activeChapterId: string | null,
   activeLessonId: string | null,
 ): SelectionSnapshot => {
-  const chapterIndex = Math.max(0, form.chapters.findIndex((chapter) => chapter.id === activeChapterId))
-  const activeChapter = form.chapters[chapterIndex] ?? form.chapters[0] ?? null
-  const lessonIndex = Math.max(0, activeChapter?.lessons.findIndex((lesson) => lesson.id === activeLessonId) ?? 0)
-  const activeLesson = activeChapter?.lessons[lessonIndex] ?? activeChapter?.lessons[0] ?? null
+  const activeChapter = form.chapters.find((chapter) => chapter.id === activeChapterId) ?? null
+  const activeLesson = activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? null
 
   return {
-    chapterId: activeChapter?.id ?? null,
-    chapterPersistedId: activeChapter?.persistedId ?? null,
-    lessonId: activeLesson?.id ?? null,
-    lessonPersistedId: activeLesson?.persistedId ?? null,
-    chapterIndex,
-    lessonIndex,
+    activeChapterPersistedId: activeChapter?.persistedId ?? null,
+    activeChapterId: activeChapter?.id ?? activeChapterId ?? null,
+    activeLessonPersistedId: activeLesson?.persistedId ?? null,
+    activeLessonId: activeLesson?.id ?? activeLessonId ?? null,
   }
 }
 
@@ -536,20 +1054,22 @@ export const restoreSelectionSnapshot = (
   form: DraftFormState,
   snapshot: SelectionSnapshot,
 ): { chapterId: string | null; lessonId: string | null } => {
-  const chapter = form.chapters.find((item) => item.persistedId && item.persistedId === snapshot.chapterPersistedId)
-    ?? form.chapters.find((item) => item.id === snapshot.chapterId)
-    ?? form.chapters[snapshot.chapterIndex]
+  const matchedChapter = (snapshot.activeChapterPersistedId
+    ? form.chapters.find((chapter) => chapter.persistedId === snapshot.activeChapterPersistedId)
+    : undefined)
+    ?? (snapshot.activeChapterId ? form.chapters.find((chapter) => chapter.id === snapshot.activeChapterId) : undefined)
     ?? form.chapters[0]
     ?? null
 
-  const lesson = chapter?.lessons.find((item) => item.persistedId && item.persistedId === snapshot.lessonPersistedId)
-    ?? chapter?.lessons.find((item) => item.id === snapshot.lessonId)
-    ?? chapter?.lessons[snapshot.lessonIndex]
-    ?? chapter?.lessons[0]
+  const matchedLesson = (snapshot.activeLessonPersistedId
+    ? matchedChapter?.lessons.find((lesson) => lesson.persistedId === snapshot.activeLessonPersistedId)
+    : undefined)
+    ?? (snapshot.activeLessonId ? matchedChapter?.lessons.find((lesson) => lesson.id === snapshot.activeLessonId) : undefined)
+    ?? matchedChapter?.lessons[0]
     ?? null
 
   return {
-    chapterId: chapter?.id ?? null,
-    lessonId: lesson?.id ?? null,
+    chapterId: matchedChapter?.id ?? null,
+    lessonId: matchedLesson?.id ?? null,
   }
 }

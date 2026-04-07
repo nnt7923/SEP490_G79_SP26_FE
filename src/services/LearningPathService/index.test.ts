@@ -4,6 +4,7 @@ vi.mock('../Axios', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }))
 
@@ -16,10 +17,12 @@ vi.mock('../SignalR', () => ({
 
 import api from '../Axios'
 import {
+  createManualDraft,
   generateLessonQuizSkeleton,
   getLearningPathProgress,
   getLessonReadStatus,
   markLessonContentRead,
+  updateManualDraft,
 } from './index'
 import { requestLessonQuizSkeleton } from '../SignalR'
 
@@ -30,6 +33,7 @@ describe('LearningPathService progress/read APIs', () => {
   beforeEach(() => {
     mockedApi.get.mockReset()
     mockedApi.post.mockReset()
+    mockedApi.put.mockReset()
     mockedRequestLessonQuizSkeleton.mockReset()
   })
 
@@ -139,5 +143,86 @@ describe('LearningPathService progress/read APIs', () => {
     mockedRequestLessonQuizSkeleton.mockRejectedValue(new Error("Method does not exist: 'RequestQuizSkeleton'"))
 
     await expect(generateLessonQuizSkeleton(lessonId)).rejects.toThrow("Method does not exist: 'RequestQuizSkeleton'")
+  })
+
+  it('keeps manual draft languageSelection numeric and normalizes nested quiz questions', async () => {
+    mockedApi.post.mockResolvedValue({
+      data: {
+        value: {
+          pathId: 'path-1',
+          chapters: [
+            {
+              id: 'chapter-1',
+              title: 'Chapter 1',
+              lessons: [
+                {
+                  id: 'lesson-1',
+                  title: 'Lesson 1',
+                  quizzes: [
+                    {
+                      id: 'quiz-1',
+                      title: 'Quiz 1',
+                      dueDate: '2026-04-03T00:00:00.000Z',
+                      questions: [
+                        {
+                          questionId: 'question-1',
+                          questionText: 'Q1',
+                          type: 2,
+                          options: ['A', 'B'],
+                          correctAnswer: 'A',
+                          points: 1,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    })
+
+    const payload = {
+      subjectId: 'subject-1',
+      goals: [{ goalId: 'goal-1', weight: 100 }],
+      complexityLevel: 2,
+      languageSelection: 2,
+      title: 'Draft',
+      chapters: [],
+    }
+
+    const result = await createManualDraft(payload as any)
+
+    expect(mockedApi.post).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ languageSelection: 2 }))
+    expect(result.chapters?.[0].lessons?.[0].quizzes?.[0]).toMatchObject({
+      dueDate: '2026-04-03T00:00:00.000Z',
+      questions: [
+        {
+          id: 'question-1',
+          questionId: 'question-1',
+          questionText: 'Q1',
+          type: 2,
+          options: ['A', 'B'],
+          correctAnswer: 'A',
+          points: 1,
+        },
+      ],
+    })
+  })
+
+  it('keeps numeric languageSelection when updating manual draft', async () => {
+    mockedApi.put.mockResolvedValue({ data: { value: { pathId: 'path-2', chapters: [] } } })
+
+    await updateManualDraft('path-2', {
+      subjectId: 'subject-1',
+      goals: [{ goalId: 'goal-1', weight: 100 }],
+      complexityLevel: 1,
+      languageSelection: 1,
+      title: 'Draft',
+      chapters: [],
+    } as any)
+
+    expect(mockedApi.put).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ languageSelection: 1 }))
   })
 })

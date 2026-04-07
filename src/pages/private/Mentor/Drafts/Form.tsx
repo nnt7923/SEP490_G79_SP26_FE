@@ -27,12 +27,13 @@ import {
   createSelectionSnapshot,
   emptyChapter,
   emptyLesson,
+  emptyQuestion,
   emptyQuiz,
   emptyTask,
-  extractQuizQuestionsJsonPayload,
   hydrateDraftForm,
   mergeLessonQuizzesWithSkeleton,
   normalizeJsonField,
+  parseGeneratedQuizQuestionsPayload,
   parseQuizSkeletonPayload,
   normalizeTaskStatus,
   normalizeTaskType,
@@ -217,6 +218,16 @@ const MentorDraftFormPage: React.FC = () => {
     updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.map((task) => task.id === taskId ? updater(task) : task) }))
   const updateQuiz = (chapterId: string, lessonId: string, quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) =>
     updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.map((quiz) => quiz.id === quizId ? updater(quiz) : quiz) }))
+  const updateQuestion = (
+    chapterId: string,
+    lessonId: string,
+    quizId: string,
+    questionId: string,
+    updater: (question: EditableQuiz['questions'][number]) => EditableQuiz['questions'][number],
+  ) => updateQuiz(chapterId, lessonId, quizId, (quiz) => ({
+    ...quiz,
+    questions: quiz.questions.map((question) => question.id === questionId ? updater(question) : question),
+  }))
 
   const selectChapter = (chapterId: string, step: EditorStep = 'chapters') => {
     const chapter = form.chapters.find((item) => item.id === chapterId)
@@ -278,6 +289,8 @@ const MentorDraftFormPage: React.FC = () => {
   }
   const addTask = (chapterId: string) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: [...chapter.tasks, emptyTask()] }))
   const addQuiz = (chapterId: string, lessonId: string) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: [...lesson.quizzes, emptyQuiz()] }))
+  const addQuestion = (chapterId: string, lessonId: string, quizId: string) =>
+    updateQuiz(chapterId, lessonId, quizId, (quiz) => ({ ...quiz, questions: [...quiz.questions, emptyQuestion()] }))
   const moveChapter = (chapterId: string, direction: -1 | 1) => setForm((prev) => {
     const index = prev.chapters.findIndex((chapter) => chapter.id === chapterId)
     const targetIndex = index + direction
@@ -316,6 +329,8 @@ const MentorDraftFormPage: React.FC = () => {
   })
   const removeTask = (chapterId: string, taskId: string) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.filter((task) => task.id !== taskId) }))
   const removeQuiz = (chapterId: string, lessonId: string, quizId: string) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.filter((quiz) => quiz.id !== quizId) }))
+  const removeQuestion = (chapterId: string, lessonId: string, quizId: string, questionId: string) =>
+    updateQuiz(chapterId, lessonId, quizId, (quiz) => ({ ...quiz, questions: quiz.questions.filter((question) => question.id !== questionId) }))
 
   const generateAiDraftFromSettings = async () => {
     const validationError = validateAiDraftInput(form)
@@ -531,12 +546,20 @@ const MentorDraftFormPage: React.FC = () => {
       }
 
       const result = await requestQuizQuestions(persistedQuizId)
-      const normalized = extractQuizQuestionsJsonPayload(result)
-      if (!normalized.trim()) {
+      const normalized = parseGeneratedQuizQuestionsPayload(result)
+      if (!normalized.hasQuestionArray) {
+        setToast({ message: t('drafts.quizGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+      if (normalized.rawItemCount > 0 && normalized.items.length === 0) {
+        setToast({ message: t('drafts.quizGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+      if (normalized.items.length === 0) {
         setToast({ message: t('drafts.quizGenerateEmpty'), type: 'warning' })
         return
       }
-      updateQuiz(chapterId, lessonId, targetQuiz.id, (item) => ({ ...item, quizQuestionsJson: normalized }))
+      updateQuiz(chapterId, lessonId, targetQuiz.id, (item) => ({ ...item, questions: normalized.items }))
       setToast({ message: t('drafts.quizGenerateSuccess'), type: 'success' })
     } catch (err: any) {
       setToast({ message: getApiErrorMessage(err, t('drafts.quizGenerateFailed')), type: 'error' })
@@ -776,6 +799,9 @@ const MentorDraftFormPage: React.FC = () => {
                   onAddQuiz={() => activeChapter && activeLesson ? addQuiz(activeChapter.id, activeLesson.id) : undefined}
                   onUpdateQuiz={(quizId, updater) => activeChapter && activeLesson ? updateQuiz(activeChapter.id, activeLesson.id, quizId, updater) : undefined}
                   onRemoveQuiz={(quizId) => activeChapter && activeLesson ? removeQuiz(activeChapter.id, activeLesson.id, quizId) : undefined}
+                  onAddQuestion={(quizId) => activeChapter && activeLesson ? addQuestion(activeChapter.id, activeLesson.id, quizId) : undefined}
+                  onUpdateQuestion={(quizId, questionId, updater) => activeChapter && activeLesson ? updateQuestion(activeChapter.id, activeLesson.id, quizId, questionId, updater) : undefined}
+                  onRemoveQuestion={(quizId, questionId) => activeChapter && activeLesson ? removeQuestion(activeChapter.id, activeLesson.id, quizId, questionId) : undefined}
                   onGenerateQuiz={(quiz) => activeChapter && activeLesson ? generateAiQuizQuestions(activeChapter.id, activeLesson.id, quiz) : undefined}
                   onGenerateAllLessonQuizzes={generateAiQuizQuestionsForAllLessons}
                 />

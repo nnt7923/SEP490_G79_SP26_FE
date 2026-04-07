@@ -3,22 +3,44 @@ export type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 export type EditorStep = 'overview' | 'chapters' | 'lesson' | 'assessments'
 export type AssessmentTab = 'tasks' | 'quizzes'
 export type SubjectOption = { id: string; name: string; goals: Array<{ goalId: string; title: string }> }
+export type TaskType = 'Practice' | 'Theory' | 'Quizz'
+export type TaskStatus = 'Pending' | 'InProgress' | 'Completed'
+export type TaskPriority = 'Low' | 'Medium' | 'High'
+export type QuestionType = 'TrueFalse' | 'MultipleChoice' | 'SingleChoice' | 'Matching' | 'FillInTheBlank' | 'Ordering'
+export type EditableMatchingPair = {
+  id: string
+  left: string
+  right: string
+}
+export type EditableQuestion = {
+  id: string
+  persistedId: string | null
+  questionText: string
+  type: QuestionType
+  options: string[]
+  correctAnswer: string
+  points: string
+  selectedAnswers: string[]
+  matchingPairs: EditableMatchingPair[]
+  orderingSequence: string[]
+}
 export type EditableQuiz = {
   id: string
   persistedId: string | null
   title: string
   description: string
-  quizQuestionsJson: string
+  dueDate: string
+  questions: EditableQuestion[]
 }
 export type EditableTask = {
   id: string
   persistedId: string | null
   title: string
   description: string
-  priority: string
-  taskStatus: string
+  priority: TaskPriority | ''
+  taskStatus: TaskStatus
   dueDate: string
-  taskType: string
+  taskType: TaskType
   quizQuestionsJson: string
 }
 export type EditableLesson = {

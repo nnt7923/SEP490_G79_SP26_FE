@@ -20,7 +20,20 @@ export type Quiz = {
   quizzId?: string
   title: string
   description?: string | null
+  dueDate?: string | null
+  questions?: Question[]
   quizQuestionsJson?: string | null
+  [key: string]: any
+}
+
+export type Question = {
+  id?: string
+  questionId?: string
+  questionText: string
+  type: string | number
+  options?: string[] | null
+  correctAnswer?: string | null
+  points: number | string
   [key: string]: any
 }
 
@@ -72,7 +85,20 @@ export type ManualDraftQuizInput = {
   quizzId?: string
   title: string
   description?: string | null
+  dueDate?: string | null
+  questions?: ManualDraftQuestionInput[]
   quizQuestionsJson?: string | null
+  [key: string]: any
+}
+
+export type ManualDraftQuestionInput = {
+  id?: string
+  questionId?: string
+  questionText: string
+  type: number | string
+  options?: string[] | null
+  correctAnswer?: string | null
+  points: number
   [key: string]: any
 }
 
@@ -115,7 +141,7 @@ export type ManualDraftChapterInput = {
 export type ManualDraftPayload = {
   subjectId: string
   goals: ManualDraftGoalInput[]
-  complexityLevel: string
+  complexityLevel: string | number
   languageSelection: number | string
   title: string
   description?: string | null
@@ -167,14 +193,6 @@ export type SkeletonResponse = {
   [key: string]: any
 }
 
-function normalizeLanguageSelectionValue(value: unknown): unknown {
-  if (typeof value === 'number') {
-    if (value === 1) return 'VietNamese'
-    if (value === 2) return 'English'
-  }
-  return value
-}
-
 function normalizeNumber(value: unknown, fallback = 0): number {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : fallback
@@ -200,6 +218,19 @@ function pickArray<T = any>(...candidates: unknown[]): T[] | undefined {
     if (arrayCandidate.length > 0) return arrayCandidate
   }
   return firstArray
+}
+
+function normalizeQuestion(question: any): Question {
+  return {
+    ...question,
+    id: question?.questionId ?? question?.id,
+    questionId: question?.questionId ?? question?.QuestionId ?? question?.id,
+    questionText: question?.questionText ?? question?.QuestionText ?? '',
+    type: question?.type ?? question?.Type,
+    options: question?.options ?? question?.Options ?? [],
+    correctAnswer: question?.correctAnswer ?? question?.CorrectAnswer ?? null,
+    points: question?.points ?? question?.Points ?? 0,
+  }
 }
 
 function toNullableNumber(value: unknown): number | null {
@@ -267,6 +298,13 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
             quizzId: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
             title: quiz?.title ?? quiz?.Title,
             description: quiz?.description ?? quiz?.Description ?? null,
+            dueDate: quiz?.dueDate ?? quiz?.DueDate ?? null,
+            questions: pickArray<any>(
+              quiz?.questions,
+              quiz?.Questions,
+              quiz?.questionDtos,
+              quiz?.QuestionDtos,
+            )?.map((question: any) => normalizeQuestion(question)),
             quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
           })),
         }
@@ -308,6 +346,13 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
           quizzId: quiz?.quizzId ?? quiz?.id ?? quiz?.quizId,
           title: quiz?.title ?? quiz?.Title,
           description: quiz?.description ?? quiz?.Description ?? null,
+          dueDate: quiz?.dueDate ?? quiz?.DueDate ?? null,
+          questions: pickArray<any>(
+            quiz?.questions,
+            quiz?.Questions,
+            quiz?.questionDtos,
+            quiz?.QuestionDtos,
+          )?.map((question: any) => normalizeQuestion(question)),
           quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
         })),
       }
@@ -434,24 +479,14 @@ export async function generateAiDraft(payload: any): Promise<SkeletonResponse> {
 }
 
 export async function createManualDraft(payload: ManualDraftPayload): Promise<SkeletonResponse> {
-  const reqBody = {
-    ...payload,
-    languageSelection: normalizeLanguageSelectionValue(payload?.languageSelection),
-  }
-
-  const res: any = await api.post(manualDraftUrl, reqBody)
+  const res: any = await api.post(manualDraftUrl, payload)
   const raw = unwrap<SkeletonResponse>(res)
   clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
 }
 
 export async function updateManualDraft(pathId: string, payload: ManualDraftPayload): Promise<SkeletonResponse> {
-  const reqBody = {
-    ...payload,
-    languageSelection: normalizeLanguageSelectionValue(payload?.languageSelection),
-  }
-
-  const res: any = await api.put(manualDraftDetailUrl(pathId), reqBody)
+  const res: any = await api.put(manualDraftDetailUrl(pathId), payload)
   const raw = unwrap<SkeletonResponse>(res)
   clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
