@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as signalR from '@microsoft/signalr'
-import { getSummaryHub, requestResourceSummary, disconnectSummaryHub } from './index'
+import {
+  disconnectHubs,
+  disconnectSummaryHub,
+  getSummaryHub,
+  requestLessonQuizSkeleton,
+  requestResourceSummary,
+} from './index'
 
 // Mock the SignalR module
 vi.mock('@microsoft/signalr', () => ({
@@ -16,6 +22,7 @@ vi.mock('@microsoft/signalr', () => ({
   },
   LogLevel: {
     None: 0,
+    Information: 1,
   },
 }))
 
@@ -33,18 +40,34 @@ const mockHubConnection = {
   invoke: vi.fn(),
   on: vi.fn(),
   off: vi.fn(),
+  onclose: vi.fn(),
+  onreconnecting: vi.fn(),
+  onreconnected: vi.fn(),
 }
 
 describe('SignalR Summary Hub Service', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     mockHubConnection.state = 0 // Reset to Disconnected
+    mockHubConnection.start.mockReset()
+    mockHubConnection.start.mockResolvedValue(undefined)
+    mockHubConnection.stop.mockReset()
+    mockHubConnection.stop.mockResolvedValue(undefined)
+    mockHubConnection.invoke.mockReset()
+    mockHubConnection.on.mockReset()
+    mockHubConnection.off.mockReset()
+    mockHubConnection.onclose.mockReset()
+    mockHubConnection.onreconnecting.mockReset()
+    mockHubConnection.onreconnected.mockReset()
     // Ensure clean state by disconnecting
     await disconnectSummaryHub()
+    await disconnectHubs()
   })
 
   afterEach(async () => {
     await disconnectSummaryHub()
+    await disconnectHubs()
   })
 
   describe('getSummaryHub', () => {
@@ -230,6 +253,116 @@ describe('SignalR Summary Hub Service', () => {
       mockHubConnection.state = 0 // Disconnected
       
       await expect(disconnectSummaryHub()).resolves.not.toThrow()
+    })
+  })
+
+  describe('requestLessonQuizSkeleton', () => {
+    it('should invoke RequestQuizSkeleton and resolve with quiz payload', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const quizPayload = {
+        LessonId: lessonId,
+        Quizzes: [{ QuizId: '87654321-1234-1234-1234-123456789012', Title: 'Quiz 1' }],
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveQuizSkeleton') {
+          setTimeout(() => handler(quizPayload), 10)
+        }
+      })
+
+      await expect(requestLessonQuizSkeleton(lessonId)).resolves.toEqual(quizPayload)
+      expect(mockHubConnection.invoke).toHaveBeenCalledWith('RequestQuizSkeleton', lessonId)
+    })
+
+    it('should ignore invoke return values and wait for ReceiveQuizSkeleton', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const invokeAck = {
+        LessonId: lessonId,
+        Quizzes: [],
+      }
+      const eventPayload = {
+        LessonId: lessonId,
+        Quizzes: [{ QuizId: '87654321-1234-1234-1234-123456789012', Title: 'Quiz 1' }],
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(invokeAck)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveQuizSkeleton') {
+          setTimeout(() => handler(eventPayload), 10)
+        }
+      })
+
+      await expect(requestLessonQuizSkeleton(lessonId)).resolves.toEqual(eventPayload)
+      expect(mockHubConnection.invoke).toHaveBeenCalledWith('RequestQuizSkeleton', lessonId)
+    })
+
+    it('should call onLoading when QuizSkeletonLoading event is received', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const onLoading = vi.fn()
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'QuizSkeletonLoading') {
+          setTimeout(() => handler({ lessonId }), 5)
+        }
+        if (event === 'ReceiveQuizSkeleton') {
+          setTimeout(() => handler({ LessonId: lessonId, Quizzes: [] }), 10)
+        }
+      })
+
+      await requestLessonQuizSkeleton(lessonId, onLoading)
+      expect(onLoading).toHaveBeenCalled()
+    })
+
+    it('should reject when QuizSkeletonError event is received', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const mockError = {
+        LessonId: lessonId,
+        ErrorMessage: 'AI service temporarily unavailable',
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'QuizSkeletonError') {
+          setTimeout(() => handler(mockError), 10)
+        }
+      })
+
+      await expect(requestLessonQuizSkeleton(lessonId)).rejects.toThrow('AI service temporarily unavailable')
+    })
+
+    it('should prevent duplicate requests for the same lesson', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const quizPayload = { LessonId: lessonId, Quizzes: [{ QuizId: 'quiz-1', Title: 'Quiz 1' }] }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.state = 1
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveQuizSkeleton') {
+          setTimeout(() => handler(quizPayload), 50)
+        }
+      })
+
+      const promise1 = requestLessonQuizSkeleton(lessonId)
+      const promise2 = requestLessonQuizSkeleton(lessonId)
+
+      const [result1, result2] = await Promise.all([promise1, promise2])
+      expect(result1).toEqual(result2)
+      expect(mockHubConnection.invoke).toHaveBeenCalledTimes(1)
+    })
+
+    it('should timeout when no quiz skeleton event is received', async () => {
+      vi.useFakeTimers()
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+
+      const promise = requestLessonQuizSkeleton(lessonId)
+      const expectation = expect(promise).rejects.toThrow('Lesson quiz skeleton request timeout')
+      await vi.advanceTimersByTimeAsync(120000)
+
+      await expectation
+      vi.useRealTimers()
     })
   })
 })

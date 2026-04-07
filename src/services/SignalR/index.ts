@@ -23,6 +23,8 @@ const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
 const NOTIFICATION_HUB_URL = `${HUB_BASE}/hubs/notification`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
+const SIGNALR_DEBUG_STORAGE_KEY = 'signalr:debug'
+const SIGNALR_DEBUG_QUERY_KEY = 'debugSignalR'
 
 
 // ==== State ====
@@ -64,9 +66,76 @@ function isGuid(value: any): value is string {
   return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)
 }
 
+function getPayloadCorrelationId(payload: any, keys: string[]): string | null {
+  if (!payload || typeof payload !== 'object') return null
+  for (const key of keys) {
+    const value = payload[key]
+    if (value != null && value !== '') return String(value)
+  }
+  return null
+}
+
+function resolveHubErrorMessage(err: any, fallback: string): string {
+  return err?.ErrorMessage
+    || err?.errorMessage
+    || err?.message
+    || err?.Message
+    || fallback
+}
+
+function readSignalRDebugFlagFromWindow(): boolean {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const query = new URLSearchParams(window.location.search)
+    const queryValue = query.get(SIGNALR_DEBUG_QUERY_KEY)
+    if (queryValue != null) {
+      return ['1', 'true', 'yes', 'on'].includes(queryValue.trim().toLowerCase())
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const storageValue = window.localStorage.getItem(SIGNALR_DEBUG_STORAGE_KEY)
+    if (storageValue != null) {
+      return ['1', 'true', 'yes', 'on'].includes(storageValue.trim().toLowerCase())
+    }
+  } catch {
+    // ignore
+  }
+
+  return false
+}
+
+function isSignalRDebugEnabled(): boolean {
+  const envValue = String((import.meta.env.VITE_SIGNALR_DEBUG as string | undefined) ?? '').trim().toLowerCase()
+  const envEnabled = ['1', 'true', 'yes', 'on'].includes(envValue)
+  return envEnabled || readSignalRDebugFlagFromWindow()
+}
+
+function debugSignalR(scope: string, message: string, payload?: unknown) {
+  if (!isSignalRDebugEnabled()) return
+  if (payload === undefined) {
+    console.debug(`[SignalR:${scope}] ${message}`)
+    return
+  }
+  console.debug(`[SignalR:${scope}] ${message}`, payload)
+}
+
+export function setSignalRDebug(enabled: boolean): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(SIGNALR_DEBUG_STORAGE_KEY, enabled ? '1' : '0')
+  } catch {
+    // ignore
+  }
+}
+
 async function ensureStarted(conn: signalR.HubConnection, _name: string) {
   // If already connected, return immediately
   if (conn.state === signalR.HubConnectionState.Connected) {
+    debugSignalR(_name, 'connection already started')
     return
   }
 
@@ -78,6 +147,7 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
     while (Date.now() - startTime < maxWait) {
       const currentState = conn.state
       if (currentState === signalR.HubConnectionState.Connected) {
+        debugSignalR(_name, 'connection became connected while waiting')
         return
       }
       if (currentState === signalR.HubConnectionState.Disconnected) {
@@ -93,12 +163,14 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
 
   // If disconnected, start the connection
   if (conn.state === signalR.HubConnectionState.Disconnected) {
+    debugSignalR(_name, 'starting connection')
     await conn.start()
+    debugSignalR(_name, 'connection started')
   }
 }
 
-function buildConnection(url: string): signalR.HubConnection {
-  return new signalR.HubConnectionBuilder()
+function buildConnection(url: string, name: string): signalR.HubConnection {
+  const conn = new signalR.HubConnectionBuilder()
     .withUrl(url, {
       accessTokenFactory: () => {
         const token = getToken()
@@ -109,13 +181,25 @@ function buildConnection(url: string): signalR.HubConnection {
     .withAutomaticReconnect({
       nextRetryDelayInMilliseconds: (ctx) => ctx.previousRetryCount === 0 ? 0 : Math.min(1000 << ctx.previousRetryCount, 30000),
     })
-    .configureLogging(signalR.LogLevel.None)
+    .configureLogging(isSignalRDebugEnabled() ? signalR.LogLevel.Information : signalR.LogLevel.None)
     .build()
+
+  conn.onreconnecting((error) => {
+    debugSignalR(name, 'connection reconnecting', { error: resolveHubErrorMessage(error, 'Unknown reconnect error') })
+  })
+  conn.onreconnected((connectionId) => {
+    debugSignalR(name, 'connection reconnected', { connectionId })
+  })
+  conn.onclose((error) => {
+    debugSignalR(name, 'connection closed', error ? { error: resolveHubErrorMessage(error, 'Unknown close error') } : undefined)
+  })
+
+  return conn
 }
 
 export async function getLessonHub(): Promise<signalR.HubConnection> {
   if (!lessonHub) {
-    lessonHub = buildConnection(LESSON_HUB_URL)
+    lessonHub = buildConnection(LESSON_HUB_URL, 'lesson')
   }
   await ensureStarted(lessonHub, 'lesson')
   return lessonHub
@@ -123,7 +207,7 @@ export async function getLessonHub(): Promise<signalR.HubConnection> {
 
 export async function getChapterHub(): Promise<signalR.HubConnection> {
   if (!chapterHub) {
-    chapterHub = buildConnection(CHAPTER_HUB_URL)
+    chapterHub = buildConnection(CHAPTER_HUB_URL, 'chapter')
   }
   await ensureStarted(chapterHub, 'chapter')
   return chapterHub
@@ -131,7 +215,7 @@ export async function getChapterHub(): Promise<signalR.HubConnection> {
 
 export async function getTaskHub(): Promise<signalR.HubConnection> {
   if (!taskHub) {
-    taskHub = buildConnection(TASK_HUB_URL)
+    taskHub = buildConnection(TASK_HUB_URL, 'task')
   }
   await ensureStarted(taskHub, 'task')
   return taskHub
@@ -139,7 +223,7 @@ export async function getTaskHub(): Promise<signalR.HubConnection> {
 
 export async function getQuizHub(): Promise<signalR.HubConnection> {
   if (!quizHub) {
-    quizHub = buildConnection(QUIZ_HUB_URL)
+    quizHub = buildConnection(QUIZ_HUB_URL, 'quiz')
   }
   await ensureStarted(quizHub, 'quiz')
   return quizHub
@@ -147,7 +231,7 @@ export async function getQuizHub(): Promise<signalR.HubConnection> {
 
 export async function getSummaryHub(): Promise<signalR.HubConnection> {
   if (!summaryHub) {
-    summaryHub = buildConnection(SUMMARY_HUB_URL)
+    summaryHub = buildConnection(SUMMARY_HUB_URL, 'summary')
   }
   await ensureStarted(summaryHub, 'summary')
   return summaryHub
@@ -155,7 +239,7 @@ export async function getSummaryHub(): Promise<signalR.HubConnection> {
 
 export async function getLearningPathHub(): Promise<signalR.HubConnection> {
   if (!learningPathHub) {
-    learningPathHub = buildConnection(LEARNING_PATH_HUB_URL)
+    learningPathHub = buildConnection(LEARNING_PATH_HUB_URL, 'learningpath')
   }
   await ensureStarted(learningPathHub, 'learningpath')
   return learningPathHub
@@ -163,7 +247,7 @@ export async function getLearningPathHub(): Promise<signalR.HubConnection> {
 
 export async function getTutorHub(): Promise<signalR.HubConnection> {
   if (!tutorHub) {
-    tutorHub = buildConnection(TUTOR_HUB_URL)
+    tutorHub = buildConnection(TUTOR_HUB_URL, 'tutor')
   }
   await ensureStarted(tutorHub, 'tutor')
   return tutorHub
@@ -184,7 +268,7 @@ function bindNotificationHubListeners(hub: signalR.HubConnection) {
 
 export async function getNotificationHub(): Promise<signalR.HubConnection> {
   if (!notificationHub) {
-    notificationHub = buildConnection(NOTIFICATION_HUB_URL)
+    notificationHub = buildConnection(NOTIFICATION_HUB_URL, 'notification')
   }
   await ensureStarted(notificationHub, 'notification')
   bindNotificationHubListeners(notificationHub)
@@ -242,8 +326,10 @@ export async function requestLessonContent(
   if (!isGuid(lessonId)) {
     return Promise.reject(new Error('lessonId phải là GUID hợp lệ'))
   }
+  debugSignalR('lesson.request-content', 'request started', { lessonId })
   // single-flight: return running promise for same lessonId
   if (inflightLesson.has(lessonId)) {
+    debugSignalR('lesson.request-content', 'reusing inflight request', { lessonId })
     return inflightLesson.get(lessonId)!
   }
 
@@ -257,8 +343,15 @@ export async function requestLessonContent(
       let isResolved = false
       let lessonContent: any = null
       let quizSkeleton: any = null
+      let quizSkeletonError: any = null
+      const isMatchingLessonPayload = (payload: any, requireId = false) => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['LessonId', 'lessonId'])
+        if (!payloadLessonId) return !requireId
+        return payloadLessonId === lessonId
+      }
 
       const cleanup = () => {
+        debugSignalR('lesson.request-content', 'cleanup listeners', { lessonId })
         hub.off('LessonContentLoading', handleLoading)
         hub.off('ReceiveLessonContent', handleContent)
         hub.off('LessonContentError', handleError)
@@ -269,81 +362,78 @@ export async function requestLessonContent(
         inflightLesson.delete(lessonId)
       }
 
-      const resolveEarly = () => {
-        if (!isResolved && lessonContent) {
-          isResolved = true
-          resolve({
-            ...lessonContent,
-            quizSkeleton: quizSkeleton === false ? null : quizSkeleton
-          })
-        }
-      }
-
-      const handleLoading = () => {
+      const handleLoading = (data: any) => {
+        if (!isMatchingLessonPayload(data, true)) return
+        debugSignalR('lesson.request-content', 'LessonContentLoading', data)
         onLoading?.()
       }
 
       const handleContent = (content: any) => {
-        if (content?.LessonId === lessonId || content?.lessonId === lessonId) {
-          lessonContent = content
-          resolveEarly()
-        }
+        if (!isMatchingLessonPayload(content)) return
+        debugSignalR('lesson.request-content', 'ReceiveLessonContent', content)
+        lessonContent = content
       }
 
       const handleQuizLoading = (data: any) => {
         // Quiz skeleton loading started
-        if (data?.LessonId === lessonId || data?.lessonId === lessonId) {
-          onQuizEvent?.onLoading?.()
-        }
+        if (!isMatchingLessonPayload(data, true)) return
+        debugSignalR('lesson.request-content', 'QuizSkeletonLoading', data)
+        onQuizEvent?.onLoading?.()
       }
 
       const handleQuizSkeleton = (quizData: any) => {
-        if (quizData?.LessonId === lessonId || quizData?.lessonId === lessonId) {
-          quizSkeleton = quizData
-          onQuizEvent?.onSuccess?.(quizData)
-        }
+        if (!isMatchingLessonPayload(quizData, true)) return
+        debugSignalR('lesson.request-content', 'ReceiveQuizSkeleton', quizData)
+        quizSkeleton = quizData
+        quizSkeletonError = null
+        onQuizEvent?.onSuccess?.(quizData)
       }
 
       const handleQuizError = (err: any) => {
-        if (err?.LessonId === lessonId || err?.lessonId === lessonId) {
-          quizSkeleton = false // Mark as failed but don't fail the whole request
-          onQuizEvent?.onError?.(err)
-        }
+        if (!isMatchingLessonPayload(err, true)) return
+        debugSignalR('lesson.request-content', 'QuizSkeletonError', err)
+        quizSkeleton = false // Mark as failed but don't fail the whole request
+        quizSkeletonError = err
+        onQuizEvent?.onError?.(err)
       }
 
       const handleCompleted = (result: any) => {
-        if (result?.LessonId === lessonId || result?.lessonId === lessonId) {
-          if (!isResolved) {
-            isResolved = true
-            resolve({
-              lessonId,
-              content: lessonContent?.content || result?.content,
-              quizSkeleton: quizSkeleton === false ? null : (quizSkeleton || result?.quizSkeleton),
-              ...result
-            })
-          }
-          if (!done) {
-            done = true
-            cleanup()
-            clearTo()
-          }
+        if (!isMatchingLessonPayload(result, true)) return
+        debugSignalR('lesson.request-content', 'LessonGenerationCompleted', result)
+        if (!isResolved) {
+          isResolved = true
+          resolve({
+            lessonId,
+            content: lessonContent?.content || result?.content,
+            quizSkeleton: quizSkeleton === false ? null : (quizSkeleton || result?.quizSkeleton),
+            quizSkeletonError,
+            ...result
+          })
+        }
+        if (!done) {
+          done = true
+          cleanup()
+          clearTo()
         }
       }
 
       const handleError = (err: any) => {
+        if (!isMatchingLessonPayload(err, true)) return
+        debugSignalR('lesson.request-content', 'LessonContentError', err)
         if (done) return
         done = true
         cleanup()
         clearTo()
         if (!isResolved) {
           isResolved = true
-          reject(new Error(err?.message || 'Failed to load lesson content'))
+          reject(new Error(resolveHubErrorMessage(err, 'Failed to load lesson content')))
         }
       }
 
       // timeout safety
       const to = setTimeout(() => {
         if (done) return
+        debugSignalR('lesson.request-content', 'request timeout', { lessonId, timeoutMs: REQUEST_TIMEOUT })
         done = true
         cleanup()
         if (!isResolved) {
@@ -367,6 +457,7 @@ export async function requestLessonContent(
       hub.on('LessonGenerationCompleted', handleCompletedWrap)
 
       try {
+        debugSignalR('lesson.request-content', 'invoking hub method', { method: 'RequestLessonContent', lessonId })
         hub.invoke('RequestLessonContent', lessonId).catch(handleErrorWrap)
       } catch (e) {
         handleErrorWrap(e)
@@ -375,6 +466,94 @@ export async function requestLessonContent(
   })()
 
   inflightLesson.set(lessonId, p)
+  return p
+}
+
+export async function requestLessonQuizSkeleton(
+  lessonId: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(lessonId)) {
+    return Promise.reject(new Error('lessonId pháº£i lÃ  GUID há»£p lá»‡'))
+  }
+
+  debugSignalR('lesson.quiz-skeleton', 'request started', { lessonId })
+  if (inflightQuizSkeleton.has(lessonId)) {
+    debugSignalR('lesson.quiz-skeleton', 'reusing inflight request', { lessonId })
+    return inflightQuizSkeleton.get(lessonId)!
+  }
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const isMatchingLessonPayload = (payload: any, requireId = false) => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['LessonId', 'lessonId'])
+        if (!payloadLessonId) return !requireId
+        return payloadLessonId === lessonId
+      }
+
+      const cleanup = () => {
+        debugSignalR('lesson.quiz-skeleton', 'cleanup listeners', { lessonId })
+        hub.off('QuizSkeletonLoading', handleLoading)
+        hub.off('ReceiveQuizSkeleton', handleQuizSkeleton)
+        hub.off('QuizSkeletonError', handleQuizError)
+        inflightQuizSkeleton.delete(lessonId)
+      }
+
+      const handleLoading = (data: any) => {
+        if (!isMatchingLessonPayload(data, true)) return
+        debugSignalR('lesson.quiz-skeleton', 'QuizSkeletonLoading', data)
+        onLoading?.()
+      }
+
+      const handleQuizSkeleton = (quizData: any) => {
+        if (!isMatchingLessonPayload(quizData, true)) return
+        debugSignalR('lesson.quiz-skeleton', 'ReceiveQuizSkeleton', quizData)
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(quizData)
+      }
+
+      const handleQuizError = (err: any) => {
+        if (!isMatchingLessonPayload(err, true)) return
+        debugSignalR('lesson.quiz-skeleton', 'QuizSkeletonError', err)
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(new Error(resolveHubErrorMessage(err, 'Failed to load lesson quiz skeleton')))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        debugSignalR('lesson.quiz-skeleton', 'request timeout', { lessonId, timeoutMs: REQUEST_TIMEOUT })
+        done = true
+        cleanup()
+        reject(new Error('Lesson quiz skeleton request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleQuizSkeletonWrap = (q: any) => { handleQuizSkeleton(q) }
+      const handleQuizErrorWrap = (e: any) => { handleQuizError(e) }
+
+      hub.on('QuizSkeletonLoading', handleLoading)
+      hub.on('ReceiveQuizSkeleton', handleQuizSkeletonWrap)
+      hub.on('QuizSkeletonError', handleQuizErrorWrap)
+
+      try {
+        debugSignalR('lesson.quiz-skeleton', 'invoking hub method', { method: 'RequestQuizSkeleton', lessonId })
+        hub.invoke('RequestQuizSkeleton', lessonId).catch(handleQuizErrorWrap)
+      } catch (e) {
+        handleQuizErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightQuizSkeleton.set(lessonId, p)
   return p
 }
 
@@ -530,6 +709,11 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
 
     return new Promise<any>((resolve, reject) => {
       let done = false
+      const isMatchingQuizPayload = (payload: any) => {
+        const payloadQuizId = getPayloadCorrelationId(payload, ['QuizId', 'quizId'])
+        return !payloadQuizId || payloadQuizId === quizId
+      }
+
       const cleanup = () => {
         hub.off('QuizQuestionsLoading', handleLoading)
         hub.off('ReceiveQuizQuestions', handleQuestions)
@@ -537,11 +721,13 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
         inflightQuiz.delete(quizId)
       }
 
-      const handleLoading = () => {
+      const handleLoading = (data: any) => {
+        if (!isMatchingQuizPayload(data)) return
         onLoading?.()
       }
 
       const handleQuestions = (questions: any) => {
+        if (!isMatchingQuizPayload(questions)) return
         if (done) return
         done = true
         cleanup()
@@ -549,10 +735,11 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
       }
 
       const handleError = (err: any) => {
+        if (!isMatchingQuizPayload(err)) return
         if (done) return
         done = true
         cleanup()
-        reject(new Error(err?.message || 'Failed to load quiz questions'))
+        reject(new Error(resolveHubErrorMessage(err, 'Failed to load quiz questions')))
       }
 
       // timeout safety

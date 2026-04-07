@@ -12,7 +12,7 @@ import {
   myDraftDetailUrl,
   learningPathProgressUrl,
 } from './url'
-import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLearningPathSuggestions } from '../SignalR'
+import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLessonQuizSkeleton, requestLearningPathSuggestions } from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -268,7 +268,7 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
             title: quiz?.title ?? quiz?.Title,
             description: quiz?.description ?? quiz?.Description ?? null,
             quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
-          })) ?? [],
+          })),
         }
       }) ?? [],
       tasks: taskItems?.map((task: any) => ({
@@ -309,7 +309,7 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
           title: quiz?.title ?? quiz?.Title,
           description: quiz?.description ?? quiz?.Description ?? null,
           quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
-        })) ?? [],
+        })),
       }
     })
 
@@ -460,12 +460,22 @@ export async function updateManualDraft(pathId: string, payload: ManualDraftPayl
 export async function generateLessonContent(
   lessonId: string,
   payload?: any,
-  onQuizSkeleton?: (quizSkeleton: any) => void
+  onQuizEvent?: ((quizSkeleton: any) => void) | {
+    onLoading?: () => void
+    onSuccess?: (quizSkeleton: any) => void
+    onError?: (err: any) => void
+  }
 ): Promise<Lesson> {
+  const quizHandlers = typeof onQuizEvent === 'function'
+    ? { onSuccess: onQuizEvent }
+    : onQuizEvent
+
   // Use SignalR by default for lesson content generation (includes quiz skeleton)
   if (!payload || payload.useSignalR !== false) {
     return await requestLessonContent(lessonId, payload?.onLoading, {
-      onSuccess: onQuizSkeleton
+      onLoading: quizHandlers?.onLoading,
+      onSuccess: quizHandlers?.onSuccess,
+      onError: quizHandlers?.onError,
     })
   }
 
@@ -473,6 +483,33 @@ export async function generateLessonContent(
   const body = payload && typeof payload === 'object' ? payload : {}
   const res: any = await api.post(lessonContentUrl(lessonId), body)
   return unwrap<Lesson>(res)
+}
+
+type LessonQuizSkeletonOptions = {
+  onLoading?: () => void
+}
+
+function resolveServiceError(err: any, fallback: string): Error {
+  if (err instanceof Error) return err
+
+  return new Error(
+    err?.ErrorMessage
+    || err?.errorMessage
+    || err?.message
+    || err?.Message
+    || fallback,
+  )
+}
+
+export async function generateLessonQuizSkeleton(
+  lessonId: string,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestLessonQuizSkeleton(lessonId, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to load lesson quiz skeleton')
+  }
 }
 
 export async function generateChapterSkeleton(
@@ -793,6 +830,7 @@ export default {
   createManualDraft,
   updateManualDraft,
   generateLessonContent,
+  generateLessonQuizSkeleton,
   generateChapterSkeleton,
   getUserLearningPaths,
   clearUserLearningPathsCache,

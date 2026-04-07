@@ -7,19 +7,30 @@ vi.mock('../Axios', () => ({
   },
 }))
 
+vi.mock('../SignalR', () => ({
+  requestLearningPathGeneration: vi.fn(),
+  requestChapterSkeleton: vi.fn(),
+  requestLessonQuizSkeleton: vi.fn(),
+  requestLearningPathSuggestions: vi.fn(),
+}))
+
 import api from '../Axios'
 import {
+  generateLessonQuizSkeleton,
   getLearningPathProgress,
   getLessonReadStatus,
   markLessonContentRead,
 } from './index'
+import { requestLessonQuizSkeleton } from '../SignalR'
 
 const mockedApi = vi.mocked(api, true)
+const mockedRequestLessonQuizSkeleton = vi.mocked(requestLessonQuizSkeleton)
 
 describe('LearningPathService progress/read APIs', () => {
   beforeEach(() => {
     mockedApi.get.mockReset()
     mockedApi.post.mockReset()
+    mockedRequestLessonQuizSkeleton.mockReset()
   })
 
   it('normalizes progress v2 fields defensively', async () => {
@@ -112,5 +123,21 @@ describe('LearningPathService progress/read APIs', () => {
     mockedApi.post.mockResolvedValue({ data: { value: 'Lesson content marked as read' } })
 
     await expect(markLessonContentRead('lesson-3')).resolves.toBe('Lesson content marked as read')
+  })
+
+  it('uses the dedicated lesson quiz skeleton request when available', async () => {
+    const lessonId = 'lesson-quiz-1'
+    const quizPayload = { LessonId: lessonId, Quizzes: [{ QuizId: 'quiz-1', Title: 'Quiz 1' }] }
+    mockedRequestLessonQuizSkeleton.mockResolvedValue(quizPayload)
+
+    await expect(generateLessonQuizSkeleton(lessonId)).resolves.toEqual(quizPayload)
+    expect(mockedRequestLessonQuizSkeleton).toHaveBeenCalledWith(lessonId, undefined)
+  })
+
+  it('surfaces RequestQuizSkeleton errors without falling back', async () => {
+    const lessonId = 'lesson-quiz-2'
+    mockedRequestLessonQuizSkeleton.mockRejectedValue(new Error("Method does not exist: 'RequestQuizSkeleton'"))
+
+    await expect(generateLessonQuizSkeleton(lessonId)).rejects.toThrow("Method does not exist: 'RequestQuizSkeleton'")
   })
 })

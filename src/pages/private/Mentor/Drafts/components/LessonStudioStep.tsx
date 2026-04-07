@@ -12,6 +12,9 @@ type Props = {
   activeLesson: EditableLesson | null
   canGenerateActiveLesson: boolean
   isGeneratingActiveLesson: boolean
+  isQuizSkeletonLoading: boolean
+  hasQuizSkeleton: boolean
+  quizSkeletonError: string | null
   onGenerateLessonContent: () => void
   onUpdateLesson: (updater: (lesson: EditableLesson) => EditableLesson) => void
 }
@@ -30,6 +33,9 @@ const LessonStudioStep: React.FC<Props> = ({
   activeLesson,
   canGenerateActiveLesson,
   isGeneratingActiveLesson,
+  isQuizSkeletonLoading,
+  hasQuizSkeleton,
+  quizSkeletonError,
   onGenerateLessonContent,
   onUpdateLesson,
 }) => {
@@ -66,6 +72,24 @@ const LessonStudioStep: React.FC<Props> = ({
               </div>
               <div style={subtleTextStyle}>{activeChapter.title || t('drafts.untitledChapter')}</div>
             </div>
+
+            {isQuizSkeletonLoading ? (
+              <div style={{ ...subtleTextStyle, marginTop: 10, color: 'var(--accent-primary)' }}>
+                {t('drafts.generatingQuizSkeleton')}
+              </div>
+            ) : null}
+
+            {!isQuizSkeletonLoading && quizSkeletonError ? (
+              <div style={{ ...subtleTextStyle, marginTop: 10, color: 'var(--danger-primary)' }}>
+                {quizSkeletonError}
+              </div>
+            ) : null}
+
+            {!isQuizSkeletonLoading && !quizSkeletonError && hasQuizSkeleton ? (
+              <div style={{ ...subtleTextStyle, marginTop: 10, color: 'var(--success-primary)' }}>
+                {t('drafts.quizSkeletonReady')}
+              </div>
+            ) : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: 20 }}>
