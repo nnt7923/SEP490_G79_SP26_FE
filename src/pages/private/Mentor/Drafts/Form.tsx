@@ -33,6 +33,7 @@ import {
   hydrateDraftForm,
   mergeLessonQuizzesWithSkeleton,
   normalizeJsonField,
+  normalizeTaskPriority,
   parseGeneratedQuizQuestionsPayload,
   parseQuizSkeletonPayload,
   normalizeTaskStatus,
@@ -71,6 +72,93 @@ const sortGoalsBySubjectOrder = (
   return [...goals].sort((a, b) => (order.get(a.goalId) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.goalId) ?? Number.MAX_SAFE_INTEGER))
 }
 
+const parseChapterMentorSkeletonLessons = (payload: unknown): Array<{ title: string; orderIndex: number }> => {
+  const source = payload as any
+  const lessons = Array.isArray(source?.lessons)
+    ? source.lessons
+    : Array.isArray(source?.Lessons)
+      ? source.Lessons
+      : []
+
+  return lessons
+    .map((lesson: any, index: number) => {
+      const title = String(lesson?.title ?? lesson?.Title ?? '').trim()
+      const numericOrder = Number(lesson?.orderIndex ?? lesson?.OrderIndex)
+      return {
+        title,
+        orderIndex: Number.isFinite(numericOrder) ? numericOrder : index,
+      }
+    })
+    .filter((lesson: { title: string }) => lesson.title.length > 0)
+    .sort((a: { orderIndex: number }, b: { orderIndex: number }) => a.orderIndex - b.orderIndex)
+}
+
+const getChapterMentorSkeletonErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveChapterMentorSkeletonErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getChapterMentorSkeletonErrorCode(err)
+  if (code === 'INVALID_CHAPTER_TITLE') {
+    return { message: t('drafts.chapterMentorSkeletonErrorInvalidTitle'), type: 'warning' }
+  }
+  if (code === 'LEARNING_PATH_NOT_FOUND') {
+    return { message: t('drafts.chapterMentorSkeletonErrorPathNotFound'), type: 'error' }
+  }
+  if (code === 'UNAUTHORIZED' || code === 'ACCESS_DENIED') {
+    return { message: t('drafts.chapterMentorSkeletonErrorUnauthorized'), type: 'error' }
+  }
+  if (code === 'INVALID_AI_RESPONSE') {
+    return { message: t('drafts.chapterMentorSkeletonErrorInvalidAiResponse'), type: 'warning' }
+  }
+  if (code === 'GENERATION_FAILED') {
+    return { message: t('drafts.chapterMentorSkeletonErrorGenerationFailed'), type: 'error' }
+  }
+  return {
+    message: getApiErrorMessage(err, t('drafts.chapterMentorSkeletonGenerateFailed')),
+    type: 'error',
+  }
+}
+
+const resolveSelectionAfterHydrate = (
+  previousForm: DraftFormState,
+  nextForm: DraftFormState,
+  activeChapterId: string | null,
+  activeLessonId: string | null,
+) => {
+  const chapterIndex = previousForm.chapters.findIndex((chapter) => chapter.id === activeChapterId)
+  const lessonIndex = chapterIndex >= 0
+    ? previousForm.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLessonId)
+    : -1
+
+  const snapshot = createSelectionSnapshot(previousForm, activeChapterId, activeLessonId)
+  const restored = restoreSelectionSnapshot(nextForm, snapshot)
+
+  const resolvedChapterId = !snapshot.activeChapterPersistedId && chapterIndex >= 0
+    ? (nextForm.chapters[chapterIndex]?.id ?? restored.chapterId)
+    : restored.chapterId
+
+  const resolvedChapter = nextForm.chapters.find((chapter) => chapter.id === resolvedChapterId) ?? nextForm.chapters[0] ?? null
+  const resolvedLessonId = !snapshot.activeLessonPersistedId && lessonIndex >= 0
+    ? (resolvedChapter?.lessons[lessonIndex]?.id ?? restored.lessonId)
+    : restored.lessonId
+
+  return {
+    chapterId: resolvedChapter?.id ?? resolvedChapterId ?? null,
+    lessonId: resolvedChapter?.lessons.find((lesson) => lesson.id === resolvedLessonId)?.id
+      ?? resolvedChapter?.lessons[0]?.id
+      ?? null,
+  }
+}
+
 const MentorDraftFormPage: React.FC = () => {
   const { pathId } = useParams()
   const isCreateMode = !pathId
@@ -88,6 +176,8 @@ const MentorDraftFormPage: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [generatingAiDraft, setGeneratingAiDraft] = useState(false)
   const [generatingLessonId, setGeneratingLessonId] = useState<string | null>(null)
+  const [generatingChapterSkeletonId, setGeneratingChapterSkeletonId] = useState<string | null>(null)
+  const [generatingChapterSkeletonPathId, setGeneratingChapterSkeletonPathId] = useState<string | null>(null)
   const [isQuizSkeletonLoading, setIsQuizSkeletonLoading] = useState(false)
   const [hasQuizSkeleton, setHasQuizSkeleton] = useState(false)
   const [quizSkeletonError, setQuizSkeletonError] = useState<string | null>(null)
@@ -106,6 +196,8 @@ const MentorDraftFormPage: React.FC = () => {
   const [sharing, setSharing] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(!isSmallScreen)
+  const chapterSkeletonPendingByPathRef = useRef<Map<string, string>>(new Map())
+  const chapterSkeletonRequestCounterRef = useRef(0)
   const subjectPickerRef = useRef<HTMLDivElement | null>(null)
   const currentPathId = String(pathId ?? location.state?.draft?.pathId ?? '')
   const canShare = !!currentPathId
@@ -178,6 +270,8 @@ const MentorDraftFormPage: React.FC = () => {
   const activeLesson = useMemo(() => activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? activeChapter?.lessons[0] ?? null, [activeChapter, activeLessonId])
   const canGenerateActiveLesson = !!activeLesson?.persistedId
   const isGeneratingActiveLesson = activeLesson?.id != null && generatingLessonId === activeLesson.id
+  const isGeneratingActiveChapterSkeleton = activeChapter?.id != null && generatingChapterSkeletonId === activeChapter.id
+  const hasPendingChapterSkeletonGeneration = generatingChapterSkeletonPathId != null
 
   useEffect(() => {
     setIsQuizSkeletonLoading(false)
@@ -277,7 +371,7 @@ const MentorDraftFormPage: React.FC = () => {
     const chapter = emptyChapter()
     setForm((prev) => ({ ...prev, chapters: [...prev.chapters, chapter] }))
     setActiveChapterId(chapter.id)
-    setActiveLessonId(chapter.lessons[0].id)
+    setActiveLessonId(chapter.lessons[0]?.id ?? null)
     setCurrentStep('chapters')
   }
   const addLesson = (chapterId: string) => {
@@ -314,7 +408,7 @@ const MentorDraftFormPage: React.FC = () => {
     if (nextChapters.length === 0) {
       const fallback = emptyChapter()
       setActiveChapterId(fallback.id)
-      setActiveLessonId(fallback.lessons[0].id)
+      setActiveLessonId(fallback.lessons[0]?.id ?? null)
       return { ...prev, chapters: [fallback] }
     }
     setActiveChapterId(nextChapters[0].id)
@@ -463,6 +557,195 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
+  const saveDraftForGeneration = async () => {
+    const validationError = validateDraftForm(form)
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
+      return null
+    }
+
+    setSaving(true)
+    try {
+      const response = currentPathId
+        ? await LearningPathService.updateManualDraft(currentPathId, buildPayload(form))
+        : await LearningPathService.createManualDraft(buildPayload(form))
+
+      const resolvedPathId = String(response?.pathId ?? currentPathId ?? '')
+      if (!resolvedPathId) {
+        setToast({ message: t('drafts.saveFailed'), type: 'error' })
+        return null
+      }
+
+      const latestDraft = await LearningPathService.getMyDraftDetail(resolvedPathId).catch(() => response)
+      const nextForm = hydrateDraftForm(latestDraft, form)
+      const nextSelection = resolveSelectionAfterHydrate(form, nextForm, activeChapterId, activeLessonId)
+
+      setForm(nextForm)
+      setActiveChapterId(nextSelection.chapterId)
+      setActiveLessonId(nextSelection.lessonId)
+
+      if (isCreateMode && response?.pathId) {
+        navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(response.pathId)), { replace: true, state: { draft: latestDraft } })
+      }
+
+      return {
+        resolvedPathId,
+        nextForm,
+        nextSelection,
+      }
+    } catch (err: any) {
+      setToast({ message: getApiErrorMessage(err, t('drafts.saveFailed')), type: 'error' })
+      return null
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const generateChapterMentorSkeletonForActiveChapter = async () => {
+    if (!activeChapter) {
+      setToast({ message: t('drafts.noChapterSelected'), type: 'warning' })
+      return
+    }
+
+    const activeChapterSnapshot = {
+      id: activeChapter.id,
+      title: activeChapter.title,
+      content: activeChapter.content,
+    }
+    const activeChapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
+
+    if (currentPathId && chapterSkeletonPendingByPathRef.current.has(currentPathId)) {
+      setToast({ message: t('drafts.chapterMentorSkeletonGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    setGeneratingChapterSkeletonId(activeChapter.id)
+    let requestPathId: string | null = null
+    let requestKey: string | null = null
+
+    try {
+      const persisted = await saveDraftForGeneration()
+      if (!persisted) return
+
+      requestPathId = persisted.resolvedPathId
+      if (chapterSkeletonPendingByPathRef.current.has(requestPathId)) {
+        setToast({ message: t('drafts.chapterMentorSkeletonGenerateInProgress'), type: 'warning' })
+        return
+      }
+
+      const chapterFromSelection = persisted.nextSelection.chapterId
+        ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
+        : null
+      const chapterFromIndex = activeChapterIndex >= 0
+        ? (persisted.nextForm.chapters[activeChapterIndex] ?? null)
+        : null
+
+      const chapterForContext = chapterFromSelection ?? chapterFromIndex ?? {
+        ...activeChapterSnapshot,
+        lessons: [],
+        tasks: [],
+        startDate: '',
+        endDate: '',
+        estimatedDays: '',
+        persistedId: null,
+      }
+
+      const chapterIdToUpdate = chapterFromSelection?.id ?? chapterFromIndex?.id ?? null
+
+      requestKey = `${requestPathId}:${chapterForContext.title.trim().toLowerCase()}:${++chapterSkeletonRequestCounterRef.current}`
+      chapterSkeletonPendingByPathRef.current.set(requestPathId, requestKey)
+      setGeneratingChapterSkeletonPathId(requestPathId)
+
+      setGeneratingChapterSkeletonId(chapterIdToUpdate ?? activeChapterSnapshot.id)
+
+      const chapterSkeleton = await LearningPathService.generateChapterMentorSkeleton(
+        requestPathId,
+        chapterForContext.title,
+        chapterForContext.content,
+        {
+          useSignalR: true,
+          onLoading: () => {
+            setGeneratingChapterSkeletonId(chapterIdToUpdate ?? activeChapterSnapshot.id)
+          },
+        },
+      )
+
+      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) !== requestKey) {
+        return
+      }
+
+      const rawLessonArray = Array.isArray((chapterSkeleton as any)?.lessons)
+        ? (chapterSkeleton as any).lessons
+        : Array.isArray((chapterSkeleton as any)?.Lessons)
+          ? (chapterSkeleton as any).Lessons
+          : []
+
+      const parsedLessons = parseChapterMentorSkeletonLessons(chapterSkeleton)
+      if (rawLessonArray.length === 0) {
+        setToast({ message: t('drafts.chapterMentorSkeletonGenerateEmpty'), type: 'warning' })
+        return
+      }
+      if (rawLessonArray.length > 0 && parsedLessons.length === 0) {
+        setToast({ message: t('drafts.chapterMentorSkeletonGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      const nextLessons: EditableLesson[] = parsedLessons.map((lesson) => {
+        const base = emptyLesson()
+        return {
+          ...base,
+          title: lesson.title,
+        }
+      })
+
+      const nextChapters = [...persisted.nextForm.chapters]
+      let targetChapterIndex = chapterIdToUpdate
+        ? nextChapters.findIndex((chapter) => chapter.id === chapterIdToUpdate)
+        : -1
+
+      if (targetChapterIndex < 0 && activeChapterIndex >= 0 && activeChapterIndex < nextChapters.length) {
+        targetChapterIndex = activeChapterIndex
+      }
+
+      let resolvedChapterId: string
+      if (targetChapterIndex >= 0) {
+        const targetChapter = nextChapters[targetChapterIndex]
+        nextChapters[targetChapterIndex] = {
+          ...targetChapter,
+          lessons: nextLessons,
+        }
+        resolvedChapterId = nextChapters[targetChapterIndex].id
+      } else {
+        const fallbackChapter = emptyChapter()
+        fallbackChapter.title = chapterForContext.title
+        fallbackChapter.content = chapterForContext.content
+        fallbackChapter.lessons = nextLessons
+        nextChapters.push(fallbackChapter)
+        resolvedChapterId = fallbackChapter.id
+      }
+
+      setForm({
+        ...persisted.nextForm,
+        chapters: nextChapters,
+      })
+      setActiveChapterId(resolvedChapterId)
+      setActiveLessonId(nextLessons[0]?.id ?? null)
+      setToast({ message: t('drafts.chapterMentorSkeletonGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) !== requestKey) {
+        return
+      }
+      const toastPayload = resolveChapterMentorSkeletonErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) === requestKey) {
+        chapterSkeletonPendingByPathRef.current.delete(requestPathId)
+        setGeneratingChapterSkeletonPathId((prev) => (prev === requestPathId ? null : prev))
+      }
+      setGeneratingChapterSkeletonId(null)
+    }
+  }
+
   const generateAiTasks = async () => {
     if (!activeChapter) return
     if (!activeChapter.persistedId) {
@@ -482,7 +765,7 @@ const MentorDraftFormPage: React.FC = () => {
         persistedId: task?.id ?? task?.taskId ?? null,
         title: task?.title ?? '',
         description: task?.description ?? '',
-        priority: task?.priority != null ? String(task.priority) : '',
+        priority: normalizeTaskPriority(task?.priority ?? task?.Priority),
         taskStatus: normalizeTaskStatus(task?.taskStatus ?? task?.TaskStatus),
         dueDate: task?.dueDate ?? task?.DueDate ? new Date(task?.dueDate ?? task?.DueDate).toISOString().slice(0, 10) : '',
         taskType: normalizeTaskType(task?.taskType ?? task?.TaskType),
@@ -618,7 +901,6 @@ const MentorDraftFormPage: React.FC = () => {
     }
     const previousTitle = form.title
     setSaving(true)
-    const selectionSnapshot = createSelectionSnapshot(form, activeChapterId, activeLessonId)
     try {
       const response = isCreateMode
         ? await LearningPathService.createManualDraft(buildPayload(form))
@@ -628,7 +910,7 @@ const MentorDraftFormPage: React.FC = () => {
         ? await LearningPathService.getMyDraftDetail(resolvedPathId).catch(() => response)
         : response
       const nextForm = hydrateDraftForm(latestDraft, form)
-      const nextSelection = restoreSelectionSnapshot(nextForm, selectionSnapshot)
+      const nextSelection = resolveSelectionAfterHydrate(form, nextForm, activeChapterId, activeLessonId)
       setForm(nextForm)
       setActiveChapterId(nextSelection.chapterId)
       setActiveLessonId(nextSelection.lessonId)
@@ -762,9 +1044,12 @@ const MentorDraftFormPage: React.FC = () => {
               {currentStep === 'chapters' ? (
                 <ChaptersStep
                   activeChapter={activeChapter}
+                  generatingChapterSkeleton={isGeneratingActiveChapterSkeleton}
+                  disableChapterSkeletonAction={saving || hasPendingChapterSkeletonGeneration}
                   onUpdateChapter={(updater) => activeChapter ? updateChapter(activeChapter.id, updater) : undefined}
                   onUpdateLesson={(lessonId, updater) => activeChapter ? updateLesson(activeChapter.id, lessonId, updater) : undefined}
                   onOpenLessonStudio={(lessonId) => activeChapter ? selectLesson(activeChapter.id, lessonId, 'lesson') : undefined}
+                  onGenerateChapterSkeleton={generateChapterMentorSkeletonForActiveChapter}
                 />
               ) : null}
 

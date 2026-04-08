@@ -1,17 +1,28 @@
 import React from 'react'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Loader2, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { EditableChapter } from '../editorTypes'
 import { EmptyPanel, Field, SectionCard, cardStyle, getButtonStyle, inputStyle, subtleTextStyle, textAreaStyle } from './editorUi'
 
 type Props = {
   activeChapter: EditableChapter | null
+  generatingChapterSkeleton: boolean
+  disableChapterSkeletonAction?: boolean
   onUpdateChapter: (updater: (chapter: EditableChapter) => EditableChapter) => void
   onUpdateLesson: (lessonId: string, updater: (lesson: EditableChapter['lessons'][number]) => EditableChapter['lessons'][number]) => void
   onOpenLessonStudio: (lessonId: string) => void
+  onGenerateChapterSkeleton: () => void
 }
 
-const ChaptersStep: React.FC<Props> = ({ activeChapter, onUpdateChapter, onUpdateLesson, onOpenLessonStudio }) => {
+const ChaptersStep: React.FC<Props> = ({
+  activeChapter,
+  generatingChapterSkeleton,
+  disableChapterSkeletonAction = false,
+  onUpdateChapter,
+  onUpdateLesson,
+  onOpenLessonStudio,
+  onGenerateChapterSkeleton,
+}) => {
   const { t } = useTranslation('mentor')
 
   if (!activeChapter) return <EmptyPanel message={t('drafts.noChapterSelected')} />
@@ -65,7 +76,21 @@ const ChaptersStep: React.FC<Props> = ({ activeChapter, onUpdateChapter, onUpdat
         </div>
       </SectionCard>
 
-      <SectionCard title={t('drafts.lessonSchedule')} subtitle={t('drafts.lessonScheduleHint')}>
+      <SectionCard
+        title={t('drafts.lessonSchedule')}
+        subtitle={t('drafts.lessonScheduleHint')}
+        action={(
+          <button
+            type="button"
+            style={getButtonStyle({ accent: true, disabled: disableChapterSkeletonAction || generatingChapterSkeleton })}
+            onClick={onGenerateChapterSkeleton}
+            disabled={disableChapterSkeletonAction || generatingChapterSkeleton}
+          >
+            {generatingChapterSkeleton ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {generatingChapterSkeleton ? t('drafts.generatingChapterMentorSkeleton') : t('drafts.generateChapterMentorSkeletonByAi')}
+          </button>
+        )}
+      >
         <div style={{ display: 'grid', gap: 12 }}>
           {activeChapter.lessons.map((lesson, lessonIndex) => (
             <div key={lesson.id} style={{ ...cardStyle, padding: 16, background: 'var(--bg-main)' }}>

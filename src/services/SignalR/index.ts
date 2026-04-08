@@ -49,6 +49,7 @@ const inflightQuiz = new Map<string, Promise<any>>()
 const inflightSummary = new Map<string, Promise<any>>()
 const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
+const inflightChapterMentorSkeleton = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
 const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
 const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
@@ -1932,6 +1933,150 @@ export async function requestChapterSkeleton(
   return p
 }
 
+export async function requestChapterMentorSkeleton(
+  pathId: string,
+  chapterTitle: string,
+  chapterDescription: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(pathId)) {
+    return Promise.reject(new Error('pathId must be a valid GUID'))
+  }
+
+  if (typeof chapterTitle !== 'string' || typeof chapterDescription !== 'string') {
+    return Promise.reject(new Error('chapterTitle and chapterDescription must be strings'))
+  }
+
+  const key = `${pathId}:${chapterTitle.trim()}:${chapterDescription.trim()}`
+  if (inflightChapterMentorSkeleton.has(key)) {
+    return inflightChapterMentorSkeleton.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getChapterHub()
+    debugSignalR('chapter', 'RequestChapterMentorSkeleton invoke payload', {
+      pathId,
+      chapterTitle,
+      chapterDescription,
+    })
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const normalizedTitle = chapterTitle.trim().toLowerCase()
+      const normalizedDescription = chapterDescription.trim().toLowerCase()
+
+      const toNormalizedString = (value: unknown) => String(value ?? '').trim().toLowerCase()
+      const buildChapterMentorError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const hasValidLessonsShape = (payload: any): boolean => {
+        const lessonItems = Array.isArray(payload?.lessons)
+          ? payload.lessons
+          : Array.isArray(payload?.Lessons)
+            ? payload.Lessons
+            : null
+
+        if (!lessonItems) return false
+        return lessonItems.every((lesson: any) => {
+          const lessonTitle = String(lesson?.title ?? lesson?.Title ?? '').trim()
+          const orderIndex = Number(lesson?.orderIndex ?? lesson?.OrderIndex)
+          return lessonTitle.length > 0 && Number.isFinite(orderIndex)
+        })
+      }
+
+      const isMatchingPayload = (payload: any) => {
+        const payloadPathId = getPayloadCorrelationId(payload, ['pathId', 'PathId'])
+        if (!payloadPathId || payloadPathId !== pathId) return false
+
+        const payloadTitle = toNormalizedString(payload?.chapterTitle ?? payload?.ChapterTitle)
+        const payloadDescription = toNormalizedString(payload?.chapterDescription ?? payload?.ChapterDescription)
+
+        if (payloadTitle && payloadTitle !== normalizedTitle) return false
+        if (payloadDescription && payloadDescription !== normalizedDescription) return false
+
+        return true
+      }
+
+      const cleanup = () => {
+        hub.off('ChapterMentorSkeletonGenerationStarted', handleLoading)
+        hub.off('ChapterMentorSkeletonGenerated', handleGenerated)
+        hub.off('ChapterMentorSkeletonError', handleError)
+        inflightChapterMentorSkeleton.delete(key)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingPayload(payload)) return
+        debugSignalR('chapter', 'ChapterMentorSkeletonGenerationStarted', payload)
+        onLoading?.()
+      }
+
+      const handleGenerated = (payload: any) => {
+        if (!isMatchingPayload(payload)) return
+        debugSignalR('chapter', 'ChapterMentorSkeletonGenerated', payload)
+        if (!hasValidLessonsShape(payload)) {
+          handleError({
+            ErrorCode: 'INVALID_AI_RESPONSE',
+            ErrorMessage: 'Chapter mentor skeleton payload is invalid.',
+            PathId: pathId,
+            ChapterTitle: chapterTitle,
+            ChapterDescription: chapterDescription,
+          })
+          return
+        }
+        if (done) return
+        done = true
+        cleanup()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingPayload(err)) return
+        debugSignalR('chapter', 'ChapterMentorSkeletonError', err)
+        if (done) return
+        done = true
+        cleanup()
+        reject(buildChapterMentorError(err, 'Failed to generate chapter mentor skeleton'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Chapter mentor skeleton generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleGeneratedWrap = (payload: any) => { clearTo(); handleGenerated(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('ChapterMentorSkeletonGenerationStarted', handleLoading)
+      hub.on('ChapterMentorSkeletonGenerated', handleGeneratedWrap)
+      hub.on('ChapterMentorSkeletonError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestChapterMentorSkeleton', pathId, chapterTitle, chapterDescription).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightChapterMentorSkeleton.set(key, p)
+  return p
+}
+
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
@@ -1978,6 +2123,7 @@ export async function disconnectHubs(): Promise<void> {
     inflightSummary.clear()
     inflightLearningPath.clear()
     inflightChapterSkeleton.clear()
+    inflightChapterMentorSkeleton.clear()
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()

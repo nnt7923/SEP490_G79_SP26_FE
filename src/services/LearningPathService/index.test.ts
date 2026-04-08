@@ -10,6 +10,7 @@ vi.mock('../Axios', () => ({
 
 vi.mock('../SignalR', () => ({
   requestLearningPathGeneration: vi.fn(),
+  requestChapterMentorSkeleton: vi.fn(),
   requestChapterSkeleton: vi.fn(),
   requestLessonQuizSkeleton: vi.fn(),
   requestLearningPathSuggestions: vi.fn(),
@@ -18,15 +19,17 @@ vi.mock('../SignalR', () => ({
 import api from '../Axios'
 import {
   createManualDraft,
+  generateChapterMentorSkeleton,
   generateLessonQuizSkeleton,
   getLearningPathProgress,
   getLessonReadStatus,
   markLessonContentRead,
   updateManualDraft,
 } from './index'
-import { requestLessonQuizSkeleton } from '../SignalR'
+import { requestChapterMentorSkeleton, requestLessonQuizSkeleton } from '../SignalR'
 
 const mockedApi = vi.mocked(api, true)
+const mockedRequestChapterMentorSkeleton = vi.mocked(requestChapterMentorSkeleton)
 const mockedRequestLessonQuizSkeleton = vi.mocked(requestLessonQuizSkeleton)
 
 describe('LearningPathService progress/read APIs', () => {
@@ -34,6 +37,7 @@ describe('LearningPathService progress/read APIs', () => {
     mockedApi.get.mockReset()
     mockedApi.post.mockReset()
     mockedApi.put.mockReset()
+    mockedRequestChapterMentorSkeleton.mockReset()
     mockedRequestLessonQuizSkeleton.mockReset()
   })
 
@@ -143,6 +147,28 @@ describe('LearningPathService progress/read APIs', () => {
     mockedRequestLessonQuizSkeleton.mockRejectedValue(new Error("Method does not exist: 'RequestQuizSkeleton'"))
 
     await expect(generateLessonQuizSkeleton(lessonId)).rejects.toThrow("Method does not exist: 'RequestQuizSkeleton'")
+  })
+
+  it('delegates chapter mentor skeleton generation to SignalR request', async () => {
+    const payload = {
+      pathId: '12345678-1234-1234-1234-123456789012',
+      chapterTitle: 'State Management',
+      chapterDescription: 'Redux and context patterns',
+      lessons: [{ title: 'Redux fundamentals', orderIndex: 1 }],
+    }
+    const onLoading = vi.fn()
+    mockedRequestChapterMentorSkeleton.mockResolvedValue(payload)
+
+    await expect(
+      generateChapterMentorSkeleton(payload.pathId, payload.chapterTitle, payload.chapterDescription, { onLoading }),
+    ).resolves.toEqual(payload)
+
+    expect(mockedRequestChapterMentorSkeleton).toHaveBeenCalledWith(
+      payload.pathId,
+      payload.chapterTitle,
+      payload.chapterDescription,
+      onLoading,
+    )
   })
 
   it('keeps manual draft languageSelection numeric and normalizes nested quiz questions', async () => {

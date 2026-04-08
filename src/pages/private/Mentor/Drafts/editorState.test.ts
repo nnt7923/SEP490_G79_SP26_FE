@@ -140,7 +140,7 @@ describe('editorState hydrate/build payload', () => {
       chapters: [
         {
           id: 'chapter-1',
-          title: 'Chapter 1',
+          title: 'Chapter 1: Variables',
           lessons: [
             {
               id: 'lesson-1',
@@ -164,6 +164,7 @@ describe('editorState hydrate/build payload', () => {
 
     expect(hydrated.complexityLevel).toBe('Intermediate')
     expect(hydrated.languageSelection).toBe(2)
+    expect(hydrated.chapters[0].title).toBe('Variables')
     expect(hydrated.chapters[0].lessons[0].quizzes[0].dueDate).toBe('2026-04-03')
     expect(hydrated.chapters[0].lessons[0].quizzes[0].questions).toHaveLength(6)
     expect(hydrated.chapters[0].lessons[0].quizzes[0].questions[5].type).toBe('Ordering')
@@ -293,6 +294,7 @@ describe('editorState hydrate/build payload', () => {
 
     expect(payload.complexityLevel).toBe('Advanced')
     expect(payload.languageSelection).toBe('English')
+    expect(payload.chapters[0].title).toBe('Chapter 1: Chapter 1')
     expect(payload.chapters[0].tasks?.[0]).toMatchObject({
       priority: 3,
       taskType: 2,
@@ -350,6 +352,46 @@ describe('editorState hydrate/build payload', () => {
     })
 
     expect(payload.chapters[0].lessons[0].lessonDay).toBe('2026-04-09T00:00:00.000Z')
+  })
+
+  it('auto prefixes chapter numbering on save so mentor does not type Chapter N manually', () => {
+    const payload = buildPayload({
+      subjectId: 'subject-1',
+      goals: [{ goalId: 'goal-1', weight: 100 }],
+      complexityLevel: 'Intermediate',
+      languageSelection: 1,
+      title: 'Draft',
+      description: '',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      chapters: [
+        {
+          id: 'chapter-local-1',
+          persistedId: null,
+          title: 'React Basics',
+          content: '',
+          startDate: '',
+          endDate: '',
+          estimatedDays: '',
+          lessons: [],
+          tasks: [],
+        },
+        {
+          id: 'chapter-local-2',
+          persistedId: null,
+          title: 'Chapter 2: State Management',
+          content: '',
+          startDate: '',
+          endDate: '',
+          estimatedDays: '',
+          lessons: [],
+          tasks: [],
+        },
+      ],
+    })
+
+    expect(payload.chapters[0].title).toBe('Chapter 1: React Basics')
+    expect(payload.chapters[1].title).toBe('Chapter 2: State Management')
   })
 
   it('serializes each question type exactly as required', () => {

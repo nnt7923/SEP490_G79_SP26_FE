@@ -12,7 +12,14 @@ import {
   myDraftDetailUrl,
   learningPathProgressUrl,
 } from './url'
-import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLessonQuizSkeleton, requestLearningPathSuggestions } from '../SignalR'
+import {
+  requestLearningPathGeneration,
+  requestChapterMentorSkeleton,
+  requestChapterSkeleton,
+  requestLessonContent,
+  requestLessonQuizSkeleton,
+  requestLearningPathSuggestions,
+} from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -564,6 +571,22 @@ export async function generateChapterSkeleton(
   throw new Error('REST API for chapter skeleton generation not implemented. Use SignalR instead.')
 }
 
+export async function generateChapterMentorSkeleton(
+  pathId: string,
+  chapterTitle: string,
+  chapterDescription: string,
+  options?: {
+    useSignalR?: boolean
+    onLoading?: () => void
+  },
+): Promise<any> {
+  if (!options || options.useSignalR !== false) {
+    return await requestChapterMentorSkeleton(pathId, chapterTitle, chapterDescription, options?.onLoading)
+  }
+
+  throw new Error('REST API for chapter mentor skeleton generation not implemented. Use SignalR instead.')
+}
+
 export interface UserLearningPathsParams {
   pageNumber?: number
   pageSize?: number
@@ -867,6 +890,7 @@ export default {
   generateLessonContent,
   generateLessonQuizSkeleton,
   generateChapterSkeleton,
+  generateChapterMentorSkeleton,
   getUserLearningPaths,
   clearUserLearningPathsCache,
   getLearningPathProgress,

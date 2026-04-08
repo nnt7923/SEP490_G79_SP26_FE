@@ -75,6 +75,8 @@ const QUESTION_TYPE_FROM_API: Record<number, QuestionType> = {
   5: 'Ordering',
 }
 
+const CHAPTER_TITLE_PREFIX_PATTERN = /^chapter\s+\d+\s*:\s*/i
+
 type GenericObject = Record<string, unknown>
 
 const asObject = (value: unknown): GenericObject | null => (
@@ -494,6 +496,14 @@ const normalizePointsString = (value: unknown): string => {
   return String(numeric)
 }
 
+const stripChapterTitlePrefix = (value: string): string => value.replace(CHAPTER_TITLE_PREFIX_PATTERN, '').trim()
+
+const formatChapterTitleForSave = (value: string, index: number): string => {
+  const normalized = stripChapterTitlePrefix(value)
+  if (!normalized) return ''
+  return `Chapter ${index + 1}: ${normalized}`
+}
+
 const serializeLanguageSelection = (value: number): 'VietNamese' | 'English' => (
   value === LanguageSelection.English ? 'English' : 'VietNamese'
 )
@@ -679,7 +689,7 @@ export const mergeLessonQuizzesWithSkeleton = (
 export const emptyQuiz = (): EditableQuiz => ({ id: uid('quiz'), persistedId: null, title: '', description: '', dueDate: '', questions: [] })
 export const emptyTask = (): EditableTask => ({ id: uid('task'), persistedId: null, title: '', description: '', priority: '', taskStatus: 'Pending', dueDate: '', taskType: 'Practice', quizQuestionsJson: '' })
 export const emptyLesson = (): EditableLesson => ({ id: uid('lesson'), persistedId: null, title: '', lessonDay: '', sections: createEmptyLessonSections(), quizzes: [] })
-export const emptyChapter = (): EditableChapter => ({ id: uid('chapter'), persistedId: null, title: '', content: '', startDate: '', endDate: '', estimatedDays: '', lessons: [emptyLesson()], tasks: [] })
+export const emptyChapter = (): EditableChapter => ({ id: uid('chapter'), persistedId: null, title: '', content: '', startDate: '', endDate: '', estimatedDays: '', lessons: [], tasks: [] })
 export const emptyForm = (): DraftFormState => ({
   subjectId: '',
   goals: [],
@@ -765,12 +775,12 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
               : (fallbackLesson?.quizzes ?? []),
           }
         })
-        : (fallbackChapter?.lessons?.length ? fallbackChapter.lessons : [emptyLesson()])
+        : (fallbackChapter?.lessons ?? [])
 
       return {
         id: String(chapter?.id ?? chapter?.chapterId ?? fallbackChapter?.id ?? uid('chapter')),
         persistedId: chapter?.id != null || chapter?.chapterId != null ? String(chapter?.id ?? chapter?.chapterId) : (fallbackChapter?.persistedId ?? null),
-        title: chapter?.title ?? fallbackChapter?.title ?? '',
+        title: stripChapterTitlePrefix(chapter?.title ?? fallbackChapter?.title ?? ''),
         content: chapter?.content ?? fallbackChapter?.content ?? '',
         startDate: toDateInput(chapter?.startDate ?? chapter?.StartDate ?? fallbackChapter?.startDate),
         endDate: toDateInput(chapter?.endDate ?? chapter?.EndDate ?? fallbackChapter?.endDate),
@@ -968,13 +978,13 @@ export const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
   startDate: toIsoDate(form.startDate) ?? null,
   endDate: toIsoDate(form.endDate) ?? null,
   // Keep full snapshot semantics so backend can decide how to ignore fully empty draft nodes.
-  chapters: form.chapters.map((chapter) => {
+  chapters: form.chapters.map((chapter, chapterIndex) => {
     const chapterStartDate = toIsoDate(chapter.startDate) ?? null
 
     return {
       id: chapter.persistedId ?? undefined,
       chapterId: chapter.persistedId ?? undefined,
-      title: chapter.title.trim(),
+      title: formatChapterTitleForSave(chapter.title, chapterIndex),
       content: chapter.content.trim() || null,
       startDate: chapterStartDate,
       endDate: toIsoDate(chapter.endDate) ?? null,

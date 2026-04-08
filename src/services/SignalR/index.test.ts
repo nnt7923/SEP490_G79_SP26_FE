@@ -4,6 +4,7 @@ import {
   disconnectHubs,
   disconnectSummaryHub,
   getSummaryHub,
+  requestChapterMentorSkeleton,
   requestLessonQuizSkeleton,
   requestResourceSummary,
 } from './index'
@@ -359,6 +360,163 @@ describe('SignalR Summary Hub Service', () => {
 
       const promise = requestLessonQuizSkeleton(lessonId)
       const expectation = expect(promise).rejects.toThrow('Lesson quiz skeleton request timeout')
+      await vi.advanceTimersByTimeAsync(120000)
+
+      await expectation
+      vi.useRealTimers()
+    })
+  })
+
+  describe('requestChapterMentorSkeleton', () => {
+    it('should invoke RequestChapterMentorSkeleton and resolve with generated payload', async () => {
+      const pathId = '12345678-1234-1234-1234-123456789012'
+      const chapterTitle = 'React Fundamentals'
+      const chapterDescription = 'Core React concepts'
+      const generatedPayload = {
+        pathId,
+        chapterTitle,
+        chapterDescription,
+        lessons: [
+          { title: 'Intro to React', orderIndex: 1 },
+          { title: 'Components', orderIndex: 2 },
+        ],
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ChapterMentorSkeletonGenerated') {
+          setTimeout(() => handler(generatedPayload), 10)
+        }
+      })
+
+      await expect(requestChapterMentorSkeleton(pathId, chapterTitle, chapterDescription)).resolves.toEqual(generatedPayload)
+      expect(mockHubConnection.invoke).toHaveBeenCalledWith('RequestChapterMentorSkeleton', pathId, chapterTitle, chapterDescription)
+    })
+
+    it('should call onLoading when ChapterMentorSkeletonGenerationStarted is received', async () => {
+      const pathId = '12345678-1234-1234-1234-123456789012'
+      const onLoading = vi.fn()
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ChapterMentorSkeletonGenerationStarted') {
+          setTimeout(() => handler({ pathId }), 5)
+        }
+        if (event === 'ChapterMentorSkeletonGenerated') {
+          setTimeout(() => handler({ pathId, lessons: [{ title: 'L1', orderIndex: 1 }] }), 10)
+        }
+      })
+
+      await requestChapterMentorSkeleton(pathId, 'React Fundamentals', 'Core React concepts', onLoading)
+      expect(onLoading).toHaveBeenCalled()
+    })
+
+    it('should prevent duplicate requests for the same chapter prompt', async () => {
+      const pathId = '12345678-1234-1234-1234-123456789012'
+      const chapterTitle = 'React Fundamentals'
+      const chapterDescription = 'Core React concepts'
+      const generatedPayload = { pathId, lessons: [{ title: 'L1', orderIndex: 1 }] }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.state = 1
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ChapterMentorSkeletonGenerated') {
+          setTimeout(() => handler(generatedPayload), 50)
+        }
+      })
+
+      const promise1 = requestChapterMentorSkeleton(pathId, chapterTitle, chapterDescription)
+      const promise2 = requestChapterMentorSkeleton(pathId, chapterTitle, chapterDescription)
+
+      const [result1, result2] = await Promise.all([promise1, promise2])
+      expect(result1).toEqual(result2)
+      expect(mockHubConnection.invoke).toHaveBeenCalledTimes(1)
+    })
+
+    it('should ignore events from another chapter title on the same path', async () => {
+      const pathId = '12345678-1234-1234-1234-123456789012'
+      const chapterTitle = 'React Fundamentals'
+      const chapterDescription = 'Core React concepts'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ChapterMentorSkeletonError') {
+          setTimeout(() => handler({ pathId, chapterTitle: 'Wrong Chapter', errorMessage: 'Should be ignored' }), 10)
+        }
+        if (event === 'ChapterMentorSkeletonGenerated') {
+          setTimeout(() => handler({ pathId, chapterTitle, chapterDescription, lessons: [{ title: 'L1', orderIndex: 1 }] }), 20)
+        }
+      })
+
+      await expect(requestChapterMentorSkeleton(pathId, chapterTitle, chapterDescription)).resolves.toEqual(
+        expect.objectContaining({ pathId, chapterTitle }),
+      )
+    })
+
+    it('should ignore events missing pathId', async () => {
+      const pathId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ChapterMentorSkeletonGenerated') {
+          setTimeout(() => handler({ chapterTitle: 'React Fundamentals', lessons: [{ title: 'L1', orderIndex: 1 }] }), 10)
+          setTimeout(() => handler({ pathId, chapterTitle: 'React Fundamentals', chapterDescription: 'Core React concepts', lessons: [{ title: 'L1', orderIndex: 1 }] }), 20)
+        }
+      })
+
+      await expect(requestChapterMentorSkeleton(pathId, 'React Fundamentals', 'Core React concepts')).resolves.toEqual(
+        expect.objectContaining({ pathId }),
+      )
+    })
+
+    it('should reject when generated payload has invalid lessons shape', async () => {
+      const pathId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ChapterMentorSkeletonGenerated') {
+          setTimeout(() => handler({
+            pathId,
+            chapterTitle: 'React Fundamentals',
+            chapterDescription: 'Core React concepts',
+            lessons: [{ title: '', orderIndex: 'x' }],
+          }), 10)
+        }
+      })
+
+      await expect(requestChapterMentorSkeleton(pathId, 'React Fundamentals', 'Core React concepts')).rejects.toMatchObject({
+        message: 'Chapter mentor skeleton payload is invalid.',
+        code: 'INVALID_AI_RESPONSE',
+      })
+    })
+
+    it('should preserve error code from ChapterMentorSkeletonError payload', async () => {
+      const pathId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ChapterMentorSkeletonError') {
+          setTimeout(() => handler({
+            PathId: pathId,
+            ErrorCode: 'GENERATION_FAILED',
+            ErrorMessage: 'Failed to generate chapter mentor skeleton.',
+          }), 10)
+        }
+      })
+
+      await expect(requestChapterMentorSkeleton(pathId, 'React Fundamentals', 'Core React concepts')).rejects.toMatchObject({
+        message: 'Failed to generate chapter mentor skeleton.',
+        code: 'GENERATION_FAILED',
+      })
+    })
+
+    it('should timeout when no chapter mentor skeleton event is received', async () => {
+      vi.useFakeTimers()
+      const pathId = '12345678-1234-1234-1234-123456789012'
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+
+      const promise = requestChapterMentorSkeleton(pathId, 'React Fundamentals', 'Core React concepts')
+      const expectation = expect(promise).rejects.toThrow('Chapter mentor skeleton generation timeout')
       await vi.advanceTimersByTimeAsync(120000)
 
       await expectation
