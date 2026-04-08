@@ -27,12 +27,6 @@ const toDateInput = (value?: string | null) => value ? new Date(value).toISOStri
 const toIsoDate = (value?: string) => value ? new Date(`${value}T00:00:00.000Z`).toISOString() : undefined
 const extractMarkdown = (payload: any): string => typeof payload === 'string' ? payload : payload?.content ?? payload?.markdown ?? payload?.body ?? payload?.text ?? ''
 
-const COMPLEXITY_TO_API: Record<Level, number> = {
-  Beginner: 1,
-  Intermediate: 2,
-  Advanced: 3,
-}
-
 const TASK_TYPE_TO_API: Record<TaskType, number> = {
   Practice: 0,
   Theory: 1,
@@ -500,6 +494,15 @@ const normalizePointsString = (value: unknown): string => {
   return String(numeric)
 }
 
+const serializeLanguageSelection = (value: number): 'VietNamese' | 'English' => (
+  value === LanguageSelection.English ? 'English' : 'VietNamese'
+)
+
+const buildTodayIsoDate = (): string => {
+  const today = new Date().toISOString().slice(0, 10)
+  return new Date(`${today}T00:00:00.000Z`).toISOString()
+}
+
 const createMatchingPairs = (entries: string[], fallback: EditableMatchingPair[] = []): EditableMatchingPair[] => {
   const pairs = entries
     .map((entry) => String(entry ?? ''))
@@ -818,67 +821,42 @@ export const validateDraftForm = (form: DraftFormState): string | null => {
   if (form.goals.length === 0) return 'Select at least one goal.'
   if (form.goals.length === 1 && form.goals[0].weight !== 100) return 'Single goal must have weight 100.'
   if (form.goals.length === 2 && form.goals[0].weight + form.goals[1].weight !== 100) return 'Goal weights must total 100.'
+  if (!form.startDate) return 'Start date is required.'
+  if (!form.endDate) return 'End date is required.'
+  if (!LEVEL_OPTIONS.includes(form.complexityLevel)) return 'Level is required.'
+  if (!Object.values(LanguageSelection).includes(form.languageSelection as (typeof LanguageSelection)[keyof typeof LanguageSelection])) {
+    return 'Language is required.'
+  }
 
   for (const chapter of form.chapters) {
-    if (!chapter.title.trim()) return 'Every chapter needs a title.'
-    if (!chapter.lessons.length) return `Chapter "${chapter.title || 'Untitled'}" needs at least one lesson.`
+    const chapterTitle = chapter.title.trim()
+    if (chapterTitle && chapterTitle.length > 200) return `Chapter title must be 200 characters or fewer in chapter "${chapterTitle}".`
 
     for (const task of chapter.tasks) {
-      if (!task.title.trim()) return `Every task needs a title in chapter "${chapter.title || 'Untitled'}".`
-      if (task.title.trim().length > 200) return `Task title must be 200 characters or fewer in chapter "${chapter.title || 'Untitled'}".`
-      if (!TASK_TYPE_OPTIONS.includes(task.taskType)) return `Task type is invalid for task "${task.title || 'Untitled'}".`
+      const taskTitle = task.title.trim()
+      if (taskTitle && taskTitle.length > 200) return `Task title must be 200 characters or fewer in chapter "${chapterTitle || 'Untitled'}".`
+      if (task.taskType && !TASK_TYPE_OPTIONS.includes(task.taskType)) return `Task type is invalid for task "${taskTitle || 'Untitled'}".`
     }
 
     for (const lesson of chapter.lessons) {
-      if (!lesson.title.trim()) return `Every lesson needs a title in chapter "${chapter.title || 'Untitled'}".`
+      const lessonTitle = lesson.title.trim()
+      if (lessonTitle && lessonTitle.length > 200) return `Lesson title must be 200 characters or fewer in chapter "${chapterTitle || 'Untitled'}".`
 
       for (const quiz of lesson.quizzes) {
-        if (!quiz.title.trim()) return `Every quiz needs a title in lesson "${lesson.title || 'Untitled'}".`
-        if (quiz.title.trim().length > 200) return `Quiz title must be 200 characters or fewer in lesson "${lesson.title || 'Untitled'}".`
+        const quizTitle = quiz.title.trim()
+        if (quizTitle && quizTitle.length > 200) return `Quiz title must be 200 characters or fewer in lesson "${lessonTitle || 'Untitled'}".`
 
         for (const question of quiz.questions) {
-          if (!question.questionText.trim()) return `Every question needs text in quiz "${quiz.title || 'Untitled'}".`
-          if (question.questionText.trim().length > 2000) return `Question text must be 2000 characters or fewer in quiz "${quiz.title || 'Untitled'}".`
-          if (!isValidQuestionType(question.type)) return `Question type is invalid in quiz "${quiz.title || 'Untitled'}".`
+          const questionText = question.questionText.trim()
+          if (questionText && questionText.length > 2000) return `Question text must be 2000 characters or fewer in quiz "${quizTitle || 'Untitled'}".`
+          if (question.type && !isValidQuestionType(question.type)) return `Question type is invalid in quiz "${quizTitle || 'Untitled'}".`
 
-          const points = Number(question.points)
-          if (!Number.isFinite(points) || points <= 0) {
-            return `Question points must be greater than 0 in quiz "${quiz.title || 'Untitled'}".`
-          }
-
-          if (question.type === 'TrueFalse') {
-            if (!['True', 'False'].includes(question.correctAnswer.trim())) return `True/False answer is invalid in quiz "${quiz.title || 'Untitled'}".`
-            continue
-          }
-
-          if (question.type === 'SingleChoice') {
-            if (sanitizeStringArray(question.options).length === 0) return `Single choice questions need at least one option in quiz "${quiz.title || 'Untitled'}".`
-            if (!question.correctAnswer.trim()) return `Single choice questions need a correct answer in quiz "${quiz.title || 'Untitled'}".`
-            continue
-          }
-
-          if (question.type === 'MultipleChoice') {
-            if (sanitizeStringArray(question.options).length === 0) return `Multiple choice questions need at least one option in quiz "${quiz.title || 'Untitled'}".`
-            if (question.selectedAnswers.filter((item) => item.trim()).length === 0) {
-              return `Multiple choice questions need at least one selected answer in quiz "${quiz.title || 'Untitled'}".`
+          const normalizedPoints = String(question.points ?? '').trim()
+          if (normalizedPoints) {
+            const points = Number(normalizedPoints)
+            if (!Number.isFinite(points) || points <= 0) {
+              return `Question points must be greater than 0 in quiz "${quizTitle || 'Untitled'}".`
             }
-            continue
-          }
-
-          if (question.type === 'Matching') {
-            const validPairs = question.matchingPairs.filter((pair) => pair.left.trim() && pair.right.trim())
-            if (validPairs.length === 0) return `Matching questions need at least one valid pair in quiz "${quiz.title || 'Untitled'}".`
-            continue
-          }
-
-          if (question.type === 'Ordering') {
-            if (sanitizeStringArray(question.options).length < 2) return `Ordering questions need at least two options in quiz "${quiz.title || 'Untitled'}".`
-            if (sanitizeStringArray(question.orderingSequence).length < 2) return `Ordering questions need a valid answer order in quiz "${quiz.title || 'Untitled'}".`
-            continue
-          }
-
-          if (question.type === 'FillInTheBlank' && !question.correctAnswer.trim()) {
-            return `Fill in the blank questions need a correct answer in quiz "${quiz.title || 'Untitled'}".`
           }
         }
       }
@@ -983,48 +961,53 @@ export const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
     goalId: goal.goalId,
     weight: goal.weight,
   })),
-  complexityLevel: COMPLEXITY_TO_API[form.complexityLevel],
-  languageSelection: form.languageSelection,
+  complexityLevel: form.complexityLevel,
+  languageSelection: serializeLanguageSelection(form.languageSelection),
   title: form.title.trim(),
   description: form.description.trim() || null,
   startDate: toIsoDate(form.startDate) ?? null,
   endDate: toIsoDate(form.endDate) ?? null,
-  chapters: form.chapters.map((chapter) => ({
-    id: chapter.persistedId ?? undefined,
-    chapterId: chapter.persistedId ?? undefined,
-    title: chapter.title.trim(),
-    content: chapter.content.trim() || null,
-    startDate: toIsoDate(chapter.startDate) ?? null,
-    endDate: toIsoDate(chapter.endDate) ?? null,
-    estimatedDays: chapter.estimatedDays.trim() ? Number(chapter.estimatedDays) : null,
-    lessons: chapter.lessons.map((lesson) => ({
-      id: lesson.persistedId ?? undefined,
-      lessonId: lesson.persistedId ?? undefined,
-      title: lesson.title.trim(),
-      lessonDay: toIsoDate(lesson.lessonDay) ?? null,
-      content: buildLessonContentFromSections(lesson.sections),
-      quizzes: lesson.quizzes.map((quiz) => ({
-        id: quiz.persistedId ?? undefined,
-        quizId: quiz.persistedId ?? undefined,
-        quizzId: quiz.persistedId ?? undefined,
-        title: quiz.title.trim(),
-        description: quiz.description.trim() || null,
-        dueDate: toIsoDate(quiz.dueDate) ?? null,
-        questions: quiz.questions.map((question) => serializeQuestion(question)),
+  // Keep full snapshot semantics so backend can decide how to ignore fully empty draft nodes.
+  chapters: form.chapters.map((chapter) => {
+    const chapterStartDate = toIsoDate(chapter.startDate) ?? null
+
+    return {
+      id: chapter.persistedId ?? undefined,
+      chapterId: chapter.persistedId ?? undefined,
+      title: chapter.title.trim(),
+      content: chapter.content.trim() || null,
+      startDate: chapterStartDate,
+      endDate: toIsoDate(chapter.endDate) ?? null,
+      estimatedDays: chapter.estimatedDays.trim() ? Number(chapter.estimatedDays) : null,
+      lessons: chapter.lessons.map((lesson) => ({
+        id: lesson.persistedId ?? undefined,
+        lessonId: lesson.persistedId ?? undefined,
+        title: lesson.title.trim(),
+        lessonDay: toIsoDate(lesson.lessonDay) ?? chapterStartDate ?? buildTodayIsoDate(),
+        content: buildLessonContentFromSections(lesson.sections),
+        quizzes: lesson.quizzes.map((quiz) => ({
+          id: quiz.persistedId ?? undefined,
+          quizId: quiz.persistedId ?? undefined,
+          quizzId: quiz.persistedId ?? undefined,
+          title: quiz.title.trim(),
+          description: quiz.description.trim() || null,
+          dueDate: toIsoDate(quiz.dueDate) ?? null,
+          questions: quiz.questions.map((question) => serializeQuestion(question)),
+        })),
       })),
-    })),
-    tasks: chapter.tasks.map((task) => ({
-      id: task.persistedId ?? undefined,
-      taskId: task.persistedId ?? undefined,
-      title: task.title.trim(),
-      description: task.description.trim() || null,
-      priority: task.priority ? TASK_PRIORITY_TO_API[task.priority] : null,
-      taskStatus: task.taskStatus,
-      dueDate: toIsoDate(task.dueDate) ?? null,
-      taskType: TASK_TYPE_TO_API[task.taskType],
-      quizQuestionsJson: task.quizQuestionsJson.trim() || null,
-    })),
-  })),
+      tasks: chapter.tasks.map((task) => ({
+        id: task.persistedId ?? undefined,
+        taskId: task.persistedId ?? undefined,
+        title: task.title.trim(),
+        description: task.description.trim() || null,
+        priority: task.priority ? TASK_PRIORITY_TO_API[task.priority] : null,
+        taskStatus: task.taskStatus,
+        dueDate: toIsoDate(task.dueDate) ?? null,
+        taskType: TASK_TYPE_TO_API[task.taskType],
+        quizQuestionsJson: task.quizQuestionsJson.trim() || null,
+      })),
+    }
+  }),
 })
 
 export type SelectionSnapshot = {

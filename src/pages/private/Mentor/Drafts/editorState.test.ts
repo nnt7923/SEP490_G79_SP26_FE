@@ -239,7 +239,7 @@ describe('editorState hydrate/build payload', () => {
     expect(hydrated.chapters[0].lessons[0].quizzes).toEqual(fallback.chapters[0].lessons[0].quizzes)
   })
 
-  it('builds manual draft payload with numeric enums and exact question wire format', () => {
+  it('builds manual draft payload with string root enums and exact question wire format', () => {
     const form = hydrateDraftForm({
       subjectId: 'subject-1',
       goals: [{ goalId: 'goal-1', weight: 100 }],
@@ -291,8 +291,8 @@ describe('editorState hydrate/build payload', () => {
 
     const payload = buildPayload(form)
 
-    expect(payload.complexityLevel).toBe(3)
-    expect(payload.languageSelection).toBe(2)
+    expect(payload.complexityLevel).toBe('Advanced')
+    expect(payload.languageSelection).toBe('English')
     expect(payload.chapters[0].tasks?.[0]).toMatchObject({
       priority: 3,
       taskType: 2,
@@ -306,6 +306,50 @@ describe('editorState hydrate/build payload', () => {
       type: 0,
       correctAnswer: 'False',
     })
+  })
+
+  it('falls back lessonDay to chapter start date when lesson day is missing', () => {
+    const payload = buildPayload({
+      subjectId: 'subject-1',
+      goals: [{ goalId: 'goal-1', weight: 100 }],
+      complexityLevel: 'Beginner',
+      languageSelection: 1,
+      title: 'Draft',
+      description: '',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      chapters: [
+        {
+          id: 'chapter-local',
+          persistedId: null,
+          title: 'Chapter',
+          content: '',
+          startDate: '2026-04-09',
+          endDate: '',
+          estimatedDays: '',
+          tasks: [],
+          lessons: [
+            {
+              id: 'lesson-local',
+              persistedId: null,
+              title: 'Lesson',
+              lessonDay: '',
+              sections: {
+                overview: '',
+                'core-concepts': '',
+                'code-examples': '',
+                'common-mistakes': '',
+                'best-practices': '',
+                summary: '',
+              },
+              quizzes: [],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(payload.chapters[0].lessons[0].lessonDay).toBe('2026-04-09T00:00:00.000Z')
   })
 
   it('serializes each question type exactly as required', () => {
@@ -422,62 +466,132 @@ describe('editorState hydrate/build payload', () => {
 })
 
 describe('editorState validation', () => {
-  it('rejects invalid multiple choice questions without selected answers', () => {
-    const parsed = parseGeneratedQuizQuestionsPayload(sampleQuestionsPayload)
-    parsed.items[1] = {
-      ...parsed.items[1],
-      selectedAnswers: [],
-    }
-
-    const validationMessage = validateDraftForm({
-      subjectId: 'subject-1',
-      goals: [{ goalId: 'goal-1', weight: 100 }],
-      complexityLevel: 'Beginner',
-      languageSelection: 1,
-      title: 'Draft',
-      description: '',
-      startDate: '',
-      endDate: '',
-      chapters: [
-        {
-          id: 'chapter-local',
-          persistedId: null,
-          title: 'Chapter',
-          content: '',
-          startDate: '',
-          endDate: '',
-          estimatedDays: '',
-          tasks: [],
-          lessons: [
-            {
-              id: 'lesson-local',
-              persistedId: null,
-              title: 'Lesson',
-              lessonDay: '',
-              sections: {
-                overview: '',
-                'core-concepts': '',
-                'code-examples': '',
-                'common-mistakes': '',
-                'best-practices': '',
-                summary: '',
-              },
-              quizzes: [
-                {
-                  id: 'quiz-local',
-                  persistedId: null,
-                  title: 'Quiz',
-                  description: '',
-                  dueDate: '',
-                  questions: parsed.items,
-                },
-              ],
+  const createValidationForm = () => ({
+    subjectId: 'subject-1',
+    goals: [{ goalId: 'goal-1', weight: 100 }],
+    complexityLevel: 'Beginner' as const,
+    languageSelection: 1,
+    title: 'Draft',
+    description: '',
+    startDate: '2026-04-01',
+    endDate: '2026-04-30',
+    chapters: [
+      {
+        id: 'chapter-local',
+        persistedId: null,
+        title: '',
+        content: '',
+        startDate: '',
+        endDate: '',
+        estimatedDays: '',
+        tasks: [
+          {
+            id: 'task-local',
+            persistedId: null,
+            title: '',
+            description: '',
+            priority: '',
+            taskStatus: 'Pending' as const,
+            dueDate: '',
+            taskType: 'Practice' as const,
+            quizQuestionsJson: '',
+          },
+        ],
+        lessons: [
+          {
+            id: 'lesson-local',
+            persistedId: null,
+            title: '',
+            lessonDay: '',
+            sections: {
+              overview: '',
+              'core-concepts': '',
+              'code-examples': '',
+              'common-mistakes': '',
+              'best-practices': '',
+              summary: '',
             },
-          ],
-        },
-      ],
-    })
+            quizzes: [
+              {
+                id: 'quiz-local',
+                persistedId: null,
+                title: '',
+                description: '',
+                dueDate: '',
+                questions: [
+                  {
+                    id: 'question-local',
+                    persistedId: null,
+                    questionText: '',
+                    type: 'MultipleChoice' as const,
+                    options: [],
+                    correctAnswer: '',
+                    points: '',
+                    selectedAnswers: [],
+                    matchingPairs: [],
+                    orderingSequence: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
 
-    expect(validationMessage).toBe('Multiple choice questions need at least one selected answer in quiz "Quiz".')
+  it('allows saving draft when nested nodes are empty placeholders', () => {
+    const validationMessage = validateDraftForm(createValidationForm())
+
+    expect(validationMessage).toBeNull()
+  })
+
+  it('requires start date at root level', () => {
+    const form = createValidationForm()
+    form.startDate = ''
+
+    const validationMessage = validateDraftForm(form)
+
+    expect(validationMessage).toBe('Start date is required.')
+  })
+
+  it('requires end date at root level', () => {
+    const form = createValidationForm()
+    form.endDate = ''
+
+    const validationMessage = validateDraftForm(form)
+
+    expect(validationMessage).toBe('End date is required.')
+  })
+
+  it('rejects invalid task type when provided', () => {
+    const form = createValidationForm()
+    form.chapters[0].tasks[0].taskType = 'Unsupported' as any
+
+    const validationMessage = validateDraftForm(form)
+
+    expect(validationMessage).toBe('Task type is invalid for task "Untitled".')
+  })
+
+  it('rejects non-positive question points when value is provided', () => {
+    const form = createValidationForm()
+    form.chapters[0].lessons[0].quizzes[0].questions[0].questionText = 'Sample question'
+    form.chapters[0].lessons[0].quizzes[0].questions[0].points = '0'
+
+    const validationMessage = validateDraftForm(form)
+
+    expect(validationMessage).toBe('Question points must be greater than 0 in quiz "Untitled".')
+  })
+
+  it('does not require selected answers for multiple choice questions during draft save', () => {
+    const form = createValidationForm()
+    form.chapters[0].lessons[0].quizzes[0].questions[0].questionText = 'What is React?'
+    form.chapters[0].lessons[0].quizzes[0].questions[0].points = '2'
+    form.chapters[0].lessons[0].quizzes[0].questions[0].options = ['A library', 'A database']
+    form.chapters[0].lessons[0].quizzes[0].questions[0].selectedAnswers = []
+
+    const validationMessage = validateDraftForm(form)
+
+    expect(validationMessage).toBeNull()
   })
 })
