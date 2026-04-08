@@ -12,7 +12,7 @@ import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPat
 import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
 import { resolveShareToStudentErrorMessage } from '../../../../services/LearningPathShareService/shareErrorMessage'
-import { requestChapterTasks, requestQuizQuestions } from '../../../../services/SignalR'
+import { requestQuizQuestions } from '../../../../services/SignalR'
 import { useResponsive } from '../../../../hook/useResponsive'
 import OverviewStep from './components/OverviewStep'
 import ChaptersStep from './components/ChaptersStep'
@@ -32,12 +32,8 @@ import {
   emptyTask,
   hydrateDraftForm,
   mergeLessonQuizzesWithSkeleton,
-  normalizeJsonField,
-  normalizeTaskPriority,
   parseGeneratedQuizQuestionsPayload,
   parseQuizSkeletonPayload,
-  normalizeTaskStatus,
-  normalizeTaskType,
   restoreSelectionSnapshot,
   validateAiDraftInput,
   validateDraftForm,
@@ -181,7 +177,6 @@ const MentorDraftFormPage: React.FC = () => {
   const [isQuizSkeletonLoading, setIsQuizSkeletonLoading] = useState(false)
   const [hasQuizSkeleton, setHasQuizSkeleton] = useState(false)
   const [quizSkeletonError, setQuizSkeletonError] = useState<string | null>(null)
-  const [generatingTaskChapterId, setGeneratingTaskChapterId] = useState<string | null>(null)
   const [generatingQuizId, setGeneratingQuizId] = useState<string | null>(null)
   const [generatingAllLessonQuizzes, setGeneratingAllLessonQuizzes] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -746,40 +741,6 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
-  const generateAiTasks = async () => {
-    if (!activeChapter) return
-    if (!activeChapter.persistedId) {
-      setToast({ message: t('drafts.saveBeforeGenerateTasks'), type: 'warning' })
-      return
-    }
-    setGeneratingTaskChapterId(activeChapter.id)
-    try {
-      const result = await requestChapterTasks(activeChapter.persistedId)
-      const rawTasks: any[] = Array.isArray(result) ? result : Array.isArray(result?.tasks) ? result.tasks : []
-      if (rawTasks.length === 0) {
-        setToast({ message: t('drafts.tasksGenerateEmpty'), type: 'warning' })
-        return
-      }
-      const newTasks = rawTasks.map((task: any) => ({
-        id: `task-${Math.random().toString(36).slice(2, 10)}`,
-        persistedId: task?.id ?? task?.taskId ?? null,
-        title: task?.title ?? '',
-        description: task?.description ?? '',
-        priority: normalizeTaskPriority(task?.priority ?? task?.Priority),
-        taskStatus: normalizeTaskStatus(task?.taskStatus ?? task?.TaskStatus),
-        dueDate: task?.dueDate ?? task?.DueDate ? new Date(task?.dueDate ?? task?.DueDate).toISOString().slice(0, 10) : '',
-        taskType: normalizeTaskType(task?.taskType ?? task?.TaskType),
-        quizQuestionsJson: normalizeJsonField(task?.quizQuestionsJson ?? task?.QuizQuestionsJson),
-      }))
-      updateChapter(activeChapter.id, (chapter) => ({ ...chapter, tasks: [...chapter.tasks, ...newTasks] }))
-      setToast({ message: t('drafts.tasksGenerateSuccess'), type: 'success' })
-    } catch (err: any) {
-      setToast({ message: getApiErrorMessage(err, t('drafts.tasksGenerateFailed')), type: 'error' })
-    } finally {
-      setGeneratingTaskChapterId(null)
-    }
-  }
-
   const generateAiQuizQuestions = async (chapterId: string, lessonId: string, quiz: EditableQuiz) => {
     const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === chapterId)
     const lessonIndex = form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === lessonId) ?? -1
@@ -1072,12 +1033,10 @@ const MentorDraftFormPage: React.FC = () => {
                   assessmentTab={assessmentTab}
                   activeChapter={activeChapter}
                   activeLesson={activeLesson}
-                  generatingTaskChapterId={generatingTaskChapterId}
                   generatingQuizId={generatingQuizId}
                   generatingAllLessonQuizzes={generatingAllLessonQuizzes}
                   saving={saving}
                   onAssessmentTabChange={setAssessmentTab}
-                  onGenerateTasks={generateAiTasks}
                   onAddTask={() => activeChapter ? addTask(activeChapter.id) : undefined}
                   onUpdateTask={(taskId, updater) => activeChapter ? updateTask(activeChapter.id, taskId, updater) : undefined}
                   onRemoveTask={(taskId) => activeChapter ? removeTask(activeChapter.id, taskId) : undefined}

@@ -17,12 +17,10 @@ type Props = {
   assessmentTab: AssessmentTab
   activeChapter: EditableChapter | null
   activeLesson: EditableLesson | null
-  generatingTaskChapterId: string | null
   generatingQuizId: string | null
   generatingAllLessonQuizzes: boolean
   saving: boolean
   onAssessmentTabChange: (tab: AssessmentTab) => void
-  onGenerateTasks: () => void
   onAddTask: () => void
   onUpdateTask: (taskId: string, updater: (task: EditableTask) => EditableTask) => void
   onRemoveTask: (taskId: string) => void
@@ -149,12 +147,10 @@ const AssessmentsStep: React.FC<Props> = ({
   assessmentTab,
   activeChapter,
   activeLesson,
-  generatingTaskChapterId,
   generatingQuizId,
   generatingAllLessonQuizzes,
   saving,
   onAssessmentTabChange,
-  onGenerateTasks,
   onAddTask,
   onUpdateTask,
   onRemoveTask,
@@ -354,21 +350,9 @@ const AssessmentsStep: React.FC<Props> = ({
       title={t('drafts.tasks')}
       subtitle={t('drafts.tasksHint')}
       action={(
-        <>
-          <button
-            type="button"
-            style={getButtonStyle({ disabled: !activeChapter.persistedId || generatingTaskChapterId === activeChapter.id || saving })}
-            onClick={onGenerateTasks}
-            disabled={generatingTaskChapterId === activeChapter.id || saving}
-            title={!activeChapter.persistedId ? t('drafts.saveBeforeGenerateTasks') : undefined}
-          >
-            {generatingTaskChapterId === activeChapter.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
-            {generatingTaskChapterId === activeChapter.id ? t('drafts.generatingTasks') : t('drafts.generateTasksByAi')}
-          </button>
-          <button type="button" style={getButtonStyle()} onClick={onAddTask}>
-            <Plus size={14} /> {t('drafts.addTask')}
-          </button>
-        </>
+        <button type="button" style={getButtonStyle()} onClick={onAddTask}>
+          <Plus size={14} /> {t('drafts.addTask')}
+        </button>
       )}
     >
       {activeChapter.tasks.length === 0 ? (
