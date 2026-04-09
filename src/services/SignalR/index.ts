@@ -50,7 +50,9 @@ const inflightSummary = new Map<string, Promise<any>>()
 const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
 const inflightChapterMentorSkeleton = new Map<string, Promise<any>>()
+const inflightMentorLessonContent = new Map<string, Promise<any>>()
 const inflightSingleTask = new Map<string, Promise<any>>()
+const inflightSingleQuizSkeleton = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
 const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
 const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
@@ -556,6 +558,269 @@ export async function requestLessonQuizSkeleton(
   })()
 
   inflightQuizSkeleton.set(lessonId, p)
+  return p
+}
+
+export async function requestSingleQuizSkeleton(
+  lessonId: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(lessonId)) {
+    return Promise.reject(new Error('lessonId must be a valid GUID'))
+  }
+
+  if (inflightSingleQuizSkeleton.has(lessonId)) {
+    return inflightSingleQuizSkeleton.get(lessonId)!
+  }
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+
+      const isMatchingLessonPayload = (payload: any): boolean => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['lessonId', 'LessonId'])
+        return !!payloadLessonId && payloadLessonId === lessonId
+      }
+
+      const buildSingleQuizError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        hub.off('SingleQuizSkeletonLoading', handleLoading)
+        hub.off('ReceiveSingleQuizSkeleton', handleSuccess)
+        hub.off('SingleQuizSkeletonError', handleError)
+        inflightSingleQuizSkeleton.delete(lessonId)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLessonPayload(payload)) return
+        onLoading?.()
+      }
+
+      const handleSuccess = (payload: any) => {
+        if (!isMatchingLessonPayload(payload)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingLessonPayload(err)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildSingleQuizError(err, 'Failed to generate single quiz skeleton'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Single quiz skeleton generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleSuccessWrap = (payload: any) => { clearTo(); handleSuccess(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('SingleQuizSkeletonLoading', handleLoading)
+      hub.on('ReceiveSingleQuizSkeleton', handleSuccessWrap)
+      hub.on('SingleQuizSkeletonError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestSingleQuizSkeleton', lessonId).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightSingleQuizSkeleton.set(lessonId, p)
+  return p
+}
+
+export async function requestMentorLessonContent(
+  lessonId: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(lessonId)) {
+    return Promise.reject(new Error('lessonId must be a valid GUID'))
+  }
+
+  if (inflightMentorLessonContent.has(lessonId)) {
+    return inflightMentorLessonContent.get(lessonId)!
+  }
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      let generatedLessonContent: any = null
+      let completionPayload: any = null
+      let completionFallbackTo: ReturnType<typeof setTimeout> | null = null
+      const isMatchingLessonPayload = (payload: any, requireId = false): boolean => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['lessonId', 'LessonId'])
+        if (!payloadLessonId) return !requireId
+        return payloadLessonId === lessonId
+      }
+
+      const extractContentFromPayload = (payload: any): string => {
+        if (!payload || typeof payload !== 'object') return ''
+        return String(
+          payload?.content
+          ?? payload?.Content
+          ?? payload?.markdown
+          ?? payload?.Markdown
+          ?? payload?.body
+          ?? payload?.Body
+          ?? payload?.text
+          ?? payload?.Text
+          ?? payload?.generatedContent
+          ?? payload?.GeneratedContent
+          ?? payload?.lessonContent
+          ?? payload?.LessonContent
+          ?? payload?.lessonResult?.value?.content
+          ?? payload?.LessonResult?.Value?.Content
+          ?? '',
+        ).trim()
+      }
+
+      const clearCompletionFallback = () => {
+        if (!completionFallbackTo) return
+        try { clearTimeout(completionFallbackTo) } catch { }
+        completionFallbackTo = null
+      }
+
+      const finalizeSuccess = (payload: any) => {
+        const generatedContent = extractContentFromPayload(generatedLessonContent)
+        const completedContent = extractContentFromPayload(payload)
+
+        resolve({
+          ...payload,
+          lessonId,
+          lessonContent: generatedLessonContent,
+          content: generatedContent || completedContent,
+        })
+      }
+
+      const buildMentorLessonError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        clearCompletionFallback()
+        hub.off('LessonContentLoading', handleLoading)
+        hub.off('ReceiveLessonContent', handleContent)
+        hub.off('LessonGenerationCompleted', handleCompleted)
+        hub.off('LessonContentError', handleError)
+        inflightMentorLessonContent.delete(lessonId)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLessonPayload(payload, true)) return
+        onLoading?.()
+      }
+
+      const handleContent = (payload: any) => {
+        if (!isMatchingLessonPayload(payload)) return
+        generatedLessonContent = payload
+
+        if (completionPayload && !done) {
+          done = true
+          cleanup()
+          clearTo()
+          finalizeSuccess(completionPayload)
+        }
+      }
+
+      const handleCompleted = (payload: any) => {
+        if (!isMatchingLessonPayload(payload, true)) return
+        if (done) return
+
+        completionPayload = payload
+        const hasContent = Boolean(extractContentFromPayload(generatedLessonContent) || extractContentFromPayload(payload))
+
+        if (hasContent) {
+          done = true
+          cleanup()
+          clearTo()
+          finalizeSuccess(payload)
+          return
+        }
+
+        clearCompletionFallback()
+        completionFallbackTo = setTimeout(() => {
+          if (done) return
+          done = true
+          cleanup()
+          clearTo()
+          finalizeSuccess(payload)
+        }, 1200)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingLessonPayload(err, true)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildMentorLessonError(err, 'Failed to generate mentor lesson content'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Mentor lesson content request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleCompletedWrap = (payload: any) => { clearTo(); handleCompleted(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('LessonContentLoading', handleLoading)
+      hub.on('ReceiveLessonContent', handleContent)
+      hub.on('LessonGenerationCompleted', handleCompletedWrap)
+      hub.on('LessonContentError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestMentorLessonContent', lessonId).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightMentorLessonContent.set(lessonId, p)
   return p
 }
 
@@ -2262,7 +2527,9 @@ export async function disconnectHubs(): Promise<void> {
     inflightLearningPath.clear()
     inflightChapterSkeleton.clear()
     inflightChapterMentorSkeleton.clear()
+    inflightMentorLessonContent.clear()
     inflightSingleTask.clear()
+    inflightSingleQuizSkeleton.clear()
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()

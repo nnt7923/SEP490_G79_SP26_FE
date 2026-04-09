@@ -246,6 +246,7 @@ describe('editorState hydrate/build payload', () => {
       goals: [{ goalId: 'goal-1', weight: 100 }],
       complexityLevel: 'Advanced',
       languageSelection: 2,
+      version: 5,
       title: 'Python Path',
       description: 'Desc',
       startDate: '2026-04-01T00:00:00.000Z',
@@ -292,6 +293,7 @@ describe('editorState hydrate/build payload', () => {
 
     const payload = buildPayload(form)
 
+  expect(payload.versionNumber).toBe(5)
     expect(payload.complexityLevel).toBe('Advanced')
     expect(payload.languageSelection).toBe('English')
     expect(payload.chapters[0].title).toBe('Chapter 1: Chapter 1')

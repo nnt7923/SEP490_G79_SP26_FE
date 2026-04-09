@@ -10,8 +10,7 @@ import { EmptyPanel, Field, SectionCard, cardStyle, getButtonStyle, subtleTextSt
 type Props = {
   activeChapter: EditableChapter | null
   activeLesson: EditableLesson | null
-  canGenerateActiveLesson: boolean
-  isGeneratingActiveLesson: boolean
+  isGeneratingLessonContent: boolean
   isQuizSkeletonLoading: boolean
   hasQuizSkeleton: boolean
   quizSkeletonError: string | null
@@ -31,8 +30,7 @@ const SECTION_HINT_KEYS: Record<LessonSectionKey, string> = {
 const LessonStudioStep: React.FC<Props> = ({
   activeChapter,
   activeLesson,
-  canGenerateActiveLesson,
-  isGeneratingActiveLesson,
+  isGeneratingLessonContent,
   isQuizSkeletonLoading,
   hasQuizSkeleton,
   quizSkeletonError,
@@ -51,13 +49,12 @@ const LessonStudioStep: React.FC<Props> = ({
         action={
           <button
             type="button"
-            style={getButtonStyle({ accent: true, disabled: !canGenerateActiveLesson || isGeneratingActiveLesson })}
+            style={getButtonStyle({ accent: true, disabled: isGeneratingLessonContent })}
             onClick={onGenerateLessonContent}
-            disabled={isGeneratingActiveLesson}
-            title={!canGenerateActiveLesson ? t('drafts.saveBeforeGenerateLesson') : undefined}
+            disabled={isGeneratingLessonContent}
           >
-            {isGeneratingActiveLesson ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
-            {isGeneratingActiveLesson ? t('drafts.generatingLessonContent') : t('drafts.generateLessonContent')}
+            {isGeneratingLessonContent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+            {isGeneratingLessonContent ? t('drafts.generatingLessonContent') : t('drafts.generateLessonContentByAi')}
           </button>
         }
       >

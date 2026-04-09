@@ -6,7 +6,9 @@ import {
   getSummaryHub,
   requestChapterMentorSkeleton,
   requestLessonQuizSkeleton,
+  requestMentorLessonContent,
   requestResourceSummary,
+  requestSingleQuizSkeleton,
   requestSingleTask,
 } from './index'
 
@@ -654,6 +656,245 @@ describe('SignalR Summary Hub Service', () => {
 
       const promise = requestSingleTask(chapterId, null, 1)
       const expectation = expect(promise).rejects.toThrow('Single task generation timeout')
+      await vi.advanceTimersByTimeAsync(120000)
+
+      await expectation
+      vi.useRealTimers()
+    })
+  })
+
+  describe('requestSingleQuizSkeleton', () => {
+    it('should invoke RequestSingleQuizSkeleton and resolve with generated quiz payload', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const payload = {
+        lessonId,
+        quiz: {
+          quizId: 'quiz-1',
+          title: 'Generated quiz title',
+          description: 'Generated quiz description',
+        },
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveSingleQuizSkeleton') {
+          setTimeout(() => handler(payload), 10)
+        }
+      })
+
+      await expect(requestSingleQuizSkeleton(lessonId)).resolves.toEqual(payload)
+      expect(mockHubConnection.invoke).toHaveBeenCalledWith('RequestSingleQuizSkeleton', lessonId)
+    })
+
+    it('should call onLoading when SingleQuizSkeletonLoading is received', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const onLoading = vi.fn()
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleQuizSkeletonLoading') {
+          setTimeout(() => handler({ lessonId }), 5)
+        }
+        if (event === 'ReceiveSingleQuizSkeleton') {
+          setTimeout(() => handler({ lessonId, quiz: { quizId: 'quiz-1', title: 'Quiz', description: '' } }), 10)
+        }
+      })
+
+      await requestSingleQuizSkeleton(lessonId, onLoading)
+      expect(onLoading).toHaveBeenCalled()
+    })
+
+    it('should preserve error code from SingleQuizSkeletonError payload', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleQuizSkeletonError') {
+          setTimeout(() => handler({
+            lessonId,
+            errorCode: 'LESSON_CONTENT_REQUIRED',
+            errorMessage: 'Lesson content is required to generate quiz skeleton',
+          }), 10)
+        }
+      })
+
+      await expect(requestSingleQuizSkeleton(lessonId)).rejects.toMatchObject({
+        message: 'Lesson content is required to generate quiz skeleton',
+        code: 'LESSON_CONTENT_REQUIRED',
+      })
+    })
+
+    it('should ignore mismatched lesson events', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const anotherLessonId = '87654321-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleQuizSkeletonError') {
+          setTimeout(() => handler({ lessonId: anotherLessonId, errorMessage: 'Should be ignored' }), 10)
+        }
+        if (event === 'ReceiveSingleQuizSkeleton') {
+          setTimeout(() => handler({ lessonId, quiz: { quizId: 'quiz-1', title: 'Quiz', description: '' } }), 20)
+        }
+      })
+
+      await expect(requestSingleQuizSkeleton(lessonId)).resolves.toEqual(
+        expect.objectContaining({ lessonId }),
+      )
+    })
+
+    it('should prevent duplicate requests for the same lesson', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const payload = { lessonId, quiz: { quizId: 'quiz-1', title: 'Quiz', description: '' } }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.state = 1
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveSingleQuizSkeleton') {
+          setTimeout(() => handler(payload), 50)
+        }
+      })
+
+      const promise1 = requestSingleQuizSkeleton(lessonId)
+      const promise2 = requestSingleQuizSkeleton(lessonId)
+
+      const [result1, result2] = await Promise.all([promise1, promise2])
+      expect(result1).toEqual(result2)
+      expect(mockHubConnection.invoke).toHaveBeenCalledTimes(1)
+    })
+
+    it('should timeout when no single quiz skeleton event is received', async () => {
+      vi.useFakeTimers()
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+
+      const promise = requestSingleQuizSkeleton(lessonId)
+      const expectation = expect(promise).rejects.toThrow('Single quiz skeleton generation timeout')
+      await vi.advanceTimersByTimeAsync(120000)
+
+      await expectation
+      vi.useRealTimers()
+    })
+  })
+
+  describe('requestMentorLessonContent', () => {
+    it('should invoke RequestMentorLessonContent and resolve with generated lesson content', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const contentPayload = { lessonId, content: '## Lesson content' }
+      const completionPayload = { lessonId, message: 'Lesson content generated successfully!' }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveLessonContent') {
+          setTimeout(() => handler(contentPayload), 5)
+        }
+        if (event === 'LessonGenerationCompleted') {
+          setTimeout(() => handler(completionPayload), 10)
+        }
+      })
+
+      await expect(requestMentorLessonContent(lessonId)).resolves.toEqual(
+        expect.objectContaining({
+          lessonId,
+          content: '## Lesson content',
+          message: 'Lesson content generated successfully!',
+        }),
+      )
+      expect(mockHubConnection.invoke).toHaveBeenCalledWith('RequestMentorLessonContent', lessonId)
+    })
+
+    it('should call onLoading when LessonContentLoading is received', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const onLoading = vi.fn()
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'LessonContentLoading') {
+          setTimeout(() => handler({ lessonId }), 5)
+        }
+        if (event === 'ReceiveLessonContent') {
+          setTimeout(() => handler({ lessonId, content: 'Generated content' }), 10)
+        }
+        if (event === 'LessonGenerationCompleted') {
+          setTimeout(() => handler({ lessonId, message: 'Done' }), 20)
+        }
+      })
+
+      await requestMentorLessonContent(lessonId, onLoading)
+      expect(onLoading).toHaveBeenCalled()
+    })
+
+    it('should preserve error code from LessonContentError payload', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'LessonContentError') {
+          setTimeout(() => handler({
+            lessonId,
+            errorCode: 'LESSON_TITLE_REQUIRED',
+            errorMessage: 'Lesson title is required',
+          }), 10)
+        }
+      })
+
+      await expect(requestMentorLessonContent(lessonId)).rejects.toMatchObject({
+        message: 'Lesson title is required',
+        code: 'LESSON_TITLE_REQUIRED',
+      })
+    })
+
+    it('should ignore mismatched lesson events', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      const anotherLessonId = '87654321-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'LessonContentError') {
+          setTimeout(() => handler({ lessonId: anotherLessonId, errorMessage: 'Should be ignored' }), 10)
+        }
+        if (event === 'ReceiveLessonContent') {
+          setTimeout(() => handler({ lessonId, content: 'Generated content' }), 20)
+        }
+        if (event === 'LessonGenerationCompleted') {
+          setTimeout(() => handler({ lessonId, message: 'Done' }), 30)
+        }
+      })
+
+      await expect(requestMentorLessonContent(lessonId)).resolves.toEqual(
+        expect.objectContaining({ lessonId, content: 'Generated content' }),
+      )
+    })
+
+    it('should prevent duplicate requests for the same lesson', async () => {
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.state = 1
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveLessonContent') {
+          setTimeout(() => handler({ lessonId, content: 'Generated content' }), 20)
+        }
+        if (event === 'LessonGenerationCompleted') {
+          setTimeout(() => handler({ lessonId, message: 'Done' }), 50)
+        }
+      })
+
+      const promise1 = requestMentorLessonContent(lessonId)
+      const promise2 = requestMentorLessonContent(lessonId)
+
+      const [result1, result2] = await Promise.all([promise1, promise2])
+      expect(result1).toEqual(result2)
+      expect(mockHubConnection.invoke).toHaveBeenCalledTimes(1)
+    })
+
+    it('should timeout when no mentor lesson content events complete', async () => {
+      vi.useFakeTimers()
+      const lessonId = '12345678-1234-1234-1234-123456789012'
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+
+      const promise = requestMentorLessonContent(lessonId)
+      const expectation = expect(promise).rejects.toThrow('Mentor lesson content request timeout')
       await vi.advanceTimersByTimeAsync(120000)
 
       await expectation

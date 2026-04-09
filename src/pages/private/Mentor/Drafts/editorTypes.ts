@@ -67,6 +67,7 @@ export type DraftFormState = {
   goals: Array<{ goalId: string; weight: number }>
   complexityLevel: Level
   languageSelection: number
+  versionNumber?: string
   title: string
   description: string
   startDate: string

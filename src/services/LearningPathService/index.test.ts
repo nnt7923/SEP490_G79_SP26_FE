@@ -12,7 +12,9 @@ vi.mock('../SignalR', () => ({
   requestLearningPathGeneration: vi.fn(),
   requestChapterMentorSkeleton: vi.fn(),
   requestChapterSkeleton: vi.fn(),
+  requestMentorLessonContent: vi.fn(),
   requestLessonQuizSkeleton: vi.fn(),
+  requestSingleQuizSkeleton: vi.fn(),
   requestSingleTask: vi.fn(),
   requestLearningPathSuggestions: vi.fn(),
 }))
@@ -21,18 +23,28 @@ import api from '../Axios'
 import {
   createManualDraft,
   generateChapterMentorSkeleton,
+  generateMentorLessonContent,
   generateLessonQuizSkeleton,
+  generateSingleQuizSkeleton,
   generateSingleTask,
   getLearningPathProgress,
   getLessonReadStatus,
   markLessonContentRead,
   updateManualDraft,
 } from './index'
-import { requestChapterMentorSkeleton, requestLessonQuizSkeleton, requestSingleTask } from '../SignalR'
+import {
+  requestChapterMentorSkeleton,
+  requestLessonQuizSkeleton,
+  requestMentorLessonContent,
+  requestSingleQuizSkeleton,
+  requestSingleTask,
+} from '../SignalR'
 
 const mockedApi = vi.mocked(api, true)
 const mockedRequestChapterMentorSkeleton = vi.mocked(requestChapterMentorSkeleton)
 const mockedRequestLessonQuizSkeleton = vi.mocked(requestLessonQuizSkeleton)
+const mockedRequestMentorLessonContent = vi.mocked(requestMentorLessonContent)
+const mockedRequestSingleQuizSkeleton = vi.mocked(requestSingleQuizSkeleton)
 const mockedRequestSingleTask = vi.mocked(requestSingleTask)
 
 describe('LearningPathService progress/read APIs', () => {
@@ -42,6 +54,8 @@ describe('LearningPathService progress/read APIs', () => {
     mockedApi.put.mockReset()
     mockedRequestChapterMentorSkeleton.mockReset()
     mockedRequestLessonQuizSkeleton.mockReset()
+    mockedRequestMentorLessonContent.mockReset()
+    mockedRequestSingleQuizSkeleton.mockReset()
     mockedRequestSingleTask.mockReset()
   })
 
@@ -151,6 +165,37 @@ describe('LearningPathService progress/read APIs', () => {
     mockedRequestLessonQuizSkeleton.mockRejectedValue(new Error("Method does not exist: 'RequestQuizSkeleton'"))
 
     await expect(generateLessonQuizSkeleton(lessonId)).rejects.toThrow("Method does not exist: 'RequestQuizSkeleton'")
+  })
+
+  it('delegates single quiz skeleton generation to SignalR request', async () => {
+    const lessonId = '12345678-1234-1234-1234-123456789012'
+    const onLoading = vi.fn()
+    const payload = {
+      lessonId,
+      quiz: {
+        quizId: 'quiz-1',
+        title: 'Quiz title',
+        description: 'Quiz description',
+      },
+    }
+    mockedRequestSingleQuizSkeleton.mockResolvedValue(payload)
+
+    await expect(generateSingleQuizSkeleton(lessonId, { onLoading })).resolves.toEqual(payload)
+    expect(mockedRequestSingleQuizSkeleton).toHaveBeenCalledWith(lessonId, onLoading)
+  })
+
+  it('delegates mentor lesson content generation to SignalR request', async () => {
+    const lessonId = '12345678-1234-1234-1234-123456789012'
+    const onLoading = vi.fn()
+    const payload = {
+      lessonId,
+      content: '## Generated lesson content',
+      message: 'Lesson content generated successfully!',
+    }
+    mockedRequestMentorLessonContent.mockResolvedValue(payload)
+
+    await expect(generateMentorLessonContent(lessonId, { onLoading })).resolves.toEqual(payload)
+    expect(mockedRequestMentorLessonContent).toHaveBeenCalledWith(lessonId, onLoading)
   })
 
   it('delegates chapter mentor skeleton generation to SignalR request', async () => {

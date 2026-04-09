@@ -17,7 +17,9 @@ import {
   requestChapterMentorSkeleton,
   requestChapterSkeleton,
   requestLessonContent,
+  requestMentorLessonContent,
   requestLessonQuizSkeleton,
+  requestSingleQuizSkeleton,
   requestSingleTask,
   requestLearningPathSuggestions,
 } from '../SignalR'
@@ -147,6 +149,7 @@ export type ManualDraftChapterInput = {
 }
 
 export type ManualDraftPayload = {
+  versionNumber?: number | null
   subjectId: string
   goals: ManualDraftGoalInput[]
   complexityLevel: string | number
@@ -555,6 +558,28 @@ export async function generateLessonQuizSkeleton(
   }
 }
 
+export async function generateSingleQuizSkeleton(
+  lessonId: string,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestSingleQuizSkeleton(lessonId, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate single quiz skeleton')
+  }
+}
+
+export async function generateMentorLessonContent(
+  lessonId: string,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestMentorLessonContent(lessonId, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate mentor lesson content')
+  }
+}
+
 export async function generateChapterSkeleton(
   pathId: string,
   orderIndex: number,
@@ -905,7 +930,9 @@ export default {
   createManualDraft,
   updateManualDraft,
   generateLessonContent,
+  generateMentorLessonContent,
   generateLessonQuizSkeleton,
+  generateSingleQuizSkeleton,
   generateChapterSkeleton,
   generateChapterMentorSkeleton,
   generateSingleTask,

@@ -695,6 +695,7 @@ export const emptyForm = (): DraftFormState => ({
   goals: [],
   complexityLevel: 'Beginner',
   languageSelection: LanguageSelection.Vietnamese,
+  versionNumber: '1',
   title: '',
   description: '',
   startDate: '',
@@ -809,12 +810,15 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
   const nextDescription = payload?.description ?? fallback?.description ?? ''
   const nextStartDateRaw = payload?.startDate ?? payload?.StartDate
   const nextEndDateRaw = payload?.endDate ?? payload?.EndDate
+  const rawVersion = payload?.versionNumber ?? payload?.VersionNumber ?? payload?.version ?? payload?.Version ?? fallback?.versionNumber
+  const parsedVersion = Number(rawVersion)
 
   return {
     subjectId: nextSubjectId,
     goals: extractedGoals.length > 0 ? extractedGoals : (fallback?.goals ?? []),
     complexityLevel: normalizeLevel(payload?.complexityLevel ?? payload?.ComplexityLevel ?? fallback?.complexityLevel),
     languageSelection: normalizeLanguage(payload?.languageSelection ?? payload?.LanguageSelection ?? fallback?.languageSelection),
+    versionNumber: Number.isFinite(parsedVersion) && parsedVersion > 0 ? String(parsedVersion) : (fallback?.versionNumber ?? '1'),
     title: nextTitle,
     description: nextDescription,
     startDate: nextStartDateRaw ? toDateInput(nextStartDateRaw) : (fallback?.startDate ?? ''),
@@ -966,6 +970,9 @@ const serializeQuestion = (question: EditableQuestion) => {
 }
 
 export const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
+  ...(Number.isFinite(Number(form.versionNumber)) && Number(form.versionNumber) > 0
+    ? { versionNumber: Number(form.versionNumber) }
+    : {}),
   subjectId: form.subjectId,
   goals: form.goals.map((goal) => ({
     goalId: goal.goalId,

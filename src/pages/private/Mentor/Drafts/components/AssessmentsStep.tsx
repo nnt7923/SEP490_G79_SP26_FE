@@ -18,22 +18,20 @@ type Props = {
   activeChapter: EditableChapter | null
   activeLesson: EditableLesson | null
   generatingTaskId: string | null
-  generatingQuizId: string | null
-  generatingAllLessonQuizzes: boolean
+  generatingSingleQuizSkeleton: boolean
   saving: boolean
   onAssessmentTabChange: (tab: AssessmentTab) => void
   onAddTask: () => void
   onUpdateTask: (taskId: string, updater: (task: EditableTask) => EditableTask) => void
   onRemoveTask: (taskId: string) => void
   onGenerateTask: (task: EditableTask) => void
+  onGenerateSingleQuizSkeleton: () => void
   onAddQuiz: () => void
   onUpdateQuiz: (quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) => void
   onRemoveQuiz: (quizId: string) => void
   onAddQuestion: (quizId: string) => void
   onUpdateQuestion: (quizId: string, questionId: string, updater: (question: EditableQuestion) => EditableQuestion) => void
   onRemoveQuestion: (quizId: string, questionId: string) => void
-  onGenerateQuiz: (quiz: EditableQuiz) => void
-  onGenerateAllLessonQuizzes: () => void
 }
 
 const TASK_TYPE_OPTIONS = ['Practice', 'Theory', 'Quizz'] as const
@@ -150,25 +148,24 @@ const AssessmentsStep: React.FC<Props> = ({
   activeChapter,
   activeLesson,
   generatingTaskId,
-  generatingQuizId,
-  generatingAllLessonQuizzes,
+  generatingSingleQuizSkeleton,
   saving,
   onAssessmentTabChange,
   onAddTask,
   onUpdateTask,
   onRemoveTask,
   onGenerateTask,
+  onGenerateSingleQuizSkeleton,
   onAddQuiz,
   onUpdateQuiz,
   onRemoveQuiz,
   onAddQuestion,
   onUpdateQuestion,
   onRemoveQuestion,
-  onGenerateQuiz,
-  onGenerateAllLessonQuizzes,
 }) => {
   const { t } = useTranslation('mentor')
   const hasTaskGenerationInProgress = generatingTaskId != null
+  const hasSingleQuizGenerationInProgress = generatingSingleQuizSkeleton
 
   if (!activeChapter) return <EmptyPanel message={t('drafts.noChapterSelected')} />
 
@@ -433,20 +430,20 @@ const AssessmentsStep: React.FC<Props> = ({
         title={t('drafts.lessonQuizzes')}
         subtitle={t('drafts.lessonQuizzesHint')}
         action={(
-          <>
+          <div style={actionRowStyle}>
             <button
               type="button"
-              style={getButtonStyle({ disabled: generatingAllLessonQuizzes || saving })}
-              onClick={onGenerateAllLessonQuizzes}
-              disabled={generatingAllLessonQuizzes || saving}
+              style={getButtonStyle()}
+              onClick={onGenerateSingleQuizSkeleton}
+              disabled={saving || hasSingleQuizGenerationInProgress}
             >
-              {generatingAllLessonQuizzes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
-              {generatingAllLessonQuizzes ? t('drafts.generatingAllLessonQuizzes') : t('drafts.generateAllLessonQuizzesByAi')}
+              {hasSingleQuizGenerationInProgress ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              {hasSingleQuizGenerationInProgress ? t('drafts.generatingSingleQuizSkeleton') : t('drafts.generateSingleQuizSkeletonByAi')}
             </button>
             <button type="button" style={getButtonStyle()} onClick={onAddQuiz}>
               <Plus size={14} /> {t('drafts.addQuiz')}
             </button>
-          </>
+          </div>
         )}
       >
         {activeLesson.quizzes.length === 0 ? (
@@ -461,16 +458,6 @@ const AssessmentsStep: React.FC<Props> = ({
                     <span style={pillStyle()}>{activeLesson.title || t('drafts.untitledLesson')}</span>
                   </div>
                   <div style={actionRowStyle}>
-                    <button
-                      type="button"
-                      style={getButtonStyle({ disabled: generatingQuizId === quiz.id || saving })}
-                      onClick={() => onGenerateQuiz(quiz)}
-                      disabled={generatingQuizId === quiz.id || saving}
-                      title={!quiz.persistedId ? t('drafts.saveBeforeGenerateQuiz') : undefined}
-                    >
-                      {generatingQuizId === quiz.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
-                      {generatingQuizId === quiz.id ? t('drafts.generatingQuiz') : t('drafts.generateQuizByAi')}
-                    </button>
                     <button type="button" style={getButtonStyle()} onClick={() => onRemoveQuiz(quiz.id)}>{t('drafts.remove')}</button>
                   </div>
                 </div>

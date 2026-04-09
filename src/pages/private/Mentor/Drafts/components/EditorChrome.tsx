@@ -2,18 +2,20 @@ import React from 'react'
 import { ArrowLeft, BookMarked, ChevronDown, ClipboardList, FolderTree, Plus, Save, Share2, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { EditableChapter, EditorStep } from '../editorTypes'
-import { cardStyle, getButtonStyle, pillStyle, subtleTextStyle } from './editorUi'
+import { cardStyle, getButtonStyle, inputStyle, pillStyle, subtleTextStyle } from './editorUi'
 
 type HeaderProps = {
   isCreateMode: boolean
   title: string
   chapterCount: number
+  versionNumber: string
   currentStep: EditorStep
   contextLabel: string | null
   canShare: boolean
   saving: boolean
   sharing: boolean
   onBack: () => void
+  onVersionNumberChange: (value: string) => void
   onSave: () => void
   onShare: () => void
   onStepChange: (step: EditorStep) => void
@@ -30,12 +32,14 @@ export const DraftEditorHeader: React.FC<HeaderProps> = ({
   isCreateMode,
   title,
   chapterCount,
+  versionNumber,
   currentStep,
   contextLabel,
   canShare,
   saving,
   sharing,
   onBack,
+  onVersionNumberChange,
   onSave,
   onShare,
   onStepChange,
@@ -61,6 +65,22 @@ export const DraftEditorHeader: React.FC<HeaderProps> = ({
             </button>
             <span style={pillStyle({ warning: true })}>{t('drafts.draftBadge')}</span>
             <span style={pillStyle()}>{t('drafts.chapterCount', { count: chapterCount })}</span>
+            {!isCreateMode ? (
+              <div style={{ display: 'grid', gap: 4, minWidth: 130 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.7 }}>
+                  {t('drafts.versionNumberLabel')}
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  style={{ ...inputStyle, minHeight: 34, padding: '6px 10px' }}
+                  value={versionNumber}
+                  onChange={(event) => onVersionNumberChange(event.target.value)}
+                  placeholder={t('drafts.versionNumberPlaceholder')}
+                />
+              </div>
+            ) : null}
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: 28, color: 'var(--text-primary)' }}>
