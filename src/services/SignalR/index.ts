@@ -50,6 +50,7 @@ const inflightSummary = new Map<string, Promise<any>>()
 const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
 const inflightChapterMentorSkeleton = new Map<string, Promise<any>>()
+const inflightSingleTask = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
 const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
 const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
@@ -685,6 +686,143 @@ export async function requestChapterTasks(chapterId: string, onLoading?: () => v
   })()
 
   inflightTask.set(chapterId, p)
+  return p
+}
+
+export async function requestSingleTask(
+  chapterId: string,
+  title: string | null,
+  taskType: number,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(chapterId)) {
+    return Promise.reject(new Error('chapterId must be a valid GUID'))
+  }
+
+  if (!Number.isFinite(taskType) || ![0, 1, 2].includes(taskType)) {
+    return Promise.reject(new Error('taskType must be one of 0 (Practice), 1 (Theory), or 2 (Quizz)'))
+  }
+
+  const normalizedTitle = title == null ? '' : String(title).trim()
+  const key = `${chapterId}:${taskType}:${normalizedTitle.toLowerCase()}`
+  if (inflightSingleTask.has(key)) {
+    return inflightSingleTask.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getTaskHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const requestTaskType = Number(taskType)
+      const requestTitle = normalizedTitle.toLowerCase()
+
+      const toNumber = (value: unknown): number | null => {
+        const numeric = Number(value)
+        return Number.isFinite(numeric) ? numeric : null
+      }
+
+      const isMatchingLoadingPayload = (payload: any): boolean => {
+        const payloadChapterId = getPayloadCorrelationId(payload, ['chapterId', 'ChapterId'])
+        if (!payloadChapterId || payloadChapterId !== chapterId) return false
+
+        const payloadTaskType = toNumber(payload?.taskType ?? payload?.TaskType)
+        if (payloadTaskType != null && payloadTaskType !== requestTaskType) return false
+
+        const payloadTitle = String(payload?.title ?? payload?.Title ?? '').trim().toLowerCase()
+        if (payloadTitle && requestTitle && payloadTitle !== requestTitle) return false
+
+        return true
+      }
+
+      const isMatchingSuccessPayload = (payload: any): boolean => {
+        const payloadTaskType = toNumber(payload?.taskType ?? payload?.TaskType)
+        if (payloadTaskType != null && payloadTaskType !== requestTaskType) return false
+        return true
+      }
+
+      const isMatchingErrorPayload = (payload: any): boolean => {
+        const payloadChapterId = getPayloadCorrelationId(payload, ['chapterId', 'ChapterId'])
+        if (!payloadChapterId || payloadChapterId !== chapterId) return false
+
+        const payloadTaskType = toNumber(payload?.taskType ?? payload?.TaskType)
+        if (payloadTaskType != null && payloadTaskType !== requestTaskType) return false
+
+        const payloadTitle = String(payload?.title ?? payload?.Title ?? '').trim().toLowerCase()
+        if (payloadTitle && requestTitle && payloadTitle !== requestTitle) return false
+
+        return true
+      }
+
+      const buildTaskError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        hub.off('SingleTaskLoading', handleLoading)
+        hub.off('ReceiveSingleTask', handleSuccess)
+        hub.off('SingleTaskError', handleError)
+        inflightSingleTask.delete(key)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLoadingPayload(payload)) return
+        onLoading?.()
+      }
+
+      const handleSuccess = (payload: any) => {
+        if (!isMatchingSuccessPayload(payload)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingErrorPayload(err)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildTaskError(err, 'Failed to generate single task'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Single task generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleSuccessWrap = (payload: any) => { clearTo(); handleSuccess(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('SingleTaskLoading', handleLoading)
+      hub.on('ReceiveSingleTask', handleSuccessWrap)
+      hub.on('SingleTaskError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestSingleTask', chapterId, normalizedTitle || null, requestTaskType).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightSingleTask.set(key, p)
   return p
 }
 
@@ -2124,6 +2262,7 @@ export async function disconnectHubs(): Promise<void> {
     inflightLearningPath.clear()
     inflightChapterSkeleton.clear()
     inflightChapterMentorSkeleton.clear()
+    inflightSingleTask.clear()
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()

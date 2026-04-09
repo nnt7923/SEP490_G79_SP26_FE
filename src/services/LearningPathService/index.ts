@@ -18,6 +18,7 @@ import {
   requestChapterSkeleton,
   requestLessonContent,
   requestLessonQuizSkeleton,
+  requestSingleTask,
   requestLearningPathSuggestions,
 } from '../SignalR'
 
@@ -587,6 +588,22 @@ export async function generateChapterMentorSkeleton(
   throw new Error('REST API for chapter mentor skeleton generation not implemented. Use SignalR instead.')
 }
 
+export async function generateSingleTask(
+  chapterId: string,
+  title: string | null,
+  taskType: number,
+  options?: {
+    useSignalR?: boolean
+    onLoading?: () => void
+  },
+): Promise<any> {
+  if (!options || options.useSignalR !== false) {
+    return await requestSingleTask(chapterId, title, taskType, options?.onLoading)
+  }
+
+  throw new Error('REST API for single task generation not implemented. Use SignalR instead.')
+}
+
 export interface UserLearningPathsParams {
   pageNumber?: number
   pageSize?: number
@@ -891,6 +908,7 @@ export default {
   generateLessonQuizSkeleton,
   generateChapterSkeleton,
   generateChapterMentorSkeleton,
+  generateSingleTask,
   getUserLearningPaths,
   clearUserLearningPathsCache,
   getLearningPathProgress,

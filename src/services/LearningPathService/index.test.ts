@@ -13,6 +13,7 @@ vi.mock('../SignalR', () => ({
   requestChapterMentorSkeleton: vi.fn(),
   requestChapterSkeleton: vi.fn(),
   requestLessonQuizSkeleton: vi.fn(),
+  requestSingleTask: vi.fn(),
   requestLearningPathSuggestions: vi.fn(),
 }))
 
@@ -21,16 +22,18 @@ import {
   createManualDraft,
   generateChapterMentorSkeleton,
   generateLessonQuizSkeleton,
+  generateSingleTask,
   getLearningPathProgress,
   getLessonReadStatus,
   markLessonContentRead,
   updateManualDraft,
 } from './index'
-import { requestChapterMentorSkeleton, requestLessonQuizSkeleton } from '../SignalR'
+import { requestChapterMentorSkeleton, requestLessonQuizSkeleton, requestSingleTask } from '../SignalR'
 
 const mockedApi = vi.mocked(api, true)
 const mockedRequestChapterMentorSkeleton = vi.mocked(requestChapterMentorSkeleton)
 const mockedRequestLessonQuizSkeleton = vi.mocked(requestLessonQuizSkeleton)
+const mockedRequestSingleTask = vi.mocked(requestSingleTask)
 
 describe('LearningPathService progress/read APIs', () => {
   beforeEach(() => {
@@ -39,6 +42,7 @@ describe('LearningPathService progress/read APIs', () => {
     mockedApi.put.mockReset()
     mockedRequestChapterMentorSkeleton.mockReset()
     mockedRequestLessonQuizSkeleton.mockReset()
+    mockedRequestSingleTask.mockReset()
   })
 
   it('normalizes progress v2 fields defensively', async () => {
@@ -169,6 +173,23 @@ describe('LearningPathService progress/read APIs', () => {
       payload.chapterDescription,
       onLoading,
     )
+  })
+
+  it('delegates single task generation to SignalR request', async () => {
+    const chapterId = '12345678-1234-1234-1234-123456789012'
+    const title = 'Implement array sorting'
+    const taskType = 0
+    const onLoading = vi.fn()
+    const generatedTask = {
+      taskId: 'task-1',
+      title: 'Sort arrays efficiently',
+      taskType,
+    }
+    mockedRequestSingleTask.mockResolvedValue(generatedTask)
+
+    await expect(generateSingleTask(chapterId, title, taskType, { onLoading })).resolves.toEqual(generatedTask)
+
+    expect(mockedRequestSingleTask).toHaveBeenCalledWith(chapterId, title, taskType, onLoading)
   })
 
   it('keeps manual draft languageSelection numeric and normalizes nested quiz questions', async () => {

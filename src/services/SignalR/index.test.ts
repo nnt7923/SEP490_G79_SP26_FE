@@ -7,6 +7,7 @@ import {
   requestChapterMentorSkeleton,
   requestLessonQuizSkeleton,
   requestResourceSummary,
+  requestSingleTask,
 } from './index'
 
 // Mock the SignalR module
@@ -517,6 +518,142 @@ describe('SignalR Summary Hub Service', () => {
 
       const promise = requestChapterMentorSkeleton(pathId, 'React Fundamentals', 'Core React concepts')
       const expectation = expect(promise).rejects.toThrow('Chapter mentor skeleton generation timeout')
+      await vi.advanceTimersByTimeAsync(120000)
+
+      await expectation
+      vi.useRealTimers()
+    })
+  })
+
+  describe('requestSingleTask', () => {
+    it('should invoke RequestSingleTask and resolve with generated task payload', async () => {
+      const chapterId = '12345678-1234-1234-1234-123456789012'
+      const generatedTask = {
+        taskId: 'task-1',
+        title: 'Generated task',
+        description: 'Task description',
+        taskType: 0,
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveSingleTask') {
+          setTimeout(() => handler(generatedTask), 10)
+        }
+      })
+
+      await expect(requestSingleTask(chapterId, 'Write task', 0)).resolves.toEqual(generatedTask)
+      expect(mockHubConnection.invoke).toHaveBeenCalledWith('RequestSingleTask', chapterId, 'Write task', 0)
+    })
+
+    it('should call onLoading for matching SingleTaskLoading event', async () => {
+      const chapterId = '12345678-1234-1234-1234-123456789012'
+      const onLoading = vi.fn()
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleTaskLoading') {
+          setTimeout(() => handler({ chapterId, title: 'Write task', taskType: 0 }), 5)
+        }
+        if (event === 'ReceiveSingleTask') {
+          setTimeout(() => handler({ taskId: 'task-1', title: 'Generated task', taskType: 0 }), 10)
+        }
+      })
+
+      await requestSingleTask(chapterId, 'Write task', 0, onLoading)
+      expect(onLoading).toHaveBeenCalled()
+    })
+
+    it('should preserve error code from SingleTaskError payload', async () => {
+      const chapterId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleTaskError') {
+          setTimeout(() => handler({
+            chapterId,
+            errorCode: 'CHAPTER_NO_LESSONS',
+            errorMessage: 'Chapter has no lessons',
+          }), 10)
+        }
+      })
+
+      await expect(requestSingleTask(chapterId, 'Write task', 0)).rejects.toMatchObject({
+        message: 'Chapter has no lessons',
+        code: 'CHAPTER_NO_LESSONS',
+      })
+    })
+
+    it('should ignore SingleTaskError from a different title when title is present in payload', async () => {
+      const chapterId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleTaskError') {
+          setTimeout(() => handler({
+            chapterId,
+            title: 'Another task title',
+            taskType: 0,
+            errorMessage: 'Should be ignored',
+          }), 10)
+        }
+        if (event === 'ReceiveSingleTask') {
+          setTimeout(() => handler({
+            taskId: 'task-1',
+            title: 'Generated task',
+            taskType: 0,
+          }), 20)
+        }
+      })
+
+      await expect(requestSingleTask(chapterId, 'Write task', 0)).resolves.toEqual(
+        expect.objectContaining({ taskId: 'task-1' }),
+      )
+    })
+
+    it('should ignore mismatched task type success payloads', async () => {
+      const chapterId = '12345678-1234-1234-1234-123456789012'
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveSingleTask') {
+          setTimeout(() => handler({ taskId: 'wrong-task', title: 'Wrong', taskType: 2 }), 10)
+          setTimeout(() => handler({ taskId: 'task-1', title: 'Generated task', taskType: 0 }), 20)
+        }
+      })
+
+      await expect(requestSingleTask(chapterId, 'Write task', 0)).resolves.toEqual(
+        expect.objectContaining({ taskId: 'task-1', taskType: 0 }),
+      )
+    })
+
+    it('should prevent duplicate requests for same chapter title and task type', async () => {
+      const chapterId = '12345678-1234-1234-1234-123456789012'
+      const generatedTask = { taskId: 'task-1', title: 'Generated task', taskType: 0 }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.state = 1
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveSingleTask') {
+          setTimeout(() => handler(generatedTask), 50)
+        }
+      })
+
+      const promise1 = requestSingleTask(chapterId, 'Write task', 0)
+      const promise2 = requestSingleTask(chapterId, 'Write task', 0)
+
+      const [result1, result2] = await Promise.all([promise1, promise2])
+      expect(result1).toEqual(result2)
+      expect(mockHubConnection.invoke).toHaveBeenCalledTimes(1)
+    })
+
+    it('should timeout when no single-task event is received', async () => {
+      vi.useFakeTimers()
+      const chapterId = '12345678-1234-1234-1234-123456789012'
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+
+      const promise = requestSingleTask(chapterId, null, 1)
+      const expectation = expect(promise).rejects.toThrow('Single task generation timeout')
       await vi.advanceTimersByTimeAsync(120000)
 
       await expectation

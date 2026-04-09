@@ -32,6 +32,10 @@ import {
   emptyTask,
   hydrateDraftForm,
   mergeLessonQuizzesWithSkeleton,
+  normalizeJsonField,
+  normalizeTaskPriority,
+  normalizeTaskStatus,
+  normalizeTaskType,
   parseGeneratedQuizQuestionsPayload,
   parseQuizSkeletonPayload,
   restoreSelectionSnapshot,
@@ -58,6 +62,127 @@ const getApiErrorMessage = (err: any, fallback: string) =>
   || err?.errorMessage
   || err?.message
   || fallback
+
+const TASK_TYPE_TO_SIGNALR: Record<EditableTask['taskType'], 0 | 1 | 2> = {
+  Practice: 0,
+  Theory: 1,
+  Quizz: 2,
+}
+
+const toPersistedId = (value: unknown): string | null => {
+  if (value == null || value === '') return null
+  return String(value)
+}
+
+const parseMaybeJsonValue = (value: unknown): unknown => {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) return value
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return value
+  }
+}
+
+const asObject = (value: unknown): Record<string, unknown> | null => {
+  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>
+  }
+  return null
+}
+
+const extractSingleTaskPayload = (payload: unknown): Record<string, unknown> | null => {
+  const unwrapKeys = [
+    'value', 'Value',
+    'data', 'Data',
+    'result', 'Result',
+    'payload', 'Payload',
+    'task', 'Task',
+    'taskItem', 'TaskItem',
+    'taskDto', 'TaskDto',
+    'taskItemDto', 'TaskItemDto',
+    'singleTask', 'SingleTask',
+  ] as const
+
+  const visited = new Set<unknown>()
+  const queue: unknown[] = [payload]
+
+  while (queue.length > 0) {
+    const current = parseMaybeJsonValue(queue.shift())
+    if (current == null) continue
+    if (typeof current === 'object') {
+      if (visited.has(current)) continue
+      visited.add(current)
+    }
+
+    if (Array.isArray(current)) {
+      for (const item of current) queue.push(item)
+      continue
+    }
+
+    const currentObject = asObject(current)
+    if (!currentObject) continue
+
+    const hasTaskFields = [
+      currentObject.taskId,
+      currentObject.TaskId,
+      currentObject.id,
+      currentObject.Id,
+      currentObject.title,
+      currentObject.Title,
+      currentObject.description,
+      currentObject.Description,
+      currentObject.taskType,
+      currentObject.TaskType,
+      currentObject.priority,
+      currentObject.Priority,
+      currentObject.taskStatus,
+      currentObject.TaskStatus,
+      currentObject.quizQuestionsJson,
+      currentObject.QuizQuestionsJson,
+      currentObject.quizQuestions,
+      currentObject.QuizQuestions,
+    ].some((value) => value != null)
+
+    if (hasTaskFields) return currentObject
+
+    for (const key of unwrapKeys) {
+      if (key in currentObject) queue.push(currentObject[key])
+    }
+  }
+
+  return null
+}
+
+const getSingleTaskErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveSingleTaskGenerationErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getSingleTaskErrorCode(err)
+  if (code === 'CHAPTER_NOT_FOUND') return { message: t('drafts.singleTaskErrorChapterNotFound'), type: 'error' }
+  if (code === 'UNAUTHORIZED') return { message: t('drafts.singleTaskErrorUnauthorized'), type: 'error' }
+  if (code === 'CHAPTER_NO_LESSONS') return { message: t('drafts.singleTaskErrorChapterNoLessons'), type: 'warning' }
+  if (code === 'CHAPTER_TITLE_REQUIRED') return { message: t('drafts.singleTaskErrorChapterTitleRequired'), type: 'warning' }
+  if (code === 'LESSON_TITLE_REQUIRED') return { message: t('drafts.singleTaskErrorLessonTitleRequired'), type: 'warning' }
+  if (code === 'TASK_TYPE_INVALID') return { message: t('drafts.singleTaskErrorTaskTypeInvalid'), type: 'warning' }
+  if (code === 'NO_VALID_TASKS') return { message: t('drafts.singleTaskErrorNoValidTasks'), type: 'warning' }
+  if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.singleTaskErrorInvalidAiResponse'), type: 'warning' }
+  if (code === 'TASK_GENERATION_FAILED') return { message: t('drafts.singleTaskErrorGenerationFailed'), type: 'error' }
+  return {
+    message: getApiErrorMessage(err, t('drafts.singleTaskGenerateFailed')),
+    type: 'error',
+  }
+}
 
 const sortGoalsBySubjectOrder = (
   goals: DraftFormState['goals'],
@@ -179,6 +304,7 @@ const MentorDraftFormPage: React.FC = () => {
   const [quizSkeletonError, setQuizSkeletonError] = useState<string | null>(null)
   const [generatingQuizId, setGeneratingQuizId] = useState<string | null>(null)
   const [generatingAllLessonQuizzes, setGeneratingAllLessonQuizzes] = useState(false)
+  const [generatingTaskId, setGeneratingTaskId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
   const [currentStep, setCurrentStep] = useState<EditorStep>('overview')
@@ -854,6 +980,79 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
+  const generateAiTaskForChapter = async (chapterId: string, taskId: string) => {
+    const targetChapter = form.chapters.find((chapter) => chapter.id === chapterId) ?? null
+    const targetTask = targetChapter?.tasks.find((task) => task.id === taskId) ?? null
+
+    if (!targetChapter || !targetTask) {
+      setToast({ message: t('drafts.noChapterSelected'), type: 'warning' })
+      return
+    }
+
+    if (generatingTaskId) {
+      setToast({ message: t('drafts.singleTaskGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    if (!targetChapter.persistedId) {
+      setToast({ message: t('drafts.saveBeforeGenerateSingleTask'), type: 'warning' })
+      return
+    }
+
+    setGeneratingTaskId(taskId)
+
+    try {
+      setGeneratingTaskId(targetTask.id)
+      const requestedTaskType = TASK_TYPE_TO_SIGNALR[targetTask.taskType]
+      const preferredTitle = targetTask.title.trim() || null
+      const generatedTaskPayload = await LearningPathService.generateSingleTask(
+        targetChapter.persistedId,
+        preferredTitle,
+        requestedTaskType,
+        {
+          onLoading: () => setGeneratingTaskId(targetTask.id),
+        },
+      )
+
+      const source = extractSingleTaskPayload(generatedTaskPayload) as any
+      if (!source) {
+        setToast({ message: t('drafts.singleTaskGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      const nextPersistedId = toPersistedId(source?.taskId ?? source?.TaskId ?? source?.id ?? source?.Id)
+      const nextTitle = String(source?.title ?? source?.Title ?? '').trim()
+      const nextDescription = String(source?.description ?? source?.Description ?? '').trim()
+      const hasTaskType = source?.taskType != null || source?.TaskType != null
+      const hasPriority = source?.priority != null || source?.Priority != null
+      const hasTaskStatus = source?.taskStatus != null || source?.TaskStatus != null
+      const hasQuizJson = source?.quizQuestionsJson != null
+        || source?.QuizQuestionsJson != null
+        || source?.quizQuestions != null
+        || source?.QuizQuestions != null
+
+      updateTask(targetChapter.id, targetTask.id, (task) => ({
+        ...task,
+        persistedId: nextPersistedId ?? task.persistedId,
+        title: nextTitle || task.title,
+        description: nextDescription || task.description,
+        taskType: hasTaskType ? normalizeTaskType(source?.taskType ?? source?.TaskType) : task.taskType,
+        priority: hasPriority ? normalizeTaskPriority(source?.priority ?? source?.Priority) : task.priority,
+        taskStatus: hasTaskStatus ? normalizeTaskStatus(source?.taskStatus ?? source?.TaskStatus) : task.taskStatus,
+        quizQuestionsJson: hasQuizJson
+          ? normalizeJsonField(source?.quizQuestionsJson ?? source?.QuizQuestionsJson ?? source?.quizQuestions ?? source?.QuizQuestions)
+          : task.quizQuestionsJson,
+      }))
+
+      setToast({ message: t('drafts.singleTaskGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      const toastPayload = resolveSingleTaskGenerationErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      setGeneratingTaskId(null)
+    }
+  }
+
   const saveDraft = async () => {
     const validationError = validateDraftForm(form)
     if (validationError) {
@@ -1033,6 +1232,7 @@ const MentorDraftFormPage: React.FC = () => {
                   assessmentTab={assessmentTab}
                   activeChapter={activeChapter}
                   activeLesson={activeLesson}
+                  generatingTaskId={generatingTaskId}
                   generatingQuizId={generatingQuizId}
                   generatingAllLessonQuizzes={generatingAllLessonQuizzes}
                   saving={saving}
@@ -1040,6 +1240,7 @@ const MentorDraftFormPage: React.FC = () => {
                   onAddTask={() => activeChapter ? addTask(activeChapter.id) : undefined}
                   onUpdateTask={(taskId, updater) => activeChapter ? updateTask(activeChapter.id, taskId, updater) : undefined}
                   onRemoveTask={(taskId) => activeChapter ? removeTask(activeChapter.id, taskId) : undefined}
+                  onGenerateTask={(task) => activeChapter ? generateAiTaskForChapter(activeChapter.id, task.id) : undefined}
                   onAddQuiz={() => activeChapter && activeLesson ? addQuiz(activeChapter.id, activeLesson.id) : undefined}
                   onUpdateQuiz={(quizId, updater) => activeChapter && activeLesson ? updateQuiz(activeChapter.id, activeLesson.id, quizId, updater) : undefined}
                   onRemoveQuiz={(quizId) => activeChapter && activeLesson ? removeQuiz(activeChapter.id, activeLesson.id, quizId) : undefined}

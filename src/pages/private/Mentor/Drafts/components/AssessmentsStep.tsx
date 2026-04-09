@@ -17,6 +17,7 @@ type Props = {
   assessmentTab: AssessmentTab
   activeChapter: EditableChapter | null
   activeLesson: EditableLesson | null
+  generatingTaskId: string | null
   generatingQuizId: string | null
   generatingAllLessonQuizzes: boolean
   saving: boolean
@@ -24,6 +25,7 @@ type Props = {
   onAddTask: () => void
   onUpdateTask: (taskId: string, updater: (task: EditableTask) => EditableTask) => void
   onRemoveTask: (taskId: string) => void
+  onGenerateTask: (task: EditableTask) => void
   onAddQuiz: () => void
   onUpdateQuiz: (quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) => void
   onRemoveQuiz: (quizId: string) => void
@@ -147,6 +149,7 @@ const AssessmentsStep: React.FC<Props> = ({
   assessmentTab,
   activeChapter,
   activeLesson,
+  generatingTaskId,
   generatingQuizId,
   generatingAllLessonQuizzes,
   saving,
@@ -154,6 +157,7 @@ const AssessmentsStep: React.FC<Props> = ({
   onAddTask,
   onUpdateTask,
   onRemoveTask,
+  onGenerateTask,
   onAddQuiz,
   onUpdateQuiz,
   onRemoveQuiz,
@@ -164,6 +168,7 @@ const AssessmentsStep: React.FC<Props> = ({
   onGenerateAllLessonQuizzes,
 }) => {
   const { t } = useTranslation('mentor')
+  const hasTaskGenerationInProgress = generatingTaskId != null
 
   if (!activeChapter) return <EmptyPanel message={t('drafts.noChapterSelected')} />
 
@@ -366,7 +371,18 @@ const AssessmentsStep: React.FC<Props> = ({
                   <strong style={{ color: 'var(--text-primary)' }}>{task.title || `${t('drafts.untitledTask')} ${taskIndex + 1}`}</strong>
                   <span style={pillStyle()}>{activeChapter.title || t('drafts.untitledChapter')}</span>
                 </div>
-                <button type="button" style={getButtonStyle()} onClick={() => onRemoveTask(task.id)}>{t('drafts.remove')}</button>
+                <div style={actionRowStyle}>
+                  <button
+                    type="button"
+                    style={getButtonStyle({ disabled: saving || hasTaskGenerationInProgress })}
+                    onClick={() => onGenerateTask(task)}
+                    disabled={saving || hasTaskGenerationInProgress}
+                  >
+                    {generatingTaskId === task.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+                    {generatingTaskId === task.id ? t('drafts.generatingSingleTask') : t('drafts.generateSingleTaskByAi')}
+                  </button>
+                  <button type="button" style={getButtonStyle()} onClick={() => onRemoveTask(task.id)}>{t('drafts.remove')}</button>
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
