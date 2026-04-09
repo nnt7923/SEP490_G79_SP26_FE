@@ -99,7 +99,7 @@ const Header: React.FC = () => {
   const handleNotificationClick = async (notification: any) => {
     setNotificationsOpen(false)
     try {
-      await navigateAndMarkNotificationRead(notification, navigate, (notificationId) => markAsRead(notificationId))
+      await navigateAndMarkNotificationRead(notification, navigate, markAsRead)
     } catch (error: any) {
       showToast(error?.message || t('notifications.markReadError'), 'error')
     }
@@ -563,6 +563,7 @@ const Header: React.FC = () => {
                         error={notificationError}
                         emptyLabel={t('notifications.empty')}
                         onItemClick={handleNotificationClick}
+                        onReadVisible={markAsRead}
                         compact
                         titleOnly
                       />

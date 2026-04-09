@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { AuthService, UserService } from '../services'
 import useChatStore from './useChatStore'
 
+const DAILY_REMINDER_PROMPT_KEY = 'shouldPromptDailyReminderTime'
+
 export type User = {
   id: number | string // Support both number and GUID
   username: string
@@ -12,6 +14,7 @@ export type User = {
   phone?: string
   address?: string
   bio?: string
+  dailyReminderTime?: string
   name: string
   email?: string
   role?: { name: string }
@@ -21,12 +24,14 @@ interface AuthState {
   token: string | null
   refreshToken: string | null
   user: User | null
+  shouldPromptDailyReminderTime: boolean
   loading: boolean
   updatingProfile: boolean
   updatingAvatar: boolean
   setToken: (token: string | null) => void
   setRefreshToken: (refreshToken: string | null) => void
   setUser: (user: User | null) => void
+  setShouldPromptDailyReminderTime: (shouldPrompt: boolean) => void
   clearState: () => void
   login: (username: string, password: string) => Promise<{ isOk: boolean; msg?: string; errorCode?: string }>
   register: (payload: any) => Promise<{ isOk: boolean; msg?: string }>
@@ -42,6 +47,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   refreshToken: null,
   user: null,
+  shouldPromptDailyReminderTime: false,
   loading: false,
   updatingProfile: false,
   updatingAvatar: false,
@@ -85,13 +91,26 @@ const useAuthStore = create<AuthState>((set, get) => ({
     } catch { }
   },
 
+  setShouldPromptDailyReminderTime: (shouldPrompt) => {
+    const normalized = Boolean(shouldPrompt)
+    set({ shouldPromptDailyReminderTime: normalized })
+    try {
+      if (normalized) {
+        sessionStorage.setItem(DAILY_REMINDER_PROMPT_KEY, 'true')
+      } else {
+        sessionStorage.removeItem(DAILY_REMINDER_PROMPT_KEY)
+      }
+    } catch { }
+  },
+
   clearState: () => {
-    set({ token: null, refreshToken: null, user: null, loading: false })
+    set({ token: null, refreshToken: null, user: null, shouldPromptDailyReminderTime: false, loading: false })
     try {
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       localStorage.removeItem('userRole')
+      sessionStorage.removeItem(DAILY_REMINDER_PROMPT_KEY)
     } catch { }
     try { AuthService.clearState?.() } catch { }
     try {
@@ -135,10 +154,12 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
       const token: string | undefined = resp?.token
       const refreshToken: string | undefined = resp?.refreshToken
+      const shouldPromptDailyReminderTime: boolean = Boolean(resp?.shouldPromptDailyReminderTime)
       const rawUser: any = resp?.user ?? resp
 
       if (token) {
         get().setToken(token)
+        get().setShouldPromptDailyReminderTime(shouldPromptDailyReminderTime)
 
         // Save refresh token if provided
         if (refreshToken) {
@@ -212,6 +233,13 @@ const useAuthStore = create<AuthState>((set, get) => ({
     if (raw) {
       set({ token: raw })
       AuthService.setAccessToken?.(raw)
+
+      try {
+        const shouldPrompt = sessionStorage.getItem(DAILY_REMINDER_PROMPT_KEY) === 'true'
+        if (shouldPrompt) {
+          set({ shouldPromptDailyReminderTime: true })
+        }
+      } catch { }
 
       // Restore refresh token if available
       if (storedRefreshToken) {

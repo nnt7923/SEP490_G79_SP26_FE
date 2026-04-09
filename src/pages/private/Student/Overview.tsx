@@ -134,7 +134,7 @@ const StudentOverview: React.FC = () => {
     if (!expiringSoonNotification) return
 
     try {
-      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, (notificationId) => markAsRead(notificationId))
+      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, markAsRead)
     } catch (error: any) {
       showToast(error?.message || tc('notifications.markReadError'), 'error')
     }

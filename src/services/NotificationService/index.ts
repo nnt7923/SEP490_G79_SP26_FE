@@ -138,15 +138,32 @@ function normalizeUnreadCount(raw: unknown): number {
   return 0
 }
 
-function normalizeMarkAsReadResult(raw: unknown, notificationId: string): MarkNotificationAsReadResultDto {
+function normalizeNotificationIds(value: unknown, fallbackIds: string[]): string[] {
+  const fromArray = Array.isArray(value)
+    ? value
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+    : []
+
+  if (fromArray.length > 0) {
+    return Array.from(new Set(fromArray))
+  }
+
+  return Array.from(new Set(fallbackIds.map((id) => String(id || '').trim()).filter(Boolean)))
+}
+
+function normalizeMarkAsReadResult(raw: unknown, notificationIds: string[]): MarkNotificationAsReadResultDto {
   const value = raw && typeof raw === 'object'
     ? ((raw as Record<string, unknown>).data ?? raw)
     : raw
   const record = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  const normalizedIds = normalizeNotificationIds(record.notificationIds, notificationIds)
+  const legacyNotificationId = toSafeString(record.notificationId)
 
   return {
-    notificationId: String(record.notificationId ?? notificationId),
-    isRead: toBoolean(record.isRead, true),
+    notificationIds: legacyNotificationId
+      ? Array.from(new Set([...normalizedIds, legacyNotificationId]))
+      : normalizedIds,
     readAt: toSafeString(record.readAt),
     unreadCount: Math.max(0, toSafeNumber(record.unreadCount, 0)),
   }
@@ -168,9 +185,18 @@ class NotificationService {
     return normalizeUnreadCount(response)
   }
 
-  async markAsRead(notificationId: string): Promise<MarkNotificationAsReadResultDto> {
-    const response = await api.patch(`/notifications/${notificationId}/read`)
-    return normalizeMarkAsReadResult(response, notificationId)
+  async markAsRead(notificationIds: string[]): Promise<MarkNotificationAsReadResultDto> {
+    const sanitizedIds = Array.from(new Set(notificationIds.map((id) => String(id || '').trim()).filter(Boolean)))
+    if (sanitizedIds.length === 0) {
+      return {
+        notificationIds: [],
+        readAt: null,
+        unreadCount: 0,
+      }
+    }
+
+    const response = await api.patch('/notifications/read', sanitizedIds)
+    return normalizeMarkAsReadResult(response, sanitizedIds)
   }
 
   normalizeRealtimeNotification(raw: unknown): NotificationDto {

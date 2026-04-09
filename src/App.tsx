@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router-dom'
 import Providers from './components/Providers'
 import GlobalNotifications from './components/GlobalNotifications'
 import NotificationBootstrap from './components/Notifications/NotificationBootstrap'
+import DailyReminderGate from './components/DailyReminder/Gate'
 import router from './router'
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
       <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">Loading...</div>}>
         <RouterProvider router={router} future={{ v7_startTransition: true }} />
       </Suspense>
+      <DailyReminderGate />
       <GlobalNotifications />
     </Providers>
   )

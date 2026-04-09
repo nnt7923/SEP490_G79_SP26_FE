@@ -355,7 +355,7 @@ export function resolveNotificationNavigationTarget(notification: NotificationDt
 export async function navigateAndMarkNotificationRead(
   notification: NotificationDto,
   navigate: NavigateFunction,
-  markAsRead: (notificationId: string) => Promise<unknown>,
+  markAsRead: (notificationIds: string[]) => Promise<unknown>,
 ) {
   const target = resolveNotificationNavigationTarget(notification)
   if (target) {
@@ -363,6 +363,6 @@ export async function navigateAndMarkNotificationRead(
   }
 
   if (!notification.isRead) {
-    await markAsRead(notification.notificationId)
+    await markAsRead([notification.notificationId])
   }
 }

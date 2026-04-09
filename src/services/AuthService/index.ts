@@ -16,10 +16,43 @@ export async function register(payload: any) {
   return res?.data ?? res
 }
 
+function parseBooleanLike(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value === 1
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true' || normalized === '1') return true
+    if (normalized === 'false' || normalized === '0') return false
+  }
+  return false
+}
+
+function extractShouldPromptDailyReminderTime(root: any): boolean {
+  const container = root?.data ?? root
+
+  const candidates = [
+    container?.shouldPromptDailyReminderTime,
+    container?.ShouldPromptDailyReminderTime,
+    container?.shouldPromptDailyReminder,
+    container?.ShouldPromptDailyReminder,
+    root?.shouldPromptDailyReminderTime,
+    root?.ShouldPromptDailyReminderTime,
+    root?.shouldPromptDailyReminder,
+    root?.ShouldPromptDailyReminder,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate != null) return parseBooleanLike(candidate)
+  }
+
+  return false
+}
+
 export async function loginWithGoogle(payload: { ClientId: string; IdToken: string }) {
   const res: any = await api.post(loginWithGoogleUrl, payload)
   const data = res?.data ?? res
   const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
+  const shouldPromptDailyReminderTime = extractShouldPromptDailyReminderTime(data)
   const user: any = {
     id: data?.userId ?? data?.data?.userId,
     username: data?.username ?? data?.data?.username,
@@ -31,7 +64,7 @@ export async function loginWithGoogle(payload: { ClientId: string; IdToken: stri
   }
 
   if (!token || !user?.id) throw new Error('Google login response missing token/user')
-  return { user, token }
+  return { user, token, shouldPromptDailyReminderTime }
 }
 
 export async function login(payload: { Identifier: string; Password: string }) {
@@ -41,6 +74,7 @@ export async function login(payload: { Identifier: string; Password: string }) {
   // Handle both old and new API response formats
   const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
   const refreshToken: string | undefined = data?.refreshToken ?? data?.data?.refreshToken
+  const shouldPromptDailyReminderTime = extractShouldPromptDailyReminderTime(data)
 
   const user: any = {
     id: data?.userId ?? data?.data?.userId,
@@ -61,7 +95,7 @@ export async function login(payload: { Identifier: string; Password: string }) {
     } catch { }
   }
 
-  return { user, token, refreshToken }
+  return { user, token, refreshToken, shouldPromptDailyReminderTime }
 }
 
 export async function logout() {

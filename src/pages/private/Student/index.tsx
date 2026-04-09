@@ -843,7 +843,7 @@ const StudentIndex: React.FC = () => {
 
     try {
       setShowExpiringSoonModal(false)
-      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, (notificationId) => markNotificationAsRead(notificationId))
+      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, markNotificationAsRead)
     } catch (error: any) {
       showToast(error?.message || 'Failed to open subscription update screen.', 'error')
     }

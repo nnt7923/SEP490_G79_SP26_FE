@@ -32,7 +32,7 @@ interface AppNotificationState {
   refreshPanel: () => Promise<void>
   prependRealtimeItem: (notification: NotificationDto) => void
   syncUnreadCount: (count: number) => void
-  markAsRead: (notificationId: string) => Promise<MarkReadOutcome>
+  markAsRead: (notificationIds: string[]) => Promise<MarkReadOutcome>
   setUnreadOnly: (unreadOnly: boolean) => void
   removeNotification: (notificationId: string) => void
   reset: () => void
@@ -69,17 +69,18 @@ function upsertNotification(items: NotificationDto[], nextItem: NotificationDto)
 }
 
 function applyMarkRead(items: NotificationDto[], result: MarkNotificationAsReadResultDto, unreadOnly: boolean): NotificationDto[] {
+  const markedIds = new Set(result.notificationIds)
   const updated = items.map((item) => {
-    if (item.notificationId !== result.notificationId) return item
+    if (!markedIds.has(item.notificationId)) return item
     return {
       ...item,
-      isRead: result.isRead,
+      isRead: true,
       readAt: result.readAt,
     }
   })
 
   if (unreadOnly) {
-    return updated.filter((item) => item.notificationId !== result.notificationId)
+    return updated.filter((item) => !markedIds.has(item.notificationId))
   }
 
   return updated
@@ -231,26 +232,44 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
     set({ unreadCount: Math.max(0, count) })
   },
 
-  markAsRead: async (notificationId) => {
+  markAsRead: async (notificationIds) => {
+    const dedupedIds = Array.from(new Set(notificationIds.map((id) => String(id || '').trim()).filter(Boolean)))
+    if (dedupedIds.length === 0) {
+      return { result: null, removed: false }
+    }
+
     const state = get()
-    const target = [...state.items, ...state.panelItems].find((item) => item.notificationId === notificationId)
-    if (!target || target.isRead) {
+    const unreadIds = dedupedIds.filter((notificationId) => {
+      const target = [...state.items, ...state.panelItems].find((item) => item.notificationId === notificationId)
+      return Boolean(target && !target.isRead)
+    })
+
+    if (unreadIds.length === 0) {
       return { result: null, removed: false }
     }
 
     try {
-      const result = await NotificationService.markAsRead(notificationId)
+      const result = await NotificationService.markAsRead(unreadIds)
+      const normalizedResult: MarkNotificationAsReadResultDto = {
+        ...result,
+        notificationIds: result.notificationIds.length > 0 ? result.notificationIds : unreadIds,
+      }
+
       set((current) => ({
-        unreadCount: result.unreadCount,
-        items: applyMarkRead(current.items, result, current.unreadOnly),
-        panelItems: applyMarkRead(current.panelItems, result, false),
-        totalCount: current.unreadOnly ? Math.max(0, current.totalCount - 1) : current.totalCount,
+        unreadCount: normalizedResult.unreadCount,
+        items: applyMarkRead(current.items, normalizedResult, current.unreadOnly),
+        panelItems: applyMarkRead(current.panelItems, normalizedResult, false),
+        totalCount: current.unreadOnly
+          ? Math.max(0, current.totalCount - normalizedResult.notificationIds.length)
+          : current.totalCount,
       }))
 
-      return { result, removed: state.unreadOnly }
+      return { result: normalizedResult, removed: state.unreadOnly && normalizedResult.notificationIds.length > 0 }
     } catch (error: any) {
       if (error?.response?.status === 404) {
-        get().removeNotification(notificationId)
+        unreadIds.forEach((notificationId) => {
+          get().removeNotification(notificationId)
+        })
         return { result: null, removed: true }
       }
       throw error

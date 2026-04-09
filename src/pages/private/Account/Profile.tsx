@@ -14,11 +14,12 @@ import { useTranslation } from 'react-i18next'
 
 interface ProfileForm extends Partial<User> {
     dateOfBirth?: string
+    dailyReminderTime?: string
 }
 
-type EditableProfileField = 'firstName' | 'lastName' | 'phone' | 'bio' | 'address' | 'dateOfBirth'
+type EditableProfileField = 'firstName' | 'lastName' | 'phone' | 'bio' | 'address' | 'dateOfBirth' | 'dailyReminderTime'
 
-const EDITABLE_PROFILE_FIELDS: EditableProfileField[] = ['firstName', 'lastName', 'phone', 'bio', 'address', 'dateOfBirth']
+const EDITABLE_PROFILE_FIELDS: EditableProfileField[] = ['firstName', 'lastName', 'phone', 'bio', 'address', 'dateOfBirth', 'dailyReminderTime']
 const NULLABLE_PROFILE_FIELDS: EditableProfileField[] = ['phone', 'bio', 'address', 'dateOfBirth']
 
 function normalizeComparableValue(field: EditableProfileField, value: unknown): string {
@@ -27,7 +28,24 @@ function normalizeComparableValue(field: EditableProfileField, value: unknown): 
         if (!raw) return ''
         return dayjs(raw).isValid() ? dayjs(raw).format('YYYY-MM-DD') : raw
     }
+
+    if (field === 'dailyReminderTime') {
+        const trimmed = raw.trim()
+        if (!trimmed) return ''
+        if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(trimmed)) return `${trimmed}:00`
+        return trimmed
+    }
+
     return raw.trim()
+}
+
+function toTimeInputValue(value: unknown): string {
+    const normalized = normalizeComparableValue('dailyReminderTime', value)
+    if (!normalized) return ''
+
+    const [hour = '', minute = ''] = normalized.split(':')
+    const hhmm = `${hour}:${minute}`
+    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(hhmm) ? hhmm : ''
 }
 
 const Profile: React.FC = () => {
@@ -65,7 +83,8 @@ const Profile: React.FC = () => {
             setForm({
                 firstName: user.firstName || '', lastName: user.lastName || '', email: user.email || '',
                 phone: user.phone || '', bio: user.bio || '', address: user.address || '',
-                dateOfBirth: user.dateOfBirth ? dayjs(user.dateOfBirth).format('YYYY-MM-DD') : ''
+                dateOfBirth: user.dateOfBirth ? dayjs(user.dateOfBirth).format('YYYY-MM-DD') : '',
+                dailyReminderTime: toTimeInputValue(user.dailyReminderTime),
             })
         }
     }, [user])
@@ -142,6 +161,15 @@ const Profile: React.FC = () => {
             }
         }
 
+        if (Object.prototype.hasOwnProperty.call(payload, 'dailyReminderTime')) {
+            const dailyReminderTime = payload.dailyReminderTime == null ? '' : String(payload.dailyReminderTime).trim()
+            if (!dailyReminderTime) {
+                newErrors.dailyReminderTime = t('profile.dailyReminderRequired')
+            } else if (!/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.test(dailyReminderTime)) {
+                newErrors.dailyReminderTime = t('profile.dailyReminderInvalid')
+            }
+        }
+
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
@@ -184,6 +212,11 @@ const Profile: React.FC = () => {
     const formatDate = (dateStr?: string): string => {
         if (!dateStr) return tc('status.notUpdated')
         return dayjs(dateStr).format('MM/DD/YYYY')
+    }
+
+    const formatReminderTime = (timeValue?: string): string => {
+        const inputValue = toTimeInputValue(timeValue)
+        return inputValue || tc('status.notUpdated')
     }
 
     const getInitials = (first?: string, last?: string) => {
@@ -258,6 +291,7 @@ const Profile: React.FC = () => {
                                 { label: t('profile.fields.phone'), value: user.phone || tc('status.notUpdated') },
                                 { label: t('profile.fields.dateOfBirth'), value: formatDate(user.dateOfBirth) },
                                 { label: t('profile.fields.address'), value: user.address || tc('status.notUpdated') },
+                                { label: t('profile.fields.dailyReminderTime'), value: formatReminderTime(user.dailyReminderTime) },
                             ].map((info) => (
                                 <div key={info.label} style={infoCardStyle}>
                                     <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{info.label}</p>
@@ -291,6 +325,7 @@ const Profile: React.FC = () => {
                                     { field: 'lastName' as keyof ProfileForm, label: t('profile.fields.lastName'), type: 'text' },
                                     { field: 'phone' as keyof ProfileForm, label: t('profile.fields.phone'), type: 'text', placeholder: t('profile.phonePlaceholder') },
                                     { field: 'dateOfBirth' as keyof ProfileForm, label: t('profile.fields.dateOfBirth'), type: 'date' },
+                                    { field: 'dailyReminderTime' as keyof ProfileForm, label: t('profile.fields.dailyReminderTime'), type: 'time' },
                                 ].map(({ field, label, type, placeholder }) => (
                                     <div key={field}>
                                         <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</label>

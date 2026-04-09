@@ -157,18 +157,18 @@ describe('NotificationService', () => {
   it('normalizes mark-as-read response payload', async () => {
     mockedApi.patch.mockResolvedValue({
       data: {
-        notificationId: 'n-2',
-        isRead: true,
+        notificationIds: ['n-2'],
         readAt: '2026-03-30T07:05:00Z',
         unreadCount: 4,
       },
     })
 
-    await expect(NotificationService.markAsRead('n-2')).resolves.toEqual({
-      notificationId: 'n-2',
-      isRead: true,
+    await expect(NotificationService.markAsRead(['n-2'])).resolves.toEqual({
+      notificationIds: ['n-2'],
       readAt: '2026-03-30T07:05:00Z',
       unreadCount: 4,
     })
+
+    expect(mockedApi.patch).toHaveBeenCalledWith('/notifications/read', ['n-2'])
   })
 })

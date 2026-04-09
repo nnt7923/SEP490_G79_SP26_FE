@@ -23,6 +23,7 @@ interface NotificationListProps {
   error?: string | null
   emptyLabel: string
   onItemClick: (notification: NotificationDto) => void | Promise<void>
+  onReadVisible?: (notificationIds: string[]) => void | Promise<void>
   compact?: boolean
   titleOnly?: boolean
   footer?: React.ReactNode
@@ -34,6 +35,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
   error = null,
   emptyLabel,
   onItemClick,
+  onReadVisible,
   compact = false,
   titleOnly = false,
   footer,
@@ -45,6 +47,39 @@ const NotificationList: React.FC<NotificationListProps> = ({
   }>>(getCachedShareUpdateContextRecord)
   const loadingShareContextIdsRef = React.useRef<Set<string>>(new Set())
   const [loadingShareContextIds, setLoadingShareContextIds] = React.useState<Record<string, true>>({})
+  const itemElementRef = React.useRef<Map<string, HTMLButtonElement>>(new Map())
+  const observerRef = React.useRef<IntersectionObserver | null>(null)
+  const queuedReadIdsRef = React.useRef<Set<string>>(new Set())
+  const readDispatchTimerRef = React.useRef<number | null>(null)
+
+  const flushQueuedReadIds = React.useCallback(() => {
+    if (!onReadVisible || queuedReadIdsRef.current.size === 0) return
+
+    const readIds = Array.from(queuedReadIdsRef.current)
+    queuedReadIdsRef.current.clear()
+
+    Promise.resolve(onReadVisible(readIds)).catch(() => {
+      const observer = observerRef.current
+      if (!observer) return
+
+      readIds.forEach((notificationId) => {
+        const targetElement = itemElementRef.current.get(notificationId)
+        if (targetElement) {
+          observer.observe(targetElement)
+        }
+      })
+    })
+  }, [onReadVisible])
+
+  const scheduleQueuedReadDispatch = React.useCallback(() => {
+    if (!onReadVisible || queuedReadIdsRef.current.size === 0) return
+    if (readDispatchTimerRef.current != null) return
+
+    readDispatchTimerRef.current = window.setTimeout(() => {
+      readDispatchTimerRef.current = null
+      flushQueuedReadIds()
+    }, 120)
+  }, [flushQueuedReadIds, onReadVisible])
 
   React.useEffect(() => {
     const shareIds = Array.from(new Set(items
@@ -102,6 +137,53 @@ const NotificationList: React.FC<NotificationListProps> = ({
     const context = shareId ? shareUpdateContextById[shareId] : undefined
     return resolveShareVersionUpdatedNotificationText(notification, t, context)
   }, [shareUpdateContextById, t])
+
+  React.useEffect(() => {
+    if (!onReadVisible || typeof IntersectionObserver === 'undefined') {
+      return
+    }
+
+    const unreadIds = items
+      .filter((item) => !item.isRead)
+      .map((item) => item.notificationId)
+
+    if (unreadIds.length === 0) return
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+
+        const element = entry.target as HTMLElement
+        const notificationId = String(element.dataset.notificationId || '').trim()
+        if (!notificationId) return
+
+        queuedReadIdsRef.current.add(notificationId)
+        observer.unobserve(entry.target)
+      })
+
+      scheduleQueuedReadDispatch()
+    }, {
+      threshold: 0.55,
+    })
+
+    observerRef.current = observer
+
+    unreadIds.forEach((notificationId) => {
+      const targetElement = itemElementRef.current.get(notificationId)
+      if (targetElement) {
+        observer.observe(targetElement)
+      }
+    })
+
+    return () => {
+      observer.disconnect()
+      observerRef.current = null
+      if (readDispatchTimerRef.current != null) {
+        window.clearTimeout(readDispatchTimerRef.current)
+        readDispatchTimerRef.current = null
+      }
+    }
+  }, [items, onReadVisible, scheduleQueuedReadDispatch])
 
   if (loading) {
     return (
@@ -161,6 +243,14 @@ const NotificationList: React.FC<NotificationListProps> = ({
             <button
               key={notification.notificationId}
               type="button"
+              data-notification-id={notification.notificationId}
+              ref={(element) => {
+                if (element) {
+                  itemElementRef.current.set(notification.notificationId, element)
+                  return
+                }
+                itemElementRef.current.delete(notification.notificationId)
+              }}
               onClick={() => { void onItemClick(notification) }}
               style={{
                 width: '100%',

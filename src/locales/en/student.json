@@ -195,7 +195,8 @@
       "phone": "Phone",
       "dateOfBirth": "Date of Birth",
       "address": "Address",
-      "bio": "Bio"
+      "bio": "Bio",
+      "dailyReminderTime": "Daily study time"
     },
     "noBio": "No bio added yet.",
     "updateProfile": "Update Profile",
@@ -207,6 +208,8 @@
     "dobRequired": "Please enter date of birth",
     "dobInvalid": "Invalid date of birth",
     "dobFuture": "Date of birth cannot be in the future",
+    "dailyReminderRequired": "Please select your daily study time",
+    "dailyReminderInvalid": "Invalid daily study time",
     "noChanges": "No changes to update",
     "updateSuccess": "Profile updated successfully",
     "updateFailed": "Update failed",
@@ -216,6 +219,19 @@
     "avatarUploading": "Uploading avatar...",
     "avatarSuccess": "Avatar uploaded successfully",
     "avatarFailed": "Upload failed"
+  },
+  "dailyReminder": {
+    "title": "Set your daily study time",
+    "subtitle": "Choose the time you usually study to receive daily reminders.",
+    "timeLabel": "Study time",
+    "timeHint": "You will receive reminders every day at this time (GMT+7).",
+    "required": "Please select a study time",
+    "invalid": "Invalid study time",
+    "skip": "Skip for now",
+    "save": "Save time",
+    "saving": "Saving...",
+    "saveSuccess": "Daily study time saved",
+    "saveFailed": "Failed to save study time. Please try again"
   },
   "plans": {
     "step1Title": "choose programming language",

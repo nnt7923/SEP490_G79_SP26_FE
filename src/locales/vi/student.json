@@ -195,7 +195,8 @@
       "phone": "Số điện thoại",
       "dateOfBirth": "Ngày sinh",
       "address": "Địa chỉ",
-      "bio": "Tiểu sử"
+      "bio": "Tiểu sử",
+      "dailyReminderTime": "Giờ học hằng ngày"
     },
     "noBio": "Chưa thêm tiểu sử.",
     "updateProfile": "Cập nhật hồ sơ",
@@ -207,6 +208,8 @@
     "dobRequired": "Vui lòng nhập ngày sinh",
     "dobInvalid": "Ngày sinh không hợp lệ",
     "dobFuture": "Ngày sinh không thể ở tương lai",
+    "dailyReminderRequired": "Vui lòng chọn giờ học hằng ngày",
+    "dailyReminderInvalid": "Giờ học không hợp lệ",
     "noChanges": "Không có thay đổi để cập nhật",
     "updateSuccess": "Cập nhật hồ sơ thành công",
     "updateFailed": "Cập nhật thất bại",
@@ -216,6 +219,19 @@
     "avatarUploading": "Đang tải avatar...",
     "avatarSuccess": "Tải avatar thành công",
     "avatarFailed": "Tải lên thất bại"
+  },
+  "dailyReminder": {
+    "title": "Thiết lập giờ học hằng ngày",
+    "subtitle": "Chọn thời gian bạn thường học để nhận nhắc nhở mỗi ngày.",
+    "timeLabel": "Giờ học",
+    "timeHint": "Hệ thống sẽ gửi nhắc nhở mỗi ngày theo giờ này (GMT+7).",
+    "required": "Vui lòng chọn giờ học",
+    "invalid": "Giờ học không hợp lệ",
+    "skip": "Để sau",
+    "save": "Lưu giờ học",
+    "saving": "Đang lưu...",
+    "saveSuccess": "Đã lưu giờ học hằng ngày",
+    "saveFailed": "Không thể lưu giờ học, vui lòng thử lại"
   },
   "plans": {
     "step1Title": "chọn ngôn ngữ lập trình",

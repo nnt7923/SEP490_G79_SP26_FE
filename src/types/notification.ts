@@ -47,8 +47,7 @@ export interface NotificationPagedResultDto {
 }
 
 export interface MarkNotificationAsReadResultDto {
-  notificationId: string
-  isRead: boolean
+  notificationIds: string[]
   readAt: string | null
   unreadCount: number
 }

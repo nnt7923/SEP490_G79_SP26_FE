@@ -59,7 +59,7 @@ const NotificationsPage: React.FC = () => {
 
   const handleItemClick = async (notification: any) => {
     try {
-      await navigateAndMarkNotificationRead(notification, navigate, (notificationId) => markAsRead(notificationId))
+      await navigateAndMarkNotificationRead(notification, navigate, markAsRead)
     } catch (err: any) {
       showToast(err?.message || t('notifications.markReadError'), 'error')
     }
@@ -141,6 +141,7 @@ const NotificationsPage: React.FC = () => {
               error={error}
               emptyLabel={t('notifications.empty')}
               onItemClick={handleItemClick}
+              onReadVisible={markAsRead}
             />
           </div>
 

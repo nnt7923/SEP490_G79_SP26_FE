@@ -197,13 +197,12 @@ describe('useAppNotificationStore', () => {
     })
 
     mockedNotificationService.markAsRead.mockResolvedValue({
-      notificationId: 'n-4',
-      isRead: true,
+      notificationIds: ['n-4'],
       readAt: '2026-03-30T07:05:00Z',
       unreadCount: 1,
     })
 
-    await useAppNotificationStore.getState().markAsRead('n-4')
+    await useAppNotificationStore.getState().markAsRead(['n-4'])
 
     const state = useAppNotificationStore.getState()
     expect(state.unreadCount).toBe(1)
