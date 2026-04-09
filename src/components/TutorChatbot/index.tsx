@@ -4,6 +4,7 @@ import {
   sendTutorMessage,
   requestTutorMessages,
   requestTutorSummaries,
+  requestResolveTutorConversation,
   type TutorHubError,
   type TutorMessagesPageResponse,
   type TutorSummaryHistoryItem,
@@ -46,8 +47,7 @@ type SummaryState = {
 
 const TUTOR_MESSAGE_CACHE_KEY = 'tutorMessagesByConversation'
 const TUTOR_CONTEXT_USAGE_CACHE_KEY = 'tutorContextUsageByConversation'
-const MESSAGE_PAGE_SIZE = 100
-const MESSAGE_INITIAL_TARGET = 120
+const MESSAGE_HISTORY_PAGE_SIZE = 30
 const SUMMARY_PAGE_SIZE = 20
 
 const readTutorMessageCache = (): Record<string, Array<{ id: string; type: 'user' | 'assistant'; content: string; timestamp: string; contextUsagePercent?: number }>> => {
@@ -220,6 +220,7 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [loadingSummaries, setLoadingSummaries] = useState(false)
   const [summariesLoaded, setSummariesLoaded] = useState(false)
+  const [isResolvingConversation, setIsResolvingConversation] = useState(false)
   const [latestContextUsagePercent, setLatestContextUsagePercent] = useState<number | null>(null)
   const [isUsageHovering, setIsUsageHovering] = useState(false)
   const [usageTooltipPosition, setUsageTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -232,7 +233,7 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const resolveSessionLoading = Boolean(isResolvingSession)
+  const resolveSessionLoading = Boolean(isResolvingSession || isResolvingConversation)
 
   const mapTutorErrorCodeToMessage = (errorCode?: string) => {
     const code = errorCode || 'UNEXPECTED_ERROR'
@@ -362,14 +363,10 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
 
   useEffect(() => {
     if (!resolveErrorCode) return
+    if (currentConversationId || messagesLoaded || messages.length > 0) return
+    if (isResolvingConversation || loadingHistory) return
     setToast({ message: mapTutorErrorCodeToMessage(resolveErrorCode), type: 'error' })
-  }, [resolveErrorCode])
-
-  // Prefetch message history right after conversation is resolved/available
-  useEffect(() => {
-    if (!currentConversationId || messagesLoaded || loadingHistory) return
-    loadMessageHistory(currentConversationId)
-  }, [currentConversationId, messagesLoaded, loadingHistory])
+  }, [resolveErrorCode, currentConversationId, messagesLoaded, messages.length, isResolvingConversation, loadingHistory])
 
   // Load summaries when summaries tab is opened
   useEffect(() => {
@@ -378,40 +375,22 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
     loadSummaryHistory(currentConversationId)
   }, [activeTab, currentConversationId, summariesLoaded, loadingSummaries])
 
-  // Keep old behavior: also fetch history when opening chat if needed
-  useEffect(() => {
-    if (isOpen && !isMinimized && currentConversationId && !messagesLoaded && !loadingHistory) {
-      loadMessageHistory(currentConversationId)
-    }
-  }, [isOpen, isMinimized, currentConversationId, messagesLoaded, loadingHistory])
-
-  const loadMessageHistory = async (targetConversationId: string) => {
+  const loadMessageHistory = async (targetConversationId: string, pageSize: number = MESSAGE_HISTORY_PAGE_SIZE) => {
     setLoadingHistory(true)
     try {
-      let currentPage = 1
-      let hasNextPage = true
-      const aggregatedItems: any[] = []
+      const pageResult = await requestTutorMessages(
+        targetConversationId,
+        1,
+        pageSize,
+        undefined,
+        undefined,
+        (error) => {
+          setToast({ message: mapTutorErrorCodeToMessage(error?.code), type: 'error' })
+        },
+      )
 
-      while (hasNextPage && aggregatedItems.length < MESSAGE_INITIAL_TARGET) {
-        const pageResult = await requestTutorMessages(
-          targetConversationId,
-          currentPage,
-          MESSAGE_PAGE_SIZE,
-          undefined,
-          undefined,
-          (error) => {
-            setToast({ message: mapTutorErrorCodeToMessage(error?.code), type: 'error' })
-          },
-        )
-
-        const pageItems = normalizeHistoryItems(pageResult)
-        aggregatedItems.push(...pageItems)
-
-        hasNextPage = Boolean(pageResult?.hasNextPage)
-        currentPage += 1
-      }
-
-      const historyItems = aggregatedItems
+      const historyItems = normalizeHistoryItems(pageResult)
+      const pageContextUsagePercent = parseContextUsagePercent(pageResult?.contextUsagePercent)
 
       if (historyItems.length > 0) {
         const historyMessages: Message[] = historyItems.flatMap((item: any) => {
@@ -457,17 +436,38 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
         const lastAssistantWithContext = [...historyMessages]
           .reverse()
           .find((message) => message.type === 'assistant' && typeof message.contextUsagePercent === 'number')
+
+        const resolvedContextUsagePercent =
+          typeof pageContextUsagePercent === 'number'
+            ? pageContextUsagePercent
+            : (typeof lastAssistantWithContext?.contextUsagePercent === 'number'
+              ? lastAssistantWithContext.contextUsagePercent
+              : getCachedTutorContextUsagePercent(targetConversationId))
+
         setLatestContextUsagePercent(
-          typeof lastAssistantWithContext?.contextUsagePercent === 'number'
-            ? lastAssistantWithContext.contextUsagePercent
-            : getCachedTutorContextUsagePercent(targetConversationId)
+          typeof resolvedContextUsagePercent === 'number'
+            ? resolvedContextUsagePercent
+            : null
         )
 
-        if (typeof lastAssistantWithContext?.contextUsagePercent === 'number') {
-          setCachedTutorContextUsagePercent(targetConversationId, lastAssistantWithContext.contextUsagePercent)
+        if (typeof resolvedContextUsagePercent === 'number') {
+          setCachedTutorContextUsagePercent(targetConversationId, resolvedContextUsagePercent)
         }
       } else {
-        setLatestContextUsagePercent(getCachedTutorContextUsagePercent(targetConversationId))
+        const fallbackContextUsagePercent =
+          typeof pageContextUsagePercent === 'number'
+            ? pageContextUsagePercent
+            : getCachedTutorContextUsagePercent(targetConversationId)
+
+        setLatestContextUsagePercent(
+          typeof fallbackContextUsagePercent === 'number'
+            ? fallbackContextUsagePercent
+            : null
+        )
+
+        if (typeof fallbackContextUsagePercent === 'number') {
+          setCachedTutorContextUsagePercent(targetConversationId, fallbackContextUsagePercent)
+        }
       }
 
       setMessagesLoaded(true)
@@ -477,6 +477,64 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
       setMessagesLoaded(true)
     } finally {
       setLoadingHistory(false)
+    }
+  }
+
+  const resolveConversationAndLoadHistory = async () => {
+    if (isResolvingConversation || loadingHistory) return
+
+    if (!chapterId) {
+      if (currentConversationId) {
+        await loadMessageHistory(currentConversationId, MESSAGE_HISTORY_PAGE_SIZE)
+      }
+      return
+    }
+
+    setIsResolvingConversation(true)
+    setMessagesLoaded(false)
+
+    try {
+      const resolved = await requestResolveTutorConversation(
+        learningPathId,
+        chapterId,
+        lessonId,
+        true,
+        undefined,
+        undefined,
+        undefined,
+      )
+
+      const resolvedConversationId = resolved?.conversationId || null
+
+      if (!resolvedConversationId) {
+        setToast({ message: mapTutorErrorCodeToMessage('CONVERSATION_ID_REQUIRED'), type: 'warning' })
+        return
+      }
+
+      if (resolvedConversationId !== currentConversationId) {
+        setMessages([])
+        setSummaryState(createEmptySummaryState())
+        setSummariesLoaded(false)
+        setActiveTab('messages')
+      }
+
+      setCurrentConversationId(resolvedConversationId)
+      await loadMessageHistory(resolvedConversationId, MESSAGE_HISTORY_PAGE_SIZE)
+    } catch (error: any) {
+      const tutorError = error as TutorHubError
+
+      if (currentConversationId) {
+        await loadMessageHistory(currentConversationId, MESSAGE_HISTORY_PAGE_SIZE)
+        return
+      }
+
+      if (tutorError?.code) {
+        setToast({ message: mapTutorErrorCodeToMessage(tutorError.code), type: 'error' })
+      } else {
+        setToast({ message: tutorError?.message || mapTutorErrorCodeToMessage('UNEXPECTED_ERROR'), type: 'error' })
+      }
+    } finally {
+      setIsResolvingConversation(false)
     }
   }
 
@@ -645,10 +703,17 @@ const TutorChatbot: React.FC<TutorChatbotProps> = ({
   }
 
   const toggleOpen = () => {
-    setIsOpen(!isOpen)
+    if (isOpen) {
+      setIsOpen(false)
+      return
+    }
+
+    setIsOpen(true)
     if (!isOpen) {
       setIsMinimized(false)
     }
+
+    resolveConversationAndLoadHistory()
   }
 
   const toggleMinimize = () => {

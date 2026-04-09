@@ -20,7 +20,7 @@ const PaymentSuccess: React.FC = () => {
   }), [navItems])
 
   const responseCode = searchParams.get('vnp_ResponseCode')
-  const isSuccess = !responseCode || responseCode === '00'
+  const isSuccess = responseCode === '00'
 
   useEffect(() => {
     if (isSuccess) {

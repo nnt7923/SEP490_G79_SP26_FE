@@ -880,8 +880,6 @@ const LessonDetailPage: React.FC = () => {
         lessonId={lessonId || null}
         chapterTitle={displayLesson.chapterTitle || null}
         lessonTitle={displayLesson.title || null}
-        isResolvingSession={isResolvingTutorConversation}
-        resolveErrorCode={tutorResolveErrorCode}
       />
 
       <DailyCheckinPopup
