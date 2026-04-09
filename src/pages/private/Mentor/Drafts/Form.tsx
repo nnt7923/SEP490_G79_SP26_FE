@@ -31,6 +31,7 @@ import {
   emptyTask,
   hydrateDraftForm,
   normalizeJsonField,
+  parseGeneratedQuizQuestionsPayload,
   normalizeTaskPriority,
   normalizeTaskStatus,
   normalizeTaskType,
@@ -48,6 +49,7 @@ import type {
   EditableQuiz,
   EditableTask,
   EditorStep,
+  QuestionType,
   SubjectOption,
   ToastState,
 } from './editorTypes'
@@ -71,10 +73,21 @@ const TASK_TYPE_TO_SIGNALR: Record<EditableTask['taskType'], 0 | 1 | 2> = {
   Quizz: 2,
 }
 
+const QUESTION_TYPE_TO_SIGNALR: Record<QuestionType, 0 | 1 | 2 | 3 | 4 | 5> = {
+  TrueFalse: 0,
+  MultipleChoice: 1,
+  SingleChoice: 2,
+  Matching: 3,
+  FillInTheBlank: 4,
+  Ordering: 5,
+}
+
 const toPersistedId = (value: unknown): string | null => {
   if (value == null || value === '') return null
   return String(value)
 }
+
+const isSameIdentifier = (left: string, right: string): boolean => left.trim().toLowerCase() === right.trim().toLowerCase()
 
 const parseMaybeJsonValue = (value: unknown): unknown => {
   if (typeof value !== 'string') return value
@@ -223,6 +236,96 @@ const extractSingleQuizSkeletonPayload = (
         ),
         title,
         description,
+      }
+    }
+
+    for (const key of unwrapKeys) {
+      if (key in currentObject) queue.push(currentObject[key])
+    }
+  }
+
+  return null
+}
+
+const extractSingleQuizQuestionPayload = (
+  payload: unknown,
+): {
+  quizPersistedId: string | null
+  question: EditableQuiz['questions'][number]
+  hasExplicitType: boolean
+} | null => {
+  const unwrapKeys = [
+    'value', 'Value',
+    'data', 'Data',
+    'result', 'Result',
+    'payload', 'Payload',
+    'singleQuizQuestion', 'SingleQuizQuestion',
+    'question', 'Question',
+    'questionDto', 'QuestionDto',
+  ] as const
+
+  const visited = new Set<unknown>()
+  const queue: unknown[] = [payload]
+
+  while (queue.length > 0) {
+    const current = parseMaybeJsonValue(queue.shift())
+    if (current == null) continue
+
+    if (typeof current === 'object') {
+      if (visited.has(current)) continue
+      visited.add(current)
+    }
+
+    if (Array.isArray(current)) {
+      for (const item of current) queue.push(item)
+      continue
+    }
+
+    const currentObject = asObject(current)
+    if (!currentObject) continue
+
+    const questionCandidates: unknown[] = [
+      currentObject.question,
+      currentObject.Question,
+      currentObject.questionDto,
+      currentObject.QuestionDto,
+    ]
+
+    const hasStandaloneQuestionShape = [
+      currentObject.questionText,
+      currentObject.QuestionText,
+      currentObject.correctAnswer,
+      currentObject.CorrectAnswer,
+      currentObject.options,
+      currentObject.Options,
+      currentObject.points,
+      currentObject.Points,
+    ].some((value) => value != null)
+
+    if (hasStandaloneQuestionShape) {
+      questionCandidates.push(currentObject)
+    }
+
+    for (const questionCandidate of questionCandidates) {
+      if (questionCandidate == null) continue
+      const parsedQuestionPayload = parseMaybeJsonValue(questionCandidate)
+      const questionObject = asObject(parsedQuestionPayload)
+      if (!questionObject) continue
+
+      const parsedQuestions = parseGeneratedQuizQuestionsPayload({ questions: [questionObject] })
+      if (parsedQuestions.items.length === 0) continue
+
+      const firstQuestion = parsedQuestions.items[0]
+
+      return {
+        quizPersistedId: toPersistedId(
+          currentObject.quizId
+          ?? currentObject.QuizId
+          ?? questionObject.quizId
+          ?? questionObject.QuizId,
+        ),
+        question: firstQuestion,
+        hasExplicitType: questionObject.type != null || questionObject.Type != null,
       }
     }
 
@@ -387,6 +490,34 @@ const resolveSingleQuizSkeletonErrorToast = (
   }
 }
 
+const getSingleQuizQuestionErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveSingleQuizQuestionErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getSingleQuizQuestionErrorCode(err)
+  if (code === 'QUIZ_NOT_FOUND') return { message: t('drafts.singleQuizQuestionErrorQuizNotFound'), type: 'error' }
+  if (code === 'QUIZ_NO_LESSON') return { message: t('drafts.singleQuizQuestionErrorQuizNoLesson'), type: 'warning' }
+  if (code === 'UNAUTHORIZED' || code === 'ACCESS_DENIED') return { message: t('drafts.singleQuizQuestionErrorUnauthorized'), type: 'error' }
+  if (code === 'QUESTION_TYPE_INVALID') return { message: t('drafts.singleQuizQuestionErrorQuestionTypeInvalid'), type: 'warning' }
+  if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.singleQuizQuestionErrorInvalidAiResponse'), type: 'warning' }
+  if (code === 'QUESTION_TYPE_MISMATCH') return { message: t('drafts.singleQuizQuestionErrorQuestionTypeMismatch'), type: 'warning' }
+  if (code === 'DUPLICATE_QUESTION') return { message: t('drafts.singleQuizQuestionErrorDuplicate'), type: 'warning' }
+  if (code === 'QUESTION_GENERATION_FAILED') return { message: t('drafts.singleQuizQuestionErrorGenerationFailed'), type: 'error' }
+  return {
+    message: getApiErrorMessage(err, t('drafts.singleQuizQuestionGenerateFailed')),
+    type: 'error',
+  }
+}
+
 const getMentorLessonContentErrorCode = (err: any): string => String(
   err?.code
   ?? err?.errorCode
@@ -532,6 +663,7 @@ const MentorDraftFormPage: React.FC = () => {
   const [hasQuizSkeleton, setHasQuizSkeleton] = useState(false)
   const [quizSkeletonError, setQuizSkeletonError] = useState<string | null>(null)
   const [generatingSingleQuizSkeletonLessonId, setGeneratingSingleQuizSkeletonLessonId] = useState<string | null>(null)
+  const [generatingSingleQuizQuestionQuizId, setGeneratingSingleQuizQuestionQuizId] = useState<string | null>(null)
   const [generatingTaskId, setGeneratingTaskId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
@@ -1253,6 +1385,161 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
+  const generateSingleQuizQuestionForQuiz = async (
+    quiz: EditableQuiz,
+    questionId: string,
+    questionType: QuestionType,
+  ) => {
+    if (!activeChapter || !activeLesson) {
+      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' })
+      return
+    }
+
+    if (generatingSingleQuizQuestionQuizId) {
+      setToast({ message: t('drafts.singleQuizQuestionGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    const requestedQuestionType = questionType
+    const requestedQuestionTypeNumber = QUESTION_TYPE_TO_SIGNALR[questionType]
+
+    let targetChapterId = activeChapter.id
+    let targetLessonId = activeLesson.id
+    let targetQuizId = quiz.id
+    let targetQuestionId = questionId
+    const targetQuestionIndex = quiz.questions.findIndex((item) => item.id === questionId)
+    let persistedQuizId = quiz.persistedId
+
+    setGeneratingSingleQuizQuestionQuizId(quiz.id)
+
+    try {
+      if (!persistedQuizId) {
+        const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
+        const lessonIndex = chapterIndex >= 0
+          ? form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLesson.id)
+          : -1
+        const quizIndex = chapterIndex >= 0 && lessonIndex >= 0
+          ? form.chapters[chapterIndex]?.lessons[lessonIndex]?.quizzes.findIndex((item) => item.id === quiz.id)
+          : -1
+
+        const persisted = await saveDraftForGeneration()
+        if (!persisted) return
+
+        const chapterFromSelection = persisted.nextSelection.chapterId
+          ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
+          : null
+        const chapterFromIndex = chapterIndex >= 0
+          ? (persisted.nextForm.chapters[chapterIndex] ?? null)
+          : null
+        const targetChapter = chapterFromSelection ?? chapterFromIndex
+
+        const lessonFromSelection = persisted.nextSelection.lessonId && targetChapter
+          ? targetChapter.lessons.find((lesson) => lesson.id === persisted.nextSelection.lessonId)
+          : null
+        const lessonFromIndex = targetChapter && lessonIndex >= 0
+          ? (targetChapter.lessons[lessonIndex] ?? null)
+          : null
+        const targetLesson = lessonFromSelection ?? lessonFromIndex ?? targetChapter?.lessons[0] ?? null
+
+        const quizFromIndex = targetLesson && quizIndex >= 0
+          ? (targetLesson.quizzes[quizIndex] ?? null)
+          : null
+        const targetQuiz = quizFromIndex
+          ?? targetLesson?.quizzes.find((item) => item.id === quiz.id)
+          ?? null
+
+        const targetQuestionFromIndex = targetQuiz && targetQuestionIndex >= 0
+          ? (targetQuiz.questions[targetQuestionIndex] ?? null)
+          : null
+        const targetQuestion = targetQuiz?.questions.find((item) => item.id === questionId)
+          ?? targetQuestionFromIndex
+          ?? null
+
+        if (!targetChapter || !targetLesson || !targetQuiz?.persistedId || !targetQuestion) {
+          setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' })
+          return
+        }
+
+        targetChapterId = targetChapter.id
+        targetLessonId = targetLesson.id
+        targetQuizId = targetQuiz.id
+        targetQuestionId = targetQuestion.id
+        persistedQuizId = targetQuiz.persistedId
+        setGeneratingSingleQuizQuestionQuizId(targetQuiz.id)
+      }
+
+      if (!persistedQuizId) {
+        setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' })
+        return
+      }
+
+      const generatedQuestionPayload = await LearningPathService.generateSingleQuizQuestion(
+        persistedQuizId,
+        requestedQuestionTypeNumber,
+        {
+          onLoading: () => setGeneratingSingleQuizQuestionQuizId(targetQuizId),
+        },
+      )
+
+      const parsedGeneratedQuestion = extractSingleQuizQuestionPayload(generatedQuestionPayload)
+      if (!parsedGeneratedQuestion || !parsedGeneratedQuestion.hasExplicitType || !parsedGeneratedQuestion.question.questionText.trim()) {
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      if (
+        parsedGeneratedQuestion.quizPersistedId
+        && !isSameIdentifier(parsedGeneratedQuestion.quizPersistedId, persistedQuizId)
+      ) {
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      if (parsedGeneratedQuestion.question.type !== requestedQuestionType) {
+        setToast({ message: t('drafts.singleQuizQuestionErrorQuestionTypeMismatch'), type: 'warning' })
+        return
+      }
+
+      let didReplaceQuestion = false
+      updateQuiz(targetChapterId, targetLessonId, targetQuizId, (currentQuiz) => {
+        let targetFound = false
+        const { id: _generatedQuestionId, ...generatedQuestionPatch } = parsedGeneratedQuestion.question
+        const nextQuestions = currentQuiz.questions.map((currentQuestion) => {
+          if (currentQuestion.id !== targetQuestionId) return currentQuestion
+          targetFound = true
+          didReplaceQuestion = true
+          return {
+            ...currentQuestion,
+            ...generatedQuestionPatch,
+            id: currentQuestion.id,
+            persistedId: generatedQuestionPatch.persistedId ?? currentQuestion.persistedId,
+          }
+        })
+
+        if (!targetFound) {
+          return currentQuiz
+        }
+
+        return {
+          ...currentQuiz,
+          questions: nextQuestions,
+        }
+      })
+
+      if (!didReplaceQuestion) {
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      setToast({ message: t('drafts.singleQuizQuestionGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      const toastPayload = resolveSingleQuizQuestionErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      setGeneratingSingleQuizQuestionQuizId(null)
+    }
+  }
+
   const saveDraft = async () => {
     const validationError = validateDraftForm(form)
     if (validationError) {
@@ -1441,6 +1728,7 @@ const MentorDraftFormPage: React.FC = () => {
                   activeLesson={activeLesson}
                   generatingTaskId={generatingTaskId}
                   generatingSingleQuizSkeleton={isGeneratingActiveSingleQuizSkeleton}
+                  generatingSingleQuizQuestionQuizId={generatingSingleQuizQuestionQuizId}
                   saving={saving}
                   onAssessmentTabChange={setAssessmentTab}
                   onAddTask={() => activeChapter ? addTask(activeChapter.id) : undefined}
@@ -1450,6 +1738,7 @@ const MentorDraftFormPage: React.FC = () => {
                   onAddQuiz={() => activeChapter && activeLesson ? addQuiz(activeChapter.id, activeLesson.id) : undefined}
                   onUpdateQuiz={(quizId, updater) => activeChapter && activeLesson ? updateQuiz(activeChapter.id, activeLesson.id, quizId, updater) : undefined}
                   onRemoveQuiz={(quizId) => activeChapter && activeLesson ? removeQuiz(activeChapter.id, activeLesson.id, quizId) : undefined}
+                  onGenerateSingleQuizQuestion={generateSingleQuizQuestionForQuiz}
                   onAddQuestion={(quizId) => activeChapter && activeLesson ? addQuestion(activeChapter.id, activeLesson.id, quizId) : undefined}
                   onUpdateQuestion={(quizId, questionId, updater) => activeChapter && activeLesson ? updateQuestion(activeChapter.id, activeLesson.id, quizId, questionId, updater) : undefined}
                   onRemoveQuestion={(quizId, questionId) => activeChapter && activeLesson ? removeQuestion(activeChapter.id, activeLesson.id, quizId, questionId) : undefined}

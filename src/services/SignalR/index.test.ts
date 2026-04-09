@@ -8,6 +8,7 @@ import {
   requestLessonQuizSkeleton,
   requestMentorLessonContent,
   requestResourceSummary,
+  requestSingleQuizQuestion,
   requestSingleQuizSkeleton,
   requestSingleTask,
 } from './index'
@@ -770,6 +771,134 @@ describe('SignalR Summary Hub Service', () => {
 
       const promise = requestSingleQuizSkeleton(lessonId)
       const expectation = expect(promise).rejects.toThrow('Single quiz skeleton generation timeout')
+      await vi.advanceTimersByTimeAsync(120000)
+
+      await expectation
+      vi.useRealTimers()
+    })
+  })
+
+  describe('requestSingleQuizQuestion', () => {
+    it('should invoke RequestSingleQuizQuestion and resolve with generated question payload', async () => {
+      const quizId = '12345678-1234-1234-1234-123456789012'
+      const questionType = 2
+      const payload = {
+        quizId,
+        question: {
+          questionId: 'question-1',
+          questionText: 'Generated question',
+          type: questionType,
+          options: ['A', 'B', 'C', 'D'],
+          correctAnswer: 'B',
+          points: 1,
+          orderIndex: 3,
+        },
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveSingleQuizQuestion') {
+          setTimeout(() => handler(payload), 10)
+        }
+      })
+
+      await expect(requestSingleQuizQuestion(quizId, questionType)).resolves.toEqual(payload)
+      expect(mockHubConnection.invoke).toHaveBeenCalledWith('RequestSingleQuizQuestion', quizId, questionType)
+    })
+
+    it('should call onLoading when SingleQuizQuestionLoading is received', async () => {
+      const quizId = '12345678-1234-1234-1234-123456789012'
+      const questionType = 1
+      const onLoading = vi.fn()
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleQuizQuestionLoading') {
+          setTimeout(() => handler({ quizId, questionType }), 5)
+        }
+        if (event === 'ReceiveSingleQuizQuestion') {
+          setTimeout(() => handler({ quizId, question: { questionId: 'question-1', questionText: 'Generated', type: questionType } }), 10)
+        }
+      })
+
+      await requestSingleQuizQuestion(quizId, questionType, onLoading)
+      expect(onLoading).toHaveBeenCalled()
+    })
+
+    it('should preserve error code from SingleQuizQuestionError payload', async () => {
+      const quizId = '12345678-1234-1234-1234-123456789012'
+      const questionType = 3
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleQuizQuestionError') {
+          setTimeout(() => handler({
+            quizId,
+            questionType,
+            errorCode: 'QUESTION_TYPE_MISMATCH',
+            errorMessage: 'AI generated a different question type than requested.',
+          }), 10)
+        }
+      })
+
+      await expect(requestSingleQuizQuestion(quizId, questionType)).rejects.toMatchObject({
+        message: 'AI generated a different question type than requested.',
+        code: 'QUESTION_TYPE_MISMATCH',
+      })
+    })
+
+    it('should ignore mismatched quiz events', async () => {
+      const quizId = '12345678-1234-1234-1234-123456789012'
+      const anotherQuizId = '87654321-1234-1234-1234-123456789012'
+      const questionType = 2
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'SingleQuizQuestionError') {
+          setTimeout(() => handler({ quizId: anotherQuizId, errorMessage: 'Should be ignored' }), 10)
+        }
+        if (event === 'ReceiveSingleQuizQuestion') {
+          setTimeout(() => handler({ quizId, question: { questionId: 'question-1', questionText: 'Generated', type: questionType } }), 20)
+        }
+      })
+
+      await expect(requestSingleQuizQuestion(quizId, questionType)).resolves.toEqual(
+        expect.objectContaining({ quizId }),
+      )
+    })
+
+    it('should prevent duplicate requests for the same quiz and question type', async () => {
+      const quizId = '12345678-1234-1234-1234-123456789012'
+      const questionType = 0
+      const payload = {
+        quizId,
+        question: { questionId: 'question-1', questionText: 'Generated question', type: questionType },
+      }
+
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+      mockHubConnection.state = 1
+      mockHubConnection.on.mockImplementation((event, handler) => {
+        if (event === 'ReceiveSingleQuizQuestion') {
+          setTimeout(() => handler(payload), 50)
+        }
+      })
+
+      const promise1 = requestSingleQuizQuestion(quizId, questionType)
+      const promise2 = requestSingleQuizQuestion(quizId, questionType)
+
+      const [result1, result2] = await Promise.all([promise1, promise2])
+      expect(result1).toEqual(result2)
+      expect(mockHubConnection.invoke).toHaveBeenCalledTimes(1)
+    })
+
+    it('should timeout when no single quiz question event is received', async () => {
+      vi.useFakeTimers()
+      const quizId = '12345678-1234-1234-1234-123456789012'
+      const questionType = 4
+      mockHubConnection.invoke.mockResolvedValue(undefined)
+
+      const promise = requestSingleQuizQuestion(quizId, questionType)
+      const expectation = expect(promise).rejects.toThrow('Single quiz question generation timeout')
       await vi.advanceTimersByTimeAsync(120000)
 
       await expectation

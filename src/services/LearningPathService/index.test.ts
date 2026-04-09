@@ -15,6 +15,7 @@ vi.mock('../SignalR', () => ({
   requestMentorLessonContent: vi.fn(),
   requestLessonQuizSkeleton: vi.fn(),
   requestSingleQuizSkeleton: vi.fn(),
+  requestSingleQuizQuestion: vi.fn(),
   requestSingleTask: vi.fn(),
   requestLearningPathSuggestions: vi.fn(),
 }))
@@ -26,6 +27,7 @@ import {
   generateMentorLessonContent,
   generateLessonQuizSkeleton,
   generateSingleQuizSkeleton,
+  generateSingleQuizQuestion,
   generateSingleTask,
   getLearningPathProgress,
   getLessonReadStatus,
@@ -37,6 +39,7 @@ import {
   requestLessonQuizSkeleton,
   requestMentorLessonContent,
   requestSingleQuizSkeleton,
+  requestSingleQuizQuestion,
   requestSingleTask,
 } from '../SignalR'
 
@@ -45,6 +48,7 @@ const mockedRequestChapterMentorSkeleton = vi.mocked(requestChapterMentorSkeleto
 const mockedRequestLessonQuizSkeleton = vi.mocked(requestLessonQuizSkeleton)
 const mockedRequestMentorLessonContent = vi.mocked(requestMentorLessonContent)
 const mockedRequestSingleQuizSkeleton = vi.mocked(requestSingleQuizSkeleton)
+const mockedRequestSingleQuizQuestion = vi.mocked(requestSingleQuizQuestion)
 const mockedRequestSingleTask = vi.mocked(requestSingleTask)
 
 describe('LearningPathService progress/read APIs', () => {
@@ -56,6 +60,7 @@ describe('LearningPathService progress/read APIs', () => {
     mockedRequestLessonQuizSkeleton.mockReset()
     mockedRequestMentorLessonContent.mockReset()
     mockedRequestSingleQuizSkeleton.mockReset()
+    mockedRequestSingleQuizQuestion.mockReset()
     mockedRequestSingleTask.mockReset()
   })
 
@@ -196,6 +201,27 @@ describe('LearningPathService progress/read APIs', () => {
 
     await expect(generateMentorLessonContent(lessonId, { onLoading })).resolves.toEqual(payload)
     expect(mockedRequestMentorLessonContent).toHaveBeenCalledWith(lessonId, onLoading)
+  })
+
+  it('delegates single quiz question generation to SignalR request', async () => {
+    const quizId = '12345678-1234-1234-1234-123456789012'
+    const questionType = 2
+    const onLoading = vi.fn()
+    const payload = {
+      quizId,
+      question: {
+        questionId: 'question-1',
+        questionText: 'Generated question',
+        type: questionType,
+        options: ['A', 'B', 'C', 'D'],
+        correctAnswer: 'A',
+        points: 1,
+      },
+    }
+    mockedRequestSingleQuizQuestion.mockResolvedValue(payload)
+
+    await expect(generateSingleQuizQuestion(quizId, questionType, { onLoading })).resolves.toEqual(payload)
+    expect(mockedRequestSingleQuizQuestion).toHaveBeenCalledWith(quizId, questionType, onLoading)
   })
 
   it('delegates chapter mentor skeleton generation to SignalR request', async () => {

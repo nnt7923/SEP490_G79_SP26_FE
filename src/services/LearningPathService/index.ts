@@ -20,6 +20,7 @@ import {
   requestMentorLessonContent,
   requestLessonQuizSkeleton,
   requestSingleQuizSkeleton,
+  requestSingleQuizQuestion,
   requestSingleTask,
   requestLearningPathSuggestions,
 } from '../SignalR'
@@ -569,6 +570,18 @@ export async function generateSingleQuizSkeleton(
   }
 }
 
+export async function generateSingleQuizQuestion(
+  quizId: string,
+  questionType: number,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestSingleQuizQuestion(quizId, questionType, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate single quiz question')
+  }
+}
+
 export async function generateMentorLessonContent(
   lessonId: string,
   options?: LessonQuizSkeletonOptions,
@@ -933,6 +946,7 @@ export default {
   generateMentorLessonContent,
   generateLessonQuizSkeleton,
   generateSingleQuizSkeleton,
+  generateSingleQuizQuestion,
   generateChapterSkeleton,
   generateChapterMentorSkeleton,
   generateSingleTask,

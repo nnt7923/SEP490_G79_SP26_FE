@@ -19,6 +19,7 @@ type Props = {
   activeLesson: EditableLesson | null
   generatingTaskId: string | null
   generatingSingleQuizSkeleton: boolean
+  generatingSingleQuizQuestionQuizId: string | null
   saving: boolean
   onAssessmentTabChange: (tab: AssessmentTab) => void
   onAddTask: () => void
@@ -26,6 +27,7 @@ type Props = {
   onRemoveTask: (taskId: string) => void
   onGenerateTask: (task: EditableTask) => void
   onGenerateSingleQuizSkeleton: () => void
+  onGenerateSingleQuizQuestion: (quiz: EditableQuiz, questionId: string, questionType: QuestionType) => void
   onAddQuiz: () => void
   onUpdateQuiz: (quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) => void
   onRemoveQuiz: (quizId: string) => void
@@ -149,6 +151,7 @@ const AssessmentsStep: React.FC<Props> = ({
   activeLesson,
   generatingTaskId,
   generatingSingleQuizSkeleton,
+  generatingSingleQuizQuestionQuizId,
   saving,
   onAssessmentTabChange,
   onAddTask,
@@ -156,6 +159,7 @@ const AssessmentsStep: React.FC<Props> = ({
   onRemoveTask,
   onGenerateTask,
   onGenerateSingleQuizSkeleton,
+  onGenerateSingleQuizQuestion,
   onAddQuiz,
   onUpdateQuiz,
   onRemoveQuiz,
@@ -166,6 +170,7 @@ const AssessmentsStep: React.FC<Props> = ({
   const { t } = useTranslation('mentor')
   const hasTaskGenerationInProgress = generatingTaskId != null
   const hasSingleQuizGenerationInProgress = generatingSingleQuizSkeleton
+  const hasSingleQuizQuestionGenerationInProgress = generatingSingleQuizQuestionQuizId != null
 
   if (!activeChapter) return <EmptyPanel message={t('drafts.noChapterSelected')} />
 
@@ -483,9 +488,11 @@ const AssessmentsStep: React.FC<Props> = ({
                       <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t('drafts.questions')}</div>
                       <div style={{ ...subtleTextStyle, marginTop: 4 }}>{t('drafts.questionsHint')}</div>
                     </div>
-                    <button type="button" style={getButtonStyle()} onClick={() => onAddQuestion(quiz.id)}>
-                      <Plus size={14} /> {t('drafts.addQuestion')}
-                    </button>
+                    <div style={actionRowStyle}>
+                      <button type="button" style={getButtonStyle()} onClick={() => onAddQuestion(quiz.id)}>
+                        <Plus size={14} /> {t('drafts.addQuestion')}
+                      </button>
+                    </div>
                   </div>
 
                   {quiz.questions.length === 0 ? (
@@ -532,6 +539,15 @@ const AssessmentsStep: React.FC<Props> = ({
                                   onChange={(event) => onUpdateQuestion(quiz.id, question.id, (item) => ({ ...item, points: event.target.value }))}
                                 />
                               </Field>
+                              <button
+                                type="button"
+                                style={getButtonStyle({ disabled: saving || hasSingleQuizQuestionGenerationInProgress })}
+                                onClick={() => onGenerateSingleQuizQuestion(quiz, question.id, question.type)}
+                                disabled={saving || hasSingleQuizQuestionGenerationInProgress}
+                              >
+                                {generatingSingleQuizQuestionQuizId === quiz.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+                                {generatingSingleQuizQuestionQuizId === quiz.id ? t('drafts.generatingSingleQuizQuestion') : t('drafts.generateSingleQuizQuestionByAi')}
+                              </button>
                             </div>
                           </div>
 

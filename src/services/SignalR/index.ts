@@ -53,6 +53,7 @@ const inflightChapterMentorSkeleton = new Map<string, Promise<any>>()
 const inflightMentorLessonContent = new Map<string, Promise<any>>()
 const inflightSingleTask = new Map<string, Promise<any>>()
 const inflightSingleQuizSkeleton = new Map<string, Promise<any>>()
+const inflightSingleQuizQuestion = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
 const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
 const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
@@ -653,6 +654,143 @@ export async function requestSingleQuizSkeleton(
   })()
 
   inflightSingleQuizSkeleton.set(lessonId, p)
+  return p
+}
+
+export async function requestSingleQuizQuestion(
+  quizId: string,
+  questionType: number,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(quizId)) {
+    return Promise.reject(new Error('quizId must be a valid GUID'))
+  }
+
+  const normalizedQuestionType = Number(questionType)
+  if (!Number.isFinite(normalizedQuestionType) || ![0, 1, 2, 3, 4, 5].includes(normalizedQuestionType)) {
+    return Promise.reject(new Error('questionType must be one of 0 (TrueFalse), 1 (MultipleChoice), 2 (SingleChoice), 3 (Matching), 4 (FillInTheBlank), or 5 (Ordering)'))
+  }
+
+  const key = `${quizId}:${normalizedQuestionType}`
+  if (inflightSingleQuizQuestion.has(key)) {
+    return inflightSingleQuizQuestion.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getQuizHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+
+      const toNumber = (value: unknown): number | null => {
+        const numeric = Number(value)
+        return Number.isFinite(numeric) ? numeric : null
+      }
+
+      const isMatchingQuizPayload = (payload: any): boolean => {
+        const payloadQuizId = getPayloadCorrelationId(payload, ['quizId', 'QuizId'])
+        return !!payloadQuizId && payloadQuizId === quizId
+      }
+
+      const isMatchingLoadingPayload = (payload: any): boolean => {
+        if (!isMatchingQuizPayload(payload)) return false
+        const payloadQuestionType = toNumber(payload?.questionType ?? payload?.QuestionType)
+        if (payloadQuestionType != null && payloadQuestionType !== normalizedQuestionType) return false
+        return true
+      }
+
+      const isMatchingSuccessPayload = (payload: any): boolean => {
+        if (!isMatchingQuizPayload(payload)) return false
+
+        const payloadQuestionType = toNumber(
+          payload?.questionType
+          ?? payload?.QuestionType
+          ?? payload?.question?.type
+          ?? payload?.question?.Type
+          ?? payload?.Question?.type
+          ?? payload?.Question?.Type,
+        )
+        if (payloadQuestionType != null && payloadQuestionType !== normalizedQuestionType) return false
+        return true
+      }
+
+      const isMatchingErrorPayload = (payload: any): boolean => {
+        if (!isMatchingQuizPayload(payload)) return false
+
+        const payloadQuestionType = toNumber(payload?.questionType ?? payload?.QuestionType)
+        if (payloadQuestionType != null && payloadQuestionType !== normalizedQuestionType) return false
+        return true
+      }
+
+      const buildSingleQuizQuestionError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        hub.off('SingleQuizQuestionLoading', handleLoading)
+        hub.off('ReceiveSingleQuizQuestion', handleSuccess)
+        hub.off('SingleQuizQuestionError', handleError)
+        inflightSingleQuizQuestion.delete(key)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLoadingPayload(payload)) return
+        onLoading?.()
+      }
+
+      const handleSuccess = (payload: any) => {
+        if (!isMatchingSuccessPayload(payload)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingErrorPayload(err)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildSingleQuizQuestionError(err, 'Failed to generate single quiz question'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Single quiz question generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleSuccessWrap = (payload: any) => { clearTo(); handleSuccess(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('SingleQuizQuestionLoading', handleLoading)
+      hub.on('ReceiveSingleQuizQuestion', handleSuccessWrap)
+      hub.on('SingleQuizQuestionError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestSingleQuizQuestion', quizId, normalizedQuestionType).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightSingleQuizQuestion.set(key, p)
   return p
 }
 
@@ -2530,6 +2668,7 @@ export async function disconnectHubs(): Promise<void> {
     inflightMentorLessonContent.clear()
     inflightSingleTask.clear()
     inflightSingleQuizSkeleton.clear()
+    inflightSingleQuizQuestion.clear()
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()
