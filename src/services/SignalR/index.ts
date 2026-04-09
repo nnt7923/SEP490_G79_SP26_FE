@@ -1869,6 +1869,7 @@ export type TutorMessagesPageResponse = {
   totalPages: number
   hasPreviousPage: boolean
   hasNextPage: boolean
+  contextUsagePercent?: number
 }
 
 export type TutorSummaryHistoryItem = {
@@ -1901,24 +1902,27 @@ export type TutorChatResponse = {
 }
 
 function normalizeTutorMessagesPagePayload(payload: any): TutorMessagesPageResponse {
-  const items = Array.isArray(payload?.items)
-    ? payload.items
-    : Array.isArray(payload?.Items)
-      ? payload.Items
+  const source = payload?.data ?? payload
+  const items = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(source?.Items)
+      ? source.Items
       : []
 
-  const pageSize = Number(payload?.pageSize ?? payload?.PageSize ?? items.length ?? 0)
-  const totalCount = Number(payload?.totalCount ?? payload?.TotalCount ?? items.length ?? 0)
-  const totalPages = Number(payload?.totalPages ?? payload?.TotalPages ?? (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1))
+  const pageSize = Number(source?.pageSize ?? source?.PageSize ?? items.length ?? 0)
+  const totalCount = Number(source?.totalCount ?? source?.TotalCount ?? items.length ?? 0)
+  const totalPages = Number(source?.totalPages ?? source?.TotalPages ?? (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1))
+  const contextUsagePercent = Number(source?.contextUsagePercent ?? source?.ContextUsagePercent)
 
   return {
     items,
-    pageNumber: Number(payload?.pageNumber ?? payload?.PageNumber ?? 1),
+    pageNumber: Number(source?.pageNumber ?? source?.PageNumber ?? 1),
     pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 1,
     totalCount: Number.isFinite(totalCount) && totalCount >= 0 ? totalCount : items.length,
     totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 1,
-    hasPreviousPage: Boolean(payload?.hasPreviousPage ?? payload?.HasPreviousPage),
-    hasNextPage: Boolean(payload?.hasNextPage ?? payload?.HasNextPage),
+    hasPreviousPage: Boolean(source?.hasPreviousPage ?? source?.HasPreviousPage),
+    hasNextPage: Boolean(source?.hasNextPage ?? source?.HasNextPage),
+    ...(Number.isFinite(contextUsagePercent) ? { contextUsagePercent } : {}),
   }
 }
 
@@ -2132,6 +2136,8 @@ export async function requestTutorMessages(
           const payloadConversationId = String(
             data?.conversationId
             ?? data?.ConversationId
+            ?? data?.data?.conversationId
+            ?? data?.data?.ConversationId
             ?? normalized.items?.[0]?.conversationId
             ?? ''
           )

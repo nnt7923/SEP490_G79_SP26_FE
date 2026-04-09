@@ -12,6 +12,87 @@ const AccessTier = {
 } as const
 
 type AccessTier = typeof AccessTier[keyof typeof AccessTier]
+type ConfigEditorMode = 'builder' | 'json'
+type ConfigFieldType = 'string' | 'number' | 'boolean' | 'null' | 'json'
+
+type ConfigField = {
+  id: string
+  path: string
+  type: ConfigFieldType
+  value: string
+}
+
+const createConfigField = (): ConfigField => ({
+  id: `${Date.now()}-${Math.random()}`,
+  path: '',
+  type: 'string',
+  value: '',
+})
+
+const normalizePathSegments = (path: string): string[] => {
+  return path
+    .split('.')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+const setValueAtPath = (target: Record<string, any>, path: string, value: any) => {
+  const segments = normalizePathSegments(path)
+  if (segments.length === 0) return
+
+  let current: Record<string, any> = target
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const key = segments[i]
+    if (!current[key] || typeof current[key] !== 'object' || Array.isArray(current[key])) {
+      current[key] = {}
+    }
+    current = current[key]
+  }
+
+  current[segments[segments.length - 1]] = value
+}
+
+const flattenConfigObject = (obj: Record<string, any>, prefix = ''): ConfigField[] => {
+  const fields: ConfigField[] = []
+
+  Object.entries(obj || {}).forEach(([key, value]) => {
+    const path = prefix ? `${prefix}.${key}` : key
+
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      const nested = flattenConfigObject(value, path)
+      if (nested.length > 0) {
+        fields.push(...nested)
+      } else {
+        fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'json', value: '{}' })
+      }
+      return
+    }
+
+    if (typeof value === 'number') {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'number', value: String(value) })
+      return
+    }
+
+    if (typeof value === 'boolean') {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'boolean', value: value ? 'true' : 'false' })
+      return
+    }
+
+    if (value === null) {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'null', value: '' })
+      return
+    }
+
+    if (Array.isArray(value)) {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'json', value: JSON.stringify(value) })
+      return
+    }
+
+    fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'string', value: String(value) })
+  })
+
+  return fields
+}
 
 const AdminApiKeyPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
@@ -42,7 +123,9 @@ const AdminApiKeyPage: React.FC = () => {
   const [isActive, setIsActive] = useState<boolean>(true)
   const [aiUsageType, setAiUsageType] = useState<AIUsageType>(AIUsageType.StructureGeneration)
   const [accessTier, setAccessTier] = useState<AccessTier>(AccessTier.Free)
-  const [additionalProps, setAdditionalProps] = useState<Array<{ key: string; value: string }>>([])
+  const [configEditorMode, setConfigEditorMode] = useState<ConfigEditorMode>('builder')
+  const [configFields, setConfigFields] = useState<ConfigField[]>([])
+  const [configJsonText, setConfigJsonText] = useState<string>('{}')
   
   // Map string usageType from backend to enum
   const mapUsageTypeToEnum = (usageType: any): AIUsageType => {
@@ -128,7 +211,9 @@ const AdminApiKeyPage: React.FC = () => {
     setIsActive(true)
     setAiUsageType(AIUsageType.StructureGeneration)
     setAccessTier(AccessTier.Free)
-    setAdditionalProps([])
+    setConfigEditorMode('builder')
+    setConfigFields([])
+    setConfigJsonText('{}')
     setIsEditMode(false)
   }
 
@@ -151,18 +236,121 @@ const AdminApiKeyPage: React.FC = () => {
     fetchList()
   }, [])
 
-  const addAdditionalProp = () => {
-    setAdditionalProps([...additionalProps, { key: '', value: '' }])
+  const addConfigField = () => {
+    setConfigFields((prev) => [...prev, createConfigField()])
   }
 
-  const removeAdditionalProp = (index: number) => {
-    setAdditionalProps(additionalProps.filter((_, i) => i !== index))
+  const removeConfigField = (id: string) => {
+    setConfigFields((prev) => prev.filter((f) => f.id !== id))
   }
 
-  const updateAdditionalProp = (index: number, field: 'key' | 'value', val: string) => {
-    const updated = [...additionalProps]
-    updated[index][field] = val
-    setAdditionalProps(updated)
+  const updateConfigField = (id: string, patch: Partial<ConfigField>) => {
+    setConfigFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
+  }
+
+  const applyStarterTemplate = () => {
+    const starter = {
+      model: 'mistral-small-latest',
+      contextWindow: 200000,
+      chatPolicy: {
+        runtimeContextBudget: 24000,
+        reservedOutputRatio: 0.08,
+      },
+    }
+    setConfigJsonText(JSON.stringify(starter, null, 2))
+    setConfigFields(flattenConfigObject(starter))
+  }
+
+  const parseJsonTextToObject = (rawText: string): Record<string, any> => {
+    const raw = rawText.trim()
+    if (!raw) return {}
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new Error(t('apiKey.invalidJsonMessage', 'config_json must be valid JSON'))
+    }
+
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+      throw new Error(t('apiKey.invalidJsonObjectMessage', 'config_json must be a JSON object'))
+    }
+
+    return parsed as Record<string, any>
+  }
+
+  const parseBuilderValue = (field: ConfigField): any => {
+    if (field.type === 'number') {
+      const numeric = Number(field.value)
+      if (!Number.isFinite(numeric)) {
+        throw new Error(t('apiKey.invalidNumberMessage', 'Invalid number value in config_json builder'))
+      }
+      return numeric
+    }
+
+    if (field.type === 'boolean') {
+      if (field.value === 'true') return true
+      if (field.value === 'false') return false
+      throw new Error(t('apiKey.invalidBooleanMessage', 'Boolean value must be true or false'))
+    }
+
+    if (field.type === 'null') {
+      return null
+    }
+
+    if (field.type === 'json') {
+      const valueText = field.value.trim()
+      if (!valueText) return {}
+      try {
+        return JSON.parse(valueText)
+      } catch {
+        throw new Error(t('apiKey.invalidNestedJsonMessage', 'Invalid nested JSON value in config_json builder'))
+      }
+    }
+
+    return field.value
+  }
+
+  const buildConfigJsonFromFields = (): Record<string, any> => {
+    const result: Record<string, any> = {}
+
+    configFields.forEach((field) => {
+      if (!field.path.trim()) return
+      const value = parseBuilderValue(field)
+      setValueAtPath(result, field.path.trim(), value)
+    })
+
+    return result
+  }
+
+  const getConfigJsonFromEditor = (): Record<string, any> => {
+    if (configEditorMode === 'json') {
+      return parseJsonTextToObject(configJsonText)
+    }
+    return buildConfigJsonFromFields()
+  }
+
+  const switchEditorMode = (mode: ConfigEditorMode) => {
+    if (mode === configEditorMode) return
+
+    if (mode === 'json') {
+      try {
+        const built = buildConfigJsonFromFields()
+        setConfigJsonText(JSON.stringify(built, null, 2))
+      } catch {
+        // Keep existing JSON text when builder contains temporary invalid values.
+      }
+      setConfigEditorMode('json')
+      return
+    }
+
+    try {
+      const parsed = parseJsonTextToObject(configJsonText)
+      setConfigFields(flattenConfigObject(parsed))
+    } catch {
+      setConfigFields([])
+    }
+    setConfigEditorMode('builder')
   }
 
   const onSave = async (e: React.FormEvent) => {
@@ -171,22 +359,7 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
-      // Convert additionalProps array to configJson object with proper types
-      const configJson: Record<string, any> = {}
-      additionalProps.forEach(prop => {
-        if (prop.key && prop.value) {
-          // Try to parse numbers
-          if (!isNaN(Number(prop.value)) && prop.value.trim() !== '') {
-            configJson[prop.key] = Number(prop.value)
-          } else if (prop.value.toLowerCase() === 'true') {
-            configJson[prop.key] = true
-          } else if (prop.value.toLowerCase() === 'false') {
-            configJson[prop.key] = false
-          } else {
-            configJson[prop.key] = prop.value
-          }
-        }
-      })
+      const configJson = getConfigJsonFromEditor()
       
       // Map aiUsageType enum to string for backend
       const getUsageTypeString = (type: AIUsageType): string => {
@@ -236,14 +409,12 @@ const AdminApiKeyPage: React.FC = () => {
     
     // Convert additionalProps or configJson to additionalProps
     const props = it.additionalProps ?? (it.configJson ?? it.GroqSettings ?? {})
-    if (Array.isArray(props)) {
-      setAdditionalProps(props)
+    if (props && typeof props === 'object' && !Array.isArray(props)) {
+      setConfigJsonText(JSON.stringify(props, null, 2))
+      setConfigFields(flattenConfigObject(props as Record<string, any>))
     } else {
-      const propsArray = Object.entries(props).map(([key, value]) => ({
-        key,
-        value: String(value)
-      }))
-      setAdditionalProps(propsArray)
+      setConfigJsonText('{}')
+      setConfigFields([])
     }
     
     const active = typeof it.isActive === 'boolean' ? it.isActive : true
@@ -262,22 +433,7 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
-      // Convert additionalProps array to configJson object with proper types
-      const configJson: Record<string, any> = {}
-      additionalProps.forEach(prop => {
-        if (prop.key && prop.value) {
-          // Try to parse numbers
-          if (!isNaN(Number(prop.value)) && prop.value.trim() !== '') {
-            configJson[prop.key] = Number(prop.value)
-          } else if (prop.value.toLowerCase() === 'true') {
-            configJson[prop.key] = true
-          } else if (prop.value.toLowerCase() === 'false') {
-            configJson[prop.key] = false
-          } else {
-            configJson[prop.key] = prop.value
-          }
-        }
-      })
+      const configJson = getConfigJsonFromEditor()
       
       // Map aiUsageType enum to string for backend
       const getUsageTypeString = (type: AIUsageType): string => {
@@ -454,53 +610,132 @@ const AdminApiKeyPage: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <label className="block text-sm font-bold text-body">{t('apiKey.additionalProps')}</label>
-                  <button
-                    type="button"
-                    onClick={addAdditionalProp}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
-                  >
-                    <Plus size={16} /> {t('apiKey.addProp')}
-                  </button>
+                  <label className="block text-sm font-bold text-body">{t('apiKey.configJsonLabel')}</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={applyStarterTemplate}
+                      className="px-3 py-1.5 text-xs font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
+                    >
+                      {t('apiKey.useTemplate', 'Use template')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchEditorMode('builder')}
+                      className={`px-3 py-1.5 text-xs font-bold border rounded-sm transition-colors ${configEditorMode === 'builder' ? 'border-blue-600 text-status-blue bg-status-blue-bg' : 'border-bd-strong text-body hover:bg-th-input'}`}
+                    >
+                      {t('apiKey.builderMode', 'Builder')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchEditorMode('json')}
+                      className={`px-3 py-1.5 text-xs font-bold border rounded-sm transition-colors ${configEditorMode === 'json' ? 'border-blue-600 text-status-blue bg-status-blue-bg' : 'border-bd-strong text-body hover:bg-th-input'}`}
+                    >
+                      {t('apiKey.jsonMode', 'JSON')}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-3 bg-th-page border border-bd-strong p-4">
-                  {additionalProps.length === 0 ? (
-                    <p className="text-sm text-muted font-bold">{t('apiKey.noProperties')}</p>
-                  ) : (
-                    additionalProps.map((prop, idx) => (
-                      <div key={idx} className="flex gap-3 items-end bg-th-card p-3 border border-bd">
-                        <div className="flex-1">
-                          <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.key')}</label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                            placeholder={t('apiKey.additionalPropKeyPlaceholder')}
-                            value={prop.key}
-                            onChange={(e) => updateAdditionalProp(idx, 'key', e.target.value)}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.value')}</label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                            placeholder={t('apiKey.additionalPropValuePlaceholder')}
-                            value={prop.value}
-                            onChange={(e) => updateAdditionalProp(idx, 'value', e.target.value)}
-                          />
-                        </div>
+                  {configEditorMode === 'builder' ? (
+                    <>
+                      <div className="space-y-3">
+                        {configFields.length === 0 ? (
+                          <p className="text-sm text-muted font-bold">{t('apiKey.noBuilderRows', 'No config rows yet. Click Add row.')}</p>
+                        ) : (
+                          configFields.map((field) => (
+                            <div key={field.id} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end bg-th-card p-3 border border-bd">
+                              <div className="lg:col-span-5">
+                                <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.pathLabel', 'Path')}</label>
+                                <input
+                                  type="text"
+                                  className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
+                                  placeholder={t('apiKey.pathPlaceholder', 'e.g. chatPolicy.runtimeContextBudget')}
+                                  value={field.path}
+                                  onChange={(e) => updateConfigField(field.id, { path: e.target.value })}
+                                />
+                              </div>
+                              <div className="lg:col-span-3">
+                                <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.typeLabel', 'Type')}</label>
+                                <select
+                                  className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors bg-th-card font-mono"
+                                  value={field.type}
+                                  onChange={(e) => updateConfigField(field.id, { type: e.target.value as ConfigFieldType, value: e.target.value === 'boolean' ? 'false' : (e.target.value === 'null' ? '' : field.value) })}
+                                >
+                                  <option value="string">string</option>
+                                  <option value="number">number</option>
+                                  <option value="boolean">boolean</option>
+                                  <option value="null">null</option>
+                                  <option value="json">json</option>
+                                </select>
+                              </div>
+                              <div className="lg:col-span-3">
+                                <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.value')}</label>
+                                {field.type === 'boolean' ? (
+                                  <select
+                                    className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors bg-th-card font-mono"
+                                    value={field.value || 'false'}
+                                    onChange={(e) => updateConfigField(field.id, { value: e.target.value })}
+                                  >
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                  </select>
+                                ) : field.type === 'null' ? (
+                                  <input
+                                    type="text"
+                                    disabled
+                                    className="w-full px-3 py-2 border border-bd text-sm bg-th-input text-muted font-mono"
+                                    value="null"
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
+                                    placeholder={field.type === 'json' ? '{...} or [...]' : t('apiKey.value')}
+                                    value={field.value}
+                                    onChange={(e) => updateConfigField(field.id, { value: e.target.value })}
+                                  />
+                                )}
+                              </div>
+                              <div className="lg:col-span-1">
+                                <button
+                                  type="button"
+                                  onClick={() => removeConfigField(field.id)}
+                                  className="w-full px-2 py-2 border border-red-500 text-status-red hover:bg-status-red-bg transition-colors font-bold text-sm"
+                                  title={t('apiKey.removeProperty')}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div>
                         <button
                           type="button"
-                          onClick={() => removeAdditionalProp(idx)}
-                          className="px-3 py-2 border border-red-500 text-status-red hover:bg-status-red-bg transition-colors font-bold text-sm"
-                          title={t('apiKey.removeProperty')}
+                          onClick={addConfigField}
+                          className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
                         >
-                          <Trash2 size={16} />
+                          <Plus size={16} /> {t('apiKey.addRow', 'Add row')}
                         </button>
                       </div>
-                    ))
+                    </>
+                  ) : (
+                    <textarea
+                      className="w-full min-h-[220px] px-4 py-3 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm leading-6"
+                      value={configJsonText}
+                      onChange={(e) => setConfigJsonText(e.target.value)}
+                      spellCheck={false}
+                      placeholder={t(
+                        'apiKey.configJsonPlaceholder',
+                        '{\n  "model": "mistral-small-latest",\n  "contextWindow": 200000,\n  "chatPolicy": {\n    "runtimeContextBudget": 24000,\n    "reservedOutputRatio": 0.08\n  }\n}'
+                      )}
+                    />
                   )}
+                  <p className="text-xs text-muted">
+                    {t('apiKey.configJsonHint', 'Supports nested JSON objects. Numbers and booleans are preserved as JSON types.')}
+                  </p>
                 </div>
               </div>
 
@@ -665,14 +900,9 @@ const AdminApiKeyPage: React.FC = () => {
                                           {Object.keys(cj).length > 0 && (
                                             <div>
                                               <div className="text-xs font-bold text-muted uppercase mb-1">{t('apiKey.configJsonLabel')}</div>
-                                              <div className="grid grid-cols-2 gap-2">
-                                                {Object.entries(cj).map(([key, value]) => (
-                                                  <div key={key} className="bg-th-page px-3 py-2 border border-bd">
-                                                    <div className="text-xs font-bold text-muted mb-0.5">{key}:</div>
-                                                    <div className="text-sm font-bold text-heading truncate">{String(value)}</div>
-                                                  </div>
-                                                ))}
-                                              </div>
+                                              <pre className="bg-th-page px-3 py-3 border border-bd text-xs leading-6 text-heading overflow-x-auto whitespace-pre-wrap break-words">
+{JSON.stringify(cj, null, 2)}
+                                              </pre>
                                             </div>
                                           )}
                                         </div>
