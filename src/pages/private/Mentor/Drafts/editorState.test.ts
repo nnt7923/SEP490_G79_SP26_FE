@@ -291,6 +291,8 @@ describe('editorState hydrate/build payload', () => {
       ],
     })
 
+    form.chapters[0].lessons[0].sections.overview = 'Intro'
+
     const payload = buildPayload(form)
 
   expect(payload.versionNumber).toBe(5)
@@ -305,11 +307,56 @@ describe('editorState hydrate/build payload', () => {
     expect(payload.chapters[0].lessons[0].quizzes?.[0]).toMatchObject({
       dueDate: '2026-04-03T00:00:00.000Z',
     })
+    expect(payload.chapters[0].lessons[0].content).toContain('Intro')
     expect(payload.chapters[0].lessons[0].quizzes?.[0].questions).toHaveLength(6)
     expect(payload.chapters[0].lessons[0].quizzes?.[0].questions?.[0]).toMatchObject({
       type: 0,
       correctAnswer: 'False',
     })
+  })
+
+  it('sets lesson content to null when all lesson sections are empty', () => {
+    const payload = buildPayload({
+      subjectId: 'subject-1',
+      goals: [{ goalId: 'goal-1', weight: 100 }],
+      complexityLevel: 'Beginner',
+      languageSelection: 1,
+      title: 'Draft',
+      description: '',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      chapters: [
+        {
+          id: 'chapter-local',
+          persistedId: null,
+          title: 'Chapter',
+          content: '',
+          startDate: '',
+          endDate: '',
+          estimatedDays: '',
+          tasks: [],
+          lessons: [
+            {
+              id: 'lesson-local',
+              persistedId: null,
+              title: 'Lesson',
+              lessonDay: '',
+              sections: {
+                overview: '',
+                'core-concepts': '',
+                'code-examples': '',
+                'common-mistakes': '',
+                'best-practices': '',
+                summary: '',
+              },
+              quizzes: [],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(payload.chapters[0].lessons[0].content).toBeNull()
   })
 
   it('falls back lessonDay to chapter start date when lesson day is missing', () => {

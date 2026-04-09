@@ -969,6 +969,12 @@ const serializeQuestion = (question: EditableQuestion) => {
   }
 }
 
+const serializeLessonContent = (sections: Record<LessonSectionKey, string>): string | null => {
+  const hasManualContent = Object.values(sections).some((section) => section.trim().length > 0)
+  if (!hasManualContent) return null
+  return buildLessonContentFromSections(sections)
+}
+
 export const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
   ...(Number.isFinite(Number(form.versionNumber)) && Number(form.versionNumber) > 0
     ? { versionNumber: Number(form.versionNumber) }
@@ -1001,7 +1007,7 @@ export const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
         lessonId: lesson.persistedId ?? undefined,
         title: lesson.title.trim(),
         lessonDay: toIsoDate(lesson.lessonDay) ?? chapterStartDate ?? buildTodayIsoDate(),
-        content: buildLessonContentFromSections(lesson.sections),
+        content: serializeLessonContent(lesson.sections),
         quizzes: lesson.quizzes.map((quiz) => ({
           id: quiz.persistedId ?? undefined,
           quizId: quiz.persistedId ?? undefined,
