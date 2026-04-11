@@ -7,6 +7,7 @@ import Footer from '../../../components/Layout/Footer'
 import { getMyGoals } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
+import { getGoalTitle } from '../../../utils/goalTranslation'
 import { FileText, Target, BookOpen, GraduationCap, AlertTriangle, ArrowRight } from 'lucide-react'
 import useAppNotificationStore from '../../../store/useAppNotificationStore'
 import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
@@ -337,7 +338,7 @@ const StudentOverview: React.FC = () => {
                       {recentGoals.map((goal, idx) => (
                         <button key={goal.id || idx} type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ padding: 12, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.2s', width: '100%' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{goal.title || goal.name || t('overview.recentGoals.untitled')}</h3>
+                            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{getGoalTitle(t, goal.goalId || goal.id, goal.title || goal.name) || t('overview.recentGoals.untitled')}</h3>
                             <span style={{ fontSize: 11, padding: '2px 8px', border: '1px solid var(--border-base)', borderRadius: 2, color: goal.status === 'Completed' ? 'var(--success-primary)' : 'var(--text-secondary)', flexShrink: 0, marginLeft: 8 }}>
                               {goal.status === 'Completed' ? tc('status.done') : tc('status.active')}
                             </span>

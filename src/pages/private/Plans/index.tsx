@@ -14,6 +14,7 @@ import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
 import { useTranslation } from 'react-i18next'
+import { getGoalTitle } from '../../../utils/goalTranslation'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -1129,7 +1130,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     ? subjectGoals
       .map((g: any) => ({
         key: g?.id ?? g?.goalId ?? g?.key,
-        label: g?.title ?? g?.name ?? g?.label ?? 'Goal',
+        label: getGoalTitle(t, String(g?.id ?? g?.goalId ?? g?.key), g?.title ?? g?.name ?? g?.label ?? 'Goal'),
       }))
       .filter((it) => !!it.key)
     : []
@@ -1598,7 +1599,8 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                               ) : currentPageMyGoals.length > 0 ? (
                                 currentPageMyGoals.map((g: any) => {
                                   const id = g?.id ?? g?.goalId ?? g?.key
-                                  const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                                  const rawTitle = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                                  const title = getGoalTitle(t, String(id), rawTitle)
                                   const isSelected = selectedGoals.includes(String(id))
                                   const isDisabled = !isSelected && selectedGoals.length >= 2
 
@@ -1714,7 +1716,8 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                         ) : currentPageSystemGoals.length > 0 ? (
                           currentPageSystemGoals.map((g: any, idx: number) => {
                             const id = g?.id ?? g?.goalId ?? g?.key
-                            const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                            const rawTitle = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                            const title = getGoalTitle(t, String(id), rawTitle)
                             const globalIndex = systemStartIndex + idx
                             return (
                               <SingleGoalCard
@@ -2799,7 +2802,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                           color: 'var(--text-primary)'
                                         }}
                                       >
-                                        {goal.title} ({goal.weight}% • {goal.durationInDays} days)
+                                        {getGoalTitle(t, goal.goalId || goal.id, goal.title)} ({goal.weight}% • {goal.durationInDays} days)
                                       </div>
                                     ))}
                                   </div>

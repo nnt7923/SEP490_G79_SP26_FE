@@ -1,6 +1,7 @@
 import React from 'react'
 import { ChevronDown, Loader2, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { getGoalTitle } from '../../../../../utils/goalTranslation'
 import { LanguageSelection } from '../../../../../services'
 import type { DraftFormState, Level, SubjectOption } from '../editorTypes'
 import { Field, SectionCard, cardStyle, getButtonStyle, inputStyle, subtleTextStyle, textAreaStyle } from './editorUi'
@@ -205,7 +206,7 @@ const OverviewStep: React.FC<Props> = ({
                   }}
                 >
                   <input type="checkbox" checked={selected} onChange={() => onToggleGoal(goal.goalId)} />
-                  <span style={{ color: 'var(--text-primary)', flex: 1, fontWeight: 600 }}>{goal.title}</span>
+                  <span style={{ color: 'var(--text-primary)', flex: 1, fontWeight: 600 }}>{getGoalTitle(t, goal.goalId, goal.title)}</span>
                 </label>
               )
             })}
@@ -224,11 +225,11 @@ const OverviewStep: React.FC<Props> = ({
                     }}
                   >
                     <div style={{ padding: '10px 12px', background: 'var(--bg-blue-hover)', color: 'var(--text-primary)', fontWeight: 600 }}>
-                      <div>{selectedSubject.goals.find((goal) => goal.goalId === form.goals[0].goalId)?.title}</div>
+                      <div>{(() => { const g = selectedSubject.goals.find((goal) => goal.goalId === form.goals[0].goalId); return g ? getGoalTitle(t, g.goalId, g.title) : '' })()}</div>
                       <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-secondary)' }}>{form.goals[0].weight}%</div>
                     </div>
                     <div style={{ padding: '10px 12px', background: 'var(--bg-main)', color: 'var(--text-primary)', fontWeight: 600, textAlign: 'right' }}>
-                      <div>{selectedSubject.goals.find((goal) => goal.goalId === form.goals[1].goalId)?.title}</div>
+                      <div>{(() => { const g = selectedSubject.goals.find((goal) => goal.goalId === form.goals[1].goalId); return g ? getGoalTitle(t, g.goalId, g.title) : '' })()}</div>
                       <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-secondary)' }}>{form.goals[1].weight}%</div>
                     </div>
                   </div>

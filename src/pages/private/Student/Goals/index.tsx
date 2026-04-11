@@ -4,6 +4,7 @@ import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService, SubjectService } from '../../../../services'
 import { useTranslation } from 'react-i18next'
+import { getGoalTitle } from '../../../../utils/goalTranslation'
 
 type GoalDuration = 'OneWeek' | 'TwoWeeks' | 'OneMonth' | 'TwoMonths' | 'ThreeMonths' | 'SixMonths'
 
@@ -395,7 +396,7 @@ const GoalsPage: React.FC = () => {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{goal.title || t('goals.untitled')}</h3>
+                          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{getGoalTitle(t, goal.goalId || goal.id, goal.title) || t('goals.untitled')}</h3>
                           <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.description || t('goals.noDescription')}</p>
                           <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)' }}>
                             <span>{t('goals.days', { count: getGoalDurationDays(goal) })}</span>
@@ -415,7 +416,7 @@ const GoalsPage: React.FC = () => {
           <div>
             {selectedGoal ? (
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 20, position: 'sticky', top: 24 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>{selectedGoal.title || t('goals.goalDetails')}</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>{getGoalTitle(t, selectedGoal.goalId || selectedGoal.id, selectedGoal.title) || t('goals.goalDetails')}</h2>
 
                 <div style={{ marginBottom: 16 }}>
                   <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{t('goals.description')}</h3>

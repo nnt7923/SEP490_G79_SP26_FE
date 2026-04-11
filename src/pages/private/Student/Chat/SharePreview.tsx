@@ -17,6 +17,7 @@ import { clearUserLearningPathsCache } from '../../../../services/LearningPathSe
 import useChatStore from '../../../../store/useChatStore'
 import useAuthStore from '../../../../store/useAuthStore'
 import { useTranslation } from 'react-i18next'
+import { getGoalTitle } from '../../../../utils/goalTranslation'
 import type {
   LearningPathSharePreviewDto,
   ShareStatus,
@@ -323,7 +324,7 @@ const SharePreviewPage: React.FC = () => {
                 {preview.learningPath.goals.map((goal) => (
                   <div key={goal.goalId} style={{ padding: 12, border: '1px solid var(--border-base)', borderRadius: 4, background: 'var(--bg-main)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                      <strong style={{ color: 'var(--text-primary)' }}>{goal.title}</strong>
+                      <strong style={{ color: 'var(--text-primary)' }}>{getGoalTitle(t, goal.goalId, goal.title)}</strong>
                       <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{goal.weight}%</span>
                     </div>
                   </div>
