@@ -1,0 +1,213 @@
+/* ── RichMarkdownEditor ── */
+.rme-wrap {
+  border: 1px solid var(--border-base);
+  border-radius: 2px;
+  background: var(--bg-main);
+  transition: border-color 0.2s ease;
+}
+.rme-wrap:focus-within {
+  border-color: var(--accent-primary);
+}
+
+/* ── Toolbar ── */
+.rme-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-base);
+  background: var(--bg-surface);
+}
+.rme-toolbar-group {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.rme-toolbar-group + .rme-toolbar-group::before {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border-base);
+  flex-shrink: 0;
+}
+.rme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+.rme-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: var(--text-primary);
+}
+.rme-btn.is-active {
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  color: var(--accent-primary);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+.rme-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.rme-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+
+/* ── Editor content area ── */
+.rme-editor {
+  display: flex;
+  flex-direction: column;
+}
+.rme-editor > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.rme-editor .tiptap {
+  flex: 1;
+  padding: 12px 14px;
+  min-height: 140px;
+  max-height: 420px;
+  overflow-y: auto;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+.rme-editor .tiptap.is-large {
+  min-height: 200px;
+}
+
+/* Placeholder */
+.rme-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-secondary);
+  opacity: 0.55;
+  pointer-events: none;
+  height: 0;
+}
+
+/* ── Prose styles inside editor ── */
+.rme-editor .tiptap > * + * {
+  margin-top: 0.6em;
+}
+
+.rme-editor .tiptap p {
+  margin: 0;
+}
+
+.rme-editor .tiptap h3 {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.rme-editor .tiptap h4 {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.rme-editor .tiptap strong {
+  font-weight: 700;
+}
+
+.rme-editor .tiptap em {
+  font-style: italic;
+}
+
+.rme-editor .tiptap s {
+  text-decoration: line-through;
+}
+
+.rme-editor .tiptap ul,
+.rme-editor .tiptap ol {
+  padding-left: 1.4em;
+  margin: 0;
+}
+.rme-editor .tiptap ul {
+  list-style: disc;
+}
+.rme-editor .tiptap ol {
+  list-style: decimal;
+}
+.rme-editor .tiptap li {
+  margin: 2px 0;
+}
+.rme-editor .tiptap li p {
+  margin: 0;
+}
+
+.rme-editor .tiptap blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--accent-primary);
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0;
+}
+
+.rme-editor .tiptap code {
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-surface));
+  border: 1px solid var(--border-base);
+  border-radius: 2px;
+  padding: 1px 4px;
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.88em;
+}
+
+.rme-editor .tiptap pre {
+  background: var(--code-block-bg, #1e1e1e);
+  border-radius: 2px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0;
+}
+.rme-editor .tiptap pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #d4d4d4;
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rme-editor .tiptap hr {
+  border: none;
+  border-top: 2px dashed var(--border-base);
+  margin: 12px 0;
+}
+
+/* Scrollbar */
+.rme-editor .tiptap::-webkit-scrollbar {
+  width: 6px;
+}
+.rme-editor .tiptap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rme-editor .tiptap::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 3px;
+}
+.rme-editor .tiptap::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

@@ -1,11 +1,11 @@
-import React from 'react'
-import Editor from '@monaco-editor/react'
-import { Loader2, Sparkles } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { Loader2, Sparkles, Eye, PenLine } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import LessonContent from '../../../Plans/components/LessonContent'
-import { buildLessonContentFromSections, parseLessonSections, SECTION_KEYS, SECTION_LABELS, type LessonSectionKey } from '../lessonContentContract'
+import { buildLessonContentFromSections, SECTION_KEYS, SECTION_LABELS, type LessonSectionKey } from '../lessonContentContract'
 import type { EditableChapter, EditableLesson } from '../editorTypes'
-import { EmptyPanel, Field, SectionCard, cardStyle, getButtonStyle, subtleTextStyle, textAreaStyle } from './editorUi'
+import { EmptyPanel, Field, SectionCard, cardStyle, getButtonStyle, subtleTextStyle } from './editorUi'
+import RichMarkdownEditor from './RichMarkdownEditor'
 
 type Props = {
   activeChapter: EditableChapter | null
@@ -18,6 +18,8 @@ type Props = {
   onUpdateLesson: (updater: (lesson: EditableLesson) => EditableLesson) => void
 }
 
+type ViewMode = 'edit' | 'preview'
+
 const SECTION_HINT_KEYS: Record<LessonSectionKey, string> = {
   overview: 'drafts.sectionHints.overview',
   'core-concepts': 'drafts.sectionHints.coreConcepts',
@@ -26,6 +28,19 @@ const SECTION_HINT_KEYS: Record<LessonSectionKey, string> = {
   'best-practices': 'drafts.sectionHints.bestPractices',
   summary: 'drafts.sectionHints.summary',
 }
+
+const SECTION_PLACEHOLDER_KEYS: Record<LessonSectionKey, string> = {
+  overview: 'drafts.sectionPlaceholders.overview',
+  'core-concepts': 'drafts.sectionPlaceholders.coreConcepts',
+  'code-examples': 'drafts.sectionPlaceholders.codeExamples',
+  'common-mistakes': 'drafts.sectionPlaceholders.commonMistakes',
+  'best-practices': 'drafts.sectionPlaceholders.bestPractices',
+  summary: 'drafts.sectionPlaceholders.summary',
+}
+
+const LARGE_SECTIONS: LessonSectionKey[] = ['code-examples', 'common-mistakes', 'core-concepts']
+
+const MemoizedPreview = React.memo(LessonContent)
 
 const LessonStudioStep: React.FC<Props> = ({
   activeChapter,
@@ -38,6 +53,15 @@ const LessonStudioStep: React.FC<Props> = ({
   onUpdateLesson,
 }) => {
   const { t } = useTranslation('mentor')
+  const [viewMode, setViewMode] = useState<ViewMode>('edit')
+
+  // Only build preview markdown when in preview mode (on-demand)
+  const previewMarkdown = useMemo(
+    () => viewMode === 'preview' && activeLesson
+      ? buildLessonContentFromSections(activeLesson.sections as Record<LessonSectionKey, string>)
+      : '',
+    [viewMode, activeLesson?.sections],
+  )
 
   if (!activeChapter || !activeLesson) return <EmptyPanel message={t('drafts.noLessonSelected')} />
 
@@ -47,15 +71,51 @@ const LessonStudioStep: React.FC<Props> = ({
         title={t('drafts.lessonStudio')}
         subtitle={t('drafts.lessonStudioHint')}
         action={
-          <button
-            type="button"
-            style={getButtonStyle({ accent: true, disabled: isGeneratingLessonContent })}
-            onClick={onGenerateLessonContent}
-            disabled={isGeneratingLessonContent}
-          >
-            {isGeneratingLessonContent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
-            {isGeneratingLessonContent ? t('drafts.generatingLessonContent') : t('drafts.generateLessonContentByAi')}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {/* ── View mode toggle ── */}
+            <div style={{
+              display: 'inline-flex',
+              border: '1px solid var(--border-base)',
+              borderRadius: 2,
+              overflow: 'hidden',
+            }}>
+              <button
+                type="button"
+                style={{
+                  ...getButtonStyle({ active: viewMode === 'edit' }),
+                  border: 'none',
+                  borderRadius: 0,
+                  borderRight: '1px solid var(--border-base)',
+                }}
+                onClick={() => setViewMode('edit')}
+              >
+                <PenLine size={14} />
+                {t('drafts.editorMode', 'Editor')}
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...getButtonStyle({ active: viewMode === 'preview' }),
+                  border: 'none',
+                  borderRadius: 0,
+                }}
+                onClick={() => setViewMode('preview')}
+              >
+                <Eye size={14} />
+                {t('drafts.previewMode', 'Preview')}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              style={getButtonStyle({ accent: true, disabled: isGeneratingLessonContent })}
+              onClick={onGenerateLessonContent}
+              disabled={isGeneratingLessonContent}
+            >
+              {isGeneratingLessonContent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles size={14} />}
+              {isGeneratingLessonContent ? t('drafts.generatingLessonContent') : t('drafts.generateLessonContentByAi')}
+            </button>
+          </div>
         }
       >
         <div style={{ display: 'grid', gap: 18 }}>
@@ -89,55 +149,42 @@ const LessonStudioStep: React.FC<Props> = ({
             ) : null}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: 20 }}>
+          {/* ── Editor Mode ── */}
+          {viewMode === 'edit' && (
             <div style={{ display: 'grid', gap: 14 }}>
               {SECTION_KEYS.map((key) => (
                 <Field key={key} label={SECTION_LABELS[key]}>
-                  <>
-                    <div style={subtleTextStyle}>{t(SECTION_HINT_KEYS[key])}</div>
-                    <textarea
-                      style={{ ...textAreaStyle, minHeight: key === 'code-examples' || key === 'common-mistakes' ? 180 : 120 }}
-                      value={activeLesson.sections[key]}
-                      onChange={(event) => onUpdateLesson((lesson) => ({
-                        ...lesson,
-                        sections: { ...lesson.sections, [key]: event.target.value },
-                      }))}
-                    />
-                  </>
+                  <RichMarkdownEditor
+                    value={activeLesson.sections[key] ?? ''}
+                    large={LARGE_SECTIONS.includes(key)}
+                    onChange={(md) => onUpdateLesson((lesson) => ({
+                      ...lesson,
+                      sections: { ...lesson.sections, [key]: md },
+                    }))}
+                  />
                 </Field>
               ))}
             </div>
+          )}
 
-            <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>
-                  Markdown Sync
+          {/* ── Preview Mode ── */}
+          {viewMode === 'preview' && (
+            <div style={{
+              ...cardStyle,
+              padding: 24,
+              background: 'var(--bg-main)',
+              overflowWrap: 'anywhere',
+              minHeight: 300,
+            }}>
+              {previewMarkdown ? (
+                <MemoizedPreview content={previewMarkdown} />
+              ) : (
+                <div style={{ ...subtleTextStyle, textAlign: 'center', padding: 40 }}>
+                  {t('drafts.previewEmpty', 'No content to preview yet. Switch to Editor to add lesson content.')}
                 </div>
-                <div style={{ ...subtleTextStyle, marginBottom: 8 }}>{t('drafts.markdownSyncHint')}</div>
-                <Editor
-                  height="360px"
-                  width="100%"
-                  defaultLanguage="markdown"
-                  theme="vs-light"
-                  value={buildLessonContentFromSections(activeLesson.sections as Record<LessonSectionKey, string>)}
-                  onChange={(next) => onUpdateLesson((lesson) => ({
-                    ...lesson,
-                    sections: parseLessonSections(next ?? ''),
-                  }))}
-                  options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on', scrollBeyondLastLine: false, wrappingStrategy: 'advanced' }}
-                />
-              </div>
-
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>
-                  Preview
-                </div>
-                <div style={{ ...cardStyle, padding: 16, background: 'var(--bg-main)', maxHeight: 620, overflow: 'auto', overflowWrap: 'anywhere' }}>
-                  <LessonContent content={buildLessonContentFromSections(activeLesson.sections as Record<LessonSectionKey, string>)} />
-                </div>
-              </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </SectionCard>
     </div>
@@ -145,3 +192,4 @@ const LessonStudioStep: React.FC<Props> = ({
 }
 
 export default LessonStudioStep
+

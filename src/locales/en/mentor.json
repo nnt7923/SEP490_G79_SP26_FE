@@ -419,6 +419,14 @@
       "bestPractices": "List habits, naming rules, patterns, and decision rules learners should follow.",
       "summary": "Close with a concise recap and one suggestion for what to practice next."
     },
+    "sectionPlaceholders": {
+      "overview": "What does this lesson cover? When should the learner use this?",
+      "coreConcepts": "Break down the key ideas here...",
+      "codeExamples": "Add runnable code examples with explanations...",
+      "commonMistakes": "Describe common errors and how to fix them...",
+      "bestPractices": "List recommended patterns and habits...",
+      "summary": "Recap the main takeaways..."
+    },
     "searchPlaceholder": "Search drafts...",
     "subjectFilterAll": "All subjects",
     "sortNewest": "Newest first",

@@ -384,6 +384,14 @@
       "bestPractices": "Liệt kê thói quen tốt, quy ước đặt tên, pattern và nguyên tắc ra quyết định.",
       "summary": "Chốt lại ngắn gọn và gợi ý một hướng luyện tập tiếp theo."
     },
+    "sectionPlaceholders": {
+      "overview": "Bài này dạy gì? Người học nên dùng khi nào?",
+      "coreConcepts": "Trình bày các ý chính ở đây...",
+      "codeExamples": "Thêm ví dụ code và giải thích...",
+      "commonMistakes": "Nêu lỗi thường gặp và cách sửa...",
+      "bestPractices": "Liệt kê các pattern và thói quen tốt...",
+      "summary": "Tóm tắt những điểm chính..."
+    },
     "searchPlaceholder": "Tìm draft...",
     "subjectFilterAll": "Tất cả môn học",
     "sortNewest": "Mới nhất trước",
