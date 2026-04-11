@@ -11,7 +11,7 @@ import LearningPathService from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
 import useAppNotificationStore from '../../../store/useAppNotificationStore'
 import useNotificationStore from '../../../store/useNotificationStore'
-import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
+import { resolveNotificationNavigationTarget } from '../../../components/Notifications/utils'
 import type { NotificationDto } from '../../../types/notification'
 import SubscriptionService from '../../../services/SubscriptionService'
 import useDailyCheckinDashboard from '../../../hooks/useDailyCheckinDashboard'
@@ -38,7 +38,6 @@ const TIMELINE_LOAD_ERROR_CODE = 'timeline_load_error'
 const TIMELINE_COLORS = ['#5B8FF9', '#5AD8A6', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D']
 const TIMELINE_FROM_UTC = '2000-01-01T00:00:00.000Z'
 const TIMELINE_TO_UTC = '2100-01-01T00:00:00.000Z'
-const DISMISSED_EXPIRING_NOTICE_KEY = 'student-dashboard-expiring-notice-dismissed'
 
 const getUtc7DateKey = (value?: Date | string | null): string | null => {
   if (!value) return null
@@ -196,6 +195,7 @@ const StudentIndex: React.FC = () => {
     Task: 1,
     Quiz: 1,
   })
+  const markingExpiringNoticeRef = React.useRef<string | null>(null)
   const learningPathSkeletonCacheRef = React.useRef<Map<string, any>>(new Map())
   const dailyCheckin = useDailyCheckinDashboard()
 
@@ -824,7 +824,7 @@ const StudentIndex: React.FC = () => {
     const matched = deduped
       .filter((item) => {
         const type = String(item.type || '').trim()
-        return type === 'PlanExpiringSoon' || type === 'PlanExpired'
+        return (type === 'PlanExpiringSoon' || type === 'PlanExpired') && !item.isRead
       })
       .map((item) => {
         const type = String(item.type || '').trim()
@@ -838,41 +838,48 @@ const StudentIndex: React.FC = () => {
     return matched[0] ?? null
   }, [notificationItems, notificationPanelItems, currentSubExpiredAt])
 
-  const handleExpiringSoonBannerClick = React.useCallback(async () => {
+  const markExpiringSoonAsViewed = React.useCallback(async () => {
     if (!expiringSoonNotification) return
+    if (expiringSoonNotification.isRead) return
+
+    const notificationId = String(expiringSoonNotification.notificationId || '').trim()
+    if (!notificationId) return
+    if (markingExpiringNoticeRef.current === notificationId) return
+
+    markingExpiringNoticeRef.current = notificationId
 
     try {
-      setShowExpiringSoonModal(false)
-      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, markNotificationAsRead)
+      await markNotificationAsRead([notificationId])
     } catch (error: any) {
-      showToast(error?.message || 'Failed to open subscription update screen.', 'error')
+      showToast(error?.message || 'Failed to mark notification as read.', 'error')
+    } finally {
+      if (markingExpiringNoticeRef.current === notificationId) {
+        markingExpiringNoticeRef.current = null
+      }
     }
-  }, [expiringSoonNotification, markNotificationAsRead, navigate, showToast])
+  }, [expiringSoonNotification, markNotificationAsRead, showToast])
 
-  React.useEffect(() => {
-    if (!expiringSoonNotification?.notificationId) {
-      setShowExpiringSoonModal(false)
+  const handleExpiringSoonBannerClick = React.useCallback(() => {
+    if (!expiringSoonNotification) return
+
+    const target = resolveNotificationNavigationTarget(expiringSoonNotification)
+    if (!target) {
+      showToast('Failed to open subscription update screen.', 'error')
       return
     }
 
-    try {
-      const dismissedId = sessionStorage.getItem(DISMISSED_EXPIRING_NOTICE_KEY)
-      setShowExpiringSoonModal(dismissedId !== expiringSoonNotification.notificationId)
-    } catch {
-      setShowExpiringSoonModal(true)
-    }
-  }, [expiringSoonNotification?.notificationId])
-
-  const handleCloseExpiringSoonModal = React.useCallback(() => {
     setShowExpiringSoonModal(false)
-    if (!expiringSoonNotification?.notificationId) return
+    navigate(target.path, target.state ? { state: target.state } : undefined)
+  }, [expiringSoonNotification, navigate, showToast])
 
-    try {
-      sessionStorage.setItem(DISMISSED_EXPIRING_NOTICE_KEY, expiringSoonNotification.notificationId)
-    } catch {
-      // ignore storage failures
-    }
+  React.useEffect(() => {
+    setShowExpiringSoonModal(Boolean(expiringSoonNotification?.notificationId))
   }, [expiringSoonNotification?.notificationId])
+
+  const handleCloseExpiringSoonModal = React.useCallback(async () => {
+    setShowExpiringSoonModal(false)
+    await markExpiringSoonAsViewed()
+  }, [markExpiringSoonAsViewed])
 
   const dailyCheckinCheckedInToday = Boolean(dailyCheckin.stats?.todayCheckedIn || dailyCheckin.todayCheckin)
   const dailyCheckinCurrentStreak = dailyCheckin.stats?.currentStreak ?? 0
@@ -1451,7 +1458,7 @@ const StudentIndex: React.FC = () => {
 
       {showExpiringSoonModal && expiringSoonNotification && (
         <div
-          onClick={handleCloseExpiringSoonModal}
+          onClick={() => { void handleCloseExpiringSoonModal() }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -1471,6 +1478,7 @@ const StudentIndex: React.FC = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="expiring-plan-modal-title"
+            onClickCapture={() => { void markExpiringSoonAsViewed() }}
             onClick={(event) => event.stopPropagation()}
             style={{
               width: '100%',
@@ -1485,7 +1493,7 @@ const StudentIndex: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
               <button
                 type="button"
-                onClick={handleCloseExpiringSoonModal}
+                onClick={() => { void handleCloseExpiringSoonModal() }}
                 aria-label="Close"
                 style={{
                   border: 'none',
@@ -1567,7 +1575,7 @@ const StudentIndex: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={handleCloseExpiringSoonModal}
+                onClick={() => { void handleCloseExpiringSoonModal() }}
                 style={{
                   width: '100%',
                   padding: '10px 12px',

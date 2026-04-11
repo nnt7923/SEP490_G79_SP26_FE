@@ -116,7 +116,7 @@ const StudentOverview: React.FC = () => {
     const matched = deduped
       .filter((item) => {
         const type = String(item.type || '').trim()
-        return type === 'PlanExpiringSoon' || type === 'PlanExpired'
+        return (type === 'PlanExpiringSoon' || type === 'PlanExpired') && !item.isRead
       })
       .map((item) => {
         const type = String(item.type || '').trim()
