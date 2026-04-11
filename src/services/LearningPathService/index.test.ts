@@ -333,6 +333,8 @@ describe('LearningPathService progress/read APIs', () => {
     mockedApi.put.mockResolvedValue({ data: { value: { pathId: 'path-2', chapters: [] } } })
 
     await updateManualDraft('path-2', {
+      increaseVersion: true,
+      versionUpdateType: 'Minor',
       subjectId: 'subject-1',
       goals: [{ goalId: 'goal-1', weight: 100 }],
       complexityLevel: 1,
@@ -341,6 +343,10 @@ describe('LearningPathService progress/read APIs', () => {
       chapters: [],
     } as any)
 
-    expect(mockedApi.put).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ languageSelection: 1 }))
+    expect(mockedApi.put).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      languageSelection: 1,
+      increaseVersion: true,
+      versionUpdateType: 'Minor',
+    }))
   })
 })

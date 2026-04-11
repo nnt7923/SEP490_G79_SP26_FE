@@ -18,6 +18,7 @@ import ChaptersStep from './components/ChaptersStep'
 import LessonStudioStep from './components/LessonStudioStep'
 import AssessmentsStep from './components/AssessmentsStep'
 import { ContentNavigator, DraftEditorHeader } from './components/EditorChrome'
+import VersionUpdateModal from './components/VersionUpdateModal'
 import { cardStyle, shellStyle } from './components/editorUi'
 import { buildLessonContentFromSections, parseLessonSections, type LessonSectionKey } from './lessonContentContract'
 import {
@@ -49,6 +50,7 @@ import type {
   EditableQuiz,
   EditableTask,
   EditorStep,
+  ManualDraftVersionUpdateType,
   QuestionType,
   SubjectOption,
   ToastState,
@@ -61,11 +63,6 @@ const getApiErrorMessage = (err: any, fallback: string) =>
   || err?.errorMessage
   || err?.message
   || fallback
-
-const isValidVersionNumber = (value: string | undefined): boolean => {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) && numeric > 0
-}
 
 const TASK_TYPE_TO_SIGNALR: Record<EditableTask['taskType'], 0 | 1 | 2> = {
   Practice: 0,
@@ -676,6 +673,7 @@ const MentorDraftFormPage: React.FC = () => {
   const [shareError, setShareError] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [isVersionUpdateModalOpen, setIsVersionUpdateModalOpen] = useState(false)
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(!isSmallScreen)
   const chapterSkeletonPendingByPathRef = useRef<Map<string, string>>(new Map())
   const chapterSkeletonRequestCounterRef = useRef(0)
@@ -848,11 +846,6 @@ const MentorDraftFormPage: React.FC = () => {
     setIsSubjectMenuOpen(false)
   }
 
-  const setVersionNumber = (value: string) => {
-    const normalized = value.replace(/[^\d]/g, '')
-    setForm((prev) => ({ ...prev, versionNumber: normalized }))
-  }
-
   const addChapter = () => {
     const chapter = emptyChapter()
     setForm((prev) => ({ ...prev, chapters: [...prev.chapters, chapter] }))
@@ -933,22 +926,23 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
-  const saveDraftForGeneration = async () => {
+  const persistDraft = async (
+    versionOptions?: {
+      increaseVersion: boolean
+      versionUpdateType: ManualDraftVersionUpdateType | null
+    },
+  ) => {
     const validationError = validateDraftForm(form)
     if (validationError) {
       setToast({ message: validationError, type: 'warning' })
       return null
     }
 
-    if (currentPathId && !isValidVersionNumber(form.versionNumber)) {
-      setToast({ message: t('drafts.versionNumberRequired'), type: 'warning' })
-      return null
-    }
-
+    const previousTitle = form.title
     setSaving(true)
     try {
       const response = currentPathId
-        ? await LearningPathService.updateManualDraft(currentPathId, buildPayload(form))
+        ? await LearningPathService.updateManualDraft(currentPathId, buildPayload(form, versionOptions))
         : await LearningPathService.createManualDraft(buildPayload(form))
 
       const resolvedPathId = String(response?.pathId ?? currentPathId ?? '')
@@ -971,8 +965,13 @@ const MentorDraftFormPage: React.FC = () => {
 
       return {
         resolvedPathId,
+        response,
+        latestDraft,
         nextForm,
         nextSelection,
+        successMessage: isCreateMode
+          ? t('drafts.manualCreateSuccess')
+          : resolveDraftUpdateSuccessMessage(response, latestDraft, previousTitle, t),
       }
     } catch (err: any) {
       setToast({ message: getApiErrorMessage(err, t('drafts.saveFailed')), type: 'error' })
@@ -981,6 +980,12 @@ const MentorDraftFormPage: React.FC = () => {
       setSaving(false)
     }
   }
+
+  const saveDraftForGeneration = async () => persistDraft(
+    currentPathId
+      ? { increaseVersion: false, versionUpdateType: null }
+      : undefined,
+  )
 
   const generateChapterMentorSkeletonForActiveChapter = async () => {
     if (!activeChapter) {
@@ -1547,36 +1552,25 @@ const MentorDraftFormPage: React.FC = () => {
       return
     }
 
-    if (!isCreateMode && !isValidVersionNumber(form.versionNumber)) {
-      setToast({ message: t('drafts.versionNumberRequired'), type: 'warning' })
+    if (!isCreateMode) {
+      setIsVersionUpdateModalOpen(true)
       return
     }
 
-    const previousTitle = form.title
-    setSaving(true)
-    try {
-      const response = isCreateMode
-        ? await LearningPathService.createManualDraft(buildPayload(form))
-        : await LearningPathService.updateManualDraft(pathId as string, buildPayload(form))
-      const resolvedPathId = String(response?.pathId ?? pathId ?? '')
-      const latestDraft = resolvedPathId
-        ? await LearningPathService.getMyDraftDetail(resolvedPathId).catch(() => response)
-        : response
-      const nextForm = hydrateDraftForm(latestDraft, form)
-      const nextSelection = resolveSelectionAfterHydrate(form, nextForm, activeChapterId, activeLessonId)
-      setForm(nextForm)
-      setActiveChapterId(nextSelection.chapterId)
-      setActiveLessonId(nextSelection.lessonId)
-      const successMessage = isCreateMode
-        ? t('drafts.manualCreateSuccess')
-        : resolveDraftUpdateSuccessMessage(response, latestDraft, previousTitle, t)
-      setToast({ message: successMessage, type: 'success' })
-      if (isCreateMode && response?.pathId) navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(response.pathId)), { replace: true, state: { draft: response } })
-    } catch (err: any) {
-      setToast({ message: getApiErrorMessage(err, t('drafts.saveFailed')), type: 'error' })
-    } finally {
-      setSaving(false)
+    const result = await persistDraft()
+    if (result?.successMessage) {
+      setToast({ message: result.successMessage, type: 'success' })
     }
+  }
+
+  const handleConfirmVersionUpdate = async (options: {
+    increaseVersion: boolean
+    versionUpdateType: ManualDraftVersionUpdateType | null
+  }) => {
+    const result = await persistDraft(options)
+    if (!result) return
+    setIsVersionUpdateModalOpen(false)
+    setToast({ message: result.successMessage, type: 'success' })
   }
 
   const handleShareDraft = async () => {
@@ -1615,14 +1609,13 @@ const MentorDraftFormPage: React.FC = () => {
             isCreateMode={isCreateMode}
             title={form.title}
             chapterCount={form.chapters.length}
-            versionNumber={form.versionNumber ?? ''}
+            version={form.version}
             currentStep={currentStep}
             contextLabel={contextLabel}
             canShare={canShare}
             saving={saving}
             sharing={sharing}
             onBack={() => navigate(ROUTER.MENTOR_DRAFTS)}
-            onVersionNumberChange={setVersionNumber}
             onSave={saveDraft}
             onShare={() => { setShareError(null); setSelectedStudentId(''); setIsShareModalOpen(true) }}
             onStepChange={setCurrentStep}
@@ -1770,6 +1763,12 @@ const MentorDraftFormPage: React.FC = () => {
           error={shareError}
           submitting={sharing}
           lockPath
+        />
+        <VersionUpdateModal
+          isOpen={isVersionUpdateModalOpen}
+          saving={saving}
+          onClose={() => setIsVersionUpdateModalOpen(false)}
+          onSubmit={handleConfirmVersionUpdate}
         />
         {toast ? <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div> : null}
       </div>

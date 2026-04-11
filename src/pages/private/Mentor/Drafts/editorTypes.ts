@@ -7,6 +7,7 @@ export type TaskType = 'Practice' | 'Theory' | 'Quizz'
 export type TaskStatus = 'Pending' | 'InProgress' | 'Completed'
 export type TaskPriority = 'Low' | 'Medium' | 'High'
 export type QuestionType = 'TrueFalse' | 'MultipleChoice' | 'SingleChoice' | 'Matching' | 'FillInTheBlank' | 'Ordering'
+export type ManualDraftVersionUpdateType = 'Minor' | 'Major'
 export type EditableMatchingPair = {
   id: string
   left: string
@@ -67,7 +68,7 @@ export type DraftFormState = {
   goals: Array<{ goalId: string; weight: number }>
   complexityLevel: Level
   languageSelection: number
-  versionNumber?: string
+  version?: number | null
   title: string
   description: string
   startDate: string

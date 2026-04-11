@@ -90,6 +90,8 @@ export type ManualDraftGoalInput = {
   weight: number
 }
 
+export type ManualDraftVersionUpdateType = 'Minor' | 'Major'
+
 export type ManualDraftQuizInput = {
   id?: string
   quizId?: string
@@ -150,7 +152,8 @@ export type ManualDraftChapterInput = {
 }
 
 export type ManualDraftPayload = {
-  versionNumber?: number | null
+  increaseVersion?: boolean
+  versionUpdateType?: ManualDraftVersionUpdateType | null
   subjectId: string
   goals: ManualDraftGoalInput[]
   complexityLevel: string | number

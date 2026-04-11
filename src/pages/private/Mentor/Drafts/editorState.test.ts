@@ -176,6 +176,7 @@ describe('editorState hydrate/build payload', () => {
       goals: [{ goalId: 'goal-1', weight: 100 }],
       complexityLevel: 'Beginner' as const,
       languageSelection: 1,
+      version: null,
       title: 'Draft',
       description: '',
       startDate: '',
@@ -295,7 +296,7 @@ describe('editorState hydrate/build payload', () => {
 
     const payload = buildPayload(form)
 
-  expect(payload.versionNumber).toBe(5)
+    expect(payload).not.toHaveProperty('versionNumber')
     expect(payload.complexityLevel).toBe('Advanced')
     expect(payload.languageSelection).toBe('English')
     expect(payload.chapters[0].title).toBe('Chapter 1: Chapter 1')
@@ -315,12 +316,36 @@ describe('editorState hydrate/build payload', () => {
     })
   })
 
+  it('adds version update options for manual draft update payloads', () => {
+    const payload = buildPayload({
+      subjectId: 'subject-1',
+      goals: [{ goalId: 'goal-1', weight: 100 }],
+      complexityLevel: 'Beginner',
+      languageSelection: 1,
+      version: 5,
+      title: 'Draft',
+      description: '',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      chapters: [],
+    }, {
+      increaseVersion: true,
+      versionUpdateType: 'Minor',
+    })
+
+    expect(payload).toMatchObject({
+      increaseVersion: true,
+      versionUpdateType: 'Minor',
+    })
+  })
+
   it('sets lesson content to null when all lesson sections are empty', () => {
     const payload = buildPayload({
       subjectId: 'subject-1',
       goals: [{ goalId: 'goal-1', weight: 100 }],
       complexityLevel: 'Beginner',
       languageSelection: 1,
+      version: null,
       title: 'Draft',
       description: '',
       startDate: '2026-04-01',
@@ -365,6 +390,7 @@ describe('editorState hydrate/build payload', () => {
       goals: [{ goalId: 'goal-1', weight: 100 }],
       complexityLevel: 'Beginner',
       languageSelection: 1,
+      version: null,
       title: 'Draft',
       description: '',
       startDate: '2026-04-01',
@@ -409,6 +435,7 @@ describe('editorState hydrate/build payload', () => {
       goals: [{ goalId: 'goal-1', weight: 100 }],
       complexityLevel: 'Intermediate',
       languageSelection: 1,
+      version: null,
       title: 'Draft',
       description: '',
       startDate: '2026-04-01',
@@ -450,6 +477,7 @@ describe('editorState hydrate/build payload', () => {
       goals: [{ goalId: 'goal-1', weight: 100 }],
       complexityLevel: 'Beginner',
       languageSelection: 1,
+      version: null,
       title: 'Draft',
       description: '',
       startDate: '2026-04-01',
@@ -562,6 +590,7 @@ describe('editorState validation', () => {
     goals: [{ goalId: 'goal-1', weight: 100 }],
     complexityLevel: 'Beginner' as const,
     languageSelection: 1,
+    version: null,
     title: 'Draft',
     description: '',
     startDate: '2026-04-01',

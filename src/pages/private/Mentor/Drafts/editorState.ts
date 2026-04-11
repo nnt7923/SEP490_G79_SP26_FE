@@ -10,6 +10,7 @@ import type {
   EditableQuiz,
   EditableTask,
   Level,
+  ManualDraftVersionUpdateType,
   QuestionType,
   TaskPriority,
   TaskStatus,
@@ -695,7 +696,7 @@ export const emptyForm = (): DraftFormState => ({
   goals: [],
   complexityLevel: 'Beginner',
   languageSelection: LanguageSelection.Vietnamese,
-  versionNumber: '1',
+  version: null,
   title: '',
   description: '',
   startDate: '',
@@ -810,7 +811,7 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
   const nextDescription = payload?.description ?? fallback?.description ?? ''
   const nextStartDateRaw = payload?.startDate ?? payload?.StartDate
   const nextEndDateRaw = payload?.endDate ?? payload?.EndDate
-  const rawVersion = payload?.versionNumber ?? payload?.VersionNumber ?? payload?.version ?? payload?.Version ?? fallback?.versionNumber
+  const rawVersion = payload?.version ?? payload?.Version ?? payload?.versionNumber ?? payload?.VersionNumber ?? fallback?.version
   const parsedVersion = Number(rawVersion)
 
   return {
@@ -818,7 +819,7 @@ export const hydrateDraftForm = (payload?: SkeletonResponse | null, fallback?: D
     goals: extractedGoals.length > 0 ? extractedGoals : (fallback?.goals ?? []),
     complexityLevel: normalizeLevel(payload?.complexityLevel ?? payload?.ComplexityLevel ?? fallback?.complexityLevel),
     languageSelection: normalizeLanguage(payload?.languageSelection ?? payload?.LanguageSelection ?? fallback?.languageSelection),
-    versionNumber: Number.isFinite(parsedVersion) && parsedVersion > 0 ? String(parsedVersion) : (fallback?.versionNumber ?? '1'),
+    version: Number.isFinite(parsedVersion) && parsedVersion > 0 ? parsedVersion : (fallback?.version ?? null),
     title: nextTitle,
     description: nextDescription,
     startDate: nextStartDateRaw ? toDateInput(nextStartDateRaw) : (fallback?.startDate ?? ''),
@@ -975,9 +976,18 @@ const serializeLessonContent = (sections: Record<LessonSectionKey, string>): str
   return buildLessonContentFromSections(sections)
 }
 
-export const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
-  ...(Number.isFinite(Number(form.versionNumber)) && Number(form.versionNumber) > 0
-    ? { versionNumber: Number(form.versionNumber) }
+export const buildPayload = (
+  form: DraftFormState,
+  versionOptions?: {
+    increaseVersion: boolean
+    versionUpdateType: ManualDraftVersionUpdateType | null
+  },
+): ManualDraftPayload => ({
+  ...(versionOptions
+    ? {
+      increaseVersion: versionOptions.increaseVersion,
+      versionUpdateType: versionOptions.increaseVersion ? versionOptions.versionUpdateType : null,
+    }
     : {}),
   subjectId: form.subjectId,
   goals: form.goals.map((goal) => ({
