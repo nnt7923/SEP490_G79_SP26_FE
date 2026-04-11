@@ -102,11 +102,28 @@
     "empty": "No notifications yet.",
     "viewAll": "View all",
     "unreadOnly": "Unread only",
+    "typeFilter": "Type",
+    "allTypes": "All types",
     "refresh": "Refresh",
+    "markAllRead": "Mark all as read",
+    "markAllReadSuccess": "All notifications were marked as read.",
+    "markAllReadError": "Failed to mark all notifications as read.",
     "fetchError": "Failed to load notifications.",
     "markReadError": "Failed to sync notification state.",
     "pageLabel": "Page {{page}}",
-    "unreadCountLabel": "{{count}} unread"
+    "unreadCountLabel": "{{count}} unread",
+    "types": {
+      "Alert": "Alert",
+      "Message": "Message",
+      "Reminder": "Reminder",
+      "TaskOverdue": "Task overdue",
+      "ChapterOverdue": "Chapter overdue",
+      "LessonOverdue": "Lesson overdue",
+      "LearningPathOverdue": "Learning path overdue",
+      "PlanExpiringSoon": "Plan expiring soon",
+      "PlanExpired": "Plan expired",
+      "ShareVersionUpdated": "Share version updated"
+    }
   },
   "notification": {
     "shareVersionUpdated": {

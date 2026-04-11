@@ -1,4 +1,28 @@
 export type NotificationSeverity = 'Low' | 'Medium' | 'High' | 'Critical'
+export type NotificationTypeKey =
+  | 'Alert'
+  | 'Message'
+  | 'Reminder'
+  | 'TaskOverdue'
+  | 'ChapterOverdue'
+  | 'LessonOverdue'
+  | 'LearningPathOverdue'
+  | 'PlanExpiringSoon'
+  | 'PlanExpired'
+  | 'ShareVersionUpdated'
+
+export const NOTIFICATION_TYPE_KEYS: NotificationTypeKey[] = [
+  'Alert',
+  'Message',
+  'Reminder',
+  'TaskOverdue',
+  'ChapterOverdue',
+  'LessonOverdue',
+  'LearningPathOverdue',
+  'PlanExpiringSoon',
+  'PlanExpired',
+  'ShareVersionUpdated',
+]
 
 export type NotificationTargetType =
   | 'task'
@@ -48,6 +72,7 @@ export interface NotificationPagedResultDto {
 
 export interface MarkNotificationAsReadResultDto {
   notificationIds: string[]
+  markedCount?: number
   readAt: string | null
   unreadCount: number
 }
@@ -56,4 +81,5 @@ export interface NotificationListQuery {
   pageNumber?: number
   pageSize?: number
   unreadOnly?: boolean
+  type?: NotificationTypeKey | null
 }

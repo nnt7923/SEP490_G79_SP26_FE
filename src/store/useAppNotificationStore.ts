@@ -5,6 +5,7 @@ import type {
   NotificationDto,
   NotificationListQuery,
   NotificationPagedResultDto,
+  NotificationTypeKey,
 } from '../types/notification'
 
 type MarkReadOutcome = {
@@ -22,6 +23,7 @@ interface AppNotificationState {
   hasNextPage: boolean
   hasPreviousPage: boolean
   unreadOnly: boolean
+  selectedType: NotificationTypeKey | null
   loading: boolean
   panelLoading: boolean
   error: string | null
@@ -33,7 +35,9 @@ interface AppNotificationState {
   prependRealtimeItem: (notification: NotificationDto) => void
   syncUnreadCount: (count: number) => void
   markAsRead: (notificationIds: string[]) => Promise<MarkReadOutcome>
+  markAllAsRead: () => Promise<MarkReadOutcome>
   setUnreadOnly: (unreadOnly: boolean) => void
+  setSelectedType: (type: NotificationTypeKey | null) => void
   removeNotification: (notificationId: string) => void
   reset: () => void
 }
@@ -86,6 +90,22 @@ function applyMarkRead(items: NotificationDto[], result: MarkNotificationAsReadR
   return updated
 }
 
+function applyMarkAllRead(items: NotificationDto[], readAt: string | null, unreadOnly: boolean): NotificationDto[] {
+  if (unreadOnly) {
+    return []
+  }
+
+  return items.map((item) => (
+    item.isRead
+      ? item
+      : {
+        ...item,
+        isRead: true,
+        readAt,
+      }
+  ))
+}
+
 const initialState = {
   items: [] as NotificationDto[],
   panelItems: [] as NotificationDto[],
@@ -96,6 +116,7 @@ const initialState = {
   hasNextPage: false,
   hasPreviousPage: false,
   unreadOnly: false,
+  selectedType: null as NotificationTypeKey | null,
   loading: false,
   panelLoading: false,
   error: null as string | null,
@@ -130,6 +151,7 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
           hasNextPage: state.items.length > 0 ? state.hasNextPage : firstPage.hasNextPage,
           hasPreviousPage: state.items.length > 0 ? state.hasPreviousPage : firstPage.hasPreviousPage,
           unreadOnly: state.items.length > 0 ? state.unreadOnly : false,
+          selectedType: state.items.length > 0 ? state.selectedType : null,
           panelLoading: false,
           error: null,
           bootstrapped: true,
@@ -158,10 +180,16 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
     const pageNumber = query.pageNumber ?? get().pageNumber
     const pageSize = query.pageSize ?? get().pageSize
     const unreadOnly = query.unreadOnly ?? get().unreadOnly
+    const selectedType = query.type === undefined ? get().selectedType : query.type
 
     set({ loading: true, error: null })
     try {
-      const page = await NotificationService.getMyNotifications({ pageNumber, pageSize, unreadOnly })
+      const page = await NotificationService.getMyNotifications({
+        pageNumber,
+        pageSize,
+        unreadOnly,
+        type: selectedType,
+      })
       set({
         items: page.items,
         pageNumber: page.pageNumber,
@@ -170,6 +198,7 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
         hasNextPage: page.hasNextPage,
         hasPreviousPage: page.hasPreviousPage,
         unreadOnly,
+        selectedType,
         loading: false,
         error: null,
         bootstrapped: true,
@@ -212,12 +241,15 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
       let items = state.items
       let totalCount = state.totalCount
 
-      if (state.pageNumber === DEFAULT_PAGE_NUMBER && state.unreadOnly === false) {
+      if (
+        state.pageNumber === DEFAULT_PAGE_NUMBER
+        && state.unreadOnly === false
+        && state.selectedType == null
+      ) {
         items = upsertNotification(state.items, notification).slice(0, state.pageSize)
-      }
-
-      if (!state.items.some((item) => item.notificationId === notification.notificationId)) {
-        totalCount += 1
+        if (!state.items.some((item) => item.notificationId === notification.notificationId)) {
+          totalCount += 1
+        }
       }
 
       return {
@@ -276,8 +308,37 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
     }
   },
 
+  markAllAsRead: async () => {
+    const state = get()
+    const hasUnreadItems = [...state.items, ...state.panelItems].some((item) => !item.isRead)
+
+    if (state.unreadCount === 0 && !hasUnreadItems) {
+      return { result: null, removed: false }
+    }
+
+    const result = await NotificationService.markAllAsRead()
+    const normalizedResult: MarkNotificationAsReadResultDto = {
+      ...result,
+      notificationIds: result.notificationIds,
+      markedCount: result.markedCount ?? result.notificationIds.length,
+    }
+
+    set((current) => ({
+      unreadCount: normalizedResult.unreadCount,
+      items: applyMarkAllRead(current.items, normalizedResult.readAt, current.unreadOnly),
+      panelItems: applyMarkAllRead(current.panelItems, normalizedResult.readAt, false),
+      totalCount: current.unreadOnly ? 0 : current.totalCount,
+    }))
+
+    return { result: normalizedResult, removed: state.unreadOnly }
+  },
+
   setUnreadOnly: (unreadOnly) => {
     set({ unreadOnly })
+  },
+
+  setSelectedType: (selectedType) => {
+    set({ selectedType })
   },
 
   removeNotification: (notificationId) => {

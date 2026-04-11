@@ -102,11 +102,28 @@
     "empty": "Chưa có thông báo nào.",
     "viewAll": "Xem tất cả",
     "unreadOnly": "Chỉ hiện chưa đọc",
+    "typeFilter": "Loại",
+    "allTypes": "Tất cả loại",
     "refresh": "Tải lại",
+    "markAllRead": "Đọc tất cả",
+    "markAllReadSuccess": "Đã đánh dấu tất cả thông báo là đã đọc.",
+    "markAllReadError": "Không thể đánh dấu tất cả thông báo.",
     "fetchError": "Không thể tải thông báo.",
     "markReadError": "Không thể đồng bộ trạng thái thông báo.",
     "pageLabel": "Trang {{page}}",
-    "unreadCountLabel": "{{count}} chưa đọc"
+    "unreadCountLabel": "{{count}} chưa đọc",
+    "types": {
+      "Alert": "Cảnh báo",
+      "Message": "Tin nhắn",
+      "Reminder": "Nhắc nhở",
+      "TaskOverdue": "Task quá hạn",
+      "ChapterOverdue": "Chapter quá hạn",
+      "LessonOverdue": "Lesson quá hạn",
+      "LearningPathOverdue": "Lộ trình quá hạn",
+      "PlanExpiringSoon": "Gói sắp hết hạn",
+      "PlanExpired": "Gói đã hết hạn",
+      "ShareVersionUpdated": "Phiên bản chia sẻ mới"
+    }
   },
   "notification": {
     "shareVersionUpdated": {

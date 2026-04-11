@@ -51,7 +51,7 @@ describe('NotificationService', () => {
     })
 
     await expect(
-      NotificationService.getMyNotifications({ pageNumber: 2, pageSize: 20, unreadOnly: false })
+      NotificationService.getMyNotifications({ pageNumber: 2, pageSize: 20, unreadOnly: false, type: 'PlanExpired' })
     ).resolves.toEqual({
       items: [
         {
@@ -86,6 +86,8 @@ describe('NotificationService', () => {
       hasNextPage: true,
       hasPreviousPage: true,
     })
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/notifications/my?pageNumber=2&pageSize=20&unreadOnly=false&type=PlanExpired')
   })
 
   it('normalizes realtime snapshot fields and tolerates missing snapshot data', () => {
@@ -165,10 +167,31 @@ describe('NotificationService', () => {
 
     await expect(NotificationService.markAsRead(['n-2'])).resolves.toEqual({
       notificationIds: ['n-2'],
+      markedCount: 1,
       readAt: '2026-03-30T07:05:00Z',
       unreadCount: 4,
     })
 
     expect(mockedApi.patch).toHaveBeenCalledWith('/notifications/read', ['n-2'])
+  })
+
+  it('normalizes mark-all-as-read response payload', async () => {
+    mockedApi.patch.mockResolvedValue({
+      data: {
+        notificationIds: ['n-1', 'n-2'],
+        markedCount: 2,
+        readAt: '2026-03-30T07:10:00Z',
+        unreadCount: 0,
+      },
+    })
+
+    await expect(NotificationService.markAllAsRead()).resolves.toEqual({
+      notificationIds: ['n-1', 'n-2'],
+      markedCount: 2,
+      readAt: '2026-03-30T07:10:00Z',
+      unreadCount: 0,
+    })
+
+    expect(mockedApi.patch).toHaveBeenCalledWith('/notifications/read-all')
   })
 })

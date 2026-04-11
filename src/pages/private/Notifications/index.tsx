@@ -7,6 +7,11 @@ import NotificationList from '../../../components/Notifications/NotificationList
 import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
 import useAppNotificationStore from '../../../store/useAppNotificationStore'
 import useNotificationStore from '../../../store/useNotificationStore'
+import { NOTIFICATION_TYPE_KEYS, type NotificationTypeKey } from '../../../types/notification'
+
+function humanizeNotificationType(type: NotificationTypeKey): string {
+  return type.replace(/([a-z])([A-Z])/g, '$1 $2')
+}
 
 const NotificationsPage: React.FC = () => {
   const navigate = useNavigate()
@@ -15,12 +20,16 @@ const NotificationsPage: React.FC = () => {
     items,
     loading,
     error,
+    unreadCount,
     unreadOnly,
+    selectedType,
     pageNumber,
     hasNextPage,
     hasPreviousPage,
     fetchPage,
+    markAllAsRead,
     setUnreadOnly,
+    setSelectedType,
     markAsRead,
   } = useAppNotificationStore()
   const showToast = useNotificationStore((state) => state.showToast)
@@ -29,6 +38,7 @@ const NotificationsPage: React.FC = () => {
     void fetchPage({
       pageNumber: useAppNotificationStore.getState().pageNumber,
       unreadOnly: useAppNotificationStore.getState().unreadOnly,
+      type: useAppNotificationStore.getState().selectedType,
     })
   }, [fetchPage])
 
@@ -43,7 +53,7 @@ const NotificationsPage: React.FC = () => {
 
   const handleRefresh = async () => {
     try {
-      await fetchPage({ pageNumber, unreadOnly })
+      await fetchPage({ pageNumber, unreadOnly, type: selectedType })
     } catch (err: any) {
       showToast(err?.message || t('notifications.fetchError'), 'error')
     }
@@ -51,9 +61,30 @@ const NotificationsPage: React.FC = () => {
 
   const handlePageChange = async (nextPage: number) => {
     try {
-      await fetchPage({ pageNumber: nextPage, unreadOnly })
+      await fetchPage({ pageNumber: nextPage, unreadOnly, type: selectedType })
     } catch (err: any) {
       showToast(err?.message || t('notifications.fetchError'), 'error')
+    }
+  }
+
+  const handleTypeChange = async (nextValue: string) => {
+    const nextType = nextValue ? nextValue as NotificationTypeKey : null
+    setSelectedType(nextType)
+    try {
+      await fetchPage({ pageNumber: 1, unreadOnly, type: nextType })
+    } catch (err: any) {
+      showToast(err?.message || t('notifications.fetchError'), 'error')
+    }
+  }
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const outcome = await markAllAsRead()
+      if (outcome.result) {
+        showToast(t('notifications.markAllReadSuccess'), 'success')
+      }
+    } catch (err: any) {
+      showToast(err?.message || t('notifications.markAllReadError'), 'error')
     }
   }
 
@@ -98,6 +129,37 @@ const NotificationsPage: React.FC = () => {
                   color: 'var(--text-secondary)',
                 }}
               >
+                <span>{t('notifications.typeFilter')}</span>
+                <select
+                  value={selectedType ?? ''}
+                  onChange={(event) => { void handleTypeChange(event.target.value) }}
+                  style={{
+                    minWidth: 200,
+                    padding: '8px 10px',
+                    border: '1px solid var(--border-base)',
+                    borderRadius: 4,
+                    background: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  <option value="">{t('notifications.allTypes')}</option>
+                  {NOTIFICATION_TYPE_KEYS.map((type) => (
+                    <option key={type} value={type}>
+                      {t(`notifications.types.${type}`, { defaultValue: humanizeNotificationType(type) })}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={unreadOnly}
@@ -105,6 +167,26 @@ const NotificationsPage: React.FC = () => {
                 />
                 {t('notifications.unreadOnly')}
               </label>
+
+              <button
+                type="button"
+                onClick={() => { void handleMarkAllAsRead() }}
+                disabled={unreadCount === 0 || loading}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 4,
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: unreadCount === 0 || loading ? 'not-allowed' : 'pointer',
+                  opacity: unreadCount === 0 || loading ? 0.5 : 1,
+                }}
+              >
+                {t('notifications.markAllRead')}
+              </button>
 
               <button
                 type="button"

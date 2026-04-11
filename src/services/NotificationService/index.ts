@@ -5,6 +5,7 @@ import type {
   NotificationDto,
   NotificationListQuery,
   NotificationPagedResultDto,
+  NotificationTypeKey,
 } from '../../types/notification'
 
 function toSafeString(value: unknown): string | null {
@@ -22,6 +23,11 @@ function toNotificationType(value: unknown): string | null {
   }
 
   return null
+}
+
+function toNotificationTypeKey(value: unknown): NotificationTypeKey | null {
+  const type = toNotificationType(value)
+  return type as NotificationTypeKey | null
 }
 
 function toBoolean(value: unknown, fallback: boolean = false): boolean {
@@ -164,6 +170,7 @@ function normalizeMarkAsReadResult(raw: unknown, notificationIds: string[]): Mar
     notificationIds: legacyNotificationId
       ? Array.from(new Set([...normalizedIds, legacyNotificationId]))
       : normalizedIds,
+    markedCount: Math.max(0, toSafeNumber(record.markedCount, normalizedIds.length)),
     readAt: toSafeString(record.readAt),
     unreadCount: Math.max(0, toSafeNumber(record.unreadCount, 0)),
   }
@@ -175,6 +182,10 @@ class NotificationService {
     params.set('pageNumber', String(query.pageNumber ?? 1))
     params.set('pageSize', String(query.pageSize ?? 20))
     params.set('unreadOnly', String(Boolean(query.unreadOnly)))
+    const type = toNotificationTypeKey(query.type)
+    if (type) {
+      params.set('type', type)
+    }
 
     const response = await api.get(`/notifications/my?${params.toString()}`)
     return normalizePagedNotifications(response, query)
@@ -190,6 +201,7 @@ class NotificationService {
     if (sanitizedIds.length === 0) {
       return {
         notificationIds: [],
+        markedCount: 0,
         readAt: null,
         unreadCount: 0,
       }
@@ -197,6 +209,11 @@ class NotificationService {
 
     const response = await api.patch('/notifications/read', sanitizedIds)
     return normalizeMarkAsReadResult(response, sanitizedIds)
+  }
+
+  async markAllAsRead(): Promise<MarkNotificationAsReadResultDto> {
+    const response = await api.patch('/notifications/read-all')
+    return normalizeMarkAsReadResult(response, [])
   }
 
   normalizeRealtimeNotification(raw: unknown): NotificationDto {
