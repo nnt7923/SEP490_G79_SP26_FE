@@ -808,7 +808,7 @@ export async function getUserLearningPaths(
   const data = unwrap<UserLearningPathsResponse>(res)
 
   const normalizedResponse = {
-    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeleton) : [],
+    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeletonListItem) : [],
     totalCount: data?.totalCount ?? 0,
     pageNumber: data?.pageNumber ?? 1,
     pageSize: data?.pageSize ?? 10,
@@ -883,7 +883,7 @@ export async function getMyDrafts(
   const data = unwrap<UserLearningPathsResponse>(res)
 
   return {
-    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeleton) : [],
+    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeletonListItem) : [],
     totalCount: data?.totalCount ?? 0,
     pageNumber: data?.pageNumber ?? 1,
     pageSize: data?.pageSize ?? 10,
@@ -938,6 +938,41 @@ export async function getSuggestions(
 
   // Fallback to REST API (if implemented)
   throw new Error('REST API for learning path suggestions not implemented. Use SignalR instead.')
+}
+
+export function normalizeSkeletonListItem(payload: any): SkeletonResponse {
+  const normalizedVersion = toNullableNumber(payload?.version ?? payload?.Version)
+  const normalizedPreviousVersion = toNullableNumber(payload?.previousVersion ?? payload?.PreviousVersion)
+  const normalizedMeaningfulChange = toNullableBoolean(payload?.hasMeaningfulChange ?? payload?.HasMeaningfulChange)
+
+  const chapterDtos = pickArray<any>(payload?.chapterDtos, payload?.ChapterDtos)
+  const chapterItems = chapterDtos ?? pickArray<any>(payload?.chapters, payload?.Chapters) ?? []
+
+  const lessonItems = pickArray<any>(payload?.lessons, payload?.Lessons) ?? []
+  let totalLessonsLength = lessonItems.length
+  if (totalLessonsLength === 0 && chapterItems.length > 0) {
+    totalLessonsLength = chapterItems.reduce((acc: number, chapter: any) => {
+      const cLessons = pickArray<any>(chapter?.lessons, chapter?.Lessons, chapter?.lessonDtos, chapter?.LessonDtos) ?? []
+      return acc + cLessons.length
+    }, 0)
+  }
+
+  return {
+    ...payload,
+    version: normalizedVersion,
+    previousVersion: normalizedPreviousVersion,
+    hasMeaningfulChange: normalizedMeaningfulChange ?? undefined,
+    sharedByUserId: payload?.sharedByUserId ?? payload?.SharedByUserId ?? null,
+    sharedByUserName: payload?.sharedByUserName ?? payload?.SharedByUserName ?? null,
+    sourceLearningPathId: payload?.sourceLearningPathId ?? payload?.SourceLearningPathId ?? null,
+    sourceVersion: payload?.sourceVersion ?? payload?.SourceVersion ?? null,
+    sourceLatestVersion: payload?.sourceLatestVersion ?? payload?.SourceLatestVersion ?? null,
+    hasSourceUpdate: Boolean(payload?.hasSourceUpdate ?? payload?.HasSourceUpdate),
+    chapters: undefined,
+    lessons: undefined,
+    chapterCount: payload?.chapterCount ?? chapterItems.length ?? 0,
+    lessonCount: payload?.lessonCount ?? totalLessonsLength
+  } as SkeletonResponse
 }
 
 export default {

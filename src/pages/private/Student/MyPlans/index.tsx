@@ -237,7 +237,7 @@ const MyPlansPage: React.FC = () => {
                       )}
                       <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)', flexWrap: 'wrap' }}>
                         <span>{t('myPlans.chapters', { count: plan.chapterCount || plan.chapters?.length || 0 })}</span>
-                        <span>{t('myPlans.lessons', { count: plan.lessons?.length || 0 })}</span>
+                        <span>{t('myPlans.lessons', { count: plan.lessonCount ?? plan.lessons?.length ?? 0 })}</span>
                         {plan.createdAt && <span>{new Date(plan.createdAt).toLocaleDateString()}</span>}
                       </div>
 

@@ -60,7 +60,8 @@ const StudentOverview: React.FC = () => {
         let totalChapters = 0
         plansArray.forEach((plan: any) => {
           totalChapters += plan.chapterCount || plan.chapters?.length || 0
-          if (plan.chapters) {
+          totalLessons += plan.lessonCount ?? 0
+          if (plan.lessonCount === undefined && plan.chapters) {
             plan.chapters.forEach((chapter: any) => {
               totalLessons += chapter.lessons?.length || 0
             })
