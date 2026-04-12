@@ -86,7 +86,7 @@ const normalizeAnswerForSubmit = (question: QuizQuestion, rawAnswer: string): st
         .map((item) => normalizeInlineText(item))
         .filter(Boolean),
     )
-    return question.options.filter((option) => selected.has(option)).join('||')
+    return question.options.filter((option) => selected.has(option)).join(', ')
   }
 
   if (question.type === 'Matching') {
@@ -102,7 +102,7 @@ const normalizeAnswerForSubmit = (question: QuizQuestion, rawAnswer: string): st
       })
       .filter((pair): pair is string => Boolean(pair))
 
-    return normalizedPairs.join(', ')
+    return normalizedPairs.join(',')
   }
 
   if (question.type === 'Ordering') {
@@ -124,7 +124,7 @@ const normalizeAnswerForSubmit = (question: QuizQuestion, rawAnswer: string): st
     )
 
     const missingItems = normalizedOptions.filter((item) => !validOrderedItems.includes(item))
-    return [...validOrderedItems, ...missingItems].join('||')
+    return [...validOrderedItems, ...missingItems].join(',')
   }
 
   return answer
@@ -142,7 +142,8 @@ const formatAnswerForDisplay = (value: unknown): string => {
       .join(', ')
   }
 
-  return text
+  // Format comma without space to comma with space for better readability
+  return text.replace(/,(?=[^\s])/g, ', ')
 }
 
 /* ── Component ─────────────────────────────────────── */
