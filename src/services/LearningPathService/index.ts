@@ -653,6 +653,7 @@ export interface UserLearningPathsParams {
   status?: string
   sortDescending?: boolean
   useCache?: boolean
+  includeDetails?: boolean
 }
 
 export interface UserLearningPathsResponse {
@@ -710,6 +711,7 @@ function buildUserLearningPathsCacheKey(
     subjectId: params?.subjectId ?? '',
     status: params?.status ?? '',
     sortDescending: params?.sortDescending ?? false,
+    includeDetails: params?.includeDetails ?? false,
   }
   return `${userId}:${JSON.stringify(normalized)}`
 }
@@ -807,8 +809,14 @@ export async function getUserLearningPaths(
   const res: any = await api.get(url)
   const data = unwrap<UserLearningPathsResponse>(res)
 
+  const items = Array.isArray(data?.items)
+    ? data.items.map((item) =>
+        params?.includeDetails ? normalizeSkeleton(item) : normalizeSkeletonListItem(item)
+      )
+    : []
+
   const normalizedResponse = {
-    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeletonListItem) : [],
+    items,
     totalCount: data?.totalCount ?? 0,
     pageNumber: data?.pageNumber ?? 1,
     pageSize: data?.pageSize ?? 10,

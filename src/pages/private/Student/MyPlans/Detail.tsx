@@ -195,6 +195,7 @@ const MyPlansDetailPage: React.FC = () => {
         LearningPathService.getUserLearningPaths(user.id, {
           pageNumber: 1,
           pageSize: 100,
+          includeDetails: true,
         }),
         LearningPathService.getLearningPathProgress(pathId),
       ])
