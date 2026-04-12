@@ -303,6 +303,7 @@ export interface UseChatHubOptions {
   onError?: (errorCode: string, errorMessage: string) => void;
   onNewMessageNotification?: (payload: NewMessageNotificationPayload) => void;
   onReceiveLearningPathShare?: (message: DirectMessageDto) => void;
+  onMentorDashboardRecentMessageReceived?: (payload: any) => void;
 }
 
 export interface ChatHubRef {
@@ -326,7 +327,7 @@ export interface ChatHubRef {
 }
 
 export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
-  const { onError, onNewMessageNotification, onReceiveLearningPathShare } =
+  const { onError, onNewMessageNotification, onReceiveLearningPathShare, onMentorDashboardRecentMessageReceived } =
     options;
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const joinedConversationIdsRef = useRef<Set<string>>(new Set());
@@ -546,6 +547,11 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
       },
     );
 
+    conn.on("MentorDashboardRecentMessageReceived", (payload: any) => {
+      if (!mounted) return;
+      onMentorDashboardRecentMessageReceived?.(payload);
+    });
+
     conn.on("ChatContactsLoaded", (_contacts: unknown) => {
       // Contacts are still handled by the page via REST fetch.
     });
@@ -573,6 +579,7 @@ export function useChatHub(options: UseChatHubOptions = {}): ChatHubRef {
       conn.off("NewMessageNotification");
       conn.off("ChatContactsLoaded");
       conn.off("DirectChatError");
+      conn.off("MentorDashboardRecentMessageReceived");
       joinedConversationIdsRef.current.clear();
       conn.stop().catch(() => {});
       connectionRef.current = null;

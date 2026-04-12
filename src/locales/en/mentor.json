@@ -1,10 +1,10 @@
 {
   "dashboard": {
     "settings": "Settings",
-    "totalStudents": "Total Students",
+    "totalStudents": "Supported Students",
     "activeLearners": "active learners",
-    "myCourses": "My Courses",
-    "coursesTaught": "courses taught",
+    "myCourses": "My Subjects",
+    "coursesTaught": "subjects created",
     "progress": "Progress",
     "avgCompletion": "avg completion",
     "rating": "Rating",
@@ -43,7 +43,21 @@
     "create": "create",
     "enterSubjectName": "Please enter subject name",
     "createSuccess": "Created subject \"{{name}}\" successfully",
-    "createFailed": "Unable to create subject"
+    "createFailed": "Unable to create subject",
+    "draftPaths": "Draft Paths",
+    "draftPathsSub": "Paths waiting to be published",
+    "recentMessages": "Recent Messages",
+    "latestFromStudents": "Latest messages from students",
+    "loadingData": "Loading...",
+    "noMessagesFound": "No messages",
+    "messagesWillAppear": "Incoming messages will appear here",
+    "reply": "Reply",
+    "recentDrafts": "Recent Drafts",
+    "recentDraftsSub": "Recently created or updated learning paths",
+    "noDraftsYet": "No drafts found",
+    "createDraftToSee": "Create a new draft learning path to see it here",
+    "untitledDraft": "Untitled Draft",
+    "open": "Open"
   },
   "subjects": {
     "title": "subject_management",

@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
 import { useMentorSidebarConfig } from './components/MentorSideBar'
-import { SubjectService, UserService } from '../../../services'
+import { SubjectService, DashboardService, LearningPathService } from '../../../services'
+import { useChatHub } from '../../../hooks/useChatHub'
 import { useTranslation } from 'react-i18next'
 import { Settings, Users, BookOpen, TrendingUp, Star, LayoutDashboard, PlaySquare, Folder, PieChart, Zap, User as UserIcon } from 'lucide-react'
 
@@ -21,9 +22,12 @@ const MentorDashboard: React.FC = () => {
   const [subjectError, setSubjectError] = React.useState<string | null>(null)
   const [subjectSuccess, setSubjectSuccess] = React.useState<string | null>(null)
 
-  // Students data
-  const [students, setStudents] = React.useState<any[]>([])
-  const [loadingStudents, setLoadingStudents] = React.useState(false)
+  // Overview data
+  const [loadingOverview, setLoadingOverview] = React.useState(true)
+  const [overviewData, setOverviewData] = React.useState<any>(null)
+  const [recentMessages, setRecentMessages] = React.useState<any[]>([])
+  const [recentDrafts, setRecentDrafts] = React.useState<any[]>([])
+  const [loadingDrafts, setLoadingDrafts] = React.useState(true)
 
   const sidebarConfig = {
     navItems: useMentorSidebarConfig() as any,
@@ -47,36 +51,49 @@ const MentorDashboard: React.FC = () => {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
 
-  const unwrapUsers = (raw: any): any[] => {
-    const value = raw?.data ?? raw
-    if (Array.isArray(value)) return value
-    if (Array.isArray(value?.items)) return value.items
-    if (Array.isArray(value?.results)) return value.results
-    if (Array.isArray(value?.records)) return value.records
-    return []
+  const fetchOverview = async () => {
+    setLoadingOverview(true)
+    try {
+      const data = await DashboardService.getMentorOverview()
+      setOverviewData(data)
+      setRecentMessages(data.recentStudentMessages || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingOverview(false)
+    }
   }
 
-  const fetchStudents = async () => {
-    setLoadingStudents(true)
+  const fetchDrafts = async () => {
+    setLoadingDrafts(true)
     try {
-      const data = await UserService.listUsers()
-      const allUsers = unwrapUsers(data)
-      const activeStudents = allUsers.filter((u) => {
-        const userRole = (u?.role?.name || u?.roleName || '').toLowerCase()
-        const userStatus = (u?.status || '').toLowerCase()
-        return userRole === 'student' && userStatus !== 'banned'
-      })
-      setStudents(activeStudents)
+      const data = await LearningPathService.getMyDrafts({ pageSize: 5, sortDescending: true })
+      setRecentDrafts(data.items || [])
     } catch (e) {
-      setStudents([])
+      console.error(e)
     } finally {
-      setLoadingStudents(false)
+      setLoadingDrafts(false)
     }
   }
 
   React.useEffect(() => {
-    fetchStudents()
+    fetchOverview()
+    fetchDrafts()
   }, [])
+
+  useChatHub({
+    onMentorDashboardRecentMessageReceived: React.useCallback((payload) => {
+      setRecentMessages((prev) => {
+        const existingIdx = prev.findIndex((m) => m.studentId === payload.studentId)
+        const newList = [...prev]
+        if (existingIdx !== -1) {
+          newList.splice(existingIdx, 1)
+        }
+        newList.unshift(payload)
+        return newList.slice(0, 5)
+      })
+    }, [])
+  })
 
   const openSubjectModal = () => {
     setShowSubjectModal(true)
@@ -145,12 +162,11 @@ const MentorDashboard: React.FC = () => {
           </div>
 
         {/* ========== OVERVIEW GRID ========== */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {[
-            { icon: <Users size={18} />, label: t('dashboard.totalStudents'), value: loadingStudents ? '...' : students.length, sub: t('dashboard.activeLearners'), iconColor: 'text-status-blue' },
-            { icon: <BookOpen size={18} />, label: t('dashboard.myCourses'), value: 0, sub: t('dashboard.coursesTaught'), iconColor: 'text-status-blue' },
-            { icon: <TrendingUp size={18} />, label: t('dashboard.progress'), value: '0%', sub: t('dashboard.avgCompletion'), iconColor: 'text-status-green' },
-            { icon: <Star size={18} />, label: t('dashboard.rating'), value: '—', sub: t('dashboard.studentFeedback'), iconColor: 'text-amber-500' },
+            { icon: <Users size={18} />, label: t('dashboard.totalStudents'), value: loadingOverview ? '...' : (overviewData?.supportedStudentsCount || 0), iconColor: 'text-status-blue' },
+            { icon: <BookOpen size={18} />, label: t('dashboard.myCourses'), value: loadingOverview ? '...' : (overviewData?.createdSubjectsCount || 0), iconColor: 'text-status-blue' },
+            { icon: <TrendingUp size={18} />, label: t('dashboard.draftPaths', 'Draft Paths'), value: loadingOverview ? '...' : (overviewData?.draftLearningPathsCount || 0), iconColor: 'text-status-green' },
           ].map((card, i) => (
             <motion.div
               key={card.label}
@@ -166,49 +182,42 @@ const MentorDashboard: React.FC = () => {
               </div>
               <div>
                 <div className="text-3xl font-bold text-heading mb-1">{card.value}</div>
-                <div className="text-xs text-muted">{card.sub}</div>
               </div>
             </motion.div>
           ))}
         </div>
 
+
         {/* ========== MAIN CONTENT SECTIONS ========== */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* STUDENT LIST */}
-          <div className="bg-th-card border border-bd-strong">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
+          {/* RECENT MESSAGES */}
+          <div className="lg:col-span-2 bg-th-card border border-bd-strong">
             <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
               <span className="text-status-blue font-bold flex"><LayoutDashboard size={18} /></span>
               <div>
-                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.myStudents')}</h2>
-                <p className="text-xs text-muted">{t('dashboard.activeStudentList')}</p>
+                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.recentMessages', 'Recent Messages')}</h2>
+                <p className="text-xs text-muted">{t('dashboard.latestFromStudents', 'Latest messages from students')}</p>
               </div>
             </div>
             
             <div className="p-4">
-              {loadingStudents ? (
+              {loadingOverview ? (
                 <div className="flex items-center justify-center py-8">
-                  <span className="text-sm font-bold text-muted">{t('dashboard.loadingStudents')}</span>
+                  <span className="text-sm font-bold text-muted">{t('dashboard.loadingData', 'Loading...')}</span>
                 </div>
-              ) : students.length === 0 ? (
+              ) : recentMessages.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noStudentsFound')}</p>
-                  <p className="text-xs text-muted">{t('dashboard.studentsWillAppear')}</p>
+                  <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noMessagesFound', 'No messages')}</p>
+                  <p className="text-xs text-muted">{t('dashboard.messagesWillAppear', 'Incoming messages will appear here')}</p>
                 </div>
               ) : (
                 <div className="space-y-0 divide-y divide-gray-200 max-h-[400px] overflow-y-auto">
-                  {students.map((student, i) => {
-                    const studentName = student?.name || [student?.firstName, student?.lastName].filter(Boolean).join(' ') || 'Student'
-                    const studentEmail = student?.email || '—'
-                    const initials = studentName
-                      .split(' ')
-                      .map((n: string) => n[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2)
-                    
+                  {recentMessages.map((msg, i) => {
+                    const initials = getInitials(msg.studentName || 'Student')
+                    const dateStr = msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(msg.sentAt).toLocaleDateString() : ''
                     return (
                       <motion.div
-                        key={student?.id || student?.userId || studentEmail}
+                        key={msg.messageId || i}
                         initial={{ opacity: 0, x: -12 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, delay: i * 0.05 }}
@@ -218,12 +227,15 @@ const MentorDashboard: React.FC = () => {
                           <span className="text-heading font-bold text-sm">{initials}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-heading text-sm truncate">{studentName}</p>
-                          <p className="text-xs text-muted truncate">email: {studentEmail}</p>
+                          <p className="font-bold text-heading text-sm truncate">{msg.studentName}</p>
+                          <p className="text-xs text-muted truncate">{msg.content}</p>
                         </div>
-                        <button className="px-3 py-1 border border-bd-strong text-xs font-bold hover:bg-th-input transition-colors rounded-sm">
-                          {t('dashboard.view')}
-                        </button>
+                        {dateStr && (
+                          <div className="text-[10px] text-muted whitespace-nowrap self-start mt-1">
+                            {dateStr}
+                          </div>
+                        )}
+
                       </motion.div>
                     )
                   })}
@@ -232,107 +244,58 @@ const MentorDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* MY LESSONS */}
-          <div className="bg-th-card border border-bd-strong">
-            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold flex"><PlaySquare size={18} /></span>
-              <div>
-                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.myLessons')}</h2>
-                <p className="text-xs text-muted">{t('dashboard.trackFeedback')}</p>
-              </div>
-            </div>
-            
-            <div className="p-8 text-center">
-              <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noLessonsScheduled')}</p>
-              <p className="text-xs text-muted">{t('dashboard.createCoursesStart')}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* ========== RESOURCES & MATERIALS ========== */}
-        <div className="grid grid-cols-1 gap-6 mb-6">
-          <div className="bg-th-card border border-bd-strong">
+          {/* RECENT DRAFTS */}
+          <div className="lg:col-span-3 bg-th-card border border-bd-strong">
             <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
               <span className="text-status-blue font-bold flex"><Folder size={18} /></span>
               <div>
-                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.resources')}</h2>
-                <p className="text-xs text-muted">{t('dashboard.manageMaterials')}</p>
+                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.recentDrafts', 'Recent Drafts')}</h2>
+                <p className="text-xs text-muted">{t('dashboard.recentDraftsSub', 'Recently created or updated learning paths')}</p>
               </div>
             </div>
             
-            <div className="p-8 text-center">
-              <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noResourcesYet')}</p>
-              <p className="text-xs text-muted">{t('dashboard.uploadMaterials')}</p>
+            <div className="p-4">
+              {loadingDrafts ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-sm font-bold text-muted">{t('dashboard.loadingData', 'Loading...')}</span>
+                </div>
+              ) : recentDrafts.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noDraftsYet', 'No drafts found')}</p>
+                  <p className="text-xs text-muted">{t('dashboard.createDraftToSee', 'Create a new draft learning path to see it here')}</p>
+                </div>
+              ) : (
+                <div className="space-y-0 divide-y divide-gray-200">
+                  {recentDrafts.map((draft, i) => {
+                    const dateStr = draft.createdAt ? new Date(draft.createdAt).toLocaleDateString() : ''
+                    return (
+                      <div key={draft.pathId || i} className="flex items-center gap-4 py-3 hover:bg-th-page transition-colors px-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-heading text-sm truncate">{draft.title || t('dashboard.untitledDraft', 'Untitled Draft')}</p>
+                          <p className="text-xs text-muted truncate">{draft.description || '—'}</p>
+                        </div>
+                        <div className="text-xs text-muted whitespace-nowrap hidden sm:block">
+                          ver {draft.version || 1}
+                        </div>
+                        {dateStr && (
+                          <div className="text-[10px] text-muted whitespace-nowrap">
+                            {dateStr}
+                          </div>
+                        )}
+                        <button 
+                          className="px-3 py-1 border border-bd-strong text-xs font-bold hover:bg-th-input transition-colors rounded-sm ml-2 cursor-pointer"
+                          onClick={() => window.location.href = `/mentor/drafts/${draft.pathId}`}
+                        >
+                          {t('dashboard.open', 'Open')}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
-
-        {/* ========== STUDENT PERFORMANCE & ANALYTICS ========== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* STUDENT REVIEWS */}
-          <div className="bg-th-card border border-bd-strong">
-            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold flex"><Star size={18} /></span>
-              <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.studentReviews')}</h2>
-            </div>
-            
-            <div className="p-8 text-center">
-              <p className="text-heading font-bold text-lg mb-1">{t('dashboard.noReviewsYet')}</p>
-              <p className="text-xs text-muted">{t('dashboard.studentsWillRate')}</p>
-            </div>
-          </div>
-
-          {/* ANALYTICS */}
-          <div className="lg:col-span-2 bg-th-card border border-bd-strong">
-            <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-              <span className="text-status-blue font-bold flex"><PieChart size={18} /></span>
-              <div>
-                <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.analytics')}</h2>
-                <p className="text-xs text-muted">{t('dashboard.performanceOverview')}</p>
-              </div>
-            </div>
-            
-            <div className="p-4 border-t border-bd-muted">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 divide-y md:divide-y-0 md:divide-x divide-gray-200">
-                <div className="px-4 py-2">
-                  <div className="text-xs font-bold text-muted mb-1">{t('dashboard.totalTeachingHours')}</div>
-                  <div className="text-2xl font-bold text-heading">0h</div>
-                </div>
-                <div className="px-4 py-2">
-                  <div className="text-xs font-bold text-muted mb-1">{t('dashboard.lessonsConducted')}</div>
-                  <div className="text-2xl font-bold text-heading">0</div>
-                </div>
-                <div className="px-4 py-2">
-                  <div className="text-xs font-bold text-muted mb-1">{t('dashboard.studentSatisfaction')}</div>
-                  <div className="text-2xl font-bold text-heading">—</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ========== QUICK ACTIONS ========== */}
-        <div className="bg-th-card border border-bd-strong">
-          <div className="p-4 border-b border-bd bg-th-page flex items-center gap-3">
-            <span className="text-status-blue font-bold flex"><Zap size={18} /></span>
-            <h2 className="text-sm font-bold text-heading uppercase">{t('dashboard.quickActions')}</h2>
-          </div>
-          
-          <div className="p-4">
-            <div className="flex flex-wrap gap-4">
-              <button className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold hover:bg-status-blue-solid-hover transition-colors rounded-sm shadow-sm flex items-center gap-2">
-                {t('dashboard.buildCourse')}
-              </button>
-              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors rounded-sm shadow-sm flex items-center gap-2">
-                {t('dashboard.viewStudents')}
-              </button>
-              <button className="px-6 py-2 border border-blue-600 text-status-blue bg-th-card font-bold hover:bg-status-blue-bg transition-colors rounded-sm shadow-sm flex items-center gap-2" onClick={openSubjectModal}>
-                {t('dashboard.addSubject')}
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* ========== SUBJECT CREATE MODAL ========== */}
         <AnimatePresence>
         {showSubjectModal && (

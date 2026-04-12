@@ -1,10 +1,10 @@
 {
   "dashboard": {
     "settings": "Cài đặt",
-    "totalStudents": "Tổng Sinh Viên",
+    "totalStudents": "Số học sinh đã hỗ trợ",
     "activeLearners": "người học đang hoạt động",
-    "myCourses": "Khóa Học Của Tôi",
-    "coursesTaught": "khóa học đang dạy",
+    "myCourses": "Môn Học Của Tôi",
+    "coursesTaught": "môn học đã tạo",
     "progress": "Tiến Độ",
     "avgCompletion": "hoàn thành trung bình",
     "rating": "Đánh Giá",
@@ -43,7 +43,21 @@
     "create": "tạo",
     "enterSubjectName": "Vui lòng nhập tên môn học",
     "createSuccess": "Tạo môn học \"{{name}}\" thành công",
-    "createFailed": "Không thể tạo môn học"
+    "createFailed": "Không thể tạo môn học",
+    "draftPaths": "Lộ Trình Nháp",
+    "draftPathsSub": "Lộ trình chờ xuất bản",
+    "recentMessages": "Tin Nhắn Mới Nhất",
+    "latestFromStudents": "Tin nhắn gần đây từ sinh viên",
+    "loadingData": "Đang tải...",
+    "noMessagesFound": "Không có tin nhắn",
+    "messagesWillAppear": "Tin nhắn mới sẽ xuất hiện ở đây",
+    "reply": "Trả lời",
+    "recentDrafts": "Lộ Trình Nháp Mới Nhất",
+    "recentDraftsSub": "Các lộ trình mới tạo hoặc vừa cập nhật",
+    "noDraftsYet": "Chưa có lộ trình nháp",
+    "createDraftToSee": "Tạo lộ trình nháp mới để quản lý ở đây",
+    "untitledDraft": "Lộ trình chưa có tên",
+    "open": "Mở"
   },
   "subjects": {
     "title": "quản lý môn học",
