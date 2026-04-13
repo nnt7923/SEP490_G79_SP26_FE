@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
@@ -14,8 +14,11 @@ import useAppNotificationStore from '../../../store/useAppNotificationStore'
 import useNotificationStore from '../../../store/useNotificationStore'
 import { navigateAndMarkNotificationRead } from '../../Notifications/utils'
 
+const FOCUS_SESSION_RUNNING_LOCK_KEY = 'focus_session_running_lock'
+
 const Header: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { token, user, logout } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
   const [open, setOpen] = useState(false)
@@ -78,6 +81,16 @@ const Header: React.FC = () => {
   const md = mdLines.join('\n')
 
   const onLogout = async () => {
+    const isFocusSessionRoute = location.pathname === ROUTER.FOCUS_SESSION
+    const hasRunningFocusSession = typeof window !== 'undefined' && Boolean(window.sessionStorage.getItem(FOCUS_SESSION_RUNNING_LOCK_KEY))
+
+    if (isFocusSessionRoute && hasRunningFocusSession) {
+      showToast(t('userMenu.mustPauseBeforeLogout'), 'warning')
+      setOpen(false)
+      setMobileMenuOpen(false)
+      return
+    }
+
     try { await logout() } catch {}
     navigate(ROUTER.HOME)
   }

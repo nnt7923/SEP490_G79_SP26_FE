@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
-import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown, Trophy } from 'lucide-react'
+import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown, Trophy, History } from 'lucide-react'
 import useChatUnreadBadge from '../../../../hooks/useChatUnreadBadge'
 import useChatStore from '../../../../store/useChatStore'
 
@@ -44,6 +44,11 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
       icon: <User size={18} />,
     },
     {
+      label: 'Focus Session History',
+      path: '/focus-session/history',
+      icon: <History size={18} />,
+    },
+    {
       label: 'Chat',
       path: '/chat',
       icon: <MessageSquare size={18} />,
@@ -70,6 +75,7 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.resources'), path: '/my-resources', icon: <Library size={18} /> },
     { label: t('sidebar.achievements', { defaultValue: 'Achievements' }), path: '/achievements', icon: <Trophy size={18} /> },
     { label: t('sidebar.profile'), path: '/profile', icon: <User size={18} /> },
+    { label: t('sidebar.focusSessionHistory', { defaultValue: 'Focus Session History' }), path: '/focus-session/history', icon: <History size={18} /> },
     { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} />, badge: globalUnreadCount },
     { label: t('sidebar.upgrade'), path: '/subscription', icon: <Crown size={18} className="text-yellow-500" /> },
   ]

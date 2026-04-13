@@ -33,11 +33,19 @@ export interface MentorQuotaStatusPage {
 export interface MentorAIAccessPolicy {
   mentorPaidRequestsMonthlyLimit: number
   mentorDowngradeNotifyCooldownHours: number
+  policyKey?: string
+  description?: string
+  isActive?: boolean
+  updatedAt?: string
 }
 
 export interface UpdateMentorAIAccessPolicyPayload {
-  mentorPaidRequestsMonthlyLimit: number
-  mentorDowngradeNotifyCooldownHours: number
+  description: string
+  configJson: {
+    mentorPaidRequestsMonthlyLimit: number
+    mentorDowngradeNotifyCooldownHours: number
+  }
+  isActive: boolean
 }
 
 export interface AIUsageLogsSummaryQuery {
@@ -250,10 +258,20 @@ function unwrapValue(raw: unknown): unknown {
 function normalizePolicy(raw: unknown): MentorAIAccessPolicy {
   const source = unwrapValue(raw)
   const record = (source && typeof source === 'object') ? source as Record<string, unknown> : {}
+  const configRecord = (record.configJson && typeof record.configJson === 'object')
+    ? record.configJson as Record<string, unknown>
+    : {}
+
+  const monthlyLimitRaw = configRecord.mentorPaidRequestsMonthlyLimit ?? record.mentorPaidRequestsMonthlyLimit
+  const cooldownHoursRaw = configRecord.mentorDowngradeNotifyCooldownHours ?? record.mentorDowngradeNotifyCooldownHours
 
   return {
-    mentorPaidRequestsMonthlyLimit: Math.max(0, toSafeNumber(record.mentorPaidRequestsMonthlyLimit, 0)),
-    mentorDowngradeNotifyCooldownHours: Math.max(0, toSafeNumber(record.mentorDowngradeNotifyCooldownHours, 0)),
+    mentorPaidRequestsMonthlyLimit: Math.max(0, toSafeNumber(monthlyLimitRaw, 0)),
+    mentorDowngradeNotifyCooldownHours: Math.max(0, toSafeNumber(cooldownHoursRaw, 0)),
+    policyKey: String(record.policyKey ?? 'mentor_ai_access_policy'),
+    description: String(record.description ?? ''),
+    isActive: Boolean(record.isActive),
+    updatedAt: String(record.updatedAt ?? ''),
   }
 }
 
@@ -453,13 +471,15 @@ class AdminAIUsageService {
     return normalizePage(response)
   }
 
-  async getMentorAIAccessPolicy(): Promise<MentorAIAccessPolicy> {
-    const response = await api.get('/admin/ai-access-policy/mentor')
+  async getMentorAIAccessPolicy(policyKey: string): Promise<MentorAIAccessPolicy> {
+    const normalizedPolicyKey = encodeURIComponent(String(policyKey || '').trim())
+    const response = await api.get(`/admin/system-runtime-policy/${normalizedPolicyKey}`)
     return normalizePolicy(response)
   }
 
-  async updateMentorAIAccessPolicy(payload: UpdateMentorAIAccessPolicyPayload): Promise<MentorAIAccessPolicy> {
-    const response = await api.put('/admin/ai-access-policy/mentor', payload)
+  async updateMentorAIAccessPolicy(policyKey: string, payload: UpdateMentorAIAccessPolicyPayload): Promise<MentorAIAccessPolicy> {
+    const normalizedPolicyKey = encodeURIComponent(String(policyKey || '').trim())
+    const response = await api.put(`/admin/system-runtime-policy/${normalizedPolicyKey}`, payload)
     return normalizePolicy(response)
   }
 

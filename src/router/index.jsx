@@ -54,6 +54,7 @@ const TaskPage = React.lazy(() => import('../pages/private/Task'))
 const StudentOverview = React.lazy(() => import('../pages/private/Student/Overview'))
 const StudentAchievements = React.lazy(() => import('../pages/private/Student/Achievements'))
 const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
+const FocusSessionHistory = React.lazy(() => import('../pages/private/FocusSession/History'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
 const StudentShareUpdatesPage = React.lazy(() => import('../pages/private/Student/Chat/ShareUpdates'))
@@ -114,6 +115,7 @@ const router = createBrowserRouter([
           { path: '/quiz/:quizId', element: <Quiz /> },
           { path: '/task/:taskId', element: <TaskPage /> },
           { path: ROUTER.FOCUS_SESSION, element: <FocusSession /> },
+          { path: ROUTER.FOCUS_SESSION_HISTORY, element: <FocusSessionHistory /> },
           { path: ROUTER.CHAT, element: <StudentChatPage /> },
           { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
           { path: ROUTER.LEARNING_PATH_SHARE_UPDATES, element: <StudentShareUpdatesPage /> },

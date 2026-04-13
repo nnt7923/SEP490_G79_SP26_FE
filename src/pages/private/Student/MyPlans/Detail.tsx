@@ -71,7 +71,7 @@ const getProgressStatusLabel = (
   return t(`quizStatus.${status}`, status)
 }
 
-type ItemVisualStatus = 'completed' | 'overdue' | 'default'
+type ItemVisualStatus = 'completed' | 'overdue' | 'due-today' | 'default'
 
 const normalizeVisualStatus = (value: unknown): ItemVisualStatus | undefined => {
   if (value === null || value === undefined) return undefined
@@ -87,6 +87,7 @@ const normalizeVisualStatus = (value: unknown): ItemVisualStatus | undefined => 
 
   if (['completed', 'done', 'finished', 'success'].includes(normalized)) return 'completed'
   if (['overdue', 'pastdue', 'expired', 'late'].includes(normalized)) return 'overdue'
+  if (['duetoday', 'today', 'due'].includes(normalized)) return 'due-today'
 
   return undefined
 }
@@ -97,8 +98,20 @@ const resolveVisualStatus = (rawStatus: unknown, dueDate?: unknown): ItemVisualS
 
   if (dueDate) {
     const parsedDate = new Date(String(dueDate))
-    if (!Number.isNaN(parsedDate.getTime()) && parsedDate.getTime() < Date.now()) {
-      return 'overdue'
+    if (!Number.isNaN(parsedDate.getTime())) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const dueDay = new Date(parsedDate)
+      dueDay.setHours(0, 0, 0, 0)
+
+      if (dueDay.getTime() < today.getTime()) {
+        return 'overdue'
+      }
+
+      if (dueDay.getTime() === today.getTime()) {
+        return 'due-today'
+      }
     }
   }
 
@@ -132,6 +145,19 @@ const getItemStatusStyles = (status: ItemVisualStatus) => {
     }
   }
 
+  if (status === 'due-today') {
+    return {
+      background: 'rgba(245, 158, 11, 0.08)',
+      borderColor: 'rgba(245, 158, 11, 0.32)',
+      leftAccent: 'var(--warning-primary)',
+      badgeBackground: 'var(--warning-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      metaColor: 'var(--warning-primary)',
+      nestedBackground: 'rgba(245, 158, 11, 0.06)'
+    }
+  }
+
   return {
     background: 'var(--bg-main)',
     borderColor: 'var(--border-base)',
@@ -142,6 +168,37 @@ const getItemStatusStyles = (status: ItemVisualStatus) => {
     metaColor: 'var(--accent-primary)',
     nestedBackground: 'var(--bg-surface)'
   }
+}
+
+const getLessonCornerTag = (status: ItemVisualStatus, t: any) => {
+  if (status === 'completed') {
+    return {
+      label: t('plansResult.lessonTagCompleted'),
+      color: 'var(--success-primary)',
+      background: 'rgba(22, 163, 74, 0.10)',
+      borderColor: 'rgba(22, 163, 74, 0.28)'
+    }
+  }
+
+  if (status === 'due-today') {
+    return {
+      label: t('plansResult.lessonTagDueToday'),
+      color: 'var(--warning-primary)',
+      background: 'rgba(245, 158, 11, 0.12)',
+      borderColor: 'rgba(245, 158, 11, 0.32)'
+    }
+  }
+
+  if (status === 'overdue') {
+    return {
+      label: t('plansResult.lessonTagOverdue'),
+      color: 'var(--danger-primary)',
+      background: 'rgba(220, 38, 38, 0.10)',
+      borderColor: 'rgba(220, 38, 38, 0.3)'
+    }
+  }
+
+  return null
 }
 
 const MyPlansDetailPage: React.FC = () => {
@@ -615,6 +672,7 @@ const MyPlansDetailPage: React.FC = () => {
                                 lesson.lessonDay
                               )
                               const lessonStyles = getItemStatusStyles(lessonVisualStatus)
+                              const lessonCornerTag = getLessonCornerTag(lessonVisualStatus, t)
 
                               return (
                                 <motion.div 
@@ -629,12 +687,32 @@ const MyPlansDetailPage: React.FC = () => {
                                     alignItems: 'flex-start', 
                                     gap: 16, 
                                     padding: '16px', 
+                                    position: 'relative',
                                     background: lessonStyles.background,
                                     border: `1px solid ${lessonStyles.borderColor}`,
                                     borderLeft: `3px solid ${lessonStyles.leftAccent}`,
                                     borderRadius: 4 
                                   }}
                                 >
+                                {lessonCornerTag && (
+                                  <span style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 10,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    padding: '4px 8px',
+                                    borderRadius: 999,
+                                    border: `1px solid ${lessonCornerTag.borderColor}`,
+                                    color: lessonCornerTag.color,
+                                    background: lessonCornerTag.background,
+                                    lineHeight: 1.2,
+                                    maxWidth: 220,
+                                    textAlign: 'center'
+                                  }}>
+                                    {lessonCornerTag.label}
+                                  </span>
+                                )}
                                 <div style={{
                                   width: 24, height: 24, borderRadius: '50%', background: lessonStyles.badgeBackground, color: lessonStyles.badgeColor,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
@@ -751,6 +829,7 @@ const MyPlansDetailPage: React.FC = () => {
                         <ChapterTasks
                           chapterId={chapter.id!}
                           selectedTaskId={chapter.id === activeChapterId ? selectedTaskId : null}
+                          initialTasks={chapter.tasks}
                           onAllTasksCompleted={handleChapterTasksCompleted}
                         />
                       </div>

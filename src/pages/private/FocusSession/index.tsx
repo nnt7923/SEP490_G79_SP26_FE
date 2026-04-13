@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
-import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, Book, Maximize2, Minimize2 } from 'lucide-react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, PauseCircle, Book, Maximize2, Minimize2, MessageCircle } from 'lucide-react'
+import { useNavigate, useLocation, useBlocker } from 'react-router-dom'
 import { DailyCheckinService, FocusSessionService, SessionType } from '../../../services'
 import type { FocusSession } from '../../../services/FocusSessionService'
 import Header from '../../../components/Layout/Header'
@@ -22,6 +22,166 @@ interface TaskData {
   quizQuestionsJson?: string // JSON string for quiz questions
 }
 
+interface SessionNoteItem {
+  noteId: string
+  title: string
+  content: string
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+const parseUtcDateValue = (value?: string | null): Date | null => {
+  if (!value) return null
+  const raw = String(value).trim()
+  if (!raw) return null
+
+  const normalizedBase = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(normalizedBase)
+  const normalized = hasTimezone ? normalizedBase : `${normalizedBase}Z`
+  const parsed = new Date(normalized)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+type SessionUiState = 'Running' | 'Paused' | 'Completed'
+
+const readErrorCode = (error: any): string => {
+  return String(
+    error?.response?.data?.errorCode
+    || error?.response?.data?.code
+    || error?.response?.data?.data?.errorCode
+    || ''
+  ).toUpperCase()
+}
+
+const normalizeSessionUiState = (status: unknown): SessionUiState => {
+  if (typeof status === 'number') {
+    if (status === 0) return 'Running'
+    if (status === 1) return 'Paused'
+    return 'Completed'
+  }
+
+  const normalized = String(status ?? '').trim().toLowerCase()
+  if (normalized === 'running') return 'Running'
+  if (normalized === 'paused') return 'Paused'
+  if (normalized === 'completedearly' || normalized === 'completedontime' || normalized === 'completedlate' || normalized === 'completed' || normalized === 'abandoned' || normalized === 'stopped') {
+    return 'Completed'
+  }
+
+  return 'Running'
+}
+
+const toSafeNumber = (value: unknown): number | undefined => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const readRemainingSecondsFromSnapshot = (source: Partial<FocusSession> | null | undefined): number | undefined => {
+  if (!source) return undefined
+
+  const remainingSeconds = toSafeNumber(source.remainingSeconds)
+  if (remainingSeconds != null) return Math.max(0, Math.floor(remainingSeconds))
+
+  const remainingMinutes = toSafeNumber(source.remainingMinutes)
+  if (remainingMinutes != null) return Math.max(0, Math.floor(remainingMinutes * 60))
+
+  return undefined
+}
+
+const clampElapsedByPlan = (elapsedSeconds: number, plannedSeconds: number): number => {
+  if (plannedSeconds <= 0) return Math.max(0, elapsedSeconds)
+  return Math.max(0, Math.min(plannedSeconds, elapsedSeconds))
+}
+
+const FOCUS_SESSION_RUNNING_LOCK_KEY = 'focus_session_running_lock'
+const FOCUS_SESSION_META_CACHE_KEY = 'focus_session_meta_cache_v1'
+
+interface FocusSessionMetaCacheItem {
+  sessionId: string
+  taskId?: string
+  title?: string
+  startTime?: string
+  plannedDurationMinutes?: number
+  updatedAtMs: number
+}
+
+const readFocusSessionMetaCache = (): Record<string, FocusSessionMetaCacheItem> => {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.sessionStorage.getItem(FOCUS_SESSION_META_CACHE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed as Record<string, FocusSessionMetaCacheItem>
+  } catch {
+    return {}
+  }
+}
+
+const writeFocusSessionMetaCache = (cache: Record<string, FocusSessionMetaCacheItem>) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(FOCUS_SESSION_META_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // Ignore storage write failures.
+  }
+}
+
+const findCachedMetaByTaskId = (cache: Record<string, FocusSessionMetaCacheItem>, taskId?: string): FocusSessionMetaCacheItem | null => {
+  if (!taskId) return null
+  let latest: FocusSessionMetaCacheItem | null = null
+  for (const item of Object.values(cache)) {
+    if (!item || item.taskId !== taskId) continue
+    if (!latest || item.updatedAtMs > latest.updatedAtMs) {
+      latest = item
+    }
+  }
+  return latest
+}
+
+const mergeSessionWithCachedMeta = (source: FocusSession | null | undefined): FocusSession | null => {
+  if (!source) return null
+
+  const cache = readFocusSessionMetaCache()
+  const byId = source.id ? cache[source.id] : null
+  const byTask = findCachedMetaByTaskId(cache, source.taskId)
+  const cached = byId ?? byTask
+
+  if (!cached) return source
+
+  return {
+    ...source,
+    title: source.title ?? cached.title ?? null,
+    startTime: source.startTime ?? cached.startTime ?? '',
+    plannedDurationMinutes: Number.isFinite(Number(source.plannedDurationMinutes))
+      ? Number(source.plannedDurationMinutes)
+      : Number(cached.plannedDurationMinutes ?? 0),
+  }
+}
+
+const persistSessionMetaToCache = (source: FocusSession | null | undefined) => {
+  if (!source?.id) return
+
+  const title = String(source.title ?? '').trim()
+  const startTime = String(source.startTime ?? '').trim()
+  const plannedDurationMinutes = Number(source.plannedDurationMinutes)
+
+  if (!title && !startTime && !Number.isFinite(plannedDurationMinutes)) return
+
+  const cache = readFocusSessionMetaCache()
+  const existing = cache[source.id]
+  cache[source.id] = {
+    sessionId: source.id,
+    taskId: source.taskId || existing?.taskId,
+    title: title || existing?.title,
+    startTime: startTime || existing?.startTime,
+    plannedDurationMinutes: Number.isFinite(plannedDurationMinutes)
+      ? plannedDurationMinutes
+      : existing?.plannedDurationMinutes,
+    updatedAtMs: Date.now(),
+  }
+  writeFocusSessionMetaCache(cache)
+}
+
 const FocusSessionPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -31,9 +191,19 @@ const FocusSessionPage: React.FC = () => {
   // Get session data from navigation state
   const sessionData = location.state?.session as FocusSession | undefined
   const taskData = location.state?.task as TaskData | undefined
+  const initialSessionData = mergeSessionWithCachedMeta(sessionData)
+  const shouldAutoResumeOnMount = normalizeSessionUiState(initialSessionData?.sessionStatus) === 'Paused'
 
-  const [session] = useState<FocusSession | null>(sessionData || null)
+  const [session, setSession] = useState<FocusSession | null>(initialSessionData || null)
   const [task] = useState<TaskData | null>(taskData || null)
+  const shouldPauseOnLeaveRef = useRef(true)
+  const sessionIdRef = useRef<string | null>(initialSessionData?.id ?? null)
+  const sessionUiStateRef = useRef<SessionUiState>('Running')
+  const timerAnchorRef = useRef<{ remainingSeconds: number; elapsedSeconds: number; anchoredAtMs: number }>({
+    remainingSeconds: 0,
+    elapsedSeconds: 0,
+    anchoredAtMs: Date.now(),
+  })
 
   // Scroll to top when component mounts
   React.useEffect(() => {
@@ -43,20 +213,9 @@ const FocusSessionPage: React.FC = () => {
     })
   }, [])
 
-  // Auto-pause session when leaving the page (component unmounts)
-  React.useEffect(() => {
-    return () => {
-      // Cleanup function - called when component unmounts
-      if (session && session.isActive) {
-        // Call pause API when user leaves the focus session page
-        FocusSessionService.pauseSession(session.id).catch((error) => {
-          console.warn('Failed to pause session on unmount:', error)
-        })
-      }
-    }
-  }, [session])
   const [timeRemaining, setTimeRemaining] = useState<number>(0)
-  const [isRunning, setIsRunning] = useState<boolean>(true)
+  const [sessionUiState, setSessionUiState] = useState<SessionUiState>('Running')
+  const [sessionActionLoading, setSessionActionLoading] = useState<'pause' | 'resume' | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
   const [showCompleteDialog, setShowCompleteDialog] = useState<boolean>(false)
@@ -64,6 +223,26 @@ const FocusSessionPage: React.FC = () => {
   const [aiReview, setAiReview] = useState<{ feedback: string, score?: number } | null>(null)
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false)
   const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
+  const [noteTitle, setNoteTitle] = useState<string>('')
+  const [noteContent, setNoteContent] = useState<string>('')
+  const [noteLoading, setNoteLoading] = useState<boolean>(false)
+  const [isNoteWidgetOpen, setIsNoteWidgetOpen] = useState<boolean>(false)
+  const [sessionNotes, setSessionNotes] = useState<SessionNoteItem[]>([])
+  const [isSessionNotesOpen, setIsSessionNotesOpen] = useState<boolean>(false)
+  const [selectedSessionNoteId, setSelectedSessionNoteId] = useState<string | null>(null)
+  const [sessionNotesLoading, setSessionNotesLoading] = useState<boolean>(false)
+  const [isSessionNotesModalOpen, setIsSessionNotesModalOpen] = useState<boolean>(false)
+  const [selectedSessionNoteDetail, setSelectedSessionNoteDetail] = useState<SessionNoteItem | null>(null)
+  const [isSessionNoteDetailModalOpen, setIsSessionNoteDetailModalOpen] = useState<boolean>(false)
+  const [noteWidgetPosition, setNoteWidgetPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const noteWidgetDragRef = useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+    moved: false,
+  })
 
   // Code editor state for practice tasks
   const [code, setCode] = useState<string>('')
@@ -74,6 +253,91 @@ const FocusSessionPage: React.FC = () => {
 
   // Quiz state
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
+  const heartbeatWarningShownRef = useRef(false)
+  const isSyncingActiveSessionRef = useRef(false)
+  const lastServerRemainingSecondsRef = useRef<number | null>(readRemainingSecondsFromSnapshot(initialSessionData) ?? null)
+  const lastLocalPausedRemainingSecondsRef = useRef<number | null>(readRemainingSecondsFromSnapshot(initialSessionData) ?? null)
+  const timeRemainingRef = useRef<number>(readRemainingSecondsFromSnapshot(initialSessionData) ?? 0)
+  const autoResumeAttemptedRef = useRef<boolean>(false)
+  const resumeTransitionIntervalRef = useRef<number | null>(null)
+  const initialServerHydrationRef = useRef<boolean>(false)
+  const isRunning = sessionUiState === 'Running'
+  const shouldBlockNavigation = Boolean(session?.id && sessionUiState === 'Running' && shouldPauseOnLeaveRef.current)
+  const navigationBlocker = useBlocker(shouldBlockNavigation)
+
+  useEffect(() => {
+    sessionIdRef.current = session?.id ?? null
+  }, [session?.id])
+
+  useEffect(() => {
+    sessionUiStateRef.current = sessionUiState
+  }, [sessionUiState])
+
+  useEffect(() => {
+    if (!session) return
+    persistSessionMetaToCache(session)
+  }, [session?.id, session?.taskId, session?.title, session?.startTime, session?.plannedDurationMinutes])
+
+  useEffect(() => {
+    if (!session?.id) return
+    if (String(session.title ?? '').trim()) return
+    const taskTitle = String(task?.title ?? '').trim()
+    if (!taskTitle) return
+
+    setSession((prev) => {
+      if (!prev) return prev
+      if (String(prev.title ?? '').trim()) return prev
+      return { ...prev, title: taskTitle }
+    })
+  }, [session?.id, session?.title, task?.title])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (session?.id && sessionUiState === 'Running' && shouldPauseOnLeaveRef.current) {
+      window.sessionStorage.setItem(FOCUS_SESSION_RUNNING_LOCK_KEY, session.id)
+      return
+    }
+    window.sessionStorage.removeItem(FOCUS_SESSION_RUNNING_LOCK_KEY)
+  }, [session?.id, sessionUiState])
+
+  useEffect(() => {
+    return () => {
+      if (typeof window === 'undefined') return
+      window.sessionStorage.removeItem(FOCUS_SESSION_RUNNING_LOCK_KEY)
+    }
+  }, [])
+
+  useEffect(() => {
+    timeRemainingRef.current = timeRemaining
+  }, [timeRemaining])
+
+  useEffect(() => {
+    if (navigationBlocker.state !== 'blocked') return
+    setToast({ message: t('focusSession.mustPauseBeforeLeaving'), type: 'warning' })
+    navigationBlocker.reset()
+  }, [navigationBlocker, t])
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (sessionUiStateRef.current !== 'Running') return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (resumeTransitionIntervalRef.current != null) {
+        window.clearInterval(resumeTransitionIntervalRef.current)
+        resumeTransitionIntervalRef.current = null
+      }
+    }
+  }, [])
 
   // Helper function to format quiz answers for API
   const formatQuizAnswers = (): string => {
@@ -177,73 +441,522 @@ const FocusSessionPage: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [isFocusMode])
 
-  // Calculate initial time remaining
+  const clampNoteWidgetPosition = React.useCallback((x: number, y: number) => {
+    const minX = 12
+    const minY = 12
+    const maxX = window.innerWidth - 72
+    const maxY = window.innerHeight - 72
+
+    return {
+      x: Math.max(minX, Math.min(x, maxX)),
+      y: Math.max(minY, Math.min(y, maxY)),
+    }
+  }, [])
+
   useEffect(() => {
-    const calculateTimeRemaining = async () => {
-      if (!session) return
+    if (noteWidgetPosition.x !== 0 || noteWidgetPosition.y !== 0) return
+    const initial = clampNoteWidgetPosition(window.innerWidth - 24, window.innerHeight - 120)
+    setNoteWidgetPosition(initial)
+  }, [clampNoteWidgetPosition, noteWidgetPosition.x, noteWidgetPosition.y])
 
-      // Priority 1: Use remainingSeconds from backend (most accurate for resumed sessions)
-      if (session.remainingSeconds !== undefined) {
-        setTimeRemaining(session.remainingSeconds)
-        return
+  useEffect(() => {
+    const handleMove = (event: MouseEvent) => {
+      if (!noteWidgetDragRef.current.dragging) return
+
+      const deltaX = event.clientX - noteWidgetDragRef.current.startX
+      const deltaY = event.clientY - noteWidgetDragRef.current.startY
+
+      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+        noteWidgetDragRef.current.moved = true
       }
 
-      // Priority 2: Use remainingMinutes from backend (fallback)
-      if (session.remainingMinutes !== undefined) {
-        setTimeRemaining(session.remainingMinutes * 60)
-        return
-      }
-
-      // Priority 3: Calculate from start time (for new sessions)
-      let serverTimeOffset = 0
-
-      // Try to get server time offset
-      if (session.serverCurrentTime) {
-        // Use server time from session response
-        const serverTime = new Date(session.serverCurrentTime).getTime()
-        const clientTimeWhenReceived = Date.now()
-        serverTimeOffset = serverTime - clientTimeWhenReceived
-      } else {
-        // Fallback: get current server time
-        try {
-          const serverTime = await FocusSessionService.getServerTime()
-          const serverTimeMs = new Date(serverTime).getTime()
-          const clientTimeMs = Date.now()
-          serverTimeOffset = serverTimeMs - clientTimeMs
-        } catch (error) {
-          console.warn('Could not get server time, using client time:', error)
-        }
-      }
-
-      // Calculate remaining time using server time
-      const startTime = new Date(session.startTime).getTime()
-      const plannedEndTime = startTime + (session.plannedDurationMinutes * 60 * 1000)
-      const currentServerTime = Date.now() + serverTimeOffset
-      const remaining = Math.max(0, plannedEndTime - currentServerTime)
-
-      setTimeRemaining(Math.floor(remaining / 1000))
+      const next = clampNoteWidgetPosition(
+        noteWidgetDragRef.current.originX + deltaX,
+        noteWidgetDragRef.current.originY + deltaY
+      )
+      setNoteWidgetPosition(next)
     }
 
-    calculateTimeRemaining()
-  }, [session])
+    const handleUp = () => {
+      noteWidgetDragRef.current.dragging = false
+    }
 
-  // Timer countdown
-  useEffect(() => {
-    if (!isRunning || timeRemaining <= 0) return
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+    }
+  }, [clampNoteWidgetPosition])
 
-    const interval = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          setIsRunning(false)
-          setToast({ message: t('focusSession.completed'), type: 'success' })
-          return 0
+  const startNoteWidgetDrag = (clientX: number, clientY: number) => {
+    noteWidgetDragRef.current.dragging = true
+    noteWidgetDragRef.current.startX = clientX
+    noteWidgetDragRef.current.startY = clientY
+    noteWidgetDragRef.current.originX = noteWidgetPosition.x
+    noteWidgetDragRef.current.originY = noteWidgetPosition.y
+    noteWidgetDragRef.current.moved = false
+  }
+
+  const handleNoteBubbleMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    startNoteWidgetDrag(event.clientX, event.clientY)
+  }
+
+  const handleNotePanelMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    startNoteWidgetDrag(event.clientX, event.clientY)
+  }
+
+  const handleToggleNoteWidget = () => {
+    if (noteWidgetDragRef.current.moved) {
+      noteWidgetDragRef.current.moved = false
+      return
+    }
+    setIsNoteWidgetOpen((prev) => !prev)
+  }
+
+  const handleOpenSavedNotesModal = () => {
+    setIsSessionNotesModalOpen(true)
+    setSelectedSessionNoteId((prev) => prev ?? (sessionNotes[0]?.noteId || null))
+    setSelectedSessionNoteDetail(null)
+  }
+
+  const handleCloseSavedNotesModal = () => {
+    setIsSessionNotesModalOpen(false)
+  }
+
+  const handleCloseNoteDetailModal = () => {
+    setIsSessionNoteDetailModalOpen(false)
+  }
+
+  const handleSelectSessionNote = (noteId: string) => {
+    if (!noteId) return
+
+    setSelectedSessionNoteId(noteId)
+    const selected = sessionNotes.find((note) => note.noteId === noteId) || null
+    setSelectedSessionNoteDetail(selected)
+    setIsSessionNoteDetailModalOpen(Boolean(selected))
+  }
+
+  const getAnchorFromSession = React.useCallback((source: FocusSession, normalizedState?: SessionUiState) => {
+    const plannedSeconds = Math.max(0, Math.floor((Number(source.plannedDurationMinutes) || 0) * 60))
+    const elapsedFromSeconds = toSafeNumber(source.elapsedSeconds)
+    const elapsedFromMinutes = toSafeNumber(source.elapsedMinutes)
+    const remainingFromSeconds = toSafeNumber(source.remainingSeconds)
+    const remainingFromMinutes = toSafeNumber(source.remainingMinutes)
+
+    let elapsedSeconds = elapsedFromSeconds ?? (elapsedFromMinutes != null ? Math.floor(elapsedFromMinutes * 60) : undefined)
+    let remainingSeconds = remainingFromSeconds ?? (remainingFromMinutes != null ? Math.floor(remainingFromMinutes * 60) : undefined)
+
+    if (remainingSeconds == null && elapsedSeconds != null && plannedSeconds > 0) {
+      remainingSeconds = Math.max(0, plannedSeconds - elapsedSeconds)
+    }
+    if (elapsedSeconds == null && remainingSeconds != null && plannedSeconds > 0) {
+      elapsedSeconds = Math.max(0, plannedSeconds - remainingSeconds)
+    }
+
+    if (elapsedSeconds == null || remainingSeconds == null) {
+      if (normalizedState === 'Paused') {
+        const pausedRemaining = lastServerRemainingSecondsRef.current
+          ?? lastLocalPausedRemainingSecondsRef.current
+          ?? timeRemainingRef.current
+          ?? 0
+        const safePausedRemaining = Math.max(0, Math.floor(pausedRemaining))
+        remainingSeconds = remainingSeconds ?? safePausedRemaining
+        const pausedElapsed = plannedSeconds > 0
+          ? plannedSeconds - safePausedRemaining
+          : (elapsedSeconds ?? 0)
+        elapsedSeconds = elapsedSeconds ?? clampElapsedByPlan(pausedElapsed, plannedSeconds)
+      }
+    }
+
+    if (elapsedSeconds == null || remainingSeconds == null) {
+      const startTimeMs = parseUtcDateValue(source.startTime)?.getTime() ?? Date.now()
+      const elapsedByClock = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000))
+      const computedRemaining = Math.max(0, plannedSeconds - elapsedByClock)
+      elapsedSeconds = elapsedSeconds ?? clampElapsedByPlan(elapsedByClock, plannedSeconds)
+      remainingSeconds = remainingSeconds ?? computedRemaining
+    }
+
+    return {
+      elapsedSeconds: Math.max(0, Math.floor(elapsedSeconds ?? 0)),
+      remainingSeconds: Math.max(0, Math.floor(remainingSeconds ?? 0)),
+    }
+  }, [])
+
+  const applySessionSnapshot = React.useCallback((nextSession: FocusSession, forcedState?: SessionUiState) => {
+    const mergedSession = mergeSessionWithCachedMeta(nextSession) ?? nextSession
+    const normalizedState = forcedState ?? normalizeSessionUiState(mergedSession.sessionStatus)
+    const anchor = getAnchorFromSession(mergedSession, normalizedState)
+
+    timerAnchorRef.current = {
+      remainingSeconds: anchor.remainingSeconds,
+      elapsedSeconds: anchor.elapsedSeconds,
+      anchoredAtMs: Date.now(),
+    }
+
+    setSession(mergedSession)
+    setSessionUiState(anchor.remainingSeconds <= 0 ? 'Completed' : normalizedState)
+    setTimeRemaining(anchor.remainingSeconds)
+    lastServerRemainingSecondsRef.current = anchor.remainingSeconds
+    persistSessionMetaToCache(mergedSession)
+    if (normalizedState === 'Paused') {
+      lastLocalPausedRemainingSecondsRef.current = anchor.remainingSeconds
+    }
+
+    if (anchor.remainingSeconds <= 0 || normalizedState === 'Completed') {
+      shouldPauseOnLeaveRef.current = false
+    }
+  }, [getAnchorFromSession])
+
+  const syncSessionFromServer = React.useCallback(async (reason: 'status_mismatch' | 'heartbeat_invalid' | 'drift' | 'reconnect' | 'visibility') => {
+    if (!session?.taskId) return
+    if (isSyncingActiveSessionRef.current) return
+
+    isSyncingActiveSessionRef.current = true
+    try {
+      const active = await FocusSessionService.getActiveSession(session.taskId)
+      if (!active) {
+        setSessionUiState('Completed')
+        if (!heartbeatWarningShownRef.current) {
+          heartbeatWarningShownRef.current = true
+          setToast({ message: t('focusSession.sessionNotActive'), type: 'warning' })
         }
-        return prev - 1
-      })
+        return
+      }
+
+      heartbeatWarningShownRef.current = false
+      const activeState = normalizeSessionUiState(active.sessionStatus)
+      const activeRemaining = readRemainingSecondsFromSnapshot(active)
+
+      if (activeRemaining != null) {
+        applySessionSnapshot(active)
+      } else {
+        // Active-by-taskId payload can miss remainingSeconds.
+        // In that case, keep current timer anchor to avoid drift from inferred fallback.
+        setSession((prev) => ({ ...(prev ?? {}), ...(active as any) } as FocusSession))
+        if (activeState === 'Completed') {
+          setSessionUiState('Completed')
+          shouldPauseOnLeaveRef.current = false
+        } else if (activeState === 'Paused') {
+          setSessionUiState('Paused')
+          lastLocalPausedRemainingSecondsRef.current = Math.max(0, timeRemainingRef.current)
+        } else {
+          setSessionUiState('Running')
+        }
+      }
+
+      if (reason === 'status_mismatch' || reason === 'heartbeat_invalid' || reason === 'reconnect') {
+        setToast({ message: t('focusSession.sessionResynced'), type: 'warning' })
+      }
+    } catch {
+      // Keep local state; next heartbeat/drift cycle will retry.
+    } finally {
+      isSyncingActiveSessionRef.current = false
+    }
+  }, [applySessionSnapshot, session?.taskId, t])
+
+  useEffect(() => {
+    if (!session?.id) return
+    if (initialServerHydrationRef.current) return
+
+    initialServerHydrationRef.current = true
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const latest = await FocusSessionService.getSession(session.id)
+        if (cancelled || !latest) return
+
+        const inferredState: SessionUiState = latest.endTime
+          ? 'Completed'
+          : latest.sessionStatus != null
+            ? normalizeSessionUiState(latest.sessionStatus)
+            : latest.isActive === false
+              ? 'Paused'
+              : 'Running'
+
+        applySessionSnapshot({ ...latest, sessionStatus: inferredState }, inferredState)
+      } catch {
+        // Keep navigation-state snapshot when server hydration fails.
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [applySessionSnapshot, session?.id])
+
+  useEffect(() => {
+    if (!session) return
+    applySessionSnapshot(session)
+  }, [applySessionSnapshot, session?.id])
+
+  useEffect(() => {
+    if (!session?.id || sessionUiState !== 'Running') return
+
+    const intervalId = window.setInterval(() => {
+      if (sessionUiStateRef.current !== 'Running') {
+        return
+      }
+
+      const elapsedSinceAnchor = Math.max(0, Math.floor((Date.now() - timerAnchorRef.current.anchoredAtMs) / 1000))
+      const remaining = Math.max(0, timerAnchorRef.current.remainingSeconds - elapsedSinceAnchor)
+      setTimeRemaining(remaining)
+
+      if (remaining <= 0) {
+        setSessionUiState('Completed')
+        shouldPauseOnLeaveRef.current = false
+        setToast({ message: t('focusSession.completed'), type: 'success' })
+      }
     }, 1000)
 
-    return () => clearInterval(interval)
-  }, [isRunning, timeRemaining])
+    return () => window.clearInterval(intervalId)
+  }, [session?.id, sessionUiState, t])
+
+  useEffect(() => {
+    if (sessionUiState !== 'Paused') return
+
+    timerAnchorRef.current = {
+      ...timerAnchorRef.current,
+      remainingSeconds: Math.max(0, timeRemaining),
+      anchoredAtMs: Date.now(),
+    }
+  }, [sessionUiState, timeRemaining])
+
+  useEffect(() => {
+    if (!session?.id || (sessionUiState !== 'Running' && sessionUiState !== 'Paused')) return
+
+    let stopped = false
+
+    const sendHeartbeat = async () => {
+      if (stopped || !session?.id) return
+      if (!navigator.onLine) return
+
+      try {
+        await FocusSessionService.sendHeartbeat(session.id)
+      } catch (error: any) {
+        const code = readErrorCode(error)
+        if (code === 'SESSION_NOT_ACTIVE' || code === 'SESSION_NOT_FOUND') {
+          stopped = true
+          void syncSessionFromServer('heartbeat_invalid')
+        }
+      }
+    }
+
+    const runHeartbeat = () => {
+      void sendHeartbeat()
+    }
+
+    runHeartbeat()
+    const intervalId = window.setInterval(runHeartbeat, 45000)
+    return () => {
+      stopped = true
+      window.clearInterval(intervalId)
+    }
+  }, [session?.id, sessionUiState, syncSessionFromServer])
+
+  useEffect(() => {
+    if (!session?.taskId || (sessionUiState !== 'Running' && sessionUiState !== 'Paused')) return
+
+    const intervalId = window.setInterval(() => {
+      void syncSessionFromServer('drift')
+    }, 120000)
+
+    const onOnline = () => {
+      void syncSessionFromServer('reconnect')
+    }
+
+    window.addEventListener('online', onOnline)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [session?.taskId, sessionUiState, syncSessionFromServer])
+
+  const handlePauseSession = async () => {
+    if (!session?.id) return
+    if (sessionActionLoading) return
+
+    const frozenRemaining = Math.max(0, timeRemaining)
+    timerAnchorRef.current = {
+      ...timerAnchorRef.current,
+      remainingSeconds: frozenRemaining,
+      anchoredAtMs: Date.now(),
+    }
+    setTimeRemaining(frozenRemaining)
+    setSessionUiState('Paused')
+
+    setSessionActionLoading('pause')
+    try {
+      const paused = await FocusSessionService.pauseSession(session.id)
+
+      const hasRemainingAnchor = paused.remainingSeconds != null || paused.remainingMinutes != null
+      const pauseSnapshot: FocusSession = hasRemainingAnchor
+        ? paused
+        : {
+            ...paused,
+            remainingSeconds: Math.max(0, timeRemaining),
+            elapsedSeconds: Math.max(0, session.plannedDurationMinutes * 60 - Math.max(0, timeRemaining)),
+          }
+
+      applySessionSnapshot(pauseSnapshot, 'Paused')
+      const pausedRemaining = readRemainingSecondsFromSnapshot(pauseSnapshot)
+      if (pausedRemaining != null) {
+        lastServerRemainingSecondsRef.current = pausedRemaining
+        lastLocalPausedRemainingSecondsRef.current = pausedRemaining
+      }
+      setToast({ message: t('focusSession.pauseSuccess'), type: 'success' })
+    } catch (error: any) {
+      if (readErrorCode(error) === 'SESSION_NOT_RUNNING') {
+        await syncSessionFromServer('status_mismatch')
+      } else {
+        setSessionUiState('Running')
+        const msg = error?.response?.data?.message || error?.message || t('focusSession.pauseError')
+        setToast({ message: msg, type: 'error' })
+      }
+    } finally {
+      setSessionActionLoading(null)
+    }
+  }
+
+  const resumeFromServer = React.useCallback(async (sessionId: string, showSuccessToast = true) => {
+    const smoothAdjustTimer = async (fromSeconds: number, toSeconds: number): Promise<void> => {
+      const from = Math.max(0, Math.floor(fromSeconds))
+      const to = Math.max(0, Math.floor(toSeconds))
+
+      if (from === to) {
+        setTimeRemaining(to)
+        return
+      }
+
+      if (resumeTransitionIntervalRef.current != null) {
+        window.clearInterval(resumeTransitionIntervalRef.current)
+        resumeTransitionIntervalRef.current = null
+      }
+
+      await new Promise<void>((resolve) => {
+        const steps = 8
+        let step = 0
+        const delta = to - from
+
+        resumeTransitionIntervalRef.current = window.setInterval(() => {
+          step += 1
+          const progress = step / steps
+          const easedProgress = 1 - Math.pow(1 - progress, 2)
+          const nextValue = Math.round(from + delta * easedProgress)
+
+          setTimeRemaining(nextValue)
+
+          if (step >= steps) {
+            if (resumeTransitionIntervalRef.current != null) {
+              window.clearInterval(resumeTransitionIntervalRef.current)
+              resumeTransitionIntervalRef.current = null
+            }
+            setTimeRemaining(to)
+            resolve()
+          }
+        }, 45)
+      })
+    }
+
+    const localBeforeResume = timeRemainingRef.current
+    const resumed = await FocusSessionService.resumeSession(sessionId)
+    let serverRemaining = readRemainingSecondsFromSnapshot(resumed)
+
+    console.groupCollapsed('[FocusSession][Resume] payload check')
+    console.log('sessionId:', sessionId)
+    console.log('localBeforeResume(seconds):', localBeforeResume)
+    console.log('resumeResponse:', resumed)
+    console.log('remainingSecondsFromResume:', resumed?.remainingSeconds)
+    console.log('remainingMinutesFromResume:', resumed?.remainingMinutes)
+    console.log('parsedRemainingFromResume:', serverRemaining)
+
+    if (serverRemaining == null && session?.taskId) {
+      const active = await FocusSessionService.getActiveSession(session.taskId)
+      serverRemaining = readRemainingSecondsFromSnapshot(active)
+      console.log('fallbackActiveResponse:', active)
+      console.log('remainingSecondsFromActive:', active?.remainingSeconds)
+      console.log('remainingMinutesFromActive:', active?.remainingMinutes)
+      console.log('parsedRemainingFromActive:', serverRemaining)
+    }
+
+    if (serverRemaining == null) {
+      console.warn('[FocusSession][Resume] remainingSeconds is missing after resume and active fallback')
+      console.groupEnd()
+      throw new Error('MISSING_REMAINING_SECONDS_FROM_SERVER')
+    }
+
+    const chosenRemaining = serverRemaining
+    const plannedSeconds = Math.max(0, Math.floor((Number(resumed.plannedDurationMinutes ?? session?.plannedDurationMinutes) || 0) * 60))
+
+    const diffBeforeApply = Math.abs(localBeforeResume - chosenRemaining)
+    if (diffBeforeApply > 0) {
+      await smoothAdjustTimer(localBeforeResume, chosenRemaining)
+    }
+
+    const resumeSnapshot: FocusSession = {
+      ...resumed,
+      remainingSeconds: Math.max(0, chosenRemaining),
+      elapsedSeconds: Math.max(0, plannedSeconds - Math.max(0, chosenRemaining)),
+    }
+
+    applySessionSnapshot(resumeSnapshot, 'Running')
+    lastServerRemainingSecondsRef.current = chosenRemaining
+    console.log('chosenRemainingAppliedToTimer:', chosenRemaining)
+    console.log('diffBeforeApply(local-server):', diffBeforeApply)
+    queueMicrotask(() => {
+      console.log('timeRemainingAfterApply(ref, microtask):', timeRemainingRef.current)
+      console.groupEnd()
+    })
+
+    if (showSuccessToast) {
+      setToast({ message: t('focusSession.resumeSuccess'), type: 'success' })
+    }
+  }, [applySessionSnapshot, session?.plannedDurationMinutes, session?.taskId, t])
+
+  useEffect(() => {
+    if (!shouldAutoResumeOnMount) return
+    if (!session?.id) return
+    if (autoResumeAttemptedRef.current) return
+
+    autoResumeAttemptedRef.current = true
+    setSessionActionLoading('resume')
+
+    void (async () => {
+      try {
+        await resumeFromServer(session.id, false)
+      } catch (error: any) {
+        if (readErrorCode(error) === 'SESSION_NOT_PAUSED') {
+          await syncSessionFromServer('status_mismatch')
+        }
+      } finally {
+        setSessionActionLoading(null)
+      }
+    })()
+  }, [resumeFromServer, session?.id, shouldAutoResumeOnMount, syncSessionFromServer])
+
+  const handleResumeSession = async () => {
+    if (!session?.id) return
+    if (sessionActionLoading) return
+
+    setSessionActionLoading('resume')
+    try {
+      await resumeFromServer(session.id, true)
+    } catch (error: any) {
+      if (readErrorCode(error) === 'SESSION_NOT_PAUSED') {
+        await syncSessionFromServer('status_mismatch')
+      } else {
+        if (String(error?.message || '') === 'MISSING_REMAINING_SECONDS_FROM_SERVER') {
+          await syncSessionFromServer('status_mismatch')
+        }
+        const msg = error?.response?.data?.message || error?.message || t('focusSession.resumeError')
+        setToast({ message: msg, type: 'error' })
+      }
+    } finally {
+      setSessionActionLoading(null)
+    }
+  }
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
@@ -269,9 +982,11 @@ const FocusSessionPage: React.FC = () => {
   }
 
   const formatDateTime = (dateString: string): string => {
-    const date = new Date(dateString)
-    // Hiển thị thời gian từ server mà không thay đổi múi giờ
+    const date = parseUtcDateValue(dateString)
+    if (!date) return 'Invalid Date'
+
     return date.toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -280,6 +995,73 @@ const FocusSessionPage: React.FC = () => {
       second: '2-digit'
     })
   }
+
+  const normalizeSessionNote = (raw: any): SessionNoteItem | null => {
+    if (!raw) return null
+
+    const source = raw?.data ?? raw?.value ?? raw
+    const noteId = String(source?.noteId ?? source?.id ?? '')
+    const title = String(source?.title ?? '').trim()
+    const content = String(source?.content ?? '').trim()
+
+    if (!noteId && !title && !content) return null
+
+    return {
+      noteId: noteId || `${Date.now()}`,
+      title: title || t('focusSession.noteUntitled'),
+      content,
+      createdAt: source?.createdAt ?? null,
+      updatedAt: source?.updatedAt ?? null,
+    }
+  }
+
+  const formatUtcPlus7DateTime = (value?: string | null): string => {
+    if (!value) return t('focusSession.noteNoTime')
+    const date = parseUtcDateValue(value)
+    if (!date) return t('focusSession.noteNoTime')
+
+    const locale = String((t('focusSession.localeCode', { defaultValue: 'vi-VN' })) || 'vi-VN')
+    return new Intl.DateTimeFormat(locale, {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).format(date)
+  }
+
+  useEffect(() => {
+    if (!session?.id) return
+
+    let isMounted = true
+
+    const fetchSessionNotes = async () => {
+      setSessionNotesLoading(true)
+      try {
+        const rows = await FocusSessionService.getSessionNotes(session.id)
+        if (!isMounted) return
+
+        const normalized = rows
+          .map((row: any) => normalizeSessionNote(row))
+          .filter((note): note is SessionNoteItem => note != null)
+
+        setSessionNotes(normalized)
+        setSelectedSessionNoteId((prev) => prev ?? (normalized[0]?.noteId || null))
+        setSelectedSessionNoteDetail(null)
+      } catch {
+        if (!isMounted) return
+      } finally {
+        if (isMounted) {
+          setSessionNotesLoading(false)
+        }
+      }
+    }
+
+    fetchSessionNotes()
+    return () => { isMounted = false }
+  }, [session?.id])
 
   const handleCompleteNow = async () => {
     setShowCompleteDialog(true)
@@ -315,8 +1097,9 @@ const FocusSessionPage: React.FC = () => {
         ? await DailyCheckinService.getDailyCheckinStatus().catch(() => null)
         : null
       await FocusSessionService.completeSession(session.id, payload)
+      shouldPauseOnLeaveRef.current = false
 
-      setIsRunning(false)
+      setSessionUiState('Completed')
       setTimeRemaining(0)
       setShowCompleteDialog(false)
 
@@ -426,8 +1209,44 @@ const FocusSessionPage: React.FC = () => {
     }
   }
 
-  const handleBackToPlans = () => {
+  const handleBackToPlans = async () => {
+    if (sessionUiState === 'Running') {
+      setToast({ message: t('focusSession.mustPauseBeforeLeaving'), type: 'warning' })
+      return
+    }
     navigate(ROUTER.MY_PLANS)
+  }
+
+  const handleCreateNote = async () => {
+    if (!session) return
+
+    const title = noteTitle.trim()
+    const content = noteContent.trim()
+
+    if (!title || !content) {
+      setToast({ message: t('focusSession.noteValidation'), type: 'warning' })
+      return
+    }
+
+    setNoteLoading(true)
+    try {
+      const response = await FocusSessionService.createSessionNote(session.id, { title, content })
+      const normalized = normalizeSessionNote(response)
+      if (normalized) {
+        setSessionNotes((prev) => [normalized, ...prev])
+        setIsSessionNotesOpen(true)
+        setSelectedSessionNoteId(normalized.noteId)
+        setSelectedSessionNoteDetail(null)
+      }
+      setNoteTitle('')
+      setNoteContent('')
+      setToast({ message: t('focusSession.noteCreated'), type: 'success' })
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || t('focusSession.noteCreateError')
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setNoteLoading(false)
+    }
   }
 
   const renderWorkspace = () => {
@@ -813,7 +1632,7 @@ const FocusSessionPage: React.FC = () => {
         </button>
       )}
 
-      <main style={{ flex: 1, display: 'flex', gap: 0, marginBottom: '40px' }}>
+      <main style={{ flex: 1, display: 'flex', gap: 0, marginBottom: isFocusMode ? '40px' : '96px' }}>
         {/* Left Panel - Task Info */}
         <div style={{
           width: 300,
@@ -948,6 +1767,38 @@ const FocusSessionPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {timeRemaining > 0 && (
+                <button
+                  type="button"
+                  onClick={isRunning ? handlePauseSession : handleResumeSession}
+                  disabled={Boolean(sessionActionLoading)}
+                  style={{
+                    padding: '10px 16px',
+                    background: isRunning ? 'var(--warning-primary)' : 'var(--success-primary)',
+                    color: 'var(--bg-surface)',
+                    border: 'none',
+                    borderRadius: 2,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: sessionActionLoading ? 'not-allowed' : 'pointer',
+                    opacity: sessionActionLoading ? 0.7 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  {sessionActionLoading ? <Loader2 className="animate-spin" size={16} /> : isRunning ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
+                  {sessionActionLoading === 'pause'
+                    ? t('focusSession.pausingBtn')
+                    : sessionActionLoading === 'resume'
+                      ? t('focusSession.resumingBtn')
+                      : isRunning
+                        ? t('focusSession.pauseBtn')
+                        : t('focusSession.resumeBtn')}
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleAiReview}
@@ -994,7 +1845,6 @@ const FocusSessionPage: React.FC = () => {
                 {loading ? t('focusSession.completingBtn') : t('focusSession.completeBtn')}
               </button>
             </div>
-
 
           </div>
         </div>
@@ -1107,22 +1957,455 @@ const FocusSessionPage: React.FC = () => {
                 <div style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: timeRemaining > 0 ? (isRunning ? 'var(--success-primary)' : 'var(--warning-primary)') : 'var(--accent-primary)',
+                  color: sessionUiState === 'Running'
+                    ? 'var(--success-primary)'
+                    : sessionUiState === 'Paused'
+                      ? 'var(--warning-primary)'
+                      : 'var(--accent-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6
                 }}>
-                  {timeRemaining > 0 ? (
-                    isRunning ? <><PlayCircle size={14} /> {t('focusSession.statusRunning')}</> : <><Info size={14} /> {t('focusSession.statusPaused')}</>
+                  {sessionUiState === 'Running' ? (
+                    <><PlayCircle size={14} /> {t('focusSession.statusRunning')}</>
+                  ) : sessionUiState === 'Paused' ? (
+                    <><Info size={14} /> {t('focusSession.statusPaused')}</>
                   ) : (
                     <><CheckCircle size={14} /> {t('focusSession.statusCompleted')}</>
                   )}
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={handleOpenSavedNotesModal}
+                style={{
+                  width: '100%',
+                  border: '1px solid var(--border-base)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  borderRadius: 6,
+                  padding: '10px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <BookOpen size={14} />
+                  {t('focusSession.noteQuickViewBtn')}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>({sessionNotes.length})</span>
+              </button>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Floating Note Bubble */}
+      <div
+        style={{
+          position: 'fixed',
+          left: noteWidgetPosition.x,
+          top: noteWidgetPosition.y,
+          zIndex: 100001,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: 10,
+        }}
+      >
+        {isNoteWidgetOpen && (
+          <div
+            style={{
+              width: 'min(620px, calc(100vw - 24px))',
+              maxHeight: '75vh',
+              overflow: 'auto',
+              padding: 12,
+              border: '1px solid var(--border-base)',
+              borderRadius: 12,
+              background: 'var(--bg-surface)',
+              boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15)',
+            }}
+          >
+            <div
+              onMouseDown={handleNotePanelMouseDown}
+              onClick={handleToggleNoteWidget}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: 10,
+                textTransform: 'uppercase',
+                letterSpacing: '0.4px',
+                cursor: 'grab',
+                userSelect: 'none',
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
+                border: '1px dashed var(--border-base)',
+                borderRadius: 8,
+                padding: '8px 10px',
+              }}
+            >
+              {t('focusSession.noteSectionTitle')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input
+                type="text"
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+                placeholder={t('focusSession.noteTitlePlaceholder')}
+                maxLength={120}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 8,
+                  background: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                  outline: 'none',
+                }}
+              />
+              <textarea
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+                placeholder={t('focusSession.noteContentPlaceholder')}
+                rows={14}
+                maxLength={2000}
+                style={{
+                  width: '100%',
+                  minHeight: 340,
+                  padding: '10px',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 8,
+                  background: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                  resize: 'vertical',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleCreateNote}
+                disabled={noteLoading}
+                style={{
+                  padding: '9px 12px',
+                  background: noteLoading ? 'var(--text-secondary)' : 'var(--text-primary)',
+                  color: 'var(--bg-surface-short)',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: noteLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                {noteLoading ? <Loader2 className="animate-spin" size={14} /> : <BookOpen size={14} />}
+                {noteLoading ? t('focusSession.noteSaving') : t('focusSession.noteSaveBtn')}
+              </button>
+
+              <div style={{ marginTop: 8, borderTop: '1px dashed var(--border-base)', paddingTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setIsSessionNotesOpen((prev) => !prev)}
+                  style={{
+                    width: '100%',
+                    border: '1px solid var(--border-base)',
+                    background: 'var(--bg-main)',
+                    color: 'var(--text-primary)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    textAlign: 'left',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {t('focusSession.noteReviewTitle')} ({sessionNotes.length})
+                </button>
+
+                {isSessionNotesOpen && (
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {sessionNotesLoading ? (
+                      <div style={{
+                        border: '1px dashed var(--border-base)',
+                        borderRadius: 8,
+                        padding: '10px',
+                        fontSize: 12,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        {t('focusSession.noteLoading')}
+                      </div>
+                    ) : sessionNotes.length === 0 ? (
+                      <div style={{
+                        border: '1px dashed var(--border-base)',
+                        borderRadius: 8,
+                        padding: '10px',
+                        fontSize: 12,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        {t('focusSession.noteReviewEmpty')}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflow: 'auto' }}>
+                          {sessionNotes.map((note) => (
+                            <button
+                              key={note.noteId}
+                              type="button"
+                              onClick={() => handleSelectSessionNote(note.noteId)}
+                              style={{
+                                border: selectedSessionNoteId === note.noteId ? '1px solid var(--accent-primary)' : '1px solid var(--border-base)',
+                                background: selectedSessionNoteId === note.noteId ? 'var(--bg-blue-hover)' : 'var(--bg-main)',
+                                color: selectedSessionNoteId === note.noteId ? 'var(--accent-primary)' : 'var(--text-primary)',
+                                borderRadius: 8,
+                                padding: '8px 10px',
+                                textAlign: 'left',
+                                fontSize: 12,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <div style={{ fontWeight: 700, marginBottom: 3 }}>{note.title || t('focusSession.noteUntitled')}</div>
+                              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                                {t('focusSession.noteCreatedAt')}: {formatUtcPlus7DateTime(note.createdAt)}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div style={{ border: '1px dashed var(--border-base)', borderRadius: 8, padding: 10, fontSize: 12, color: 'var(--text-secondary)' }}>
+                          {t('focusSession.noteOpenDetailHint')}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onMouseDown={handleNoteBubbleMouseDown}
+          onClick={handleToggleNoteWidget}
+          style={{
+            border: 'none',
+            borderRadius: 999,
+            background: 'var(--accent-primary)',
+            color: 'white',
+            boxShadow: '0 10px 24px rgba(37, 99, 235, 0.35)',
+            padding: '12px 16px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+        >
+          <MessageCircle size={16} />
+          {isNoteWidgetOpen ? t('focusSession.noteCollapseBtn') : t('focusSession.noteExpandBtn')}
+        </button>
+      </div>
+
+      {isSessionNotesModalOpen && (
+        <div
+          onClick={handleCloseSavedNotesModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 100050,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(760px, 100%)',
+              maxHeight: '80vh',
+              overflow: 'hidden',
+              borderRadius: 12,
+              border: '1px solid var(--border-base)',
+              background: 'var(--bg-surface)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.28)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{
+              padding: '12px 14px',
+              borderBottom: '1px solid var(--border-base)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                <BookOpen size={16} />
+                {t('focusSession.noteReviewTitle')} ({sessionNotes.length})
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseSavedNotesModal}
+                style={{
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 8,
+                  background: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('focusSession.noteModalClose')}
+              </button>
+            </div>
+
+            <div style={{ padding: 12, overflow: 'auto', display: 'grid', gap: 10 }}>
+              {sessionNotesLoading ? (
+                <div style={{ border: '1px dashed var(--border-base)', borderRadius: 8, padding: 12, fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {t('focusSession.noteLoading')}
+                </div>
+              ) : sessionNotes.length === 0 ? (
+                <div style={{ border: '1px dashed var(--border-base)', borderRadius: 8, padding: 12, fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {t('focusSession.noteReviewEmpty')}
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'grid', gap: 8, maxHeight: 260, overflow: 'auto' }}>
+                    {sessionNotes.map((note) => (
+                      <button
+                        key={note.noteId}
+                        type="button"
+                        onClick={() => handleSelectSessionNote(note.noteId)}
+                        style={{
+                          border: selectedSessionNoteId === note.noteId ? '1px solid var(--accent-primary)' : '1px solid var(--border-base)',
+                          background: selectedSessionNoteId === note.noteId ? 'var(--bg-blue-hover)' : 'var(--bg-main)',
+                          color: selectedSessionNoteId === note.noteId ? 'var(--accent-primary)' : 'var(--text-primary)',
+                          borderRadius: 8,
+                          padding: '9px 10px',
+                          textAlign: 'left',
+                          fontSize: 12,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: 3 }}>{note.title || t('focusSession.noteUntitled')}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                          {t('focusSession.noteCreatedAt')}: {formatUtcPlus7DateTime(note.createdAt)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ border: '1px dashed var(--border-base)', borderRadius: 8, padding: 12, fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {t('focusSession.noteOpenDetailHint')}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSessionNoteDetailModalOpen && (
+        <div
+          onClick={handleCloseNoteDetailModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.62)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 100060,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(900px, 100%)',
+              maxHeight: '85vh',
+              borderRadius: 12,
+              border: '1px solid var(--border-base)',
+              background: 'var(--bg-surface)',
+              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.32)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{
+              padding: '12px 14px',
+              borderBottom: '1px solid var(--border-base)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {selectedSessionNoteDetail?.title || t('focusSession.noteUntitled')}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  {t('focusSession.noteCreatedAt')}: {formatUtcPlus7DateTime(selectedSessionNoteDetail?.createdAt)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseNoteDetailModal}
+                style={{
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 8,
+                  background: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('focusSession.noteModalClose')}
+              </button>
+            </div>
+
+            <div style={{ padding: 14, overflow: 'auto' }}>
+              <div style={{
+                whiteSpace: 'pre-wrap',
+                fontSize: 13,
+                color: 'var(--text-primary)',
+                lineHeight: 1.65,
+                background: 'var(--bg-main)',
+                border: '1px solid var(--border-base)',
+                borderRadius: 10,
+                padding: 14,
+                minHeight: 180,
+              }}>
+                {selectedSessionNoteDetail?.content || t('focusSession.noteNoContent')}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Complete Session Dialog */}
       {showCompleteDialog && (

@@ -4,9 +4,12 @@ import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
+import FocusSessionDialog from '../../../components/FocusSessionDialog'
 import { useStudentSidebarConfig } from './components/StudentSideBar'
 import { AlertTriangle, CheckCircle2, Clock3, Flag, Circle, ArrowRight, X } from 'lucide-react'
 import { getTimeline, type TimelineItem, type TimelineResponse } from '../../../services/TimelineService'
+import { FocusSessionService, SessionType } from '../../../services'
+import type { FocusSession } from '../../../services/FocusSessionService'
 import LearningPathService from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
 import useAppNotificationStore from '../../../store/useAppNotificationStore'
@@ -24,10 +27,20 @@ type DayBucket = {
   completed: number
 }
 
+type TimelineVisualState = 'completed' | 'overdue' | 'due-today' | 'default'
+
 type PriorityType = 'Lesson' | 'Task' | 'Quiz'
 type PriorityPathOption = {
   key: string
   title: string
+}
+
+type TimelineTaskSessionTarget = {
+  taskId: string
+  title: string
+  description?: string
+  taskType?: string | number
+  quizQuestionsJson?: string
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -109,6 +122,17 @@ const getTimelineItemScheduleDate = (item: TimelineItem): string | null => {
   return null
 }
 
+const getTimelineVisualState = (item: TimelineItem, now: Date, nowTs: number): TimelineVisualState => {
+  if (item.isCompleted) return 'completed'
+
+  const dueTs = parseDueTime(item.dueAtUtc)
+  if (item.isOverdue || dueTs < nowTs) return 'overdue'
+
+  if (item.dueAtUtc && isSameLocalDay(item.dueAtUtc, now)) return 'due-today'
+
+  return 'default'
+}
+
 const parseTimelineItemScheduleTime = (item: TimelineItem): number => {
   const scheduleDate = getTimelineItemScheduleDate(item)
   if (!scheduleDate) return Number.POSITIVE_INFINITY
@@ -187,6 +211,11 @@ const StudentIndex: React.FC = () => {
   const [selectedPriorityType, setSelectedPriorityType] = React.useState<PriorityType>('Lesson')
   const [selectedSevenDayPathKey, setSelectedSevenDayPathKey] = React.useState<string>(PRIORITY_ALL_PATH_KEY)
   const [selectedSevenDayType, setSelectedSevenDayType] = React.useState<PriorityType>('Lesson')
+  const [showFocusDialog, setShowFocusDialog] = React.useState(false)
+  const [creatingSession, setCreatingSession] = React.useState(false)
+  const [selectedTimelineTask, setSelectedTimelineTask] = React.useState<TimelineTaskSessionTarget | null>(null)
+  const [pausedSessionByTaskId, setPausedSessionByTaskId] = React.useState<Record<string, FocusSession>>({})
+  const [checkedTaskSessionMap, setCheckedTaskSessionMap] = React.useState<Record<string, true>>({})
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false)
   const [showExpiringSoonModal, setShowExpiringSoonModal] = React.useState(false)
   const [currentSubExpiredAt, setCurrentSubExpiredAt] = React.useState<Date | null>(null)
@@ -669,6 +698,19 @@ const StudentIndex: React.FC = () => {
   }, [t])
 
   const getTimelineStatusLabel = React.useCallback((item: TimelineItem) => {
+    const visualState = getTimelineVisualState(item, now, nowTs)
+    if (visualState === 'completed') {
+      return t('dashboard.timeline.statusCompleted')
+    }
+
+    if (visualState === 'overdue') {
+      return t('dashboard.timeline.statusOverdue')
+    }
+
+    if (visualState === 'due-today') {
+      return t('dashboard.timeline.statusDueToday')
+    }
+
     const rawStatus = String(item.status ?? '').trim()
     const normalizedStatus = rawStatus.toLowerCase()
 
@@ -689,7 +731,7 @@ const StudentIndex: React.FC = () => {
     }
 
     return rawStatus
-  }, [t])
+  }, [t, now, nowTs])
 
   const readTimelineIdField = React.useCallback((item: TimelineItem, candidates: string[]) => {
     for (const candidate of candidates) {
@@ -699,6 +741,72 @@ const StudentIndex: React.FC = () => {
     }
     return ''
   }, [])
+
+  const getTimelineTaskId = React.useCallback((item: TimelineItem): string => {
+    return readTimelineIdField(item, ['taskId', 'TaskId', 'itemId', 'id'])
+  }, [readTimelineIdField])
+
+  React.useEffect(() => {
+    const taskIds = Array.from(
+      new Set(
+        items
+          .filter((item) => String(item.itemType || '').trim().toLowerCase() === 'task')
+          .map((item) => getTimelineTaskId(item))
+          .filter((taskId) => Boolean(taskId))
+      )
+    )
+
+    const missingTaskIds = taskIds.filter((taskId) => !checkedTaskSessionMap[taskId])
+    if (missingTaskIds.length === 0) return
+
+    let cancelled = false
+
+    const inspectTaskSessions = async () => {
+      const results = await Promise.all(missingTaskIds.map(async (taskId) => {
+        try {
+          const session = await FocusSessionService.getActiveSession(taskId)
+          const normalizedStatus = String(session?.sessionStatus || '').trim().toLowerCase()
+          if (session && normalizedStatus === 'paused') {
+            return { taskId, session }
+          }
+          return { taskId, session: null }
+        } catch {
+          return { taskId, session: null }
+        }
+      }))
+
+      if (cancelled) return
+
+      setCheckedTaskSessionMap((prev) => {
+        const next = { ...prev }
+        results.forEach(({ taskId }) => {
+          next[taskId] = true
+        })
+        return next
+      })
+
+      setPausedSessionByTaskId((prev) => {
+        const next = { ...prev }
+        results.forEach(({ taskId, session }) => {
+          if (session) next[taskId] = session
+          else delete next[taskId]
+        })
+        return next
+      })
+    }
+
+    void inspectTaskSessions()
+    return () => {
+      cancelled = true
+    }
+  }, [checkedTaskSessionMap, getTimelineTaskId, items])
+
+  const hasPausedTimelineSession = React.useCallback((item: TimelineItem): boolean => {
+    if (String(item.itemType || '').trim().toLowerCase() !== 'task') return false
+    const taskId = getTimelineTaskId(item)
+    if (!taskId) return false
+    return Boolean(pausedSessionByTaskId[taskId])
+  }, [getTimelineTaskId, pausedSessionByTaskId])
 
   const resolveTimelineLessonSkeleton = React.useCallback(async (item: TimelineItem, lessonId: string) => {
     const userId = user?.id
@@ -792,11 +900,134 @@ const StudentIndex: React.FC = () => {
     }
 
     if (itemType === 'task') {
-      const taskRouteId = readTimelineIdField(item, ['chapterId', 'ChapterId', 'taskId', 'TaskId', 'itemId', 'id'])
-      if (!taskRouteId) return
-      navigate(`/task/${encodeURIComponent(taskRouteId)}`)
+      const taskId = readTimelineIdField(item, ['taskId', 'TaskId', 'itemId', 'id'])
+      if (!taskId) {
+        const chapterFallbackId = readTimelineIdField(item, ['chapterId', 'ChapterId'])
+        if (!chapterFallbackId) return
+        navigate(`/task/${encodeURIComponent(chapterFallbackId)}`)
+        return
+      }
+
+      const pausedSession = pausedSessionByTaskId[taskId]
+      if (pausedSession?.id) {
+        try {
+          const resumedSession = await FocusSessionService.resumeSession(pausedSession.id)
+          navigate(ROUTER.FOCUS_SESSION, {
+            state: {
+              session: resumedSession,
+              task: {
+                id: taskId,
+                title: String(item.title || '').trim() || t('focusSession.untitledTask'),
+                description: String(item.description ?? item.taskDescription ?? '').trim() || undefined,
+                taskType: item.taskType ?? item.TaskType,
+                quizQuestionsJson: item.quizQuestionsJson ?? item.QuizQuestionsJson,
+              },
+            },
+          })
+          return
+        } catch {
+          navigate(ROUTER.FOCUS_SESSION, {
+            state: {
+              session: pausedSession,
+              task: {
+                id: taskId,
+                title: String(item.title || '').trim() || t('focusSession.untitledTask'),
+                description: String(item.description ?? item.taskDescription ?? '').trim() || undefined,
+                taskType: item.taskType ?? item.TaskType,
+                quizQuestionsJson: item.quizQuestionsJson ?? item.QuizQuestionsJson,
+              },
+            },
+          })
+          return
+        }
+      }
+
+      const taskTitle = String(item.title || '').trim() || t('focusSession.untitledTask')
+      const descriptionRaw = String(item.description ?? item.taskDescription ?? '').trim()
+      const taskTypeRaw = item.taskType ?? item.TaskType
+      const quizJsonRaw = item.quizQuestionsJson ?? item.QuizQuestionsJson
+
+      setSelectedTimelineTask({
+        taskId,
+        title: taskTitle,
+        description: descriptionRaw || undefined,
+        taskType: typeof taskTypeRaw === 'string' || typeof taskTypeRaw === 'number' ? taskTypeRaw : undefined,
+        quizQuestionsJson: typeof quizJsonRaw === 'string' ? quizJsonRaw : undefined,
+      })
+      setShowFocusDialog(true)
     }
-  }, [navigate, readTimelineIdField, resolveTimelineLessonSkeleton])
+  }, [navigate, pausedSessionByTaskId, readTimelineIdField, resolveTimelineLessonSkeleton, t])
+
+  const handleCreateFocusSession = React.useCallback(async (sessionType: SessionType, duration: number, title?: string) => {
+    if (!selectedTimelineTask?.taskId) return
+
+    setCreatingSession(true)
+    try {
+      const session = await FocusSessionService.startSession({
+        taskId: selectedTimelineTask.taskId,
+        sessionType,
+        plannedDurationMinutes: duration,
+        title: title || selectedTimelineTask.title,
+      })
+
+      setShowFocusDialog(false)
+      setSelectedTimelineTask(null)
+      showToast(t('task.sessionCreated'), 'success')
+
+      navigate(ROUTER.FOCUS_SESSION, {
+        state: {
+          session,
+          task: {
+            id: selectedTimelineTask.taskId,
+            title: selectedTimelineTask.title,
+            description: selectedTimelineTask.description,
+            taskType: selectedTimelineTask.taskType,
+            quizQuestionsJson: selectedTimelineTask.quizQuestionsJson,
+          },
+        },
+      })
+    } catch (error: any) {
+      const errorCode = String(
+        error?.response?.data?.errorCode
+        || error?.response?.data?.code
+        || error?.response?.data?.data?.errorCode
+        || ''
+      ).toUpperCase()
+
+      if (errorCode === 'SESSION_ALREADY_ACTIVE') {
+        const activeSession = await FocusSessionService.getActiveSession(selectedTimelineTask.taskId)
+        if (activeSession) {
+          setShowFocusDialog(false)
+          setSelectedTimelineTask(null)
+          showToast(t('focusSession.sessionResynced'), 'warning')
+          navigate(ROUTER.FOCUS_SESSION, {
+            state: {
+              session: activeSession,
+              task: {
+                id: selectedTimelineTask.taskId,
+                title: selectedTimelineTask.title,
+                description: selectedTimelineTask.description,
+                taskType: selectedTimelineTask.taskType,
+                quizQuestionsJson: selectedTimelineTask.quizQuestionsJson,
+              },
+            },
+          })
+          return
+        }
+      }
+
+      const message = error?.response?.data?.message || error?.message || t('task.createSessionError')
+      showToast(message, 'error')
+    } finally {
+      setCreatingSession(false)
+    }
+  }, [navigate, selectedTimelineTask, showToast, t])
+
+  const handleCancelFocusSession = React.useCallback(() => {
+    if (creatingSession) return
+    setShowFocusDialog(false)
+    setSelectedTimelineTask(null)
+  }, [creatingSession])
   const getInitials = (name: string) => {
     const initials = name
       .split(' ')
@@ -1156,8 +1387,10 @@ const StudentIndex: React.FC = () => {
                           {t('dashboard.timeline.emptyTypeItems', { type: getPriorityTypeLabel(selectedSevenDayType).toLowerCase() })}
                         </div>
                       ) : visibleSevenDayItems.map((item) => {
-                        const isCompleted = Boolean(item.isCompleted)
-                        const isOverdue = !isCompleted && (item.isOverdue || parseDueTime(item.dueAtUtc) < nowTs)
+                        const visualState = getTimelineVisualState(item, now, nowTs)
+                        const isCompleted = visualState === 'completed'
+                        const isOverdue = visualState === 'overdue'
+                        const isDueToday = visualState === 'due-today'
                         return (
                           <div
                             key={`${activeDayKey || 'selected-day'}-${item.itemType}-${item.itemId}`}
@@ -1173,6 +1406,8 @@ const StudentIndex: React.FC = () => {
                             style={{
                               border: isCompleted
                                 ? '1px solid var(--success-primary)'
+                                : isDueToday
+                                  ? '1px solid var(--warning-primary)'
                                 : '1px solid var(--border-base)',
                               borderLeft: isOverdue ? '3px solid var(--danger-primary)' : undefined,
                               borderRadius: 2,
@@ -1182,15 +1417,24 @@ const StudentIndex: React.FC = () => {
                                 ? 'var(--bg-green-tint)'
                                 : isOverdue
                                   ? 'rgba(207, 34, 46, 0.07)'
+                                  : isDueToday
+                                    ? 'var(--bg-yellow-tint)'
                                   : 'var(--bg-main)'
                             }}
                           >
                             <p style={{ margin: 0, fontSize: 14, color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.35 }}>{item.title || '—'}</p>
                             <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.35 }}>{item.learningPathTitle || t('dashboard.timeline.unknownPath')}</p>
-                            <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: isCompleted ? 'var(--success-primary)' : isOverdue ? 'var(--danger-primary)' : 'var(--text-secondary)' }}>
-                              {isCompleted ? <CheckCircle2 size={12} /> : isOverdue ? <AlertTriangle size={12} /> : <Circle size={12} />}
+                            <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: isCompleted ? 'var(--success-primary)' : isOverdue ? 'var(--danger-primary)' : isDueToday ? 'var(--warning-primary)' : 'var(--text-secondary)' }}>
+                              {isCompleted ? <CheckCircle2 size={12} /> : isOverdue ? <AlertTriangle size={12} /> : isDueToday ? <Clock3 size={12} /> : <Circle size={12} />}
                               {getTimelineStatusLabel(item)}
                             </div>
+                            {hasPausedTimelineSession(item) && (
+                              <div style={{ marginTop: 6 }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, border: '1px solid var(--warning-primary)', color: 'var(--warning-primary)', background: 'var(--bg-yellow-tint)', fontSize: 10, fontWeight: 700 }}>
+                                  {t('dashboard.timeline.pausedSessionTag')}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )
                       })}
@@ -1338,12 +1582,16 @@ const StudentIndex: React.FC = () => {
                               {pagedItems.map((item) => {
                                 const pathKey = String(item.learningPathId || item.learningPathTitle || 'unknown')
                                 const chipColor = getPathChipColor(pathKey)
-                                const isCompleted = Boolean(item.isCompleted)
-                                const isOverdue = !item.isCompleted && (item.isOverdue || parseDueTime(item.dueAtUtc) < nowTs)
-                                const statusColor = item.isCompleted
+                                const visualState = getTimelineVisualState(item, now, nowTs)
+                                const isCompleted = visualState === 'completed'
+                                const isOverdue = visualState === 'overdue'
+                                const isDueToday = visualState === 'due-today'
+                                const statusColor = isCompleted
                                   ? 'var(--success-primary)'
                                   : isOverdue
                                     ? 'var(--danger-primary)'
+                                    : isDueToday
+                                      ? 'var(--warning-primary)'
                                     : 'var(--text-secondary)'
 
                                 return (
@@ -1364,6 +1612,8 @@ const StudentIndex: React.FC = () => {
                                         ? '3px solid var(--success-primary)'
                                         : isOverdue
                                           ? '3px solid var(--danger-primary)'
+                                          : isDueToday
+                                            ? '3px solid var(--warning-primary)'
                                           : undefined,
                                       borderRadius: 2,
                                       padding: 10,
@@ -1371,8 +1621,14 @@ const StudentIndex: React.FC = () => {
                                         ? 'var(--bg-green-tint)'
                                         : isOverdue
                                           ? 'rgba(207, 34, 46, 0.07)'
+                                          : isDueToday
+                                            ? 'var(--bg-yellow-tint)'
                                           : 'var(--bg-surface-short)',
-                                      boxShadow: isCompleted ? 'inset 0 0 0 1px rgba(22, 163, 74, 0.15)' : 'none',
+                                      boxShadow: isCompleted
+                                        ? 'inset 0 0 0 1px rgba(22, 163, 74, 0.15)'
+                                        : isDueToday
+                                          ? 'inset 0 0 0 1px rgba(245, 158, 11, 0.2)'
+                                          : 'none',
                                       cursor: 'pointer'
                                     }}
                                   >
@@ -1393,7 +1649,7 @@ const StudentIndex: React.FC = () => {
                                         <Clock3 size={12} /> {formatLocalDateTime(item.dueAtUtc)}
                                       </span>
                                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: statusColor }}>
-                                        {item.isCompleted ? <CheckCircle2 size={12} /> : isOverdue ? <AlertTriangle size={12} /> : <Circle size={12} />}
+                                        {isCompleted ? <CheckCircle2 size={12} /> : isOverdue ? <AlertTriangle size={12} /> : isDueToday ? <Clock3 size={12} /> : <Circle size={12} />}
                                         {getTimelineStatusLabel(item)}
                                       </span>
                                       <span style={{ width: 10, height: 10, borderRadius: 999, background: chipColor, display: 'inline-block' }} />
@@ -1401,6 +1657,11 @@ const StudentIndex: React.FC = () => {
                                       {item.priority !== null && item.priority !== undefined && String(item.priority).trim() !== '' && (
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
                                           <Flag size={12} /> {String(item.priority)}
+                                        </span>
+                                      )}
+                                      {hasPausedTimelineSession(item) && (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, border: '1px solid var(--warning-primary)', color: 'var(--warning-primary)', background: 'var(--bg-yellow-tint)', fontSize: 10, fontWeight: 700 }}>
+                                          {t('dashboard.timeline.pausedSessionTag')}
                                         </span>
                                       )}
                                     </div>
@@ -1594,6 +1855,14 @@ const StudentIndex: React.FC = () => {
           </motion.div>
         </div>
       )}
+
+      <FocusSessionDialog
+        isOpen={showFocusDialog}
+        taskTitle={selectedTimelineTask?.title || t('focusSession.untitledTask')}
+        onConfirm={handleCreateFocusSession}
+        onCancel={handleCancelFocusSession}
+        loading={creatingSession}
+      />
     </Layout>
   )
 }

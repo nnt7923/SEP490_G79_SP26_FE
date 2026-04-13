@@ -15,7 +15,8 @@
     "profile": "Profile",
     "myPlans": "My Plans",
     "changePassword": "Change Password",
-    "logout": "Logout"
+    "logout": "Logout",
+    "mustPauseBeforeLogout": "Pause your focus session before logging out."
   },
   "theme": {
     "switchToDark": "Switch to dark mode",
@@ -79,6 +80,7 @@
     "achievements": "Achievements",
     "upgrade": "Upgrade",
     "profile": "Profile",
+    "focusSessionHistory": "Focus Session History",
     "subjects": "Subjects",
     "classes": "Classes",
     "students": "Students",

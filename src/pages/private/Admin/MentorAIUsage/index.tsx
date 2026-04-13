@@ -7,6 +7,7 @@ import { formatDateTimeVN } from '../../../../utils/dateUtils'
 import AdminAIUsageService, { type MentorQuotaStatusItem } from '../../../../services/AdminAIUsageService'
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
+const MENTOR_AI_ACCESS_POLICY_KEY = 'mentor_ai_access_policy'
 
 const AdminMentorAIUsagePage: React.FC = () => {
   const { t } = useTranslation('admin')
@@ -37,6 +38,9 @@ const AdminMentorAIUsagePage: React.FC = () => {
   const [policySuccess, setPolicySuccess] = useState<string>('')
   const [mentorPaidRequestsMonthlyLimit, setMentorPaidRequestsMonthlyLimit] = useState<number>(0)
   const [mentorDowngradeNotifyCooldownHours, setMentorDowngradeNotifyCooldownHours] = useState<number>(0)
+  const [policyDescription, setPolicyDescription] = useState<string>('')
+  const [policyIsActive, setPolicyIsActive] = useState<boolean>(true)
+  const [policyUpdatedAt, setPolicyUpdatedAt] = useState<string>('')
 
   const fetchData = async () => {
     setLoading(true)
@@ -73,9 +77,12 @@ const AdminMentorAIUsagePage: React.FC = () => {
     setPolicyLoading(true)
     setPolicyError('')
     try {
-      const policy = await AdminAIUsageService.getMentorAIAccessPolicy()
+      const policy = await AdminAIUsageService.getMentorAIAccessPolicy(MENTOR_AI_ACCESS_POLICY_KEY)
       setMentorPaidRequestsMonthlyLimit(policy.mentorPaidRequestsMonthlyLimit)
       setMentorDowngradeNotifyCooldownHours(policy.mentorDowngradeNotifyCooldownHours)
+      setPolicyDescription(policy.description || '')
+      setPolicyIsActive(Boolean(policy.isActive))
+      setPolicyUpdatedAt(policy.updatedAt || '')
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || t('mentorAiUsage.policyFailedToLoad')
       setPolicyError(message)
@@ -104,12 +111,22 @@ const AdminMentorAIUsagePage: React.FC = () => {
       const normalizedMonthlyLimit = Math.floor(monthlyLimit)
       const normalizedCooldownHours = Math.floor(cooldownHours)
 
-      const updated = await AdminAIUsageService.updateMentorAIAccessPolicy({
-        mentorPaidRequestsMonthlyLimit: normalizedMonthlyLimit,
-        mentorDowngradeNotifyCooldownHours: normalizedCooldownHours,
-      })
+      const updated = await AdminAIUsageService.updateMentorAIAccessPolicy(
+        MENTOR_AI_ACCESS_POLICY_KEY,
+        {
+          description: policyDescription || 'Mentor AI access policy',
+          configJson: {
+            mentorPaidRequestsMonthlyLimit: normalizedMonthlyLimit,
+            mentorDowngradeNotifyCooldownHours: normalizedCooldownHours,
+          },
+          isActive: policyIsActive,
+        }
+      )
       setMentorPaidRequestsMonthlyLimit(updated.mentorPaidRequestsMonthlyLimit)
       setMentorDowngradeNotifyCooldownHours(updated.mentorDowngradeNotifyCooldownHours)
+      setPolicyDescription(updated.description || policyDescription)
+      setPolicyIsActive(Boolean(updated.isActive))
+      setPolicyUpdatedAt(updated.updatedAt || policyUpdatedAt)
 
       setRows((previousRows) => previousRows.map((row) => ({
         ...row,
@@ -191,6 +208,26 @@ const AdminMentorAIUsagePage: React.FC = () => {
               </h2>
               <span className="text-xs text-muted">{policyLoading ? t('mentorAiUsage.loading') : t('mentorAiUsage.policyHint')}</span>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="px-3 py-2 border border-bd-input bg-th-input/40 text-xs text-muted">
+                <div className="font-bold text-heading mb-1">{t('mentorAiUsage.policyStatusLabel')}</div>
+                <div className={policyIsActive ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}>
+                  {policyIsActive ? t('mentorAiUsage.policyStatusActive') : t('mentorAiUsage.policyStatusInactive')}
+                </div>
+              </div>
+              <div className="px-3 py-2 border border-bd-input bg-th-input/40 text-xs text-muted">
+                <div className="font-bold text-heading mb-1">{t('mentorAiUsage.policyUpdatedAtLabel')}</div>
+                <div>{policyUpdatedAt ? formatDateTimeVN(policyUpdatedAt) : '-'}</div>
+              </div>
+            </div>
+
+            {policyDescription ? (
+              <div className="px-3 py-2 text-xs border border-bd-input bg-th-input/30 text-muted">
+                <span className="font-bold text-heading mr-2">{t('mentorAiUsage.policyDescriptionLabel')}:</span>
+                {policyDescription}
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

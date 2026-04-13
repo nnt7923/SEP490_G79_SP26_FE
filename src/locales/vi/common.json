@@ -15,7 +15,8 @@
     "profile": "Hồ sơ",
     "myPlans": "Kế hoạch của tôi",
     "changePassword": "Đổi mật khẩu",
-    "logout": "Đăng xuất"
+    "logout": "Đăng xuất",
+    "mustPauseBeforeLogout": "Vui lòng tạm dừng phiên học trước khi đăng xuất."
   },
   "theme": {
     "switchToDark": "Chuyển sang chế độ tối",
@@ -79,6 +80,7 @@
     "achievements": "Thành tựu",
     "upgrade": "Nâng cấp",
     "profile": "Hồ sơ",
+    "focusSessionHistory": "Lịch sử phiên học",
     "subjects": "Môn học",
     "classes": "Lớp học",
     "students": "Sinh viên",
