@@ -871,6 +871,7 @@
       "disableNotificationsConfirmTitle": "Turn off update notifications?",
       "disableNotificationsConfirm": "Turn off notifications",
       "disableNotificationsDescription": "You will keep your current learning path, but you will stop receiving notifications for newer versions of this share.",
+      "noUpdate": "Do not update",
       "cancel": "Cancel",
       "creating": "Creating...",
       "updating": "Updating...",

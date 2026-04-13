@@ -205,7 +205,7 @@ const ShareUpdatesPage: React.FC = () => {
         <div style={{ padding: 24, minHeight: '100vh', background: 'var(--bg-main)' }}>
           <button
             type="button"
-            onClick={() => navigate(ROUTER.MY_PLANS)}
+            onClick={() => navigate(-1)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 16 }}
           >
             <ArrowLeft size={14} />
@@ -242,7 +242,7 @@ const ShareUpdatesPage: React.FC = () => {
         <div style={{ maxWidth: 1080, margin: '0 auto' }}>
           <button
             type="button"
-            onClick={() => navigate(ROUTER.MY_PLANS)}
+            onClick={() => navigate(-1)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 16 }}
           >
             <ArrowLeft size={14} />
@@ -384,6 +384,14 @@ const ShareUpdatesPage: React.FC = () => {
                 {actionLoading === 'DisableUpdateNotifications'
                   ? t('shareUpdates.actions.saving', { defaultValue: 'Saving...' })
                   : t('shareUpdates.actions.disableNotifications', { defaultValue: 'Turn off update notifications for this learning path' })}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                style={{ border: '1px solid var(--border-base)', borderRadius: 8, padding: '12px 14px', background: 'var(--bg-main)', color: 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer' }}
+              >
+                {t('shareUpdates.actions.noUpdate', { defaultValue: 'Do not update' })}
               </button>
             </div>
           </section>
