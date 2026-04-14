@@ -116,6 +116,7 @@
     "contentGeneration": "Content Generation",
     "verification": "Verification",
     "assistant": "Assistant",
+    "documentExtraction": "Document Extraction",
     "unknown": "Unknown",
     "cfg": "cfg",
     "details": "details",

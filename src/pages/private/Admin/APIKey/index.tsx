@@ -110,7 +110,8 @@ const AdminApiKeyPage: React.FC = () => {
     AIUsageType.StructureGeneration,
     AIUsageType.ContentGeneration,
     AIUsageType.Verification,
-    AIUsageType.Assistant
+    AIUsageType.Assistant,
+    AIUsageType.DocumentExtraction,
   ]))
 
   // Add/Edit form state
@@ -136,6 +137,7 @@ const AdminApiKeyPage: React.FC = () => {
     if (typeStr.includes('content')) return AIUsageType.ContentGeneration
     if (typeStr.includes('verif')) return AIUsageType.Verification
     if (typeStr.includes('assistant')) return AIUsageType.Assistant
+    if (typeStr.includes('document') || typeStr.includes('extract')) return AIUsageType.DocumentExtraction
     
     return AIUsageType.StructureGeneration
   }
@@ -167,8 +169,21 @@ const AdminApiKeyPage: React.FC = () => {
         return { label: t('apiKey.verification'), color: 'var(--color-emerald-500)', borderColor: 'var(--color-emerald-500)', icon: CheckCircle }
       case AIUsageType.Assistant:
         return { label: t('apiKey.assistant'), color: 'var(--color-amber-500)', borderColor: 'var(--color-amber-500)', icon: MessageSquare }
+      case AIUsageType.DocumentExtraction:
+        return { label: t('apiKey.documentExtraction'), color: 'var(--color-cyan-500)', borderColor: 'var(--color-cyan-500)', icon: FileText }
       default:
         return { label: t('apiKey.unknown'), color: 'var(--text-secondary)', borderColor: 'var(--text-secondary)', icon: LayoutTemplate }
+    }
+  }
+
+  const getUsageTypeString = (type: AIUsageType): string => {
+    switch (type) {
+      case AIUsageType.StructureGeneration: return 'StructureGeneration'
+      case AIUsageType.ContentGeneration: return 'ContentGeneration'
+      case AIUsageType.Verification: return 'Verification'
+      case AIUsageType.Assistant: return 'Assistant'
+      case AIUsageType.DocumentExtraction: return 'DocumentExtraction'
+      default: return 'StructureGeneration'
     }
   }
   
@@ -185,17 +200,6 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
-      // Map aiUsageType enum to string for backend
-      const getUsageTypeString = (type: AIUsageType): string => {
-        switch (type) {
-          case AIUsageType.StructureGeneration: return 'StructureGeneration'
-          case AIUsageType.ContentGeneration: return 'ContentGeneration'
-          case AIUsageType.Verification: return 'Verification'
-          case AIUsageType.Assistant: return 'Assistant'
-          default: return 'StructureGeneration'
-        }
-      }
-      
       await AIConfigService.setActiveAIConfig(configId, getUsageTypeString(usageType), selectedAccessTier)
       await fetchList()
       setNotice(t('apiKey.setActiveSuccess'))
@@ -360,18 +364,7 @@ const AdminApiKeyPage: React.FC = () => {
     setNotice('')
     try {
       const configJson = getConfigJsonFromEditor()
-      
-      // Map aiUsageType enum to string for backend
-      const getUsageTypeString = (type: AIUsageType): string => {
-        switch (type) {
-          case AIUsageType.StructureGeneration: return 'StructureGeneration'
-          case AIUsageType.ContentGeneration: return 'ContentGeneration'
-          case AIUsageType.Verification: return 'Verification'
-          case AIUsageType.Assistant: return 'Assistant'
-          default: return 'StructureGeneration'
-        }
-      }
-      
+
       const payload = {
         providerName,
         apiKey,
@@ -434,18 +427,7 @@ const AdminApiKeyPage: React.FC = () => {
     setNotice('')
     try {
       const configJson = getConfigJsonFromEditor()
-      
-      // Map aiUsageType enum to string for backend
-      const getUsageTypeString = (type: AIUsageType): string => {
-        switch (type) {
-          case AIUsageType.StructureGeneration: return 'StructureGeneration'
-          case AIUsageType.ContentGeneration: return 'ContentGeneration'
-          case AIUsageType.Verification: return 'Verification'
-          case AIUsageType.Assistant: return 'Assistant'
-          default: return 'StructureGeneration'
-        }
-      }
-      
+
       const payload: Record<string, any> = {
         providerName,
         configJson,
@@ -591,6 +573,7 @@ const AdminApiKeyPage: React.FC = () => {
                   <option value={AIUsageType.ContentGeneration}>{t('apiKey.contentGeneration')}</option>
                   <option value={AIUsageType.Verification}>{t('apiKey.verification')}</option>
                   <option value={AIUsageType.Assistant}>{t('apiKey.assistant')}</option>
+                  <option value={AIUsageType.DocumentExtraction}>{t('apiKey.documentExtraction')}</option>
                 </select>
                 <p className="text-xs text-muted mt-2">{t('apiKey.selectUsageType')}</p>
               </div>
@@ -782,7 +765,7 @@ const AdminApiKeyPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {[AIUsageType.StructureGeneration, AIUsageType.ContentGeneration, AIUsageType.Verification, AIUsageType.Assistant].map((usageType) => {
+            {[AIUsageType.StructureGeneration, AIUsageType.ContentGeneration, AIUsageType.Verification, AIUsageType.Assistant, AIUsageType.DocumentExtraction].map((usageType) => {
               const typeInfo = getUsageTypeInfo(usageType)
               const tieredItems = groupedItems[usageType] || { free: [], paid: [] }
               const totalConfigs = tieredItems.free.length + tieredItems.paid.length
