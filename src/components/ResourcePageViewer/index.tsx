@@ -298,18 +298,18 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                     
                     {/* Page Content */}
                     <div className="p-8 flex-1">
-                      {(currentPageData.extractedText || currentPageData.text) ? (
-                        <div className="prose prose-slate max-w-none">
-                          <div className="whitespace-pre-wrap text-sl-700 leading-relaxed text-[15px]">
-                            {currentPageData.extractedText || currentPageData.text}
-                          </div>
-                        </div>
-                      ) : currentPageData.imageUrl ? (
+                      {currentPageData.imageUrl ? (
                         <img
                           src={currentPageData.imageUrl}
                           alt={`Page ${currentPage}`}
                           className="max-w-full h-auto"
                         />
+                      ) : (currentPageData.extractedText || currentPageData.text) ? (
+                        <div className="prose prose-slate max-w-none">
+                          <div className="whitespace-pre-wrap text-sl-700 leading-relaxed text-[15px]">
+                            {currentPageData.extractedText || currentPageData.text}
+                          </div>
+                        </div>
                       ) : (
                         <div className="text-center py-16 text-sl-500">
                           <FileText className="w-16 h-16 mx-auto mb-4 opacity-40" />
