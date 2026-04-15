@@ -37,6 +37,7 @@ let learningPathHub: signalR.HubConnection | null = null
 let tutorHub: signalR.HubConnection | null = null
 let notificationHub: signalR.HubConnection | null = null
 let notificationHubBound = false
+let lastWalletBalanceUpdateAtMs = 0
 
 const notificationReceiveListeners = new Set<(payload: NotificationDto | unknown) => void>()
 const notificationUnreadCountListeners = new Set<(payload: unknown) => void>()
@@ -128,6 +129,47 @@ function debugSignalR(scope: string, message: string, payload?: unknown) {
   console.debug(`[SignalR:${scope}] ${message}`, payload)
 }
 
+function parseWalletUpdateTimestamp(raw: unknown): number {
+  const text = String(raw ?? '').trim()
+  if (!text) return Date.now()
+  const parsed = Date.parse(text)
+  return Number.isFinite(parsed) ? parsed : Date.now()
+}
+
+function extractWalletBalance(payload: any): number | null {
+  const numeric = Number(payload?.BalanceVnd ?? payload?.balanceVnd)
+  if (!Number.isFinite(numeric)) return null
+  return Math.max(0, Math.round(numeric))
+}
+
+function applyWalletBalanceUpdate(payload: any, source: string): void {
+  const nextBalance = extractWalletBalance(payload)
+  if (nextBalance == null) return
+
+  const updatedAtMs = parseWalletUpdateTimestamp(payload?.UpdatedAtUtc ?? payload?.updatedAtUtc)
+  if (updatedAtMs < lastWalletBalanceUpdateAtMs) {
+    debugSignalR(source, 'skip stale WalletBalanceUpdated payload', payload)
+    return
+  }
+  lastWalletBalanceUpdateAtMs = updatedAtMs
+
+  try {
+    const authState = useAuthStore.getState()
+    const currentUser = authState.user as any
+    authState.setUser({
+      ...(currentUser ?? {}),
+      BalanceVnd: nextBalance,
+      balanceVnd: nextBalance,
+    })
+    debugSignalR(source, 'applied WalletBalanceUpdated', {
+      balanceVnd: nextBalance,
+      updatedAtUtc: payload?.UpdatedAtUtc ?? payload?.updatedAtUtc,
+    })
+  } catch {
+    // ignore store update errors
+  }
+}
+
 export function setSignalRDebug(enabled: boolean): void {
   if (typeof window === 'undefined') return
   try {
@@ -197,6 +239,10 @@ function buildConnection(url: string, name: string): signalR.HubConnection {
   })
   conn.onclose((error) => {
     debugSignalR(name, 'connection closed', error ? { error: resolveHubErrorMessage(error, 'Unknown close error') } : undefined)
+  })
+
+  conn.on('WalletBalanceUpdated', (payload: any) => {
+    applyWalletBalanceUpdate(payload, name)
   })
 
   return conn

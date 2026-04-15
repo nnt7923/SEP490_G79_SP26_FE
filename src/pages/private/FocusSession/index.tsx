@@ -239,6 +239,7 @@ const FocusSessionPage: React.FC = () => {
   const [selectedSessionNoteDetail, setSelectedSessionNoteDetail] = useState<SessionNoteItem | null>(null)
   const [isSessionNoteDetailModalOpen, setIsSessionNoteDetailModalOpen] = useState<boolean>(false)
   const [noteWidgetPosition, setNoteWidgetPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const noteWidgetCollapsedPositionRef = useRef<{ x: number; y: number } | null>(null)
   const noteWidgetDragRef = useRef({
     dragging: false,
     startX: 0,
@@ -698,10 +699,11 @@ const FocusSessionPage: React.FC = () => {
   }, [isFocusMode])
 
   const clampNoteWidgetPosition = React.useCallback((x: number, y: number) => {
-    const minX = 12
-    const minY = 12
-    const maxX = window.innerWidth - 72
-    const maxY = window.innerHeight - 72
+    const minX = 16
+    const minY = 16
+    // Keep enough visible width for the note bubble button so it is easy to spot and click.
+    const maxX = window.innerWidth - 180
+    const maxY = window.innerHeight - 110
 
     return {
       x: Math.max(minX, Math.min(x, maxX)),
@@ -709,11 +711,25 @@ const FocusSessionPage: React.FC = () => {
     }
   }, [])
 
+  const getExpandedNoteWidgetCenterPosition = React.useCallback(() => {
+    const panelWidth = Math.min(620, window.innerWidth - 24)
+    const panelHeight = Math.min(Math.floor(window.innerHeight * 0.75), 560)
+    const centeredX = (window.innerWidth - panelWidth) / 2
+    const centeredY = (window.innerHeight - panelHeight) / 2
+    return clampNoteWidgetPosition(centeredX, centeredY)
+  }, [clampNoteWidgetPosition])
+
   useEffect(() => {
     if (noteWidgetPosition.x !== 0 || noteWidgetPosition.y !== 0) return
-    const initial = clampNoteWidgetPosition(window.innerWidth - 24, window.innerHeight - 120)
+    const initial = clampNoteWidgetPosition(window.innerWidth - 210, window.innerHeight - 170)
     setNoteWidgetPosition(initial)
   }, [clampNoteWidgetPosition, noteWidgetPosition.x, noteWidgetPosition.y])
+
+  useEffect(() => {
+    if (isNoteWidgetOpen) return
+    if (noteWidgetPosition.x === 0 && noteWidgetPosition.y === 0) return
+    noteWidgetCollapsedPositionRef.current = noteWidgetPosition
+  }, [isNoteWidgetOpen, noteWidgetPosition])
 
   useEffect(() => {
     const handleMove = (event: MouseEvent) => {
@@ -767,7 +783,22 @@ const FocusSessionPage: React.FC = () => {
       noteWidgetDragRef.current.moved = false
       return
     }
-    setIsNoteWidgetOpen((prev) => !prev)
+
+    if (!isNoteWidgetOpen) {
+      noteWidgetCollapsedPositionRef.current = {
+        x: noteWidgetPosition.x,
+        y: noteWidgetPosition.y,
+      }
+      setNoteWidgetPosition(getExpandedNoteWidgetCenterPosition())
+      setIsNoteWidgetOpen(true)
+      return
+    }
+
+    const collapsedPosition = noteWidgetCollapsedPositionRef.current
+    if (collapsedPosition) {
+      setNoteWidgetPosition(clampNoteWidgetPosition(collapsedPosition.x, collapsedPosition.y))
+    }
+    setIsNoteWidgetOpen(false)
   }
 
   const handleOpenSavedNotesModal = () => {

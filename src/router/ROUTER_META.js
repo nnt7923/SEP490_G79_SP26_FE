@@ -16,6 +16,7 @@ const ROUTER_META = {
   [ROUTER.CHANGE_PASSWORD]: { breadcrumb: 'Change Password', title: 'Change Password' },
   [ROUTER.MY_RESOURCES]: { breadcrumb: 'My Resources', title: 'My Resources' },
   [ROUTER.NOTIFICATIONS]: { breadcrumb: 'Notifications', title: 'Notifications' },
+  [ROUTER.BILLING_HISTORY]: { breadcrumb: 'Billing History', title: 'Billing History' },
   [ROUTER.FOCUS_SESSION_HISTORY]: { breadcrumb: 'Focus Session History', title: 'Focus Session History' },
   [ROUTER.ADMIN_DASHBOARD]: { breadcrumb: 'Admin', title: 'Admin Dashboard' },
   [ROUTER.MENTOR_DASHBOARD]: { breadcrumb: 'Mentor', title: 'Mentor Dashboard' },

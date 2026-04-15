@@ -59,6 +59,7 @@ const ROUTER = {
   SUBSCRIPTION: "/subscription",
   SUBSCRIPTION_CURRENT: "/subscription/current",
   BILLING_RESULT: "/billing/result",
+  BILLING_HISTORY: "/billing/history",
   SUBSCRIPTION_SUCCESS: "/subscription/success",
 };
 

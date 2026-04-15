@@ -19,13 +19,14 @@ const FOCUS_SESSION_RUNNING_LOCK_KEY = 'focus_session_running_lock'
 const Header: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { token, user, logout } = useAuthStore()
+  const { token, user, logout, fetchProfile } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { t } = useTranslation('common')
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const lastBalanceSyncAtRef = useRef<number>(0)
   const panelItems = useAppNotificationStore((state) => state.panelItems)
   const panelLoading = useAppNotificationStore((state) => state.panelLoading)
   const notificationError = useAppNotificationStore((state) => state.error)
@@ -60,6 +61,35 @@ const Header: React.FC = () => {
   const isAdmin = normalizedRole === 'admin'
   const isMentor = normalizedRole === 'mentor'
   const isStudent = normalizedRole === 'student' || (!isAdmin && !isMentor)
+
+  useEffect(() => {
+    if (!token || !isStudent) return
+
+    const syncProfileBalance = () => {
+      const now = Date.now()
+      if (now - lastBalanceSyncAtRef.current < 15000) return
+      lastBalanceSyncAtRef.current = now
+      void fetchProfile().catch(() => {})
+    }
+
+    const onFocus = () => {
+      syncProfileBalance()
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncProfileBalance()
+      }
+    }
+
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [fetchProfile, isStudent, token])
   
   const dashboardPath = isAdmin
     ? ROUTER.ADMIN_DASHBOARD
@@ -71,6 +101,10 @@ const Header: React.FC = () => {
   const profilePath = isAdmin ? '' : (isMentor ? ROUTER.MENTOR_PROFILE : ROUTER.PROFILE)
 
   const showPlansLink = !isAdmin
+  const balanceVnd = Number((user as any)?.BalanceVnd ?? (user as any)?.balanceVnd ?? 0)
+  const formattedBalanceVnd = Number.isFinite(balanceVnd)
+    ? new Intl.NumberFormat('vi-VN').format(Math.max(0, Math.round(balanceVnd)))
+    : '0'
 
   // Build markdown menu dynamically - only show My Plans for students
   const mdLines = [`- [${t('userMenu.dashboard')}](${dashboardPath})`]
@@ -376,6 +410,30 @@ const Header: React.FC = () => {
             ) : (
               <div style={{ position: 'relative' }} ref={menuRef}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {isStudent && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(ROUTER.SUBSCRIPTION)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 999,
+                        background: 'var(--bg-main)',
+                        color: 'var(--text-primary)',
+                        padding: '6px 10px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                      title={t('userMenu.balanceBadgeTitle')}
+                    >
+                      <span style={{ color: 'var(--accent-primary)' }}>●</span>
+                      {t('userMenu.balanceBadge', { amount: formattedBalanceVnd })}
+                    </button>
+                  )}
+
                   {isStudent && (
                     <button
                       type="button"
