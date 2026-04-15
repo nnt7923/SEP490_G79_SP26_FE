@@ -883,8 +883,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                 id={messageListId}
                 className="chat-kit-message-list"
                 autoScrollToBottom
-                scrollBehavior="smooth"
-                key={`student-msg-${activeConversationId}-${activeMessages.length}`}
+                key={`student-msg-${activeConversationId}-${Date.now()}`}
               >
                 {!activeConversationId ? (
                   <MessageList.Content>

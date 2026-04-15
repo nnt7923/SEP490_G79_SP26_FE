@@ -573,7 +573,9 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
       }
       hub.requestConversations().catch(() => {});
     } catch (err: any) {
-      setShareError(resolveShareToStudentErrorMessage(err, t, t("chat.shareError")));
+      setShareError(
+        resolveShareToStudentErrorMessage(err, t, t("chat.shareError")),
+      );
     } finally {
       setSharing(false);
     }
@@ -895,8 +897,7 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
                 id={messageListId}
                 className="chat-kit-message-list"
                 autoScrollToBottom
-                scrollBehavior="smooth"
-                key={`mentor-msg-${activeConversationId}-${activeMessages.length}`}
+                key={`mentor-msg-${activeConversationId}-${Date.now()}`}
               >
                 {!activeConversationId ? (
                   <MessageList.Content>
