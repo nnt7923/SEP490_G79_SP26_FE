@@ -161,11 +161,11 @@ export async function startSession(payload: StartSessionRequest): Promise<FocusS
 
   const result = {
     id: data?.id ?? data?.sessionId,
-    taskId: data?.taskId,
+    taskId: data?.taskId ?? payload.taskId,
     sessionType: sessionType,
-    plannedDurationMinutes: data?.plannedDurationMinutes,
+    plannedDurationMinutes: data?.plannedDurationMinutes ?? payload.plannedDurationMinutes,
     title: data?.title ?? null,
-    startTime: data?.startTime,
+    startTime: data?.startTime ?? new Date().toISOString(),
     endTime: data?.endTime ?? null,
     message: data?.message ?? null,
     isActive: data?.isActive ?? true,

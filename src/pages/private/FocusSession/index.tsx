@@ -225,7 +225,6 @@ const FocusSessionPage: React.FC = () => {
   const [isAiReviewModalOpen, setIsAiReviewModalOpen] = useState<boolean>(false)
   const [finalSubmissionResult, setFinalSubmissionResult] = useState<{ feedback: string; score?: number; taskCompleted: boolean; message?: string } | null>(null)
   const [isFinalSubmissionModalOpen, setIsFinalSubmissionModalOpen] = useState<boolean>(false)
-  const [restartSessionLoading, setRestartSessionLoading] = useState<boolean>(false)
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false)
   const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
   const [noteTitle, setNoteTitle] = useState<string>('')
@@ -647,33 +646,9 @@ const FocusSessionPage: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  {!isPass && (
-                    <button
-                      type="button"
-                      onClick={handleStartNewSessionAfterFail}
-                      disabled={restartSessionLoading}
-                      style={{
-                        border: 'none',
-                        borderRadius: 8,
-                        background: restartSessionLoading ? 'var(--text-secondary)' : 'var(--accent-primary)',
-                        color: 'white',
-                        padding: '8px 12px',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: restartSessionLoading ? 'not-allowed' : 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
-                    >
-                      {restartSessionLoading ? <Loader2 className="animate-spin" size={14} /> : <PlayCircle size={14} />}
-                      {restartSessionLoading ? t('focusSession.creating') : t('focusSession.restartSessionBtn')}
-                    </button>
-                  )}
-
                   <button
                     type="button"
-                    onClick={() => navigate(ROUTER.MY_PLANS)}
+                    onClick={navigateBackToDetail}
                     style={{
                       border: '1px solid var(--border-base)',
                       borderRadius: 8,
@@ -1313,6 +1288,14 @@ const FocusSessionPage: React.FC = () => {
     }).format(date)
   }
 
+  const navigateBackToDetail = React.useCallback(() => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate(ROUTER.MY_PLANS)
+  }, [navigate])
+
   useEffect(() => {
     if (!session?.id) return
 
@@ -1405,7 +1388,7 @@ const FocusSessionPage: React.FC = () => {
 
       if (submissionType !== 1) {
         setTimeout(() => {
-          navigate(ROUTER.MY_PLANS)
+          navigateBackToDetail()
         }, 2000)
         return
       }
@@ -1443,31 +1426,6 @@ const FocusSessionPage: React.FC = () => {
 
   const handleCancelComplete = () => {
     setShowCompleteDialog(false)
-  }
-
-  const handleStartNewSessionAfterFail = async () => {
-    if (!session?.taskId) return
-
-    setRestartSessionLoading(true)
-    try {
-      const nextSession = await FocusSessionService.startSession({
-        taskId: session.taskId,
-        sessionType: session.sessionType,
-        plannedDurationMinutes: Math.max(1, Number(session.plannedDurationMinutes) || 25),
-        title: session.title || task?.title || undefined,
-      })
-
-      shouldPauseOnLeaveRef.current = true
-      setIsFinalSubmissionModalOpen(false)
-      setFinalSubmissionResult(null)
-      applySessionSnapshot(nextSession, normalizeSessionUiState(nextSession.sessionStatus ?? 'Running'))
-      setToast({ message: t('focusSession.restartSessionSuccess'), type: 'success' })
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || t('focusSession.completeError')
-      setToast({ message: msg, type: 'error' })
-    } finally {
-      setRestartSessionLoading(false)
-    }
   }
 
   const handleAiReview = async () => {
@@ -1599,7 +1557,7 @@ const FocusSessionPage: React.FC = () => {
       setToast({ message: t('focusSession.mustPauseBeforeLeaving'), type: 'warning' })
       return
     }
-    navigate(ROUTER.MY_PLANS)
+    navigateBackToDetail()
   }
 
   const handleCreateNote = async () => {
