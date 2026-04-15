@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Hash,
-  LogOut,
   MessageSquare,
   Reply,
   Share2,
@@ -573,28 +572,18 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
       }
       hub.requestConversations().catch(() => {});
     } catch (err: any) {
-      setShareError(resolveShareToStudentErrorMessage(err, t, t("chat.shareError")));
+      setShareError(
+        resolveShareToStudentErrorMessage(err, t, t("chat.shareError")),
+      );
     } finally {
       setSharing(false);
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate(ROUTER.LOGIN);
-  };
-
   const navItems = useMentorSidebarConfig();
   const sidebarConfig = {
     navItems,
-    actions: [
-      {
-        label: tc("sidebar.logout"),
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: "danger" as const,
-      },
-    ],
+    actions: [],
     brand: { name: t("chat.title"), subtitle: "Mentor" },
   };
 
@@ -895,8 +884,7 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
                 id={messageListId}
                 className="chat-kit-message-list"
                 autoScrollToBottom
-                scrollBehavior="smooth"
-                key={`mentor-msg-${activeConversationId}-${activeMessages.length}`}
+                key={`mentor-msg-${activeConversationId}-${Date.now()}`}
               >
                 {!activeConversationId ? (
                   <MessageList.Content>

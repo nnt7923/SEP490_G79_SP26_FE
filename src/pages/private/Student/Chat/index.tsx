@@ -9,7 +9,6 @@ import { useTranslation } from "react-i18next";
 import {
   Gift,
   Hash,
-  LogOut,
   MessageSquare,
   Reply,
   Smile,
@@ -594,22 +593,10 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     });
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate(ROUTER.LOGIN);
-  };
-
   const navItems = useStudentSidebarConfig();
   const sidebarConfig = {
     navItems,
-    actions: [
-      {
-        label: tc("sidebar.logout"),
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: "danger" as const,
-      },
-    ],
+    actions: [],
     brand: { name: t("chat.title"), subtitle: "Mentor Chat" },
   };
 
@@ -883,8 +870,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                 id={messageListId}
                 className="chat-kit-message-list"
                 autoScrollToBottom
-                scrollBehavior="smooth"
-                key={`student-msg-${activeConversationId}-${activeMessages.length}`}
+                key={`student-msg-${activeConversationId}-${Date.now()}`}
               >
                 {!activeConversationId ? (
                   <MessageList.Content>

@@ -14,8 +14,12 @@ export type SummaryStatus = 'loading' | 'success' | 'error'
 export interface SummarySession {
   /** Unique identifier for the session */
   id: string
+  /** Persisted summary identifier (available for server-saved summaries) */
+  summaryId?: string
   /** Resource being summarized */
   resourceId: string
+  /** Summary title */
+  title?: string
   /** First page of the range */
   startPage: number
   /** Last page of the range */
@@ -24,6 +28,8 @@ export interface SummarySession {
   status: SummaryStatus
   /** Generated summary text (present when status is 'success') */
   summary?: string
+  /** Error code for debugging */
+  errorCode?: string
   /** Error details if failed (present when status is 'error') */
   errorMessage?: string
   /** Creation timestamp for ordering */
@@ -35,8 +41,12 @@ export interface SummarySession {
  * Received from SignalR ReceiveSummary event
  */
 export interface ResourceSummaryDto {
+  /** Summary identifier */
+  summaryId?: string
   /** Resource identifier */
   resourceId: string
+  /** Summary title */
+  title?: string
   /** First page of the summarized range */
   startPage: number
   /** Last page of the summarized range */
@@ -98,10 +108,10 @@ export interface NewSummaryFormProps {
 export interface SummarySessionListProps {
   /** List of summary sessions to display */
   sessions: SummarySession[]
-  /** Callback when retry is requested for a failed session */
-  onRetry: (sessionId: string) => void
-  /** Callback when delete is requested for a session */
-  onDelete: (sessionId: string) => void
+  /** Selected session id */
+  selectedSessionId?: string | null
+  /** Callback when user picks a session from history */
+  onSelect: (sessionId: string) => void
 }
 
 /**
@@ -114,4 +124,8 @@ export interface SummarySessionItemProps {
   onRetry: () => void
   /** Callback when delete button is clicked */
   onDelete: () => void
+  /** Whether delete action should be shown/enabled for this session */
+  canDelete?: boolean
+  /** Whether this session is being deleted */
+  isDeleting?: boolean
 }

@@ -1,5 +1,14 @@
 import api from '../Axios'
-import { getMyResourcesUrl, createResourceUrl, updateResourceUrl, deleteResourceUrl, getResourcePagesUrl, generateSummaryUrl } from './url'
+import {
+  getMyResourcesUrl,
+  createResourceUrl,
+  updateResourceUrl,
+  deleteResourceUrl,
+  getResourcePagesUrl,
+  generateSummaryUrl,
+  getResourceSummariesUrl,
+  deleteResourceSummaryUrl,
+} from './url'
 
 const RESOURCES_LIST_CACHE_PREFIX = 'my-resources:list:'
 const RESOURCE_PAGES_CACHE_PREFIX = 'resource-pages:'
@@ -91,8 +100,29 @@ export async function getResourcePages(resourceId: string) {
 }
 
 export async function generateSummary(resourceId: string, startPage: number, endPage: number) {
-  const res: any = await api.post(generateSummaryUrl(resourceId), { startPage, endPage })
+  const res: any = await api.post(generateSummaryUrl(resourceId), null, {
+    params: { startPage, endPage },
+  })
   return res?.data ?? res
 }
 
-export default { getMyResources, createResource, updateResource, deleteResource, getResourcePages, generateSummary }
+export async function getResourceSummaries(resourceId: string) {
+  const res: any = await api.get(getResourceSummariesUrl(resourceId))
+  return res?.data ?? res
+}
+
+export async function deleteResourceSummary(summaryId: string) {
+  const res: any = await api.delete(deleteResourceSummaryUrl(summaryId))
+  return res?.data ?? res
+}
+
+export default {
+  getMyResources,
+  createResource,
+  updateResource,
+  deleteResource,
+  getResourcePages,
+  generateSummary,
+  getResourceSummaries,
+  deleteResourceSummary,
+}

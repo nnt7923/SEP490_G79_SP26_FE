@@ -14,6 +14,8 @@ const validatePageRange = (
   totalPages: number,
   existingSessions: SummarySession[]
 ): string | null => {
+  const maxPagesPerRequest = 5
+
   if (start < 1) {
     return 'Start page must be at least 1'
   }
@@ -24,6 +26,10 @@ const validatePageRange = (
 
   if (start > end) {
     return 'Start page must be less than or equal to end page'
+  }
+
+  if (end - start + 1 > maxPagesPerRequest) {
+    return `You can generate at most ${maxPagesPerRequest} pages per request`
   }
 
   const isDuplicate = existingSessions.some(
@@ -69,14 +75,14 @@ describe('NewSummaryForm - Validation Logic', () => {
         id: '1',
         resourceId: 'resource-1',
         startPage: 1,
-        endPage: 10,
+        endPage: 5,
         status: 'loading',
         timestamp: Date.now(),
       },
     ]
 
-    const error = validatePageRange(1, 10, totalPages, sessions)
-    expect(error).toBe('Summary for pages 1-10 already exists or is in progress')
+    const error = validatePageRange(1, 5, totalPages, sessions)
+    expect(error).toBe('Summary for pages 1-5 already exists or is in progress')
   })
 
   it('validates duplicate page range with success status', () => {
@@ -85,15 +91,15 @@ describe('NewSummaryForm - Validation Logic', () => {
         id: '1',
         resourceId: 'resource-1',
         startPage: 5,
-        endPage: 15,
+        endPage: 9,
         status: 'success',
         summary: 'Test summary',
         timestamp: Date.now(),
       },
     ]
 
-    const error = validatePageRange(5, 15, totalPages, sessions)
-    expect(error).toBe('Summary for pages 5-15 already exists or is in progress')
+    const error = validatePageRange(5, 9, totalPages, sessions)
+    expect(error).toBe('Summary for pages 5-9 already exists or is in progress')
   })
 
   it('allows duplicate page range with error status (retry scenario)', () => {
@@ -102,19 +108,19 @@ describe('NewSummaryForm - Validation Logic', () => {
         id: '1',
         resourceId: 'resource-1',
         startPage: 1,
-        endPage: 10,
+        endPage: 5,
         status: 'error',
         errorMessage: 'Test error',
         timestamp: Date.now(),
       },
     ]
 
-    const error = validatePageRange(1, 10, totalPages, sessions)
+    const error = validatePageRange(1, 5, totalPages, sessions)
     expect(error).toBeNull()
   })
 
   it('returns null for valid page range', () => {
-    const error = validatePageRange(5, 15, totalPages, existingSessions)
+    const error = validatePageRange(5, 9, totalPages, existingSessions)
     expect(error).toBeNull()
   })
 
@@ -125,7 +131,12 @@ describe('NewSummaryForm - Validation Logic', () => {
 
   it('validates edge case: full document range', () => {
     const error = validatePageRange(1, totalPages, totalPages, existingSessions)
-    expect(error).toBeNull()
+    expect(error).toBe('You can generate at most 5 pages per request')
+  })
+
+  it('validates max pages per request rule', () => {
+    const error = validatePageRange(2, 7, totalPages, existingSessions)
+    expect(error).toBe('You can generate at most 5 pages per request')
   })
 
   it('validates multiple existing sessions do not interfere', () => {
@@ -134,7 +145,7 @@ describe('NewSummaryForm - Validation Logic', () => {
         id: '1',
         resourceId: 'resource-1',
         startPage: 1,
-        endPage: 10,
+        endPage: 5,
         status: 'success',
         summary: 'Summary 1',
         timestamp: Date.now(),
@@ -143,7 +154,7 @@ describe('NewSummaryForm - Validation Logic', () => {
         id: '2',
         resourceId: 'resource-1',
         startPage: 20,
-        endPage: 30,
+        endPage: 24,
         status: 'success',
         summary: 'Summary 2',
         timestamp: Date.now(),
@@ -151,7 +162,7 @@ describe('NewSummaryForm - Validation Logic', () => {
     ]
 
     // Should allow new range that doesn't overlap
-    const error = validatePageRange(11, 19, totalPages, sessions)
+    const error = validatePageRange(11, 15, totalPages, sessions)
     expect(error).toBeNull()
   })
 })
