@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface CompleteSessionDialogProps {
   isOpen: boolean
-  onConfirm: (submitType: string) => void
+  onConfirm: (submissionType: 0 | 1) => void
   onCancel: () => void
   loading?: boolean
 }
@@ -13,20 +14,21 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
   onCancel,
   loading = false
 }) => {
-  const [selectedType, setSelectedType] = useState<string>('save_progress')
+  const { t } = useTranslation('student')
+  const [selectedType, setSelectedType] = useState<0 | 1>(0)
 
   const submitTypes = [
     {
-      id: 'save_progress',
+      id: 0 as const,
       icon: '💾',
-      title: 'Lưu tiến độ',
-      description: 'Chỉ lưu công việc, không chấm điểm'
+      title: t('focusSession.saveProgressTitle'),
+      description: t('focusSession.saveProgressDescription')
     },
     {
-      id: 'complete_final',
+      id: 1 as const,
       icon: '✅',
-      title: 'Hoàn thành cuối cùng',
-      description: 'Chấm điểm và hoàn thành task'
+      title: t('focusSession.submitFinalTitle'),
+      description: t('focusSession.submitFinalDescription')
     }
   ]
 
@@ -72,7 +74,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
             justifyContent: 'center',
             gap: 8
           }}>
-            🏁 Hoàn thành phiên học
+            🏁 {t('focusSession.completeDialogTitle')}
           </h3>
         </div>
         
@@ -84,7 +86,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
             marginBottom: 16,
             fontWeight: 600
           }}>
-            Chọn loại submit:
+            {t('focusSession.completeDialogChooseType')}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -163,17 +165,8 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
           }}>
             <span style={{ fontSize: 14 }}>⚠️</span>
             <div style={{ fontSize: 12, color: 'var(--warning-primary)' }}>
-              <strong>Tôi muốn kết thúc sớm</strong>
+              <strong>{t('focusSession.completeDialogEarlyFinish')}</strong>
             </div>
-          </div>
-
-          <div style={{ 
-            fontSize: 11, 
-            color: 'var(--text-secondary)', 
-            marginTop: 8,
-            fontStyle: 'italic'
-          }}>
-            ⚠️ Cần có code để submit loại này
           </div>
 
           {/* Actions */}
@@ -205,7 +198,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
                 }
               }}
             >
-              Hủy
+              {t('focusSession.cancel')}
             </button>
             <button
               type="button"
@@ -246,7 +239,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
                   borderRadius: '50%' 
                 }} />
               )}
-              🏁 {loading ? 'Đang hoàn thành...' : 'Hoàn thành'}
+              🏁 {loading ? t('focusSession.completingBtn') : t('focusSession.completeBtn')}
             </button>
           </div>
         </div>

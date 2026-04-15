@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, PauseCircle, Book, Maximize2, Minimize2, MessageCircle } from 'lucide-react'
 import { useNavigate, useLocation, useBlocker } from 'react-router-dom'
 import { DailyCheckinService, FocusSessionService, SessionType } from '../../../services'
@@ -221,6 +222,10 @@ const FocusSessionPage: React.FC = () => {
   const [showCompleteDialog, setShowCompleteDialog] = useState<boolean>(false)
   const [aiReviewLoading, setAiReviewLoading] = useState<boolean>(false)
   const [aiReview, setAiReview] = useState<{ feedback: string, score?: number } | null>(null)
+  const [isAiReviewModalOpen, setIsAiReviewModalOpen] = useState<boolean>(false)
+  const [finalSubmissionResult, setFinalSubmissionResult] = useState<{ feedback: string; score?: number; taskCompleted: boolean; message?: string } | null>(null)
+  const [isFinalSubmissionModalOpen, setIsFinalSubmissionModalOpen] = useState<boolean>(false)
+  const [restartSessionLoading, setRestartSessionLoading] = useState<boolean>(false)
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false)
   const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
   const [noteTitle, setNoteTitle] = useState<string>('')
@@ -253,6 +258,7 @@ const FocusSessionPage: React.FC = () => {
 
   // Quiz state
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
+  const hydratedProgressSessionIdRef = useRef<string | null>(null)
   const heartbeatWarningShownRef = useRef(false)
   const isSyncingActiveSessionRef = useRef(false)
   const lastServerRemainingSecondsRef = useRef<number | null>(readRemainingSecondsFromSnapshot(initialSessionData) ?? null)
@@ -366,52 +372,327 @@ const FocusSessionPage: React.FC = () => {
     }
   }
 
-  // AI Review Component
-  const renderAiReview = () => {
+  const parseSubmittedQuizAnswers = (value: unknown): Record<string, number> => {
+    if (value == null) return {}
+
+    try {
+      const parsed = typeof value === 'string' ? JSON.parse(value) : value
+
+      if (Array.isArray(parsed)) {
+        return parsed.reduce<Record<string, number>>((acc, item, idx) => {
+          const answerIndex = Number(item)
+          if (Number.isFinite(answerIndex) && answerIndex >= 0) {
+            acc[`q${idx}`] = answerIndex
+          }
+          return acc
+        }, {})
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        return Object.entries(parsed as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, item]) => {
+          const answerIndex = Number(item)
+          if (Number.isFinite(answerIndex) && answerIndex >= 0) {
+            const normalizedKey = key.startsWith('q') ? key : `q${key}`
+            acc[normalizedKey] = answerIndex
+          }
+          return acc
+        }, {})
+      }
+    } catch {
+      return {}
+    }
+
+    return {}
+  }
+
+  const renderAiReviewModal = () => {
     if (!aiReview) return null
 
     return (
-      <div style={{
-        marginTop: 16,
-        padding: 16,
-        background: 'var(--bg-blue-hover)',
-        border: '1px solid var(--accent-primary)',
-        borderRadius: 4
-      }}>
-        <div style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: 'var(--accent-primary)',
-          marginBottom: 8,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Bot size={16} /> {t('focusSession.aiFeedback')}
-          </span>
-          {aiReview.score !== undefined && (
-            <span style={{
-              padding: '2px 8px',
-              background: aiReview.score >= 80 ? 'var(--success-primary)' : aiReview.score >= 60 ? 'var(--warning-primary)' : 'var(--danger-primary)',
-              color: 'white',
-              borderRadius: 12,
-              fontSize: 11,
-              fontWeight: 700
-            }}>
-              {aiReview.score}/100
-            </span>
-          )}
-        </div>
-        <div style={{
-          fontSize: 13,
-          color: 'var(--text-primary)',
-          lineHeight: 1.5,
-          whiteSpace: 'pre-wrap'
-        }}>
-          {aiReview.feedback}
-        </div>
-      </div>
+      <AnimatePresence>
+        {isAiReviewModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsAiReviewModalOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.64)',
+              backdropFilter: 'blur(3px)',
+              zIndex: 100090,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 26, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 'min(760px, 100%)',
+                maxHeight: '82vh',
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: '1px solid color-mix(in oklab, var(--accent-primary) 40%, var(--border-base))',
+                background: 'linear-gradient(160deg, color-mix(in oklab, var(--bg-surface) 92%, var(--accent-primary)) 0%, var(--bg-surface) 58%, var(--bg-main) 100%)',
+                boxShadow: '0 24px 70px rgba(2, 6, 23, 0.42)',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div style={{
+                padding: '14px 16px',
+                borderBottom: '1px solid var(--border-base)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                background: 'color-mix(in oklab, var(--bg-surface) 70%, var(--accent-primary))'
+              }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  <Bot size={16} />
+                  {t('focusSession.aiFeedback')}
+                </div>
+
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  {aiReview.score !== undefined && (
+                    <span style={{
+                      padding: '4px 10px',
+                      background: aiReview.score >= 80 ? 'var(--success-primary)' : aiReview.score >= 60 ? 'var(--warning-primary)' : 'var(--danger-primary)',
+                      color: 'white',
+                      borderRadius: 999,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: '0.2px'
+                    }}>
+                      {t('focusSession.verificationScoreLabel')}: {aiReview.score}/100
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsAiReviewModalOpen(false)}
+                    style={{
+                      border: '1px solid var(--border-base)',
+                      borderRadius: 8,
+                      background: 'var(--bg-main)',
+                      color: 'var(--text-primary)',
+                      padding: '6px 10px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('focusSession.noteModalClose')}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ padding: 16, overflow: 'auto' }}>
+                <div style={{
+                  fontSize: 13,
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.7,
+                  whiteSpace: 'pre-wrap',
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 10,
+                  padding: 14,
+                  minHeight: 150,
+                }}>
+                  {aiReview.feedback}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
+
+  const renderFinalSubmissionModal = () => {
+    if (!finalSubmissionResult) return null
+
+    const isPass = finalSubmissionResult.taskCompleted
+
+    return (
+      <AnimatePresence>
+        {isFinalSubmissionModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsFinalSubmissionModalOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.64)',
+              backdropFilter: 'blur(3px)',
+              zIndex: 100091,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 26, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 'min(760px, 100%)',
+                maxHeight: '82vh',
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: `1px solid ${isPass ? 'var(--success-primary)' : 'var(--danger-primary)'}`,
+                background: 'linear-gradient(160deg, color-mix(in oklab, var(--bg-surface) 92%, var(--accent-primary)) 0%, var(--bg-surface) 58%, var(--bg-main) 100%)',
+                boxShadow: '0 24px 70px rgba(2, 6, 23, 0.42)',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div style={{
+                padding: '14px 16px',
+                borderBottom: '1px solid var(--border-base)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                background: 'color-mix(in oklab, var(--bg-surface) 70%, var(--accent-primary))'
+              }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  <Bot size={16} />
+                  {t('focusSession.aiFeedback')}
+                </div>
+
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    padding: '4px 10px',
+                    background: isPass ? 'var(--success-primary)' : 'var(--danger-primary)',
+                    color: 'white',
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '0.2px'
+                  }}>
+                    {isPass ? t('focusSession.finalPassBadge') : t('focusSession.finalFailBadge')}
+                  </span>
+
+                  {finalSubmissionResult.score !== undefined && (
+                    <span style={{
+                      padding: '4px 10px',
+                      background: finalSubmissionResult.score >= 70 ? 'var(--success-primary)' : 'var(--danger-primary)',
+                      color: 'white',
+                      borderRadius: 999,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: '0.2px'
+                    }}>
+                      {t('focusSession.verificationScoreLabel')}: {finalSubmissionResult.score}/100
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsFinalSubmissionModalOpen(false)}
+                    style={{
+                      border: '1px solid var(--border-base)',
+                      borderRadius: 8,
+                      background: 'var(--bg-main)',
+                      color: 'var(--text-primary)',
+                      padding: '6px 10px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('focusSession.noteModalClose')}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ padding: 16, overflow: 'auto', display: 'grid', gap: 12 }}>
+                {finalSubmissionResult.message && (
+                  <div style={{
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-base)',
+                    borderRadius: 10,
+                    padding: '10px 12px'
+                  }}>
+                    {finalSubmissionResult.message}
+                  </div>
+                )}
+
+                <div style={{
+                  fontSize: 13,
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.7,
+                  whiteSpace: 'pre-wrap',
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 10,
+                  padding: 14,
+                  minHeight: 150,
+                }}>
+                  {finalSubmissionResult.feedback}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {!isPass && (
+                    <button
+                      type="button"
+                      onClick={handleStartNewSessionAfterFail}
+                      disabled={restartSessionLoading}
+                      style={{
+                        border: 'none',
+                        borderRadius: 8,
+                        background: restartSessionLoading ? 'var(--text-secondary)' : 'var(--accent-primary)',
+                        color: 'white',
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: restartSessionLoading ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      {restartSessionLoading ? <Loader2 className="animate-spin" size={14} /> : <PlayCircle size={14} />}
+                      {restartSessionLoading ? t('focusSession.creating') : t('focusSession.restartSessionBtn')}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => navigate(ROUTER.MY_PLANS)}
+                    style={{
+                      border: '1px solid var(--border-base)',
+                      borderRadius: 8,
+                      background: 'var(--bg-main)',
+                      color: 'var(--text-primary)',
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('focusSession.backToPlans')}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     )
   }
 
@@ -1067,7 +1348,7 @@ const FocusSessionPage: React.FC = () => {
     setShowCompleteDialog(true)
   }
 
-  const handleCompleteSession = async (submitType: string) => {
+  const handleCompleteSession = async (submissionType: 0 | 1) => {
     if (!session) return
 
     setLoading(true)
@@ -1076,7 +1357,7 @@ const FocusSessionPage: React.FC = () => {
 
       // Prepare payload based on submitType and taskType
       const payload: any = {
-        submissionType: submitType === 'save_progress' ? 'Progress' : 'Final',
+        submissionType,
         isEarlyCompletion: true
       }
 
@@ -1093,23 +1374,55 @@ const FocusSessionPage: React.FC = () => {
       }
 
       // Call complete session API
-      const preActionStatus = payload.submissionType === 'Final'
+      const preActionStatus = submissionType === 1
         ? await DailyCheckinService.getDailyCheckinStatus().catch(() => null)
         : null
-      await FocusSessionService.completeSession(session.id, payload)
+      const completeResult = await FocusSessionService.completeSession(session.id, payload)
       shouldPauseOnLeaveRef.current = false
+
+      setSession((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          id: completeResult.sessionId || prev.id,
+          endTime: completeResult.endTime ?? prev.endTime ?? new Date().toISOString(),
+          sessionStatus: completeResult.sessionStatus ?? 'Completed',
+          submittedCode: payload.submittedCode ?? prev.submittedCode,
+          submittedSummary: payload.submittedSummary ?? prev.submittedSummary,
+          submittedQuizAnswers: payload.submittedQuizAnswers ?? prev.submittedQuizAnswers,
+        }
+      })
 
       setSessionUiState('Completed')
       setTimeRemaining(0)
       setShowCompleteDialog(false)
 
-      const message = submitType === 'save_progress'
+      const message = submissionType === 0
         ? t('focusSession.progressSaved')
-        : t('focusSession.completed')
+        : (completeResult.message || t('focusSession.completed'))
 
       setToast({ message, type: 'success' })
-      let navigationDelay = 2000
-      if (submitType !== 'save_progress') {
+
+      if (submissionType !== 1) {
+        setTimeout(() => {
+          navigate(ROUTER.MY_PLANS)
+        }, 2000)
+        return
+      }
+
+      const isPass = Boolean(completeResult.taskCompleted)
+      const scoreValue = completeResult.verificationScore == null ? undefined : Number(completeResult.verificationScore)
+      const feedback = String(completeResult.aiFeedback || t('focusSession.reviewDefaultFeedback'))
+
+      setFinalSubmissionResult({
+        feedback,
+        score: Number.isFinite(scoreValue as number) ? scoreValue : undefined,
+        taskCompleted: isPass,
+        message: completeResult.message || undefined,
+      })
+      setIsFinalSubmissionModalOpen(true)
+
+      if (isPass) {
         const dailyCheckinResult = await syncDailyCheckin({ preActionStatus })
         if (dailyCheckinResult?.shouldShowPopup) {
           setDailyCheckinPopup({
@@ -1118,14 +1431,8 @@ const FocusSessionPage: React.FC = () => {
             mood: dailyCheckinResult.todayCheckin?.mood,
             productivity: dailyCheckinResult.todayCheckin?.productivity,
           })
-          navigationDelay = 3800
         }
       }
-
-      // Navigate back to my plans after a short delay
-      setTimeout(() => {
-        navigate(ROUTER.MY_PLANS)
-      }, navigationDelay)
     } catch (error: any) {
       const msg = error?.response?.data?.message || error?.message || t('focusSession.completeError')
       setToast({ message: msg, type: 'error' })
@@ -1136,6 +1443,31 @@ const FocusSessionPage: React.FC = () => {
 
   const handleCancelComplete = () => {
     setShowCompleteDialog(false)
+  }
+
+  const handleStartNewSessionAfterFail = async () => {
+    if (!session?.taskId) return
+
+    setRestartSessionLoading(true)
+    try {
+      const nextSession = await FocusSessionService.startSession({
+        taskId: session.taskId,
+        sessionType: session.sessionType,
+        plannedDurationMinutes: Math.max(1, Number(session.plannedDurationMinutes) || 25),
+        title: session.title || task?.title || undefined,
+      })
+
+      shouldPauseOnLeaveRef.current = true
+      setIsFinalSubmissionModalOpen(false)
+      setFinalSubmissionResult(null)
+      applySessionSnapshot(nextSession, normalizeSessionUiState(nextSession.sessionStatus ?? 'Running'))
+      setToast({ message: t('focusSession.restartSessionSuccess'), type: 'success' })
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || t('focusSession.completeError')
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setRestartSessionLoading(false)
+    }
   }
 
   const handleAiReview = async () => {
@@ -1179,11 +1511,25 @@ const FocusSessionPage: React.FC = () => {
       // Use FocusSessionService to call AI review API
       const reviewData = await FocusSessionService.getAiReview(session.id, payload)
 
-      // Extract feedback from response structure based on backend response
-      const feedback = reviewData?.aiFeedback || reviewData?.value?.aiFeedback || reviewData?.feedback || reviewData?.message || 'AI đã xem xét bài làm của bạn.'
-      const score = reviewData?.verificationScore || reviewData?.value?.verificationScore
+      const reviewSource = reviewData?.value ?? reviewData?.data?.value ?? reviewData?.data ?? reviewData
+      if (import.meta.env.DEV) {
+        console.info('[FocusSession][AI Review] raw response:', reviewData)
+        console.info('[FocusSession][AI Review] normalized source:', reviewSource)
+      }
+
+      const backendAiFeedback = reviewSource?.aiFeedback
+      const backendFeedback = reviewSource?.feedback
+      const backendMessage = reviewSource?.message ?? reviewData?.message
+      const feedbackRaw = backendAiFeedback ?? backendFeedback ?? backendMessage
+      const feedback = typeof feedbackRaw === 'string' && feedbackRaw.length > 0
+        ? feedbackRaw
+        : t('focusSession.reviewDefaultFeedback')
+      const scoreRaw = reviewSource?.verificationScore ?? reviewSource?.score
+      const scoreParsed = Number(scoreRaw)
+      const score = Number.isFinite(scoreParsed) ? scoreParsed : undefined
 
       setAiReview({ feedback, score })
+      setIsAiReviewModalOpen(true)
       setToast({ message: t('focusSession.reviewReceived'), type: 'success' })
     } catch (error: any) {
       // More detailed error handling
@@ -1202,12 +1548,51 @@ const FocusSessionPage: React.FC = () => {
         feedback: `❌ ${t('focusSession.errorPrefix')}: ${errorMsg}\n\n${t('focusSession.errorDetail')}:\n${JSON.stringify(error?.response?.data || error?.message || 'Unknown error', null, 2)}`,
         score: undefined
       })
+      setIsAiReviewModalOpen(true)
 
       setToast({ message: errorMsg, type: 'error' })
     } finally {
       setAiReviewLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!session?.id) return
+    if (hydratedProgressSessionIdRef.current === session.id) return
+
+    hydratedProgressSessionIdRef.current = session.id
+
+    const taskType = task?.taskType
+    let taskTypeNum = 0
+    if (typeof taskType === 'number') taskTypeNum = taskType
+    else if (typeof taskType === 'string') {
+      if (taskType === 'Theory') taskTypeNum = 1
+      else if (taskType === 'Quizz' || taskType === 'Quiz') taskTypeNum = 2
+    }
+
+    if (taskTypeNum === 0) {
+      const submitted = typeof session.submittedCode === 'string' ? session.submittedCode : ''
+      if (submitted.trim().length > 0) {
+        setCode(submitted)
+      }
+      return
+    }
+
+    if (taskTypeNum === 1) {
+      const submitted = typeof session.submittedSummary === 'string' ? session.submittedSummary : ''
+      if (submitted.trim().length > 0) {
+        setTheoryAnswers((prev) => ({ ...prev, answer: submitted }))
+      }
+      return
+    }
+
+    if (taskTypeNum === 2) {
+      const parsedQuizAnswers = parseSubmittedQuizAnswers(session.submittedQuizAnswers)
+      if (Object.keys(parsedQuizAnswers).length > 0) {
+        setQuizAnswers(parsedQuizAnswers)
+      }
+    }
+  }, [session?.id, session?.submittedCode, session?.submittedSummary, session?.submittedQuizAnswers, task?.taskType])
 
   const handleBackToPlans = async () => {
     if (sessionUiState === 'Running') {
@@ -1366,7 +1751,6 @@ const FocusSessionPage: React.FC = () => {
               />
             </div>
 
-            {renderAiReview()}
           </div>
         )
 
@@ -1415,7 +1799,6 @@ const FocusSessionPage: React.FC = () => {
                   }}
                 />
               </div>
-              {renderAiReview()}
             </div>
           </div>
         )
@@ -1509,8 +1892,6 @@ const FocusSessionPage: React.FC = () => {
                   )
                 }
               })()}
-
-              {renderAiReview()}
 
               {/* Debug: Show current quiz answers */}
               {Object.keys(quizAnswers).length > 0 && (
@@ -1756,13 +2137,6 @@ const FocusSessionPage: React.FC = () => {
                   background: getSessionTypeColor(session.sessionType),
                   transition: 'width 0.3s ease'
                 }} />
-              </div>
-              <div style={{
-                fontSize: 11,
-                color: 'var(--text-secondary)',
-                textAlign: 'center'
-              }}>
-                {Math.round(progressPercentage)}% {t('focusSession.percentageComplete')}
               </div>
             </div>
 
@@ -2406,6 +2780,9 @@ const FocusSessionPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {renderAiReviewModal()}
+      {renderFinalSubmissionModal()}
 
       {/* Complete Session Dialog */}
       {showCompleteDialog && (
