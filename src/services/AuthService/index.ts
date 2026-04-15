@@ -16,10 +16,43 @@ export async function register(payload: any) {
   return res?.data ?? res
 }
 
+function parseBooleanLike(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value === 1
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true' || normalized === '1') return true
+    if (normalized === 'false' || normalized === '0') return false
+  }
+  return false
+}
+
+function extractShouldPromptDailyReminderTime(root: any): boolean {
+  const container = root?.data ?? root
+
+  const candidates = [
+    container?.shouldPromptDailyReminderTime,
+    container?.ShouldPromptDailyReminderTime,
+    container?.shouldPromptDailyReminder,
+    container?.ShouldPromptDailyReminder,
+    root?.shouldPromptDailyReminderTime,
+    root?.ShouldPromptDailyReminderTime,
+    root?.shouldPromptDailyReminder,
+    root?.ShouldPromptDailyReminder,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate != null) return parseBooleanLike(candidate)
+  }
+
+  return false
+}
+
 export async function loginWithGoogle(payload: { ClientId: string; IdToken: string }) {
   const res: any = await api.post(loginWithGoogleUrl, payload)
   const data = res?.data ?? res
   const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
+  const shouldPromptDailyReminderTime = extractShouldPromptDailyReminderTime(data)
   const user: any = {
     id: data?.userId ?? data?.data?.userId,
     username: data?.username ?? data?.data?.username,
@@ -31,7 +64,7 @@ export async function loginWithGoogle(payload: { ClientId: string; IdToken: stri
   }
 
   if (!token || !user?.id) throw new Error('Google login response missing token/user')
-  return { user, token }
+  return { user, token, shouldPromptDailyReminderTime }
 }
 
 export async function login(payload: { Identifier: string; Password: string }) {
@@ -41,6 +74,7 @@ export async function login(payload: { Identifier: string; Password: string }) {
   // Handle both old and new API response formats
   const token: string | undefined = data?.accessToken ?? data?.data?.accessToken
   const refreshToken: string | undefined = data?.refreshToken ?? data?.data?.refreshToken
+  const shouldPromptDailyReminderTime = extractShouldPromptDailyReminderTime(data)
 
   const user: any = {
     id: data?.userId ?? data?.data?.userId,
@@ -61,7 +95,7 @@ export async function login(payload: { Identifier: string; Password: string }) {
     } catch { }
   }
 
-  return { user, token, refreshToken }
+  return { user, token, refreshToken, shouldPromptDailyReminderTime }
 }
 
 export async function logout() {
@@ -127,13 +161,15 @@ export async function verifyOtp(payload: { Email: string; Otp: string }) {
   }
 
   const msg: string = data?.message ?? data?.msg ?? 'OTP verified successfully.'
+  const purpose: string | undefined = data?.purpose ?? data?.data?.purpose
+  const resetToken: string | undefined = data?.resetToken ?? data?.data?.resetToken
 
   // If backend provides token/user, return them; otherwise only return ok + message
-  if (token && user?.id) return { user, token, isOk: true, msg }
-  return { isOk: true, msg }
+  if (token && user?.id) return { user, token, purpose, resetToken, message: msg, isOk: true, msg }
+  return { purpose, resetToken, message: msg, isOk: true, msg }
 }
 
-export async function resendOtp(payload: { Email: string }) {
+export async function resendOtp(payload: { Email: string; Purpose?: string }) {
   const res: any = await api.post(resendOtpUrl, payload)
   return res?.data ?? res
 }
@@ -143,8 +179,32 @@ export async function forgotPassword(payload: { Email: string }) {
   return res?.data ?? res
 }
 
-export async function resetPassword(payload: { Token: string; Password: string; Email?: string }) {
-  const res: any = await api.post(resetPasswordUrl, payload)
+export async function resetPassword(payload: {
+  resetToken?: string
+  newPassword?: string
+  email?: string
+  Token?: string
+  Password?: string
+  Email?: string
+}) {
+  const resetToken = payload.resetToken ?? payload.Token
+  const newPassword = payload.newPassword ?? payload.Password
+  const email = payload.email ?? payload.Email
+
+  const requestBody: Record<string, string> = {
+    resetToken: resetToken ?? '',
+    newPassword: newPassword ?? '',
+    // Backward compatibility for old backend contracts (safe if ignored).
+    ResetToken: resetToken ?? '',
+    NewPassword: newPassword ?? '',
+  }
+
+  if (email) {
+    requestBody.email = email
+    requestBody.Email = email
+  }
+
+  const res: any = await api.post(resetPasswordUrl, requestBody)
   const data = res?.data ?? res
   return data
 }

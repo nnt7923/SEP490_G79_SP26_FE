@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { startSessionUrl, sessionUrl, stopSessionUrl, pauseSessionUrl, resumeSessionUrl, reviewUrl, completeUrl, mySessionsUrl, serverTimeUrl, activeSessionUrl, activeSessionsUrl } from './url'
+import { basePath, startSessionUrl, sessionUrl, stopSessionUrl, pauseSessionUrl, resumeSessionUrl, heartbeatSessionUrl, reviewUrl, completeUrl, notesUrl, mySessionsUrl, serverTimeUrl, activeSessionUrl, activeSessionsUrl } from './url'
 
 export const SessionType = {
   Pomodoro: 0,
@@ -53,11 +53,15 @@ export interface FocusSession {
   title?: string | null
   startTime: string
   endTime?: string | null
+  message?: string | null
   isActive: boolean
   createdAt: string
   serverCurrentTime?: string // Add server current time for offset calculation
   // Pause/Resume specific fields
   sessionStatus?: string // "Paused", "Running", etc.
+  submittedCode?: string | null
+  submittedSummary?: string | null
+  submittedQuizAnswers?: string | null
   elapsedMinutes?: number
   remainingMinutes?: number
   elapsedSeconds?: number
@@ -73,9 +77,82 @@ export interface StartSessionRequest {
   title?: string | null
 }
 
+export interface FocusSessionHistoryItem {
+  sessionId: string
+  taskId: string
+  taskTitle?: string | null
+  chapterTitle?: string | null
+  learningPathTitle?: string | null
+  title: string
+  startTime: string
+  endTime?: string | null
+  plannedDurationMinutes: number
+  actualDurationMinutes?: number | null
+  sessionStatus: string
+  sessionType: SessionType
+  submittedCode?: string | null
+  submittedSummary?: string | null
+  aiFeedback?: string | null
+  verificationScore?: number | null
+  isVerified: boolean
+  createdAt: string
+  [key: string]: any
+}
+
+export interface FocusSessionHistoryQuery {
+  taskId?: string
+  sessionStatus?: string
+  sessionType?: 'Pomodoro' | 'Study'
+  startedFrom?: string
+  startedTo?: string
+  includeAbandoned?: boolean
+  pageNumber?: number
+  pageSize?: number
+}
+
+export interface FocusSessionHistoryPage {
+  items: FocusSessionHistoryItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+}
+
+export interface ActiveSessionStatus {
+  sessionId: string
+  sessionStatus: string
+  lastActivityAt: string
+}
+
+export interface FocusSessionNotePayload {
+  title: string
+  content: string
+}
+
+export interface CompleteSessionRequest {
+  submissionType: 0 | 1
+  isEarlyCompletion?: boolean
+  submittedCode?: string
+  submittedSummary?: string
+  submittedQuizAnswers?: string
+}
+
+export interface CompleteSessionResponse {
+  sessionId: string
+  endTime?: string | null
+  actualDurationMinutes?: number | null
+  sessionStatus?: string | null
+  message?: string | null
+  taskCompleted?: boolean
+  aiFeedback?: string | null
+  verificationScore?: number | null
+  [key: string]: any
+}
+
 export async function startSession(payload: StartSessionRequest): Promise<FocusSession> {
   const res: any = await api.post(startSessionUrl, payload)
-  const data: any = res?.data ?? res
+  const root: any = res?.data ?? res
+  const data: any = root?.data ?? root?.value ?? root
 
   // Parse SessionType properly
   const sessionType = data?.sessionType !== undefined 
@@ -84,14 +161,19 @@ export async function startSession(payload: StartSessionRequest): Promise<FocusS
 
   const result = {
     id: data?.id ?? data?.sessionId,
-    taskId: data?.taskId,
+    taskId: data?.taskId ?? payload.taskId,
     sessionType: sessionType,
-    plannedDurationMinutes: data?.plannedDurationMinutes,
+    plannedDurationMinutes: data?.plannedDurationMinutes ?? payload.plannedDurationMinutes,
     title: data?.title ?? null,
-    startTime: data?.startTime,
+    startTime: data?.startTime ?? new Date().toISOString(),
     endTime: data?.endTime ?? null,
+    message: data?.message ?? null,
     isActive: data?.isActive ?? true,
-    createdAt: data?.createdAt,
+    createdAt: data?.createdAt ?? data?.startTime ?? new Date().toISOString(),
+    sessionStatus: data?.sessionStatus,
+    submittedCode: data?.submittedCode ?? null,
+    submittedSummary: data?.submittedSummary ?? null,
+    submittedQuizAnswers: data?.submittedQuizAnswers ?? null,
     serverCurrentTime: data?.serverCurrentTime || data?.currentTime,
     // Don't spread ...data to avoid overriding parsed sessionType
   }
@@ -161,18 +243,112 @@ export async function getMySessions(): Promise<FocusSession[]> {
   }))
 }
 
+export async function getSessionHistory(query: FocusSessionHistoryQuery = {}): Promise<FocusSessionHistoryPage> {
+  const pageNumber = Number(query.pageNumber) > 0 ? Number(query.pageNumber) : 1
+  const pageSizeRaw = Number(query.pageSize) > 0 ? Number(query.pageSize) : 10
+  const pageSize = Math.min(pageSizeRaw, 50)
+
+  const res: any = await api.get(`${basePath}/history`, {
+    params: {
+      ...(query.taskId ? { taskId: query.taskId } : {}),
+      ...(query.sessionStatus ? { sessionStatus: query.sessionStatus } : {}),
+      ...(query.sessionType ? { sessionType: query.sessionType } : {}),
+      ...(query.startedFrom ? { startedFrom: query.startedFrom } : {}),
+      ...(query.startedTo ? { startedTo: query.startedTo } : {}),
+      ...(typeof query.includeAbandoned === 'boolean' ? { includeAbandoned: query.includeAbandoned } : {}),
+      pageNumber,
+      pageSize,
+    },
+  })
+
+  const root: any = res?.data ?? res
+  const source: any = root?.data ?? root
+  const rawItems: any[] = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(source?.value)
+      ? source.value
+      : Array.isArray(source)
+        ? source
+        : []
+
+  const items: FocusSessionHistoryItem[] = rawItems.map((item: any) => ({
+    ...item,
+    sessionId: String(item?.sessionId ?? item?.id ?? ''),
+    taskId: String(item?.taskId ?? ''),
+    taskTitle: item?.taskTitle ?? null,
+    chapterTitle: item?.chapterTitle ?? null,
+    learningPathTitle: item?.learningPathTitle ?? null,
+    title: String(item?.title ?? item?.taskTitle ?? ''),
+    startTime: String(item?.startTime ?? ''),
+    endTime: item?.endTime ?? null,
+    plannedDurationMinutes: Number(item?.plannedDurationMinutes ?? 0),
+    actualDurationMinutes: item?.actualDurationMinutes == null ? null : Number(item.actualDurationMinutes),
+    sessionStatus: String(item?.sessionStatus ?? ''),
+    sessionType: parseSessionType(item?.sessionType),
+    submittedCode: item?.submittedCode ?? null,
+    submittedSummary: item?.submittedSummary ?? null,
+    aiFeedback: item?.aiFeedback ?? null,
+    verificationScore: item?.verificationScore == null ? null : Number(item.verificationScore),
+    isVerified: Boolean(item?.isVerified),
+    createdAt: String(item?.createdAt ?? item?.startTime ?? ''),
+  }))
+
+  const normalizedPageSize = Number(source?.pageSize ?? pageSize)
+  const normalizedTotalCount = Number(source?.totalCount ?? items.length)
+  const fallbackTotalPages = normalizedPageSize > 0 ? Math.ceil(normalizedTotalCount / normalizedPageSize) : 1
+
+  return {
+    items,
+    pageNumber: Number(source?.pageNumber ?? pageNumber),
+    pageSize: Number.isFinite(normalizedPageSize) && normalizedPageSize > 0 ? normalizedPageSize : pageSize,
+    totalCount: Number.isFinite(normalizedTotalCount) && normalizedTotalCount >= 0 ? normalizedTotalCount : items.length,
+    totalPages: Number(source?.totalPages ?? fallbackTotalPages),
+  }
+}
+
 export async function getAiReview(sessionId: string | number, payload: any): Promise<any> {
   const res: any = await api.post(reviewUrl(sessionId), payload)
-  const data: any = res?.data ?? res
+  const root: any = res?.data ?? res
+  return root?.value ?? root?.data?.value ?? root?.data ?? root
+}
 
+export async function completeSession(sessionId: string | number, payload: CompleteSessionRequest): Promise<CompleteSessionResponse> {
+  const res: any = await api.post(completeUrl(sessionId), payload)
+  const root: any = res?.data ?? res
+  const data: any = root?.data ?? root?.value ?? root
+
+  return {
+    ...data,
+    sessionId: String(data?.sessionId ?? data?.id ?? sessionId),
+    endTime: data?.endTime ?? null,
+    actualDurationMinutes: data?.actualDurationMinutes == null ? null : Number(data.actualDurationMinutes),
+    sessionStatus: data?.sessionStatus ?? null,
+    message: data?.message ?? null,
+    taskCompleted: Boolean(data?.taskCompleted),
+    aiFeedback: data?.aiFeedback ?? null,
+    verificationScore: data?.verificationScore == null ? null : Number(data.verificationScore),
+  }
+}
+
+export async function createSessionNote(sessionId: string | number, payload: FocusSessionNotePayload): Promise<any> {
+  const res: any = await api.post(notesUrl(sessionId), payload)
+  const data: any = res?.data ?? res
   return data
 }
 
-export async function completeSession(sessionId: string | number, payload: any): Promise<any> {
-  const res: any = await api.post(completeUrl(sessionId), payload)
-  const data: any = res?.data ?? res
+export async function getSessionNotes(sessionId: string | number): Promise<any[]> {
+  const res: any = await api.get(notesUrl(sessionId))
+  const root: any = res?.data ?? res
+  const source: any = root?.data ?? root?.value ?? root
 
-  return data
+  let items: any[] = []
+  if (Array.isArray(source)) items = source
+  else if (Array.isArray(source?.items)) items = source.items
+  else if (Array.isArray(source?.value)) items = source.value
+  else if (Array.isArray(source?.notes)) items = source.notes
+  else if (Array.isArray(source?.data)) items = source.data
+
+  return items
 }
 
 export async function getServerTime(): Promise<string> {
@@ -187,11 +363,15 @@ export async function getActiveSession(taskId: string): Promise<FocusSession | n
     const data: any = res?.data ?? res
     
     if (!data) return null
+
+    const parsedSessionType = data?.sessionType !== undefined
+      ? parseSessionType(data?.sessionType)
+      : SessionType.Pomodoro
     
     return {
       id: data?.id ?? data?.sessionId,
       taskId: data?.taskId,
-      sessionType: parseSessionType(data?.sessionType),
+      sessionType: parsedSessionType,
       plannedDurationMinutes: data?.plannedDurationMinutes,
       title: data?.title ?? null,
       startTime: data?.startTime,
@@ -203,6 +383,22 @@ export async function getActiveSession(taskId: string): Promise<FocusSession | n
   } catch (error: any) {
     // Return null if no active session found (404) or other errors
     return null
+  }
+}
+
+export async function getActiveSessionStatus(taskId: string): Promise<ActiveSessionStatus | null> {
+  try {
+    const res: any = await api.get(activeSessionUrl(taskId))
+    const data: any = res?.data ?? res
+    if (!data?.sessionId) return null
+
+    return {
+      sessionId: String(data.sessionId),
+      sessionStatus: String(data.sessionStatus ?? ''),
+      lastActivityAt: String(data.lastActivityAt ?? ''),
+    }
+  } catch (error: any) {
+    throw error
   }
 }
 
@@ -238,7 +434,8 @@ export async function getActiveSessions(): Promise<FocusSession[]> {
 
 export async function pauseSession(sessionId: string | number): Promise<FocusSession> {
   const res: any = await api.post(pauseSessionUrl(sessionId))
-  const data: any = res?.data ?? res
+  const root: any = res?.data ?? res
+  const data: any = root?.data ?? root?.value ?? root
   return {
     id: data?.id ?? data?.sessionId ?? String(sessionId),
     taskId: data?.taskId,
@@ -262,7 +459,8 @@ export async function pauseSession(sessionId: string | number): Promise<FocusSes
 
 export async function resumeSession(sessionId: string | number): Promise<FocusSession> {
   const res: any = await api.post(resumeSessionUrl(sessionId))
-  const data: any = res?.data ?? res
+  const root: any = res?.data ?? res
+  const data: any = root?.data ?? root?.value ?? root
   return {
     id: data?.id ?? data?.sessionId ?? String(sessionId),
     taskId: data?.taskId,
@@ -284,4 +482,28 @@ export async function resumeSession(sessionId: string | number): Promise<FocusSe
   }
 }
 
-export default { startSession, stopSession, getSession, getMySessions, getAiReview, completeSession, getServerTime, getActiveSession, getActiveSessions, pauseSession, resumeSession, SessionType, parseSessionType }
+export async function sendHeartbeat(sessionId: string | number): Promise<any> {
+  const res: any = await api.post(heartbeatSessionUrl(sessionId))
+  return res?.data ?? res
+}
+
+export default {
+  startSession,
+  stopSession,
+  getSession,
+  getMySessions,
+  getSessionHistory,
+  getAiReview,
+  completeSession,
+  createSessionNote,
+  getSessionNotes,
+  getServerTime,
+  getActiveSession,
+  getActiveSessionStatus,
+  getActiveSessions,
+  pauseSession,
+  resumeSession,
+  sendHeartbeat,
+  SessionType,
+  parseSessionType,
+}

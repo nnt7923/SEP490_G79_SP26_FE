@@ -322,7 +322,7 @@ const AdminSubscriptionPlansPage: React.FC = () => {
                     required
                     value={form.planType}
                     onChange={(event) => setForm((previous) => ({ ...previous, planType: event.target.value }))}
-                    placeholder="Standard"
+                    placeholder={t('subscriptionPlans.planTypePlaceholder')}
                     className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
                   />
                 </div>
@@ -333,7 +333,7 @@ const AdminSubscriptionPlansPage: React.FC = () => {
                     required
                     value={form.name}
                     onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
-                    placeholder="Pro"
+                    placeholder={t('subscriptionPlans.namePlaceholder')}
                     className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
                   />
                 </div>

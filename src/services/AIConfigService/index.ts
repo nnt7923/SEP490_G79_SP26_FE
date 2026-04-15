@@ -23,6 +23,7 @@ export const AIUsageType = {
   ContentGeneration: 2,
   Verification: 3,
   Assistant: 4,
+  DocumentExtraction: 5,
 } as const
 
 export type AIUsageType = typeof AIUsageType[keyof typeof AIUsageType]

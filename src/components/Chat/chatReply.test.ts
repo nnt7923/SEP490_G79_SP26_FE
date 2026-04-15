@@ -103,4 +103,23 @@ describe('chatReply helpers', () => {
       content: 'Message unavailable',
     })
   })
+
+  it('supports PascalCase reply metadata from realtime payloads', () => {
+    const rawMessage = {
+      ...createMessage({
+        messageId: 'reply-message',
+      }),
+      ReplyToMessageId: 'missing-source',
+      ReplyToSenderId: 'user-2',
+      ReplyToContent: 'Shared learning path: React Basics',
+    } as DirectMessageDto
+
+    expect(buildReplyPreviewForMessage(rawMessage, [], baseContext)).toEqual({
+      kind: 'share',
+      senderLabel: 'Alex Mentor',
+      title: 'React Basics',
+      label: 'Shared learning path',
+      status: null,
+    })
+  })
 })

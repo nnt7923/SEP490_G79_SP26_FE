@@ -14,6 +14,7 @@ const ROUTER = {
   // Private routes
   STUDENT_DASHBOARD: "/dashboard",
   STUDENT_OVERVIEW: "/overview",
+  STUDENT_ACHIEVEMENTS: "/achievements",
   MY_PLANS: "/my-plans",
   GOALS: "/goals",
   PROFILE: "/profile", // Student profile
@@ -29,6 +30,7 @@ const ROUTER = {
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",
   ADMIN_BILLING_TRANSACTIONS: "/admin/billing/transactions",
+  ADMIN_AI_SPENDING: "/admin/ai-spending",
   ADMIN_MENTOR_AI_USAGE: "/admin/mentor-ai-usage",
   ADMIN_USERS: "/admin/users",
   ADMIN_REPORTS: "/admin/reports",
@@ -37,19 +39,26 @@ const ROUTER = {
   MENTOR_PROFILE: "/mentor/profile",
   // Student resources
   MY_RESOURCES: "/my-resources",
+  NOTIFICATIONS: "/notifications",
   // Quiz
   QUIZ: "/quiz/:quizId",
   // Task (Chapter Tasks)
   TASK: "/task/:chapterId",
   // Focus Session
   FOCUS_SESSION: "/focus-session",
+  FOCUS_SESSION_HISTORY: "/focus-session/history",
   // Chat
   CHAT: "/chat",
   CHAT_SHARE_PREVIEW: "/chat/share-preview/:shareId",
+  LEARNING_PATH_SHARE_UPDATES: "/learning-path-shares/:shareId/updates",
   MENTOR_CHAT: "/mentor/chat",
+  // Channel Chat (Community)
+  CHANNEL_CHAT: "/community",
+  MENTOR_CHANNEL_CHAT: "/mentor/community",
   // Subscription
   SUBSCRIPTION: "/subscription",
   SUBSCRIPTION_CURRENT: "/subscription/current",
+  BILLING_RESULT: "/billing/result",
   SUBSCRIPTION_SUCCESS: "/subscription/success",
 };
 

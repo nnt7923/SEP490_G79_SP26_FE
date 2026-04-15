@@ -32,7 +32,7 @@ const AdminUsersPage: React.FC = () => {
   const [totalCount, setTotalCount] = useState<number>(0)
   const [totalPages, setTotalPages] = useState<number>(1)
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (forceRefresh: boolean = false) => {
     setLoading(true)
     setError(null)
     try {
@@ -43,7 +43,7 @@ const AdminUsersPage: React.FC = () => {
         searchTerm: query.trim() || undefined,
         sortBy: 'CreatedAt',
         sortDescending: true,
-      })
+      }, { forceRefresh })
 
       setUsers(response.items)
       setTotalCount(response.totalCount)
@@ -75,7 +75,7 @@ const AdminUsersPage: React.FC = () => {
         setToast({ message: t('users.banSuccess'), type: 'success' })
       }
       // Refresh users list
-      await fetchUsers()
+      await fetchUsers(true)
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || t('users.banFailed')
       setToast({ message: msg, type: 'error' })
@@ -121,10 +121,10 @@ const AdminUsersPage: React.FC = () => {
                 </p>
               </div>
               <button
-                onClick={fetchUsers}
+                onClick={() => { void fetchUsers(true) }}
                 disabled={loading}
                 className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
-                title="Reload"
+                title={t('users.reload')}
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 {t('users.reload')}
@@ -252,19 +252,19 @@ const AdminUsersPage: React.FC = () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                        {/* Username */}
                        <div>
-                         <p className="text-xs font-bold text-muted lowercase">username:</p>
+                         <p className="text-xs font-bold text-muted lowercase">{t('users.username')}</p>
                          <p className="text-sm text-heading">{u?.username ?? '—'}</p>
                        </div>
 
                        {/* Email */}
                        <div>
-                         <p className="text-xs font-bold text-muted lowercase">email_address:</p>
+                         <p className="text-xs font-bold text-muted lowercase">{t('users.emailAddress')}</p>
                          <p className="text-sm text-heading">{u?.email ?? '—'}</p>
                        </div>
 
                        {/* Created Date */}
                        <div>
-                         <p className="text-xs font-bold text-muted lowercase">created_at:</p>
+                         <p className="text-xs font-bold text-muted lowercase">{t('users.createdAt')}</p>
                          <p className="text-sm text-heading">
                            {u?.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
                          </p>
@@ -272,7 +272,7 @@ const AdminUsersPage: React.FC = () => {
 
                        {/* Last Login */}
                        <div>
-                         <p className="text-xs font-bold text-muted lowercase">last_login:</p>
+                         <p className="text-xs font-bold text-muted lowercase">{t('users.lastLogin')}</p>
                          <p className="text-sm text-heading">
                             {u?.lastLogin ? formatDateTimeVN(u.lastLogin) : t('users.never')}
                          </p>
@@ -280,23 +280,23 @@ const AdminUsersPage: React.FC = () => {
 
                        {/* Status */}
                        <div>
-                         <p className="text-xs font-bold text-muted lowercase">status:</p>
+                         <p className="text-xs font-bold text-muted lowercase">{t('users.status')}</p>
                          <div className="flex items-center gap-2">
                            <span className="text-sm font-bold text-heading">
-                             {u?.status || 'Active'}
+                             {u?.status || t('users.activeStatus')}
                            </span>
                          </div>
                        </div>
 
                        {/* First Name */}
                        <div>
-                         <p className="text-xs font-bold text-muted lowercase">first_name:</p>
+                         <p className="text-xs font-bold text-muted lowercase">{t('users.firstName')}</p>
                          <p className="text-sm text-heading">{u?.firstName ?? '—'}</p>
                        </div>
 
                        {/* Last Name */}
                        <div>
-                         <p className="text-xs font-bold text-muted lowercase">last_name:</p>
+                         <p className="text-xs font-bold text-muted lowercase">{t('users.lastName')}</p>
                          <p className="text-sm text-heading">{u?.lastName ?? '—'}</p>
                        </div>
                      </div>
@@ -345,7 +345,7 @@ const AdminUsersPage: React.FC = () => {
                     className="px-2 py-1 border border-bd-input bg-white text-sm focus:outline-none"
                   >
                     {PAGE_SIZE_OPTIONS.map((size) => (
-                      <option key={size} value={size}>{size} / page</option>
+                      <option key={size} value={size}>{t('users.pageOption', { size })}</option>
                     ))}
                   </select>
 

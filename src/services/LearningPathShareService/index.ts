@@ -2,6 +2,8 @@ import api from '../Axios'
 import type {
   LearningPathShareDto,
   LearningPathSharePreviewDto,
+  LearningPathShareUpdateAction,
+  LearningPathShareUpdateContextDto,
   PendingLearningPathShareSummaryDto,
   SentLearningPathShareSummaryDto,
   ShareStatus,
@@ -57,4 +59,15 @@ export async function getSentShares(filters?: {
 
 export async function getSharePreview(shareId: string): Promise<LearningPathSharePreviewDto> {
   return api.get(`/learningpath-shares/${shareId}/preview`)
+}
+
+export async function getUpdateContext(shareId: string): Promise<LearningPathShareUpdateContextDto> {
+  return api.get(`/learningpath-shares/${shareId}/update-context`)
+}
+
+export async function applyUpdate(
+  shareId: string,
+  action: LearningPathShareUpdateAction,
+): Promise<LearningPathShareDto> {
+  return api.post(`/learningpath-shares/${shareId}/apply-update`, { action })
 }

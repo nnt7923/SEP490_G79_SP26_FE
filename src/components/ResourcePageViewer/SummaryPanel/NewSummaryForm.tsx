@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { NewSummaryFormProps } from '../../../types/summary'
 
 /**
@@ -13,25 +14,33 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
   disabled,
   existingSessions,
 }) => {
+  const { t } = useTranslation('admin')
+  const maxPagesPerRequest = 5
+  const initialEndPage = Math.max(1, Math.min(totalPages, maxPagesPerRequest))
   const [startPage, setStartPage] = useState<string>('1')
-  const [endPage, setEndPage] = useState<string>(totalPages.toString())
+  const [endPage, setEndPage] = useState<string>(initialEndPage.toString())
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const validatePageRange = (start: number, end: number): string | null => {
     // Validate start page >= 1
     if (start < 1) {
-      return 'Start page must be at least 1'
+      return t('resources.summaryPanel.form.validation.startMin')
     }
 
     // Validate end page <= totalPages
     if (end > totalPages) {
-      return `End page cannot exceed ${totalPages}`
+      return t('resources.summaryPanel.form.validation.endMax', { totalPages })
     }
 
     // Validate start <= end
     if (start > end) {
-      return 'Start page must be less than or equal to end page'
+      return t('resources.summaryPanel.form.validation.startBeforeEnd')
+    }
+
+    // Validate max pages per request
+    if (end - start + 1 > maxPagesPerRequest) {
+      return t('resources.summaryPanel.form.validation.maxPages', { maxPages: maxPagesPerRequest })
     }
 
     // Check for duplicate requests
@@ -43,7 +52,7 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
     )
 
     if (isDuplicate) {
-      return `Summary for pages ${start}-${end} already exists or is in progress`
+      return t('resources.summaryPanel.form.validation.duplicateRange', { start, end })
     }
 
     return null
@@ -58,7 +67,7 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
 
     // Validate numeric inputs
     if (isNaN(start) || isNaN(end)) {
-      setValidationError('Please enter valid page numbers')
+      setValidationError(t('resources.summaryPanel.form.validation.invalidNumber'))
       return
     }
 
@@ -73,9 +82,7 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
     setIsSubmitting(true)
     try {
       await onSubmit(start, end)
-      // Reset form on success - set endPage to totalPages
-      setStartPage('1')
-      setEndPage(totalPages.toString())
+      // Keep the user-entered range after successful submit.
     } catch (err) {
       // Error handling is done by parent component
     } finally {
@@ -88,7 +95,7 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
       {/* Compact inline page range inputs */}
       <div className="flex items-center gap-2">
         <div className="flex-1">
-          <label htmlFor="startPage" className="sr-only">Start Page</label>
+          <label htmlFor="startPage" className="sr-only">{t('resources.summaryPanel.form.startPage')}</label>
           <input
             id="startPage"
             type="number"
@@ -98,12 +105,12 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
             onChange={(e) => setStartPage(e.target.value)}
             disabled={disabled || isSubmitting}
             className="w-full px-3 py-2 text-sm border border-sl-200 bg-th-card text-sl-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            placeholder="From"
+            placeholder={t('resources.summaryPanel.form.from')}
           />
         </div>
-        <span className="text-sl-400">→</span>
+        <span className="text-sl-400" aria-hidden="true">-&gt;</span>
         <div className="flex-1">
-          <label htmlFor="endPage" className="sr-only">End Page</label>
+          <label htmlFor="endPage" className="sr-only">{t('resources.summaryPanel.form.endPage')}</label>
           <input
             id="endPage"
             type="number"
@@ -113,7 +120,7 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
             onChange={(e) => setEndPage(e.target.value)}
             disabled={disabled || isSubmitting}
             className="w-full px-3 py-2 text-sm border border-sl-200 bg-th-card text-sl-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            placeholder="To"
+            placeholder={t('resources.summaryPanel.form.to')}
           />
         </div>
       </div>
@@ -124,6 +131,10 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
         </div>
       )}
 
+      <p className="text-[11px] text-sl-500">
+        {t('resources.summaryPanel.form.maxPagesHint', { maxPages: maxPagesPerRequest })}
+      </p>
+
       <button
         type="submit"
         disabled={disabled || isSubmitting}
@@ -132,12 +143,12 @@ const NewSummaryForm: React.FC<NewSummaryFormProps> = ({
         {isSubmitting ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Generating...
+            {t('resources.summaryPanel.form.generating')}
           </>
         ) : (
           <>
             <Sparkles className="w-4 h-4" />
-            Generate
+            {t('resources.summaryPanel.form.generate')}
           </>
         )}
       </button>

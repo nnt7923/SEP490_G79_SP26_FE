@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
-import { AIConfigService, AIUsageService, AIUsageType } from '../../../../services'
-import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key, BarChart3, TrendingUp, Zap, DollarSign } from 'lucide-react'
+import { AIConfigService, AIUsageType } from '../../../../services'
+import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 const AccessTier = {
@@ -12,6 +12,87 @@ const AccessTier = {
 } as const
 
 type AccessTier = typeof AccessTier[keyof typeof AccessTier]
+type ConfigEditorMode = 'builder' | 'json'
+type ConfigFieldType = 'string' | 'number' | 'boolean' | 'null' | 'json'
+
+type ConfigField = {
+  id: string
+  path: string
+  type: ConfigFieldType
+  value: string
+}
+
+const createConfigField = (): ConfigField => ({
+  id: `${Date.now()}-${Math.random()}`,
+  path: '',
+  type: 'string',
+  value: '',
+})
+
+const normalizePathSegments = (path: string): string[] => {
+  return path
+    .split('.')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+const setValueAtPath = (target: Record<string, any>, path: string, value: any) => {
+  const segments = normalizePathSegments(path)
+  if (segments.length === 0) return
+
+  let current: Record<string, any> = target
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const key = segments[i]
+    if (!current[key] || typeof current[key] !== 'object' || Array.isArray(current[key])) {
+      current[key] = {}
+    }
+    current = current[key]
+  }
+
+  current[segments[segments.length - 1]] = value
+}
+
+const flattenConfigObject = (obj: Record<string, any>, prefix = ''): ConfigField[] => {
+  const fields: ConfigField[] = []
+
+  Object.entries(obj || {}).forEach(([key, value]) => {
+    const path = prefix ? `${prefix}.${key}` : key
+
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      const nested = flattenConfigObject(value, path)
+      if (nested.length > 0) {
+        fields.push(...nested)
+      } else {
+        fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'json', value: '{}' })
+      }
+      return
+    }
+
+    if (typeof value === 'number') {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'number', value: String(value) })
+      return
+    }
+
+    if (typeof value === 'boolean') {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'boolean', value: value ? 'true' : 'false' })
+      return
+    }
+
+    if (value === null) {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'null', value: '' })
+      return
+    }
+
+    if (Array.isArray(value)) {
+      fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'json', value: JSON.stringify(value) })
+      return
+    }
+
+    fields.push({ id: `${Date.now()}-${Math.random()}`, path, type: 'string', value: String(value) })
+  })
+
+  return fields
+}
 
 const AdminApiKeyPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
@@ -24,17 +105,13 @@ const AdminApiKeyPage: React.FC = () => {
   const [items, setItems] = useState<any[]>([])
   const [expandedIndex, setExpandedIndex] = useState<string | null>(null)
   
-  // AI Usage Statistics
-  const [usageStats, setUsageStats] = useState<any[]>([])
-  const [loadingStats, setLoadingStats] = useState(false)
-  const [showStats, setShowStats] = useState(true)
-  
   // Collapsible groups by AI Usage Type
   const [expandedGroups, setExpandedGroups] = useState<Set<AIUsageType>>(new Set([
     AIUsageType.StructureGeneration,
     AIUsageType.ContentGeneration,
     AIUsageType.Verification,
-    AIUsageType.Assistant
+    AIUsageType.Assistant,
+    AIUsageType.DocumentExtraction,
   ]))
 
   // Add/Edit form state
@@ -47,7 +124,9 @@ const AdminApiKeyPage: React.FC = () => {
   const [isActive, setIsActive] = useState<boolean>(true)
   const [aiUsageType, setAiUsageType] = useState<AIUsageType>(AIUsageType.StructureGeneration)
   const [accessTier, setAccessTier] = useState<AccessTier>(AccessTier.Free)
-  const [additionalProps, setAdditionalProps] = useState<Array<{ key: string; value: string }>>([])
+  const [configEditorMode, setConfigEditorMode] = useState<ConfigEditorMode>('builder')
+  const [configFields, setConfigFields] = useState<ConfigField[]>([])
+  const [configJsonText, setConfigJsonText] = useState<string>('{}')
   
   // Map string usageType from backend to enum
   const mapUsageTypeToEnum = (usageType: any): AIUsageType => {
@@ -58,6 +137,7 @@ const AdminApiKeyPage: React.FC = () => {
     if (typeStr.includes('content')) return AIUsageType.ContentGeneration
     if (typeStr.includes('verif')) return AIUsageType.Verification
     if (typeStr.includes('assistant')) return AIUsageType.Assistant
+    if (typeStr.includes('document') || typeStr.includes('extract')) return AIUsageType.DocumentExtraction
     
     return AIUsageType.StructureGeneration
   }
@@ -89,8 +169,21 @@ const AdminApiKeyPage: React.FC = () => {
         return { label: t('apiKey.verification'), color: 'var(--color-emerald-500)', borderColor: 'var(--color-emerald-500)', icon: CheckCircle }
       case AIUsageType.Assistant:
         return { label: t('apiKey.assistant'), color: 'var(--color-amber-500)', borderColor: 'var(--color-amber-500)', icon: MessageSquare }
+      case AIUsageType.DocumentExtraction:
+        return { label: t('apiKey.documentExtraction'), color: 'var(--color-cyan-500)', borderColor: 'var(--color-cyan-500)', icon: FileText }
       default:
         return { label: t('apiKey.unknown'), color: 'var(--text-secondary)', borderColor: 'var(--text-secondary)', icon: LayoutTemplate }
+    }
+  }
+
+  const getUsageTypeString = (type: AIUsageType): string => {
+    switch (type) {
+      case AIUsageType.StructureGeneration: return 'StructureGeneration'
+      case AIUsageType.ContentGeneration: return 'ContentGeneration'
+      case AIUsageType.Verification: return 'Verification'
+      case AIUsageType.Assistant: return 'Assistant'
+      case AIUsageType.DocumentExtraction: return 'DocumentExtraction'
+      default: return 'StructureGeneration'
     }
   }
   
@@ -107,17 +200,6 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
-      // Map aiUsageType enum to string for backend
-      const getUsageTypeString = (type: AIUsageType): string => {
-        switch (type) {
-          case AIUsageType.StructureGeneration: return 'StructureGeneration'
-          case AIUsageType.ContentGeneration: return 'ContentGeneration'
-          case AIUsageType.Verification: return 'Verification'
-          case AIUsageType.Assistant: return 'Assistant'
-          default: return 'StructureGeneration'
-        }
-      }
-      
       await AIConfigService.setActiveAIConfig(configId, getUsageTypeString(usageType), selectedAccessTier)
       await fetchList()
       setNotice(t('apiKey.setActiveSuccess'))
@@ -133,7 +215,9 @@ const AdminApiKeyPage: React.FC = () => {
     setIsActive(true)
     setAiUsageType(AIUsageType.StructureGeneration)
     setAccessTier(AccessTier.Free)
-    setAdditionalProps([])
+    setConfigEditorMode('builder')
+    setConfigFields([])
+    setConfigJsonText('{}')
     setIsEditMode(false)
   }
 
@@ -152,36 +236,125 @@ const AdminApiKeyPage: React.FC = () => {
     }
   }
 
-  const fetchUsageStats = async () => {
-    setLoadingStats(true)
-    try {
-      const stats = await AIUsageService.getAIUsageSummary()
-      setUsageStats(stats)
-    } catch (e: any) {
-      console.warn('Failed to load usage stats:', e?.message)
-      setUsageStats([])
-    } finally {
-      setLoadingStats(false)
-    }
-  }
-
   useEffect(() => {
     fetchList()
-    fetchUsageStats()
   }, [])
 
-  const addAdditionalProp = () => {
-    setAdditionalProps([...additionalProps, { key: '', value: '' }])
+  const addConfigField = () => {
+    setConfigFields((prev) => [...prev, createConfigField()])
   }
 
-  const removeAdditionalProp = (index: number) => {
-    setAdditionalProps(additionalProps.filter((_, i) => i !== index))
+  const removeConfigField = (id: string) => {
+    setConfigFields((prev) => prev.filter((f) => f.id !== id))
   }
 
-  const updateAdditionalProp = (index: number, field: 'key' | 'value', val: string) => {
-    const updated = [...additionalProps]
-    updated[index][field] = val
-    setAdditionalProps(updated)
+  const updateConfigField = (id: string, patch: Partial<ConfigField>) => {
+    setConfigFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
+  }
+
+  const applyStarterTemplate = () => {
+    const starter = {
+      model: 'mistral-small-latest',
+      contextWindow: 200000,
+      chatPolicy: {
+        runtimeContextBudget: 24000,
+        reservedOutputRatio: 0.08,
+      },
+    }
+    setConfigJsonText(JSON.stringify(starter, null, 2))
+    setConfigFields(flattenConfigObject(starter))
+  }
+
+  const parseJsonTextToObject = (rawText: string): Record<string, any> => {
+    const raw = rawText.trim()
+    if (!raw) return {}
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new Error(t('apiKey.invalidJsonMessage', 'config_json must be valid JSON'))
+    }
+
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+      throw new Error(t('apiKey.invalidJsonObjectMessage', 'config_json must be a JSON object'))
+    }
+
+    return parsed as Record<string, any>
+  }
+
+  const parseBuilderValue = (field: ConfigField): any => {
+    if (field.type === 'number') {
+      const numeric = Number(field.value)
+      if (!Number.isFinite(numeric)) {
+        throw new Error(t('apiKey.invalidNumberMessage', 'Invalid number value in config_json builder'))
+      }
+      return numeric
+    }
+
+    if (field.type === 'boolean') {
+      if (field.value === 'true') return true
+      if (field.value === 'false') return false
+      throw new Error(t('apiKey.invalidBooleanMessage', 'Boolean value must be true or false'))
+    }
+
+    if (field.type === 'null') {
+      return null
+    }
+
+    if (field.type === 'json') {
+      const valueText = field.value.trim()
+      if (!valueText) return {}
+      try {
+        return JSON.parse(valueText)
+      } catch {
+        throw new Error(t('apiKey.invalidNestedJsonMessage', 'Invalid nested JSON value in config_json builder'))
+      }
+    }
+
+    return field.value
+  }
+
+  const buildConfigJsonFromFields = (): Record<string, any> => {
+    const result: Record<string, any> = {}
+
+    configFields.forEach((field) => {
+      if (!field.path.trim()) return
+      const value = parseBuilderValue(field)
+      setValueAtPath(result, field.path.trim(), value)
+    })
+
+    return result
+  }
+
+  const getConfigJsonFromEditor = (): Record<string, any> => {
+    if (configEditorMode === 'json') {
+      return parseJsonTextToObject(configJsonText)
+    }
+    return buildConfigJsonFromFields()
+  }
+
+  const switchEditorMode = (mode: ConfigEditorMode) => {
+    if (mode === configEditorMode) return
+
+    if (mode === 'json') {
+      try {
+        const built = buildConfigJsonFromFields()
+        setConfigJsonText(JSON.stringify(built, null, 2))
+      } catch {
+        // Keep existing JSON text when builder contains temporary invalid values.
+      }
+      setConfigEditorMode('json')
+      return
+    }
+
+    try {
+      const parsed = parseJsonTextToObject(configJsonText)
+      setConfigFields(flattenConfigObject(parsed))
+    } catch {
+      setConfigFields([])
+    }
+    setConfigEditorMode('builder')
   }
 
   const onSave = async (e: React.FormEvent) => {
@@ -190,34 +363,8 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
-      // Convert additionalProps array to configJson object with proper types
-      const configJson: Record<string, any> = {}
-      additionalProps.forEach(prop => {
-        if (prop.key && prop.value) {
-          // Try to parse numbers
-          if (!isNaN(Number(prop.value)) && prop.value.trim() !== '') {
-            configJson[prop.key] = Number(prop.value)
-          } else if (prop.value.toLowerCase() === 'true') {
-            configJson[prop.key] = true
-          } else if (prop.value.toLowerCase() === 'false') {
-            configJson[prop.key] = false
-          } else {
-            configJson[prop.key] = prop.value
-          }
-        }
-      })
-      
-      // Map aiUsageType enum to string for backend
-      const getUsageTypeString = (type: AIUsageType): string => {
-        switch (type) {
-          case AIUsageType.StructureGeneration: return 'StructureGeneration'
-          case AIUsageType.ContentGeneration: return 'ContentGeneration'
-          case AIUsageType.Verification: return 'Verification'
-          case AIUsageType.Assistant: return 'Assistant'
-          default: return 'StructureGeneration'
-        }
-      }
-      
+      const configJson = getConfigJsonFromEditor()
+
       const payload = {
         providerName,
         apiKey,
@@ -255,14 +402,12 @@ const AdminApiKeyPage: React.FC = () => {
     
     // Convert additionalProps or configJson to additionalProps
     const props = it.additionalProps ?? (it.configJson ?? it.GroqSettings ?? {})
-    if (Array.isArray(props)) {
-      setAdditionalProps(props)
+    if (props && typeof props === 'object' && !Array.isArray(props)) {
+      setConfigJsonText(JSON.stringify(props, null, 2))
+      setConfigFields(flattenConfigObject(props as Record<string, any>))
     } else {
-      const propsArray = Object.entries(props).map(([key, value]) => ({
-        key,
-        value: String(value)
-      }))
-      setAdditionalProps(propsArray)
+      setConfigJsonText('{}')
+      setConfigFields([])
     }
     
     const active = typeof it.isActive === 'boolean' ? it.isActive : true
@@ -281,34 +426,8 @@ const AdminApiKeyPage: React.FC = () => {
     setError('')
     setNotice('')
     try {
-      // Convert additionalProps array to configJson object with proper types
-      const configJson: Record<string, any> = {}
-      additionalProps.forEach(prop => {
-        if (prop.key && prop.value) {
-          // Try to parse numbers
-          if (!isNaN(Number(prop.value)) && prop.value.trim() !== '') {
-            configJson[prop.key] = Number(prop.value)
-          } else if (prop.value.toLowerCase() === 'true') {
-            configJson[prop.key] = true
-          } else if (prop.value.toLowerCase() === 'false') {
-            configJson[prop.key] = false
-          } else {
-            configJson[prop.key] = prop.value
-          }
-        }
-      })
-      
-      // Map aiUsageType enum to string for backend
-      const getUsageTypeString = (type: AIUsageType): string => {
-        switch (type) {
-          case AIUsageType.StructureGeneration: return 'StructureGeneration'
-          case AIUsageType.ContentGeneration: return 'ContentGeneration'
-          case AIUsageType.Verification: return 'Verification'
-          case AIUsageType.Assistant: return 'Assistant'
-          default: return 'StructureGeneration'
-        }
-      }
-      
+      const configJson = getConfigJsonFromEditor()
+
       const payload: Record<string, any> = {
         providerName,
         configJson,
@@ -325,7 +444,7 @@ const AdminApiKeyPage: React.FC = () => {
       setShowForm(false)
       resetForm()
       await fetchList()
-      setNotice('Configuration updated successfully')
+      setNotice(t('apiKey.updateSuccess'))
       
       // Scroll to top to show success message
       setTimeout(() => {
@@ -406,117 +525,6 @@ const AdminApiKeyPage: React.FC = () => {
           </div>
         )}
 
-        {/* ========== AI USAGE STATISTICS ========== */}
-        {showStats && (
-          <div className="mb-8 bg-th-card border border-bd-strong">
-            <div className="bg-th-input px-6 py-4 border-b border-bd-strong flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="text-status-blue" size={20} />
-                <h2 className="text-lg font-bold text-heading">AI Usage Statistics</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowStats(false)}
-                className="text-muted hover:text-heading transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="p-6">
-              {loadingStats ? (
-                <div className="text-center py-8">
-                  <span className="text-sm font-bold text-muted">Loading usage statistics...</span>
-                </div>
-              ) : usageStats.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted">No usage data available</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {usageStats.map((stat, idx) => {
-                    const typeInfo = getUsageTypeInfo(stat.usageType === 'StructureGeneration' ? AIUsageType.StructureGeneration :
-                                                     stat.usageType === 'ContentGeneration' ? AIUsageType.ContentGeneration :
-                                                     stat.usageType === 'Verification' ? AIUsageType.Verification :
-                                                     AIUsageType.Assistant)
-                    
-                    return (
-                      <div key={idx} className="bg-th-page border border-bd p-4 hover:border-bd-strong transition-colors">
-                        <div className="flex items-center gap-3 mb-3">
-                          <typeInfo.icon className="w-5 h-5 flex-shrink-0" style={{ color: typeInfo.color }} />
-                          <h3 className="text-sm font-bold text-heading truncate">{typeInfo.label}</h3>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4 text-muted" />
-                              <span className="text-xs font-bold text-muted">Requests</span>
-                            </div>
-                            <span className="text-sm font-bold text-heading">{stat.totalRequests?.toLocaleString() || 0}</span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Zap className="w-4 h-4 text-muted" />
-                              <span className="text-xs font-bold text-muted">Tokens</span>
-                            </div>
-                            <span className="text-sm font-bold text-heading">{stat.totalTokens?.toLocaleString() || 0}</span>
-                          </div>
-                          
-                          <div className="text-xs text-muted space-y-1">
-                            <div className="flex justify-between">
-                              <span>Input:</span>
-                              <span>{stat.totalInputTokens?.toLocaleString() || 0}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Output:</span>
-                              <span>{stat.totalOutputTokens?.toLocaleString() || 0}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between pt-2 border-t border-bd">
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="w-4 h-4 text-status-green-dark" />
-                              <span className="text-xs font-bold text-muted">Cost</span>
-                            </div>
-                            <span className="text-sm font-bold text-status-green-dark">
-                              ${(stat.totalCostUsd || 0).toFixed(4)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              
-              <div className="mt-4 pt-4 border-t border-bd">
-                <button
-                  type="button"
-                  onClick={fetchUsageStats}
-                  className="px-4 py-2 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
-                >
-                  Refresh Statistics
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!showStats && (
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={() => setShowStats(true)}
-              className="px-4 py-2 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm flex items-center gap-2"
-            >
-              <BarChart3 size={16} />
-              Show AI Usage Statistics
-            </button>
-          </div>
-        )}
-
         {/* ========== ADD/EDIT FORM ========== */}
         {showForm && (
           <div className="mb-8 bg-th-card border border-bd-strong">
@@ -533,7 +541,7 @@ const AdminApiKeyPage: React.FC = () => {
                   <input
                     type="text"
                     className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                    placeholder="e.g. Groq, OpenAI"
+                    placeholder={t('apiKey.providerPlaceholder')}
                     value={providerName}
                     onChange={(e) => setProviderName(e.target.value)}
                   />
@@ -544,7 +552,7 @@ const AdminApiKeyPage: React.FC = () => {
                   <input
                     type="password"
                     className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                    placeholder={isEditMode ? t('apiKey.apiKeyUpdatePlaceholder', 'Enter new API key (optional)') : 'secret_key'}
+                    placeholder={isEditMode ? t('apiKey.apiKeyUpdatePlaceholder', 'Enter new API key (optional)') : t('apiKey.apiKeyPlaceholder')}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                   />
@@ -561,10 +569,11 @@ const AdminApiKeyPage: React.FC = () => {
                   value={aiUsageType}
                   onChange={(e) => setAiUsageType(Number(e.target.value) as AIUsageType)}
                 >
-                  <option value={AIUsageType.StructureGeneration}>StructureGeneration</option>
-                  <option value={AIUsageType.ContentGeneration}>ContentGeneration</option>
-                  <option value={AIUsageType.Verification}>Verification</option>
-                  <option value={AIUsageType.Assistant}>Assistant</option>
+                  <option value={AIUsageType.StructureGeneration}>{t('apiKey.structureGeneration')}</option>
+                  <option value={AIUsageType.ContentGeneration}>{t('apiKey.contentGeneration')}</option>
+                  <option value={AIUsageType.Verification}>{t('apiKey.verification')}</option>
+                  <option value={AIUsageType.Assistant}>{t('apiKey.assistant')}</option>
+                  <option value={AIUsageType.DocumentExtraction}>{t('apiKey.documentExtraction')}</option>
                 </select>
                 <p className="text-xs text-muted mt-2">{t('apiKey.selectUsageType')}</p>
               </div>
@@ -584,53 +593,132 @@ const AdminApiKeyPage: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <label className="block text-sm font-bold text-body">{t('apiKey.additionalProps')}</label>
-                  <button
-                    type="button"
-                    onClick={addAdditionalProp}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
-                  >
-                    <Plus size={16} /> {t('apiKey.addProp')}
-                  </button>
+                  <label className="block text-sm font-bold text-body">{t('apiKey.configJsonLabel')}</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={applyStarterTemplate}
+                      className="px-3 py-1.5 text-xs font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
+                    >
+                      {t('apiKey.useTemplate', 'Use template')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchEditorMode('builder')}
+                      className={`px-3 py-1.5 text-xs font-bold border rounded-sm transition-colors ${configEditorMode === 'builder' ? 'border-blue-600 text-status-blue bg-status-blue-bg' : 'border-bd-strong text-body hover:bg-th-input'}`}
+                    >
+                      {t('apiKey.builderMode', 'Builder')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchEditorMode('json')}
+                      className={`px-3 py-1.5 text-xs font-bold border rounded-sm transition-colors ${configEditorMode === 'json' ? 'border-blue-600 text-status-blue bg-status-blue-bg' : 'border-bd-strong text-body hover:bg-th-input'}`}
+                    >
+                      {t('apiKey.jsonMode', 'JSON')}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-3 bg-th-page border border-bd-strong p-4">
-                  {additionalProps.length === 0 ? (
-                    <p className="text-sm text-muted font-bold">{t('apiKey.noProperties')}</p>
-                  ) : (
-                    additionalProps.map((prop, idx) => (
-                      <div key={idx} className="flex gap-3 items-end bg-th-card p-3 border border-bd">
-                        <div className="flex-1">
-                          <label className="block text-xs font-bold text-muted mb-2">key:</label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                            placeholder="e.g. Model"
-                            value={prop.key}
-                            onChange={(e) => updateAdditionalProp(idx, 'key', e.target.value)}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs font-bold text-muted mb-2">value:</label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                            placeholder="e.g. gpt-4"
-                            value={prop.value}
-                            onChange={(e) => updateAdditionalProp(idx, 'value', e.target.value)}
-                          />
-                        </div>
+                  {configEditorMode === 'builder' ? (
+                    <>
+                      <div className="space-y-3">
+                        {configFields.length === 0 ? (
+                          <p className="text-sm text-muted font-bold">{t('apiKey.noBuilderRows', 'No config rows yet. Click Add row.')}</p>
+                        ) : (
+                          configFields.map((field) => (
+                            <div key={field.id} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end bg-th-card p-3 border border-bd">
+                              <div className="lg:col-span-5">
+                                <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.pathLabel', 'Path')}</label>
+                                <input
+                                  type="text"
+                                  className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
+                                  placeholder={t('apiKey.pathPlaceholder', 'e.g. chatPolicy.runtimeContextBudget')}
+                                  value={field.path}
+                                  onChange={(e) => updateConfigField(field.id, { path: e.target.value })}
+                                />
+                              </div>
+                              <div className="lg:col-span-3">
+                                <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.typeLabel', 'Type')}</label>
+                                <select
+                                  className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors bg-th-card font-mono"
+                                  value={field.type}
+                                  onChange={(e) => updateConfigField(field.id, { type: e.target.value as ConfigFieldType, value: e.target.value === 'boolean' ? 'false' : (e.target.value === 'null' ? '' : field.value) })}
+                                >
+                                  <option value="string">string</option>
+                                  <option value="number">number</option>
+                                  <option value="boolean">boolean</option>
+                                  <option value="null">null</option>
+                                  <option value="json">json</option>
+                                </select>
+                              </div>
+                              <div className="lg:col-span-3">
+                                <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.value')}</label>
+                                {field.type === 'boolean' ? (
+                                  <select
+                                    className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors bg-th-card font-mono"
+                                    value={field.value || 'false'}
+                                    onChange={(e) => updateConfigField(field.id, { value: e.target.value })}
+                                  >
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                  </select>
+                                ) : field.type === 'null' ? (
+                                  <input
+                                    type="text"
+                                    disabled
+                                    className="w-full px-3 py-2 border border-bd text-sm bg-th-input text-muted font-mono"
+                                    value="null"
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
+                                    placeholder={field.type === 'json' ? '{...} or [...]' : t('apiKey.value')}
+                                    value={field.value}
+                                    onChange={(e) => updateConfigField(field.id, { value: e.target.value })}
+                                  />
+                                )}
+                              </div>
+                              <div className="lg:col-span-1">
+                                <button
+                                  type="button"
+                                  onClick={() => removeConfigField(field.id)}
+                                  className="w-full px-2 py-2 border border-red-500 text-status-red hover:bg-status-red-bg transition-colors font-bold text-sm"
+                                  title={t('apiKey.removeProperty')}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div>
                         <button
                           type="button"
-                          onClick={() => removeAdditionalProp(idx)}
-                          className="px-3 py-2 border border-red-500 text-status-red hover:bg-status-red-bg transition-colors font-bold text-sm"
-                          title="Remove property"
+                          onClick={addConfigField}
+                          className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
                         >
-                          <Trash2 size={16} />
+                          <Plus size={16} /> {t('apiKey.addRow', 'Add row')}
                         </button>
                       </div>
-                    ))
+                    </>
+                  ) : (
+                    <textarea
+                      className="w-full min-h-[220px] px-4 py-3 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm leading-6"
+                      value={configJsonText}
+                      onChange={(e) => setConfigJsonText(e.target.value)}
+                      spellCheck={false}
+                      placeholder={t(
+                        'apiKey.configJsonPlaceholder',
+                        '{\n  "model": "mistral-small-latest",\n  "contextWindow": 200000,\n  "chatPolicy": {\n    "runtimeContextBudget": 24000,\n    "reservedOutputRatio": 0.08\n  }\n}'
+                      )}
+                    />
                   )}
+                  <p className="text-xs text-muted">
+                    {t('apiKey.configJsonHint', 'Supports nested JSON objects. Numbers and booleans are preserved as JSON types.')}
+                  </p>
                 </div>
               </div>
 
@@ -677,7 +765,7 @@ const AdminApiKeyPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {[AIUsageType.StructureGeneration, AIUsageType.ContentGeneration, AIUsageType.Verification, AIUsageType.Assistant].map((usageType) => {
+            {[AIUsageType.StructureGeneration, AIUsageType.ContentGeneration, AIUsageType.Verification, AIUsageType.Assistant, AIUsageType.DocumentExtraction].map((usageType) => {
               const typeInfo = getUsageTypeInfo(usageType)
               const tieredItems = groupedItems[usageType] || { free: [], paid: [] }
               const totalConfigs = tieredItems.free.length + tieredItems.paid.length
@@ -700,7 +788,7 @@ const AdminApiKeyPage: React.FC = () => {
                       <div className="text-left flex items-center gap-2">
                         <h3 className="text-sm font-bold text-heading uppercase">{typeInfo.label}</h3>
                         <p className="text-xs text-muted">
-                           [{totalConfigs} cfg]
+                          [{totalConfigs} {t('apiKey.cfg')}]
                         </p>
                       </div>
                     </div>
@@ -719,12 +807,12 @@ const AdminApiKeyPage: React.FC = () => {
                           <div key={tierSection.key} className="bg-th-card border border-bd-strong">
                             <div className="px-3 py-2 border-b border-bd flex items-center justify-between bg-th-input">
                               <h4 className="text-xs font-bold text-heading uppercase">{tierSection.label}</h4>
-                              <span className="text-xs text-muted">[{tierSection.items.length} cfg]</span>
+                              <span className="text-xs text-muted">[{tierSection.items.length} {t('apiKey.cfg')}]</span>
                             </div>
 
                             <div className="p-3 space-y-3">
                               {tierSection.items.length === 0 && (
-                                <p className="text-xs text-muted">{t('apiKey.noConfigsInTier', 'No configurations in this tier')}</p>
+                                <p className="text-xs text-muted">{t('apiKey.noConfigsInTier')}</p>
                               )}
 
                               {tierSection.items.map((it: any, idx: number) => {
@@ -767,7 +855,7 @@ const AdminApiKeyPage: React.FC = () => {
                                             className="px-3 py-1 border border-bd-strong text-label text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                                           >
                                             {itemExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                            {t('apiKey.details', 'Details')}
+                                            {t('apiKey.details')}
                                           </button>
                                           <button
                                             type="button"
@@ -794,15 +882,10 @@ const AdminApiKeyPage: React.FC = () => {
                                         <div className="space-y-4">
                                           {Object.keys(cj).length > 0 && (
                                             <div>
-                                              <div className="text-xs font-bold text-muted uppercase mb-1">config_json:</div>
-                                              <div className="grid grid-cols-2 gap-2">
-                                                {Object.entries(cj).map(([key, value]) => (
-                                                  <div key={key} className="bg-th-page px-3 py-2 border border-bd">
-                                                    <div className="text-xs font-bold text-muted mb-0.5">{key}:</div>
-                                                    <div className="text-sm font-bold text-heading truncate">{String(value)}</div>
-                                                  </div>
-                                                ))}
-                                              </div>
+                                              <div className="text-xs font-bold text-muted uppercase mb-1">{t('apiKey.configJsonLabel')}</div>
+                                              <pre className="bg-th-page px-3 py-3 border border-bd text-xs leading-6 text-heading overflow-x-auto whitespace-pre-wrap break-words">
+{JSON.stringify(cj, null, 2)}
+                                              </pre>
                                             </div>
                                           )}
                                         </div>

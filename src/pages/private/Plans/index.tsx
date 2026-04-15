@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
 import { SubjectService, GoalService, LearningPathService, LanguageSelection, SubjectCategory } from '../../../services'
@@ -14,6 +14,7 @@ import LanguageCard from './components/LanguageCard'
 import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
 import { useTranslation } from 'react-i18next'
+import { getGoalTitle } from '../../../utils/goalTranslation'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -43,6 +44,8 @@ interface PlansPageProps {
 
 export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1)
+  const stepContentRef = useRef<HTMLDivElement | null>(null)
+  const prevStepRef = useRef<number>(1)
   const { t } = useTranslation('student')
   const { t: tm } = useTranslation('mentor')
   const isMentorVariant = variant === 'mentorAiDraft'
@@ -103,7 +106,8 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   // Pagination for system goals and my goals separately
   const [currentSystemGoalPage, setCurrentSystemGoalPage] = useState<number>(1)
   const [currentMyGoalPage, setCurrentMyGoalPage] = useState<number>(1)
-  const goalsPerPage = 15
+  const [myGoalsPanelOpen, setMyGoalsPanelOpen] = useState<boolean>(false)
+  const goalsPerPage = 12
   const [generating, setGenerating] = useState<boolean>(false)
   
   // Toast state
@@ -1007,6 +1011,31 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     [language, selectedGoals, level, languageSelection, generating]
   )
 
+  useEffect(() => {
+    const previousStep = prevStepRef.current
+    if (step >= 2 && previousStep !== step) {
+      requestAnimationFrame(() => {
+        const target = stepContentRef.current
+        if (!target) return
+
+        const rect = target.getBoundingClientRect()
+        const targetCenter = window.scrollY + rect.top + rect.height / 2
+        const viewportCenter = window.innerHeight / 2
+        const nextTop = Math.max(targetCenter - viewportCenter, 0)
+        const reducedMotion =
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+        window.scrollTo({
+          top: 121,
+          behavior: reducedMotion ? 'auto' : 'smooth',
+        })
+      })
+    }
+
+    prevStepRef.current = step
+  }, [step])
+
   const isStepValid = (s: number) => {
     if (s === 1) return !!language
     if (s === 2) return selectedGoals.length > 0 && selectedGoals.length <= 2
@@ -1101,7 +1130,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     ? subjectGoals
       .map((g: any) => ({
         key: g?.id ?? g?.goalId ?? g?.key,
-        label: g?.title ?? g?.name ?? g?.label ?? 'Goal',
+        label: getGoalTitle(t, String(g?.id ?? g?.goalId ?? g?.key), g?.title ?? g?.name ?? g?.label ?? 'Goal'),
       }))
       .filter((it) => !!it.key)
     : []
@@ -1284,7 +1313,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     <div style={{ background: 'var(--bg-surface)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
       <main style={{ flex: 1, padding: '40px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }} role="main" aria-labelledby="plans-title">
-        <div style={{ width: '100%' }}>
+        <div ref={stepContentRef} style={{ width: '100%' }}>
           {/* Stepper */}
           <Stepper currentStep={step} totalSteps={totalSteps} onChangeStep={handleStepChange} />
 
@@ -1430,7 +1459,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 selectedValue={selectedGoals.length > 0 ? 
                   selectedGoals.length === 1 
                     ? goalItems.find((x) => String(x.key) === String(selectedGoals[0]))?.label 
-                    : `${selectedGoals.length} goals selected`
+                    : t('plans.step2GoalsSelected', { count: selectedGoals.length })
                   : undefined}
               />
 
@@ -1452,196 +1481,283 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 }}>
                   <span style={{ fontSize: 16 }}>💡</span>
                   <div>
-                    <strong style={{ color: 'var(--text-primary)' }}>Select up to 2 learning goals</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{t('plans.step2InstructionTitle')}</strong>
                     <br />
-                    Choose 1-2 goals that best match what you want to achieve with{' '}
+                    {t('plans.step2InstructionDesc')}{' '}
                     <strong style={{ color: 'var(--text-primary)' }}>
-                      {language ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name : 'the selected subject'}
+                      {language
+                        ? subjects.find((l: any) => String(l.id ?? l.subjectId) === language)?.name
+                        : t('plans.step2SelectedSubjectFallback')}
                     </strong>
-                    . If you select 2 goals, you'll be able to set priority weights to focus more on your primary objective.
+                    . {t('plans.step2InstructionHint')}
                   </div>
                 </div>
               </div>
 
-              {/* System Goals Section */}
-              <div style={{ marginBottom: 40 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    // {t('plans.suggestGoals')}
-                    {totalSystemGoals > 0 && (
-                      <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
-                        ({totalSystemGoals} goals)
-                      </span>
-                    )}
-                  </h3>
-                </div>
-                
-                {!language ? (
-                  <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                    {t('plans.selectSubjectFirst')}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, position: 'relative' }}>
+                  <div>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      {t('plans.suggestGoals')}
+                      {totalSystemGoals > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
+                          {t('plans.goalsCount', { count: totalSystemGoals })}
+                        </span>
+                      )}
+                    </h3>
                   </div>
-                ) : (
-                  <>
-                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
-                      {goalsLoading ? (
-                        Array.from({ length: 3 }).map((_, i) => (
-                          <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                              <div className="flex-1">
-                                <div className="w-32 h-5 bg-th-hover rounded" />
+
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setMyGoalsPanelOpen((prev) => !prev)}
+                      style={{
+                        minWidth: 220,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        padding: '8px 12px',
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 2,
+                        background: 'var(--bg-main)',
+                        color: 'var(--text-primary)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span>{t('plans.myGoals')} ({totalMyGoals})</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{myGoalsPanelOpen ? '▲' : '▼'}</span>
+                    </button>
+
+                    {myGoalsPanelOpen ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)',
+                          right: 0,
+                          width: 360,
+                          border: '1px solid var(--border-base)',
+                          borderRadius: 2,
+                          background: 'var(--bg-surface)',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                          zIndex: 30,
+                          padding: 10,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
+                          style={{
+                            width: '100%',
+                            padding: '6px 10px',
+                            marginBottom: 8,
+                            background: 'var(--text-primary)',
+                            color: 'var(--bg-surface-short)',
+                            border: '1px solid var(--text-primary)',
+                            borderRadius: 2,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {'>'} {t('plans.addGoal')}
+                        </button>
+
+                        {!language ? (
+                          <div className="text-center py-5 text-muted" style={{ fontSize: 12 }}>
+                            {t('plans.selectSubjectFirst')}
+                          </div>
+                        ) : (
+                          <>
+                            <section
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr',
+                                gap: 8,
+                                maxHeight: 360,
+                                overflowY: 'auto',
+                                paddingRight: 2,
+                              }}
+                              aria-label="my-goals"
+                            >
+                              {goalsLoading ? (
+                                Array.from({ length: 6 }).map((_, i) => (
+                                  <div
+                                    key={`my-skel-${i}`}
+                                    className="animate-pulse border border-bd-muted bg-th-card"
+                                    style={{ padding: '10px 12px', borderRadius: 2, minHeight: 40 }}
+                                  >
+                                    <div className="w-32 h-4 bg-th-hover rounded" />
+                                  </div>
+                                ))
+                              ) : goalsError ? (
+                                <div className="text-center py-5 text-status-red" style={{ fontSize: 12 }}>
+                                  {t('plans.failedLoadYourGoals')}: {goalsError}
+                                </div>
+                              ) : currentPageMyGoals.length > 0 ? (
+                                currentPageMyGoals.map((g: any) => {
+                                  const id = g?.id ?? g?.goalId ?? g?.key
+                                  const rawTitle = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                                  const title = getGoalTitle(t, String(id), rawTitle)
+                                  const isSelected = selectedGoals.includes(String(id))
+                                  const isDisabled = !isSelected && selectedGoals.length >= 2
+
+                                  return (
+                                    <div
+                                      key={String(id)}
+                                      role="button"
+                                      aria-pressed={isSelected}
+                                      aria-disabled={isDisabled}
+                                      onClick={() => {
+                                        if (!isDisabled) toggleGoal(String(id))
+                                      }}
+                                      style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'auto minmax(0,1fr) auto',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        padding: '8px 10px',
+                                        border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-base)'}`,
+                                        background: isSelected ? 'var(--bg-blue-hover)' : 'var(--bg-surface)',
+                                        borderRadius: 2,
+                                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                        opacity: isDisabled ? 0.55 : 1,
+                                        minHeight: 40,
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          width: 7,
+                                          height: 7,
+                                          borderRadius: 999,
+                                          background: isSelected ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                        }}
+                                      />
+                                      <div
+                                        style={{
+                                          fontSize: 12,
+                                          fontWeight: isSelected ? 700 : 600,
+                                          color: 'var(--text-primary)',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                        title={title}
+                                      >
+                                        {isSelected ? `> ${title}` : `$ ${title}`}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation()
+                                          handleStartEditGoal(String(id))
+                                        }}
+                                        style={{
+                                          padding: '3px 7px',
+                                          border: '1px solid var(--border-base)',
+                                          borderRadius: 2,
+                                          background: 'var(--bg-main)',
+                                          color: 'var(--text-secondary)',
+                                          fontSize: 10,
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        edit
+                                      </button>
+                                    </div>
+                                  )
+                                })
+                              ) : (
+                                <div className="text-center py-5 text-muted" style={{ fontSize: 12 }}>
+                                  {t('plans.noPersonalGoals')}
+                                </div>
+                              )}
+                            </section>
+
+                            <PaginationControls
+                              currentPage={currentMyGoalPage}
+                              totalPages={totalMyPages}
+                              onPageChange={setCurrentMyGoalPage}
+                              label={t('plans.myGoals')}
+                            />
+                          </>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                  {!language ? (
+                    <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                      {t('plans.selectSubjectFirst')}
+                    </div>
+                  ) : (
+                    <>
+                      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="system-goals">
+                        {goalsLoading ? (
+                          Array.from({ length: 3 }).map((_, i) => (
+                            <div key={`sys-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-th-hover rounded-xl" />
+                                <div className="flex-1">
+                                  <div className="w-32 h-5 bg-th-hover rounded" />
+                                </div>
                               </div>
                             </div>
+                          ))
+                        ) : goalsError ? (
+                          <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
+                            {t('plans.failedLoadSystemGoals')}: {goalsError}
                           </div>
-                        ))
-                      ) : goalsError ? (
-                        <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                          {t('plans.failedLoadSystemGoals')}: {goalsError}
-                        </div>
-                      ) : currentPageSystemGoals.length > 0 ? (
-                        currentPageSystemGoals.map((g: any, idx: number) => {
-                          const id = g?.id ?? g?.goalId ?? g?.key
-                          const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                          const globalIndex = systemStartIndex + idx // Calculate global index for color palette
-                          return (
-                            <SingleGoalCard
-                              key={String(id)}
-                              id={String(id)}
-                              title={title}
-                              colorClass={palette[globalIndex % palette.length]}
-                              icon='🔖'
-                              active={selectedGoals.includes(String(id))}
-                              disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
-                              onToggle={toggleGoal}
-                              onStartEdit={() => { }}
-                              onDelete={() => { }}
-                              isEditing={false}
-                              editingTitle=""
-                              setEditingTitle={() => { }}
-                              onSaveEdit={() => { }}
-                              onCancelEdit={() => { }}
-                              saving={false}
-                              deleting={false}
-                              isSystemGoal={true}
-                            />
-                          )
-                        })
-                      ) : totalSystemGoals === 0 ? (
-                        <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                          {t('plans.noSystemGoals')}
-                        </div>
-                      ) : null}
-                    </section>
+                        ) : currentPageSystemGoals.length > 0 ? (
+                          currentPageSystemGoals.map((g: any, idx: number) => {
+                            const id = g?.id ?? g?.goalId ?? g?.key
+                            const rawTitle = g?.title ?? g?.name ?? g?.label ?? 'Goal'
+                            const title = getGoalTitle(t, String(id), rawTitle)
+                            const globalIndex = systemStartIndex + idx
+                            return (
+                              <SingleGoalCard
+                                key={String(id)}
+                                id={String(id)}
+                                title={title}
+                                colorClass={palette[globalIndex % palette.length]}
+                                icon='🔖'
+                                active={selectedGoals.includes(String(id))}
+                                disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
+                                onToggle={toggleGoal}
+                                onStartEdit={() => { }}
+                                onDelete={() => { }}
+                                isEditing={false}
+                                editingTitle=""
+                                setEditingTitle={() => { }}
+                                onSaveEdit={() => { }}
+                                onCancelEdit={() => { }}
+                                saving={false}
+                                deleting={false}
+                                isSystemGoal={true}
+                              />
+                            )
+                          })
+                        ) : totalSystemGoals === 0 ? (
+                          <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
+                            {t('plans.noSystemGoals')}
+                          </div>
+                        ) : null}
+                      </section>
 
-                    {/* System Goals Pagination */}
-                    <PaginationControls
-                      currentPage={currentSystemGoalPage}
-                      totalPages={totalSystemPages}
-                      onPageChange={setCurrentSystemGoalPage}
-                      label="System Goals"
-                    />
-                  </>
-                )}
+                      <PaginationControls
+                        currentPage={currentSystemGoalPage}
+                        totalPages={totalSystemPages}
+                        onPageChange={setCurrentSystemGoalPage}
+                        label={t('plans.suggestGoals')}
+                      />
+                    </>
+                  )}
               </div>
-
-              {/* My Goals Section */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    // {t('plans.myGoals')}
-                    {totalMyGoals > 0 && (
-                      <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginLeft: 8 }}>
-                        ({totalMyGoals} goals)
-                      </span>
-                    )}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => { setShowAddGoal(true); setCreateGoalError(null) }}
-                    style={{ 
-                      padding: '6px 16px', 
-                      background: 'var(--text-primary)', 
-                      color: 'var(--bg-surface-short)', 
-                      border: '1px solid var(--text-primary)', 
-                      borderRadius: 2, 
-                      fontSize: 12, 
-                      fontWeight: 600, 
-                      cursor: 'pointer', 
-                      transition: 'background 0.2s' 
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--text-strong)' }} 
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--text-primary)' }}
-                  >
-                    {'>'} {t('plans.addGoal')}
-                  </button>
-                </div>
-                
-                {!language ? (
-                  <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                    {t('plans.selectSubjectFirst')}
-                  </div>
-                ) : (
-                  <>
-                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }} aria-label="my-goals">
-                      {goalsLoading ? (
-                        Array.from({ length: 3 }).map((_, i) => (
-                          <div key={`my-skel-${i}`} className="animate-pulse rounded-2xl border-2 border-bd-muted bg-th-card p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-th-hover rounded-xl" />
-                              <div className="flex-1">
-                                <div className="w-32 h-5 bg-th-hover rounded" />
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : goalsError ? (
-                        <div className="col-span-full text-center py-8 text-status-red bg-status-red-bg rounded-2xl border-2 border-red-200">
-                          {t('plans.failedLoadYourGoals')}: {goalsError}
-                        </div>
-                      ) : currentPageMyGoals.length > 0 ? (
-                        currentPageMyGoals.map((g: any, idx: number) => {
-                          const id = g?.id ?? g?.goalId ?? g?.key
-                          const title = g?.title ?? g?.name ?? g?.label ?? 'Goal'
-                          const globalIndex = myStartIndex + idx // Calculate global index for color palette
-                          return (
-                            <SingleGoalCard
-                              key={String(id)}
-                              id={String(id)}
-                              title={title}
-                              colorClass={palette[globalIndex % palette.length]}
-                              icon='🔖'
-                              active={selectedGoals.includes(String(id))}
-                              disabled={!selectedGoals.includes(String(id)) && selectedGoals.length >= 2}
-                              onToggle={toggleGoal}
-                              onStartEdit={handleStartEditGoal}
-                              onDelete={() => { }}
-                              isEditing={false}
-                              editingTitle=""
-                              setEditingTitle={() => { }}
-                              onSaveEdit={() => { }}
-                              onCancelEdit={() => { }}
-                              saving={false}
-                              deleting={false}
-                              isSystemGoal={false}
-                            />
-                          )
-                        })
-                      ) : totalMyGoals === 0 ? (
-                        <div className="col-span-full text-center py-8 text-muted bg-th-card rounded-2xl border-2 border-bd-muted">
-                          {t('plans.noPersonalGoals')}
-                        </div>
-                      ) : null}
-                    </section>
-
-                    {/* My Goals Pagination */}
-                    <PaginationControls
-                      currentPage={currentMyGoalPage}
-                      totalPages={totalMyPages}
-                      onPageChange={setCurrentMyGoalPage}
-                      label="My Goals"
-                    />
-                  </>
-                )}
                 
                 {/* Add Goal Modal */}
                 {showAddGoal && (
@@ -1872,7 +1988,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     </div>
                   </div>
                 )}
-              </div>
 
             </motion.div>
           )}
@@ -2099,7 +2214,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                 title={t('plans.step4Title')}
                 subtitle={t('plans.step4Subtitle')}
                 icon="$"
-                selectedValue={languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined}
+                selectedValue={languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? t('plans.languageVietnamese') : t('plans.languageEnglish')) : undefined}
               />
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, maxWidth: 700, margin: '0 auto' }} aria-label="language-selection">
                 {/* Vietnamese Option */}
@@ -2115,7 +2230,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.Vietnamese) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
                 >
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.Vietnamese ? '> ' : '$ '}Tiếng Việt</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.Vietnamese ? '> ' : '$ '}{t('plans.languageVietnamese')}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.vietnameseDesc')}</div>
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.Vietnamese ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.Vietnamese ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
                     {languageSelection === LanguageSelection.Vietnamese ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
@@ -2136,7 +2251,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   onMouseEnter={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'var(--bg-main)' } }}
                   onMouseLeave={(e) => { if (languageSelection !== LanguageSelection.English) { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.background = 'var(--bg-surface)' } }}
                 >
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.English ? '> ' : '$ '}English</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{languageSelection === LanguageSelection.English ? '> ' : '$ '}{t('plans.languageEnglish')}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>// {t('plans.englishDesc')}</div>
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${languageSelection === LanguageSelection.English ? 'var(--color-blue-300)' : 'var(--gray-200)'}`, fontSize: 11, fontWeight: 600, color: languageSelection === LanguageSelection.English ? 'var(--accent-primary)' : 'var(--text-disabled)' }}>
                     {languageSelection === LanguageSelection.English ? `[${t('plans.selected')}]` : `[${t('plans.clickToSelect')}]`}
@@ -2171,7 +2286,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                             }).join(', ')
                         : undefined },
                     { label: `$ ${t('plans.difficultyLevel')}`, val: level },
-                    { label: `$ ${t('plans.contentLanguage')}`, val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? 'Tiếng Việt' : 'English') : undefined }
+                    { label: `$ ${t('plans.contentLanguage')}`, val: languageSelection ? (languageSelection === LanguageSelection.Vietnamese ? t('plans.languageVietnamese') : t('plans.languageEnglish')) : undefined }
                   ].map((sum, i) => (
                     <div key={i} style={{ padding: 16, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)' }}>
                       <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px 0' }}>{sum.label}</h3>
@@ -2214,76 +2329,91 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               {/* Generation Options */}
               <section style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', 
-                gap: 24, 
-                maxWidth: 1200, 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                gap: 18, 
+                maxWidth: 1080, 
                 margin: '0 auto',
-                padding: '0 16px'
+                padding: '0 8px'
               }} aria-label="generation-options">
                 
                 {/* Option 1: AI Generation */}
-                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
-                <div
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.01} transitionSpeed={350} style={{ height: '100%', width: '100%', display: 'flex' }}>
+                <button
+                  type="button"
                   style={{
-                    padding: '32px 28px',
-                    border: '2px solid var(--border-base)',
-                    borderRadius: 12,
+                    padding: 22,
+                    border: '1px solid var(--border-base)',
+                    borderRadius: 6,
                     background: 'var(--bg-surface)',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.2s ease',
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden'
+                    width: '100%',
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
                   onMouseEnter={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--accent-primary)'
                     e.currentTarget.style.background = 'var(--bg-main)'
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.12)'
                   }}
                   onMouseLeave={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--border-base)'
                     e.currentTarget.style.background = 'var(--bg-surface)'
                     e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
                   onClick={handleGenerateClick}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
+                  <div style={{ height: 2, width: 42, background: 'var(--accent-primary)', borderRadius: 999, marginBottom: 12 }} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                      $ {t('plans.aiGeneration')}
+                    </span>
+                    <span style={{ padding: '2px 8px', border: '1px solid var(--color-blue-300)', color: 'var(--accent-primary)', fontSize: 10, fontWeight: 700, borderRadius: 2 }}>
+                      {t('plans.recommended')}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
                     <div style={{ 
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      borderRadius: 16,
-                      padding: 16,
+                      border: '1px solid var(--color-blue-300)',
+                      background: 'var(--bg-blue-hover)',
+                      borderRadius: 2,
+                      padding: 10,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      minWidth: 72,
-                      height: 72
+                      minWidth: 44,
+                      height: 44,
+                      color: 'var(--accent-primary)',
+                      fontWeight: 700
                     }}>
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 12l2 2 4-4"/>
-                        <path d="M21 12c.552 0 1-.448 1-1V5c0-.552-.448-1-1-1H3c-.552 0-1 .448-1 1v6c0 .552.448 1 1 1"/>
-                        <path d="M3 12v6c0 .552.448 1 1 1h16c.552 0 1-.448 1-1v-6"/>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 8v8" />
+                        <path d="M8 12h8" />
+                        <rect x="3" y="3" width="18" height="18" rx="3" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
                       <h3 style={{ 
-                        fontSize: 20, 
+                        fontSize: 18,
                         fontWeight: 700, 
                         color: 'var(--text-primary)', 
-                        margin: '0 0 8px 0',
+                        margin: '0 0 6px 0',
                         lineHeight: 1.3
                       }}>
                         {t('plans.aiGeneration')}
                       </h3>
                       <p style={{ 
-                        fontSize: 14, 
+                        fontSize: 13,
                         color: 'var(--text-secondary)', 
                         margin: 0,
-                        lineHeight: 1.4
+                        lineHeight: 1.5
                       }}>
                         {t('plans.aiGenerationDesc')}
                       </p>
@@ -2292,85 +2422,95 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
                   <div style={{ 
                     marginTop: 'auto',
-                    paddingTop: 20,
+                    paddingTop: 14,
                     borderTop: '1px solid var(--border-base)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    fontSize: 13,
+                    fontSize: 12,
                     color: 'var(--accent-primary)',
                     fontWeight: 600
                   }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                    </svg>
+                    <span>→</span>
                     {t('plans.fastAndPersonalized')}
                   </div>
-                </div>
+                </button>
                 </Tilt>
 
                 {/* Option 2: Similar Learning Paths */}
-                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
-                <div
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.01} transitionSpeed={350} style={{ height: '100%', width: '100%', display: 'flex' }}>
+                <button
+                  type="button"
                   style={{
-                    padding: '32px 28px',
-                    border: '2px solid var(--border-base)',
-                    borderRadius: 12,
+                    padding: 22,
+                    border: '1px solid var(--border-base)',
+                    borderRadius: 6,
                     background: 'var(--bg-surface)',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.2s ease',
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden'
+                    width: '100%',
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
                   onMouseEnter={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--success-primary)'
                     e.currentTarget.style.background = 'var(--bg-main)'
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.12)'
                   }}
                   onMouseLeave={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--border-base)'
                     e.currentTarget.style.background = 'var(--bg-surface)'
                     e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
                   onClick={handleGetSuggestions}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
+                  <div style={{ height: 2, width: 42, background: 'var(--success-primary)', borderRadius: 999, marginBottom: 12 }} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                      $ {t('plans.similarPaths')}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
                     <div style={{ 
-                      background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-                      borderRadius: 16,
-                      padding: 16,
+                      border: '1px solid var(--success-primary)',
+                      background: 'var(--bg-green-tint)',
+                      borderRadius: 2,
+                      padding: 10,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      minWidth: 72,
-                      height: 72
+                      minWidth: 44,
+                      height: 44,
+                      color: 'var(--success-primary)',
+                      fontWeight: 700
                     }}>
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 5h7v14H3z" />
+                        <path d="M14 5h7v14h-7z" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
                       <h3 style={{ 
-                        fontSize: 20, 
+                        fontSize: 18,
                         fontWeight: 700, 
                         color: 'var(--text-primary)', 
-                        margin: '0 0 8px 0',
+                        margin: '0 0 6px 0',
                         lineHeight: 1.3
                       }}>
                         {t('plans.similarPaths')}
                       </h3>
                       <p style={{ 
-                        fontSize: 14, 
+                        fontSize: 13,
                         color: 'var(--text-secondary)', 
                         margin: 0,
-                        lineHeight: 1.4
+                        lineHeight: 1.5
                       }}>
                         {t('plans.similarPathsDesc')}
                       </p>
@@ -2379,109 +2519,105 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
                   <div style={{ 
                     marginTop: 'auto',
-                    paddingTop: 20,
+                    paddingTop: 14,
                     borderTop: '1px solid var(--border-base)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    fontSize: 13,
+                    fontSize: 12,
                     color: 'var(--success-primary)',
                     fontWeight: 600
                   }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8"/>
-                      <path d="m21 21-4.35-4.35"/>
-                    </svg>
+                    <span>→</span>
                     {t('plans.browseExisting')}
                   </div>
-                </div>
+                </button>
                 </Tilt>
 
                 {/* Option 3: Ask Mentor */}
-                <Tilt tiltMaxAngleX={3} tiltMaxAngleY={3} scale={1.01} transitionSpeed={300} style={{ height: '100%', width: '100%' }}>
-                <div
+                <Tilt tiltMaxAngleX={4} tiltMaxAngleY={4} scale={1.01} transitionSpeed={350} style={{ height: '100%', width: '100%', display: 'flex' }}>
+                <button
+                  type="button"
                   style={{
-                    padding: '32px 28px',
-                    border: '2px solid var(--border-base)',
-                    borderRadius: 12,
+                    padding: 22,
+                    border: '1px dashed var(--border-base)',
+                    borderRadius: 6,
                     background: 'var(--bg-surface)',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.2s ease',
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    opacity: 0.75
+                    width: '100%',
+                    opacity: 0.9,
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)'
                   }}
                   onMouseEnter={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--warning-primary)'
                     e.currentTarget.style.background = 'var(--bg-main)'
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.1)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
                     e.currentTarget.style.opacity = '1'
+                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.10)'
                   }}
                   onMouseLeave={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--border-base)'
                     e.currentTarget.style.background = 'var(--bg-surface)'
                     e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
-                    e.currentTarget.style.opacity = '0.75'
+                    e.currentTarget.style.opacity = '0.9'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.06)'
                   }}
                   onClick={() => {
                     setToast({ message: t('plans.comingSoon'), type: 'success' })
                   }}
                 >
-                  {/* Coming Soon Badge */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 16,
-                    right: 16,
-                    background: 'var(--warning-primary)',
-                    color: 'var(--bg-surface)',
-                    padding: '4px 12px',
-                    borderRadius: 16,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {t('plans.comingSoon')}
+                  <div style={{ height: 2, width: 42, background: 'var(--warning-primary)', borderRadius: 999, marginBottom: 12 }} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                      $ {t('plans.askMentor')}
+                    </span>
+                    <span style={{ padding: '2px 8px', border: '1px solid var(--warning-primary)', color: 'var(--warning-primary)', fontSize: 10, fontWeight: 700, borderRadius: 2 }}>
+                      {t('plans.comingSoon')}
+                    </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
                     <div style={{ 
-                      background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-                      borderRadius: 16,
-                      padding: 16,
+                      border: '1px solid var(--warning-primary)',
+                      background: 'var(--bg-yellow-tint)',
+                      borderRadius: 2,
+                      padding: 10,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      minWidth: 72,
-                      height: 72
+                      minWidth: 44,
+                      height: 44,
+                      color: 'var(--warning-primary)',
+                      fontWeight: 700
                     }}>
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="m22 2-5 10-5-5 10-5z"/>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="9" cy="8" r="3" />
+                        <path d="M3 19a6 6 0 0 1 12 0" />
+                        <path d="M16 9h5" />
+                        <path d="M18.5 6.5v5" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
                       <h3 style={{ 
-                        fontSize: 20, 
+                        fontSize: 18,
                         fontWeight: 700, 
                         color: 'var(--text-primary)', 
-                        margin: '0 0 8px 0',
+                        margin: '0 0 6px 0',
                         lineHeight: 1.3
                       }}>
                         {t('plans.askMentor')}
                       </h3>
                       <p style={{ 
-                        fontSize: 14, 
+                        fontSize: 13,
                         color: 'var(--text-secondary)', 
                         margin: 0,
-                        lineHeight: 1.4
+                        lineHeight: 1.5
                       }}>
                         {t('plans.askMentorDesc')}
                       </p>
@@ -2490,21 +2626,19 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
                   <div style={{ 
                     marginTop: 'auto',
-                    paddingTop: 20,
+                    paddingTop: 14,
                     borderTop: '1px solid var(--border-base)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    fontSize: 13,
+                    fontSize: 12,
                     color: 'var(--warning-primary)',
                     fontWeight: 600
                   }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
+                    <span>→</span>
                     {t('plans.personalGuidance')}
                   </div>
-                </div>
+                </button>
                 </Tilt>
 
               </section>
@@ -2668,7 +2802,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                           color: 'var(--text-primary)'
                                         }}
                                       >
-                                        {goal.title} ({goal.weight}% • {goal.durationInDays} days)
+                                        {getGoalTitle(t, goal.goalId || goal.id, goal.title)} ({goal.weight}% • {goal.durationInDays} days)
                                       </div>
                                     ))}
                                   </div>

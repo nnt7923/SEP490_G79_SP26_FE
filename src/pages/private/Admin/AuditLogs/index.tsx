@@ -5,6 +5,7 @@ import { Activity, RefreshCw, X, Search, ChevronRight, ChevronLeft, Database, Us
 import useAuthStore from '../../../../store/useAuthStore'
 import { useTranslation } from 'react-i18next'
 import * as signalR from '@microsoft/signalr'
+import api from '../../../../services/Axios'
 
 // Compute Base URL identical to Axios/index.ts, but adapted for /hubs
 const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
@@ -113,6 +114,7 @@ const AuditLogs: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogResponse[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [tableNames, setTableNames] = useState<string[]>([])
 
   // Pagination & Filters
   const [page, setPage] = useState<number>(1)
@@ -199,6 +201,21 @@ const AuditLogs: React.FC = () => {
       }
     }
   }, [page, pageSize, actionFilter, tableFilter, fromDate, toDate, sortBy, sortDescending, t])
+
+  useEffect(() => {
+    const fetchTableNames = async () => {
+      try {
+        const response: any = await api.get('/admin/audit-logs/table-names')
+        const data = response?.data || response;
+        if (Array.isArray(data)) {
+          setTableNames(data)
+        }
+      } catch (err) {
+        console.error("Failed to fetch table names:", err)
+      }
+    }
+    fetchTableNames()
+  }, [])
 
   useEffect(() => {
     if (!token) return
@@ -355,15 +372,7 @@ const AuditLogs: React.FC = () => {
                 onChange={(e) => { setTableFilter(e.target.value); setPage(1); }}
               >
                 <option value="">{t('auditLogs.allTables')}</option>
-                {[
-                  'AIProviderConfigs', 'AISummaries', 'Chapters',
-                  'Classes', 'Conversations', 'DailyCheckins', 'FocusSessions',
-                  'Goals', 'LearningPaths', 'Lessons', 'Messages', 'Notes',
-                  'NoteTags', 'Notifications', 'Plans', 'Questions', 'QuizAttempts',
-                  'Quizzes', 'RefreshTokens', 'ResourcePages', 'Resources',
-                  'Roles', 'Subjects', 'Tags', 'Tasks', 'TokenBlacklist',
-                  'UserProfiles', 'Users'
-                ].map(table => (
+                {tableNames.map(table => (
                   <option key={table} value={table}>{table}</option>
                 ))}
               </select>
@@ -407,9 +416,9 @@ const AuditLogs: React.FC = () => {
                 value={sortBy}
                 onChange={e => { setSortBy(Number(e.target.value)); setPage(1); }}
               >
-                <option value={0}>Timestamp</option>
-                <option value={1}>Action</option>
-                <option value={2}>Table Name</option>
+                <option value={0}>{t('auditLogs.sortTimestamp')}</option>
+                <option value={1}>{t('auditLogs.sortAction')}</option>
+                <option value={2}>{t('auditLogs.sortTableName')}</option>
               </select>
               <select
                 className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
@@ -585,7 +594,7 @@ const AuditLogs: React.FC = () => {
               <button
                 onClick={() => setSelectedLog(null)}
                 className="p-1 hover:bg-th-input text-muted transition-colors"
-                title="Close"
+                title={t('auditLogs.close')}
               >
                 <X size={20} />
               </button>
@@ -619,7 +628,7 @@ const AuditLogs: React.FC = () => {
                 </div>
                 <div><span className="text-muted text-sm">{t('auditLogs.tableName')}</span><p className="font-semibold text-heading mt-1">{selectedLog.tableName || '-'}</p></div>
                 <div><span className="text-muted text-sm">{t('auditLogs.user')}</span><p className="font-semibold text-heading mt-1">{selectedLog.username || '-'}</p></div>
-                <div className="col-span-2"><span className="text-muted text-sm">IP Address</span><p className="font-semibold text-heading mt-1">{selectedLog.ipAddress || '-'}</p></div>
+                <div className="col-span-2"><span className="text-muted text-sm">{t('auditLogs.ipAddress')}</span><p className="font-semibold text-heading mt-1">{selectedLog.ipAddress || '-'}</p></div>
               </div>
 
               {selectedLog.action === 'Added' && (

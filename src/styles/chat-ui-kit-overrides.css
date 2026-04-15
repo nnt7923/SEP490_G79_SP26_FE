@@ -1253,3 +1253,12 @@
   min-height: 22px;
   max-height: 120px;
 }
+
+/* Channel Chat — sender name in group messages */
+.channel-chat-sender-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  margin-bottom: 2px;
+  letter-spacing: 0.01em;
+}

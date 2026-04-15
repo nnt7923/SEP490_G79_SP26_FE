@@ -72,6 +72,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 a {
   font-weight: 500;
   color: var(--accent-primary);
@@ -190,5 +195,17 @@ button:focus-visible {
 .lesson-content table th {
   background: var(--code-block-bg);
   color: #e6edf3;
+}
+
+input.hide-password-reveal::-ms-reveal,
+input.hide-password-reveal::-ms-clear {
+  display: none;
+}
+
+input.hide-password-reveal::-webkit-credentials-auto-fill-button,
+input.hide-password-reveal::-webkit-textfield-decoration-container {
+  visibility: hidden;
+  pointer-events: none;
+  display: none !important;
 }
 

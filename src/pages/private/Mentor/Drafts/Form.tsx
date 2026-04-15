@@ -1,195 +1,641 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import Editor from '@monaco-editor/react'
-import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Loader2, Plus, Save, Share2, Sparkles, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Layout from '../../../../components/Layout'
 import Toast from '../../../../components/Toast'
 import ROUTER from '../../../../router/ROUTER'
-import { SubjectService, LanguageSelection } from '../../../../services'
-import LearningPathService, { type ManualDraftPayload, type SkeletonResponse } from '../../../../services/LearningPathService'
-import LessonContent from '../../Plans/components/LessonContent'
+import { SubjectService } from '../../../../services'
+import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import { useMentorSidebarConfig } from '../components/MentorSideBar'
-import { buildLessonContentFromSections, createEmptyLessonSections, parseLessonSections, SECTION_KEYS, SECTION_LABELS, type LessonSectionKey } from './lessonContentContract'
+import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
-import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
+import { resolveShareToStudentErrorMessage } from '../../../../services/LearningPathShareService/shareErrorMessage'
+import { useResponsive } from '../../../../hook/useResponsive'
+import OverviewStep from './components/OverviewStep'
+import ChaptersStep from './components/ChaptersStep'
+import LessonStudioStep from './components/LessonStudioStep'
+import AssessmentsStep from './components/AssessmentsStep'
+import { ContentNavigator, DraftEditorHeader } from './components/EditorChrome'
+import VersionUpdateModal from './components/VersionUpdateModal'
+import { cardStyle, shellStyle } from './components/editorUi'
+import { buildLessonContentFromSections, parseLessonSections, type LessonSectionKey } from './lessonContentContract'
+import {
+  LEVEL_OPTIONS,
+  buildPayload,
+  createSelectionSnapshot,
+  emptyChapter,
+  emptyLesson,
+  emptyQuestion,
+  emptyQuiz,
+  emptyTask,
+  hydrateDraftForm,
+  normalizeJsonField,
+  parseGeneratedQuizQuestionsPayload,
+  normalizeTaskPriority,
+  normalizeTaskStatus,
+  normalizeTaskType,
+  parseQuizSkeletonPayload,
+  restoreSelectionSnapshot,
+  validateAiDraftInput,
+  validateDraftForm,
+} from './editorState'
+import { resolveDraftUpdateSuccessMessage } from './saveDraftMessage'
+import type {
+  AssessmentTab,
+  DraftFormState,
+  EditableChapter,
+  EditableLesson,
+  EditableQuiz,
+  EditableTask,
+  EditorStep,
+  ManualDraftVersionUpdateType,
+  QuestionType,
+  SubjectOption,
+  ToastState,
+} from './editorTypes'
 
-type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
-type Level = 'Beginner' | 'Intermediate' | 'Advanced'
-type EditorTab = 'structure' | 'lesson'
-type SubjectOption = { id: string; name: string; goals: Array<{ goalId: string; title: string }> }
-type EditableLesson = { id: string; title: string; lessonDay: string; sections: Record<LessonSectionKey, string> }
-type EditableChapter = { id: string; title: string; content: string; startDate: string; endDate: string; estimatedDays: string; lessons: EditableLesson[] }
-type DraftFormState = {
-  subjectId: string
-  goals: Array<{ goalId: string; weight: number }>
-  complexityLevel: Level
-  languageSelection: number
-  title: string
-  description: string
-  startDate: string
-  endDate: string
-  chapters: EditableChapter[]
+const getApiErrorMessage = (err: any, fallback: string) =>
+  err?.response?.data?.message
+  || err?.response?.data?.errorMessage
+  || err?.ErrorMessage
+  || err?.errorMessage
+  || err?.message
+  || fallback
+
+const TASK_TYPE_TO_SIGNALR: Record<EditableTask['taskType'], 0 | 1 | 2> = {
+  Practice: 0,
+  Theory: 1,
+  Quizz: 2,
 }
 
-const LEVEL_OPTIONS: Level[] = ['Beginner', 'Intermediate', 'Advanced']
-const SECTION_HINT_KEYS: Record<LessonSectionKey, string> = {
-  overview: 'drafts.sectionHints.overview',
-  'core-concepts': 'drafts.sectionHints.coreConcepts',
-  'code-examples': 'drafts.sectionHints.codeExamples',
-  'common-mistakes': 'drafts.sectionHints.commonMistakes',
-  'best-practices': 'drafts.sectionHints.bestPractices',
-  summary: 'drafts.sectionHints.summary',
+const QUESTION_TYPE_TO_SIGNALR: Record<QuestionType, 0 | 1 | 2 | 3 | 4 | 5> = {
+  TrueFalse: 0,
+  MultipleChoice: 1,
+  SingleChoice: 2,
+  Matching: 3,
+  FillInTheBlank: 4,
+  Ordering: 5,
 }
 
-const shellStyle: React.CSSProperties = { minHeight: '100vh', padding: 24, background: 'var(--bg-main)', fontFamily: 'monospace' }
-const cardStyle: React.CSSProperties = { background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4 }
-const buttonStyle: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 4, border: '1px solid var(--border-base)', background: 'var(--bg-surface)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }
-const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--border-base)', borderRadius: 4, background: 'var(--bg-main)', color: 'var(--text-primary)', fontFamily: 'inherit', outline: 'none' }
-const textAreaStyle: React.CSSProperties = { ...inputStyle, minHeight: 110, resize: 'vertical' }
-
-const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`
-const toDateInput = (value?: string | null) => value ? new Date(value).toISOString().slice(0, 10) : ''
-const toIsoDate = (value?: string) => value ? new Date(`${value}T00:00:00.000Z`).toISOString() : undefined
-const extractMarkdown = (payload: any): string => typeof payload === 'string' ? payload : payload?.content ?? payload?.markdown ?? payload?.body ?? payload?.text ?? ''
-const normalizeLanguage = (value: unknown) => value === 'English' ? LanguageSelection.English : value === 'VietNamese' || value === 'Vietnamese' ? LanguageSelection.Vietnamese : typeof value === 'number' ? value : LanguageSelection.Vietnamese
-const emptyLesson = (): EditableLesson => ({ id: uid('lesson'), title: '', lessonDay: '', sections: createEmptyLessonSections() })
-const emptyChapter = (): EditableChapter => ({ id: uid('chapter'), title: '', content: '', startDate: '', endDate: '', estimatedDays: '', lessons: [emptyLesson()] })
-const emptyForm = (): DraftFormState => ({ subjectId: '', goals: [], complexityLevel: 'Beginner', languageSelection: LanguageSelection.Vietnamese, title: '', description: '', startDate: '', endDate: '', chapters: [emptyChapter()] })
-
-const extractGoals = (payload: any) => {
-  const source = Array.isArray(payload?.goals) ? payload.goals : Array.isArray(payload?.goalDtos) ? payload.goalDtos : payload?.goalId ? [{ goalId: payload.goalId, weight: 100 }] : []
-  return source.map((goal: any) => ({ goalId: String(goal?.goalId ?? goal?.id ?? ''), weight: Number(goal?.weight ?? 100) })).filter((goal: any) => goal.goalId).slice(0, 2)
+const toPersistedId = (value: unknown): string | null => {
+  if (value == null || value === '') return null
+  return String(value)
 }
 
-const hydrateDraftForm = (payload?: SkeletonResponse | null): DraftFormState => {
-  if (!payload) return emptyForm()
-  const chapters = Array.isArray(payload?.chapters) && payload.chapters.length > 0
-    ? payload.chapters.map((chapter: any) => ({
-      id: String(chapter?.id ?? chapter?.chapterId ?? uid('chapter')),
-      title: chapter?.title ?? '',
-      content: chapter?.content ?? '',
-      startDate: toDateInput(chapter?.startDate ?? chapter?.StartDate),
-      endDate: toDateInput(chapter?.endDate ?? chapter?.EndDate),
-      estimatedDays: chapter?.estimatedDays != null ? String(chapter.estimatedDays) : '',
-      lessons: Array.isArray(chapter?.lessons) && chapter.lessons.length > 0
-        ? chapter.lessons.map((lesson: any) => ({
-          id: String(lesson?.id ?? lesson?.lessonId ?? uid('lesson')),
-          title: lesson?.title ?? '',
-          lessonDay: toDateInput(lesson?.lessonDay),
-          sections: parseLessonSections(extractMarkdown(lesson?.content)),
-        }))
-        : [emptyLesson()],
-    }))
-    : [emptyChapter()]
+const isSameIdentifier = (left: string, right: string): boolean => left.trim().toLowerCase() === right.trim().toLowerCase()
 
-  return {
-    subjectId: String(payload?.subjectId ?? payload?.SubjectId ?? ''),
-    goals: extractGoals(payload),
-    complexityLevel: (payload?.complexityLevel ?? payload?.ComplexityLevel ?? 'Beginner') as Level,
-    languageSelection: normalizeLanguage(payload?.languageSelection ?? payload?.LanguageSelection),
-    title: payload?.title ?? '',
-    description: payload?.description ?? '',
-    startDate: toDateInput(payload?.startDate ?? payload?.StartDate),
-    endDate: toDateInput(payload?.endDate ?? payload?.EndDate),
-    chapters,
+const parseMaybeJsonValue = (value: unknown): unknown => {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) return value
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return value
   }
 }
 
-const validateDraftForm = (form: DraftFormState): string | null => {
-  if (!form.subjectId) return 'Subject is required.'
-  if (!form.title.trim()) return 'Title is required.'
-  if (form.goals.length === 0) return 'Select at least one goal.'
-  if (form.goals.length === 1 && form.goals[0].weight !== 100) return 'Single goal must have weight 100.'
-  if (form.goals.length === 2 && form.goals[0].weight + form.goals[1].weight !== 100) return 'Goal weights must total 100.'
-  if (form.startDate && form.endDate && form.startDate > form.endDate) return 'Path start date must be before end date.'
-  for (const chapter of form.chapters) {
-    if (!chapter.title.trim()) return 'Every chapter needs a title.'
-    if (!chapter.lessons.length) return `Chapter "${chapter.title || 'Untitled'}" needs at least one lesson.`
-    if (chapter.startDate && chapter.endDate && chapter.startDate > chapter.endDate) return `Chapter "${chapter.title || 'Untitled'}" has an invalid date range.`
-    for (const lesson of chapter.lessons) if (!lesson.title.trim()) return `Every lesson needs a title in chapter "${chapter.title || 'Untitled'}".`
+const asObject = (value: unknown): Record<string, unknown> | null => {
+  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>
   }
   return null
 }
 
-const buildPayload = (form: DraftFormState): ManualDraftPayload => ({
-  subjectId: form.subjectId,
-  goals: form.goals,
-  complexityLevel: form.complexityLevel,
-  languageSelection: form.languageSelection,
-  title: form.title.trim(),
-  description: form.description.trim() || undefined,
-  startDate: toIsoDate(form.startDate),
-  endDate: toIsoDate(form.endDate),
-  chapters: form.chapters.map((chapter) => ({
-    title: chapter.title.trim(),
-    content: chapter.content.trim() || undefined,
-    startDate: toIsoDate(chapter.startDate),
-    endDate: toIsoDate(chapter.endDate),
-    estimatedDays: chapter.estimatedDays ? Number(chapter.estimatedDays) : undefined,
-    lessons: chapter.lessons.map((lesson) => ({
-      title: lesson.title.trim(),
-      lessonDay: toIsoDate(lesson.lessonDay),
-      content: buildLessonContentFromSections(lesson.sections),
-    })),
-  })),
-})
+const extractSingleTaskPayload = (payload: unknown): Record<string, unknown> | null => {
+  const unwrapKeys = [
+    'value', 'Value',
+    'data', 'Data',
+    'result', 'Result',
+    'payload', 'Payload',
+    'task', 'Task',
+    'taskItem', 'TaskItem',
+    'taskDto', 'TaskDto',
+    'taskItemDto', 'TaskItemDto',
+    'singleTask', 'SingleTask',
+  ] as const
 
-const Panel = ({
-  title,
-  subtitle,
-  action,
-  children,
-  collapsible = false,
-  defaultCollapsed = false,
-  collapseLabel,
-  expandLabel,
-}: {
-  title: string
-  subtitle?: string
-  action?: React.ReactNode
-  children: React.ReactNode
-  collapsible?: boolean
-  defaultCollapsed?: boolean
-  collapseLabel?: string
-  expandLabel?: string
-}) => {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  const visited = new Set<unknown>()
+  const queue: unknown[] = [payload]
 
-  return (
-    <section style={{ ...cardStyle, padding: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', marginBottom: collapsed ? 0 : 16 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)' }}>{title}</h2>
-          {subtitle && <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>{subtitle}</p>}
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {action}
-          {collapsible && (
-            <button
-              type="button"
-              style={buttonStyle}
-              onClick={() => setCollapsed((prev) => !prev)}
-              aria-expanded={!collapsed}
-            >
-              {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-              {collapsed ? expandLabel : collapseLabel}
-            </button>
-          )}
-        </div>
-      </div>
-      {!collapsed && children}
-    </section>
-  )
+  while (queue.length > 0) {
+    const current = parseMaybeJsonValue(queue.shift())
+    if (current == null) continue
+    if (typeof current === 'object') {
+      if (visited.has(current)) continue
+      visited.add(current)
+    }
+
+    if (Array.isArray(current)) {
+      for (const item of current) queue.push(item)
+      continue
+    }
+
+    const currentObject = asObject(current)
+    if (!currentObject) continue
+
+    const hasTaskFields = [
+      currentObject.taskId,
+      currentObject.TaskId,
+      currentObject.id,
+      currentObject.Id,
+      currentObject.title,
+      currentObject.Title,
+      currentObject.description,
+      currentObject.Description,
+      currentObject.taskType,
+      currentObject.TaskType,
+      currentObject.priority,
+      currentObject.Priority,
+      currentObject.taskStatus,
+      currentObject.TaskStatus,
+      currentObject.quizQuestionsJson,
+      currentObject.QuizQuestionsJson,
+      currentObject.quizQuestions,
+      currentObject.QuizQuestions,
+    ].some((value) => value != null)
+
+    if (hasTaskFields) return currentObject
+
+    for (const key of unwrapKeys) {
+      if (key in currentObject) queue.push(currentObject[key])
+    }
+  }
+
+  return null
 }
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label style={{ display: 'grid', gap: 8 }}>
-    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</span>
-    {children}
-  </label>
-)
+const extractSingleQuizSkeletonPayload = (
+  payload: unknown,
+): { persistedId: string | null; title: string; description: string } | null => {
+  const parsedQuizSkeleton = parseQuizSkeletonPayload(payload)
+  if (parsedQuizSkeleton.hasQuizArray && parsedQuizSkeleton.items.length > 0) {
+    const firstItem = parsedQuizSkeleton.items[0]
+    return {
+      persistedId: firstItem.persistedId,
+      title: firstItem.title.trim(),
+      description: firstItem.description.trim(),
+    }
+  }
+
+  const unwrapKeys = [
+    'value', 'Value',
+    'data', 'Data',
+    'result', 'Result',
+    'payload', 'Payload',
+    'quiz', 'Quiz',
+    'singleQuizSkeleton', 'SingleQuizSkeleton',
+    'quizSkeleton', 'QuizSkeleton',
+    'quizzes', 'Quizzes',
+    'items', 'Items',
+  ] as const
+
+  const visited = new Set<unknown>()
+  const queue: unknown[] = [payload]
+
+  while (queue.length > 0) {
+    const current = parseMaybeJsonValue(queue.shift())
+    if (current == null) continue
+
+    if (typeof current === 'object') {
+      if (visited.has(current)) continue
+      visited.add(current)
+    }
+
+    if (Array.isArray(current)) {
+      for (const item of current) queue.push(item)
+      continue
+    }
+
+    const currentObject = asObject(current)
+    if (!currentObject) continue
+
+    const title = String(currentObject.title ?? currentObject.Title ?? '').trim()
+    const description = String(currentObject.description ?? currentObject.Description ?? '').trim()
+    const hasQuizIdentity = currentObject.quizId != null
+      || currentObject.QuizId != null
+      || currentObject.quizzId != null
+      || currentObject.QuizzId != null
+      || currentObject.id != null
+      || currentObject.Id != null
+
+    if (title || description || hasQuizIdentity) {
+      return {
+        persistedId: toPersistedId(
+          currentObject.quizId
+          ?? currentObject.QuizId
+          ?? currentObject.quizzId
+          ?? currentObject.QuizzId
+          ?? currentObject.id
+          ?? currentObject.Id,
+        ),
+        title,
+        description,
+      }
+    }
+
+    for (const key of unwrapKeys) {
+      if (key in currentObject) queue.push(currentObject[key])
+    }
+  }
+
+  return null
+}
+
+const extractSingleQuizQuestionPayload = (
+  payload: unknown,
+): {
+  quizPersistedId: string | null
+  question: EditableQuiz['questions'][number]
+  hasExplicitType: boolean
+} | null => {
+  const unwrapKeys = [
+    'value', 'Value',
+    'data', 'Data',
+    'result', 'Result',
+    'payload', 'Payload',
+    'singleQuizQuestion', 'SingleQuizQuestion',
+    'question', 'Question',
+    'questionDto', 'QuestionDto',
+  ] as const
+
+  const visited = new Set<unknown>()
+  const queue: unknown[] = [payload]
+
+  while (queue.length > 0) {
+    const current = parseMaybeJsonValue(queue.shift())
+    if (current == null) continue
+
+    if (typeof current === 'object') {
+      if (visited.has(current)) continue
+      visited.add(current)
+    }
+
+    if (Array.isArray(current)) {
+      for (const item of current) queue.push(item)
+      continue
+    }
+
+    const currentObject = asObject(current)
+    if (!currentObject) continue
+
+    const questionCandidates: unknown[] = [
+      currentObject.question,
+      currentObject.Question,
+      currentObject.questionDto,
+      currentObject.QuestionDto,
+    ]
+
+    const hasStandaloneQuestionShape = [
+      currentObject.questionText,
+      currentObject.QuestionText,
+      currentObject.correctAnswer,
+      currentObject.CorrectAnswer,
+      currentObject.options,
+      currentObject.Options,
+      currentObject.points,
+      currentObject.Points,
+    ].some((value) => value != null)
+
+    if (hasStandaloneQuestionShape) {
+      questionCandidates.push(currentObject)
+    }
+
+    for (const questionCandidate of questionCandidates) {
+      if (questionCandidate == null) continue
+      const parsedQuestionPayload = parseMaybeJsonValue(questionCandidate)
+      const questionObject = asObject(parsedQuestionPayload)
+      if (!questionObject) continue
+
+      const parsedQuestions = parseGeneratedQuizQuestionsPayload({ questions: [questionObject] })
+      if (parsedQuestions.items.length === 0) continue
+
+      const firstQuestion = parsedQuestions.items[0]
+
+      return {
+        quizPersistedId: toPersistedId(
+          currentObject.quizId
+          ?? currentObject.QuizId
+          ?? questionObject.quizId
+          ?? questionObject.QuizId,
+        ),
+        question: firstQuestion,
+        hasExplicitType: questionObject.type != null || questionObject.Type != null,
+      }
+    }
+
+    for (const key of unwrapKeys) {
+      if (key in currentObject) queue.push(currentObject[key])
+    }
+  }
+
+  return null
+}
+
+const extractMentorLessonGeneratedContent = (payload: unknown): string => {
+  const unwrapKeys = [
+    'value', 'Value',
+    'data', 'Data',
+    'result', 'Result',
+    'payload', 'Payload',
+    'lesson', 'Lesson',
+    'lessonContent', 'LessonContent',
+    'lessonResult', 'LessonResult',
+  ] as const
+
+  const toText = (value: unknown): string => typeof value === 'string' ? value.trim() : ''
+
+  const visited = new Set<unknown>()
+  const queue: unknown[] = [payload]
+
+  while (queue.length > 0) {
+    const current = parseMaybeJsonValue(queue.shift())
+    if (current == null) continue
+
+    if (typeof current === 'string') {
+      const content = current.trim()
+      if (content) return content
+      continue
+    }
+
+    if (typeof current === 'object') {
+      if (visited.has(current)) continue
+      visited.add(current)
+    }
+
+    if (Array.isArray(current)) {
+      for (const item of current) queue.push(item)
+      continue
+    }
+
+    const currentObject = asObject(current)
+    if (!currentObject) continue
+
+    const contentCandidate = [
+      currentObject.content,
+      currentObject.Content,
+      currentObject.markdown,
+      currentObject.Markdown,
+      currentObject.body,
+      currentObject.Body,
+      currentObject.text,
+      currentObject.Text,
+      currentObject.generatedContent,
+      currentObject.GeneratedContent,
+      currentObject.lessonText,
+      currentObject.LessonText,
+      currentObject.lessonMarkdown,
+      currentObject.LessonMarkdown,
+    ]
+
+    const firstStringContent = contentCandidate.find((value) => typeof value === 'string' && value.trim().length > 0)
+    if (typeof firstStringContent === 'string') return firstStringContent.trim()
+
+    const sectionLikeContent: Record<LessonSectionKey, string> = {
+      overview: toText(currentObject.overview ?? currentObject.Overview),
+      'core-concepts': toText(
+        currentObject['core-concepts']
+        ?? currentObject.coreConcepts
+        ?? currentObject.CoreConcepts,
+      ),
+      'code-examples': toText(
+        currentObject['code-examples']
+        ?? currentObject.codeExamples
+        ?? currentObject.CodeExamples,
+      ),
+      'common-mistakes': toText(
+        currentObject['common-mistakes']
+        ?? currentObject.commonMistakes
+        ?? currentObject.CommonMistakes,
+      ),
+      'best-practices': toText(
+        currentObject['best-practices']
+        ?? currentObject.bestPractices
+        ?? currentObject.BestPractices,
+      ),
+      summary: toText(currentObject.summary ?? currentObject.Summary),
+    }
+
+    if (Object.values(sectionLikeContent).some((item) => item.length > 0)) {
+      return buildLessonContentFromSections(sectionLikeContent)
+    }
+
+    for (const key of unwrapKeys) {
+      if (key in currentObject) queue.push(currentObject[key])
+    }
+  }
+
+  return ''
+}
+
+const getSingleTaskErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveSingleTaskGenerationErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getSingleTaskErrorCode(err)
+  if (code === 'CHAPTER_NOT_FOUND') return { message: t('drafts.singleTaskErrorChapterNotFound'), type: 'error' }
+  if (code === 'UNAUTHORIZED') return { message: t('drafts.singleTaskErrorUnauthorized'), type: 'error' }
+  if (code === 'CHAPTER_NO_LESSONS') return { message: t('drafts.singleTaskErrorChapterNoLessons'), type: 'warning' }
+  if (code === 'CHAPTER_TITLE_REQUIRED') return { message: t('drafts.singleTaskErrorChapterTitleRequired'), type: 'warning' }
+  if (code === 'LESSON_TITLE_REQUIRED') return { message: t('drafts.singleTaskErrorLessonTitleRequired'), type: 'warning' }
+  if (code === 'TASK_TYPE_INVALID') return { message: t('drafts.singleTaskErrorTaskTypeInvalid'), type: 'warning' }
+  if (code === 'NO_VALID_TASKS') return { message: t('drafts.singleTaskErrorNoValidTasks'), type: 'warning' }
+  if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.singleTaskErrorInvalidAiResponse'), type: 'warning' }
+  if (code === 'TASK_GENERATION_FAILED') return { message: t('drafts.singleTaskErrorGenerationFailed'), type: 'error' }
+  return {
+    message: getApiErrorMessage(err, t('drafts.singleTaskGenerateFailed')),
+    type: 'error',
+  }
+}
+
+const getSingleQuizSkeletonErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveSingleQuizSkeletonErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getSingleQuizSkeletonErrorCode(err)
+  if (code === 'LESSON_NOT_FOUND') return { message: t('drafts.singleQuizSkeletonErrorLessonNotFound'), type: 'error' }
+  if (code === 'UNAUTHORIZED') return { message: t('drafts.singleQuizSkeletonErrorUnauthorized'), type: 'error' }
+  if (code === 'LESSON_TITLE_REQUIRED') return { message: t('drafts.singleQuizSkeletonErrorLessonTitleRequired'), type: 'warning' }
+  if (code === 'LESSON_CONTENT_REQUIRED') return { message: t('drafts.singleQuizSkeletonErrorLessonContentRequired'), type: 'warning' }
+  if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.singleQuizSkeletonErrorInvalidAiResponse'), type: 'warning' }
+  if (code === 'DUPLICATE_QUIZ_SKELETON') return { message: t('drafts.singleQuizSkeletonErrorDuplicate'), type: 'warning' }
+  if (code === 'QUIZ_GENERATION_FAILED') return { message: t('drafts.singleQuizSkeletonErrorGenerationFailed'), type: 'error' }
+  if (code === 'UNEXPECTED_ERROR') return { message: t('drafts.singleQuizSkeletonErrorUnexpected'), type: 'error' }
+  return {
+    message: getApiErrorMessage(err, t('drafts.singleQuizSkeletonGenerateFailed')),
+    type: 'error',
+  }
+}
+
+const getSingleQuizQuestionErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveSingleQuizQuestionErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getSingleQuizQuestionErrorCode(err)
+  if (code === 'QUIZ_NOT_FOUND') return { message: t('drafts.singleQuizQuestionErrorQuizNotFound'), type: 'error' }
+  if (code === 'QUIZ_NO_LESSON') return { message: t('drafts.singleQuizQuestionErrorQuizNoLesson'), type: 'warning' }
+  if (code === 'UNAUTHORIZED' || code === 'ACCESS_DENIED') return { message: t('drafts.singleQuizQuestionErrorUnauthorized'), type: 'error' }
+  if (code === 'QUESTION_TYPE_INVALID') return { message: t('drafts.singleQuizQuestionErrorQuestionTypeInvalid'), type: 'warning' }
+  if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.singleQuizQuestionErrorInvalidAiResponse'), type: 'warning' }
+  if (code === 'QUESTION_TYPE_MISMATCH') return { message: t('drafts.singleQuizQuestionErrorQuestionTypeMismatch'), type: 'warning' }
+  if (code === 'DUPLICATE_QUESTION') return { message: t('drafts.singleQuizQuestionErrorDuplicate'), type: 'warning' }
+  if (code === 'QUESTION_GENERATION_FAILED') return { message: t('drafts.singleQuizQuestionErrorGenerationFailed'), type: 'error' }
+  return {
+    message: getApiErrorMessage(err, t('drafts.singleQuizQuestionGenerateFailed')),
+    type: 'error',
+  }
+}
+
+const getMentorLessonContentErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveMentorLessonContentErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getMentorLessonContentErrorCode(err)
+  if (code === 'LESSON_NOT_FOUND') return { message: t('drafts.lessonContentErrorLessonNotFound'), type: 'error' }
+  if (code === 'UNAUTHORIZED' || code === 'ACCESS_DENIED') return { message: t('drafts.lessonContentErrorUnauthorized'), type: 'error' }
+  if (code === 'LESSON_TITLE_REQUIRED') return { message: t('drafts.lessonContentErrorLessonTitleRequired'), type: 'warning' }
+  if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.lessonContentErrorInvalidAiResponse'), type: 'warning' }
+  if (code === 'LESSON_CONTENT_GENERATION_FAILED') return { message: t('drafts.lessonContentErrorGenerationFailed'), type: 'error' }
+  if (code === 'UNEXPECTED_ERROR') return { message: t('drafts.lessonContentErrorUnexpected'), type: 'error' }
+  return {
+    message: getApiErrorMessage(err, t('drafts.lessonContentGenerateFailed')),
+    type: 'error',
+  }
+}
+
+const sortGoalsBySubjectOrder = (
+  goals: DraftFormState['goals'],
+  subject: SubjectOption | null,
+) => {
+  if (!subject || goals.length < 2) return goals
+  const order = new Map(subject.goals.map((goal, index) => [goal.goalId, index]))
+  return [...goals].sort((a, b) => (order.get(a.goalId) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.goalId) ?? Number.MAX_SAFE_INTEGER))
+}
+
+const parseChapterMentorSkeletonLessons = (payload: unknown): Array<{ title: string; orderIndex: number }> => {
+  const source = payload as any
+  const lessons = Array.isArray(source?.lessons)
+    ? source.lessons
+    : Array.isArray(source?.Lessons)
+      ? source.Lessons
+      : []
+
+  return lessons
+    .map((lesson: any, index: number) => {
+      const title = String(lesson?.title ?? lesson?.Title ?? '').trim()
+      const numericOrder = Number(lesson?.orderIndex ?? lesson?.OrderIndex)
+      return {
+        title,
+        orderIndex: Number.isFinite(numericOrder) ? numericOrder : index,
+      }
+    })
+    .filter((lesson: { title: string }) => lesson.title.length > 0)
+    .sort((a: { orderIndex: number }, b: { orderIndex: number }) => a.orderIndex - b.orderIndex)
+}
+
+const getChapterMentorSkeletonErrorCode = (err: any): string => String(
+  err?.code
+  ?? err?.errorCode
+  ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode
+  ?? err?.response?.data?.code
+  ?? '',
+).trim().toUpperCase()
+
+const resolveChapterMentorSkeletonErrorToast = (
+  err: any,
+  t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getChapterMentorSkeletonErrorCode(err)
+  if (code === 'INVALID_CHAPTER_TITLE') {
+    return { message: t('drafts.chapterMentorSkeletonErrorInvalidTitle'), type: 'warning' }
+  }
+  if (code === 'LEARNING_PATH_NOT_FOUND') {
+    return { message: t('drafts.chapterMentorSkeletonErrorPathNotFound'), type: 'error' }
+  }
+  if (code === 'UNAUTHORIZED' || code === 'ACCESS_DENIED') {
+    return { message: t('drafts.chapterMentorSkeletonErrorUnauthorized'), type: 'error' }
+  }
+  if (code === 'INVALID_AI_RESPONSE') {
+    return { message: t('drafts.chapterMentorSkeletonErrorInvalidAiResponse'), type: 'warning' }
+  }
+  if (code === 'GENERATION_FAILED') {
+    return { message: t('drafts.chapterMentorSkeletonErrorGenerationFailed'), type: 'error' }
+  }
+  return {
+    message: getApiErrorMessage(err, t('drafts.chapterMentorSkeletonGenerateFailed')),
+    type: 'error',
+  }
+}
+
+const resolveSelectionAfterHydrate = (
+  previousForm: DraftFormState,
+  nextForm: DraftFormState,
+  activeChapterId: string | null,
+  activeLessonId: string | null,
+) => {
+  const chapterIndex = previousForm.chapters.findIndex((chapter) => chapter.id === activeChapterId)
+  const lessonIndex = chapterIndex >= 0
+    ? previousForm.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLessonId)
+    : -1
+
+  const snapshot = createSelectionSnapshot(previousForm, activeChapterId, activeLessonId)
+  const restored = restoreSelectionSnapshot(nextForm, snapshot)
+
+  const resolvedChapterId = !snapshot.activeChapterPersistedId && chapterIndex >= 0
+    ? (nextForm.chapters[chapterIndex]?.id ?? restored.chapterId)
+    : restored.chapterId
+
+  const resolvedChapter = nextForm.chapters.find((chapter) => chapter.id === resolvedChapterId) ?? nextForm.chapters[0] ?? null
+  const resolvedLessonId = !snapshot.activeLessonPersistedId && lessonIndex >= 0
+    ? (resolvedChapter?.lessons[lessonIndex]?.id ?? restored.lessonId)
+    : restored.lessonId
+
+  return {
+    chapterId: resolvedChapter?.id ?? resolvedChapterId ?? null,
+    lessonId: resolvedChapter?.lessons.find((lesson) => lesson.id === resolvedLessonId)?.id
+      ?? resolvedChapter?.lessons[0]?.id
+      ?? null,
+  }
+}
 
 const MentorDraftFormPage: React.FC = () => {
   const { pathId } = useParams()
@@ -197,15 +643,29 @@ const MentorDraftFormPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation() as { state?: { draft?: SkeletonResponse; toast?: ToastState } }
   const { t } = useTranslation('mentor')
+  const { isSmallScreen } = useResponsive()
   const sidebarConfig = { navItems: useMentorSidebarConfig(), actions: [], brand: { name: t('drafts.brandName'), subtitle: t('drafts.brandSubtitle') } }
 
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
+  const [subjectSearch, setSubjectSearch] = useState('')
+  const [isSubjectMenuOpen, setIsSubjectMenuOpen] = useState(false)
   const [form, setForm] = useState<DraftFormState>(hydrateDraftForm(location.state?.draft))
   const [loading, setLoading] = useState(!isCreateMode)
   const [saving, setSaving] = useState(false)
+  const [generatingAiDraft, setGeneratingAiDraft] = useState(false)
+  const [generatingMentorLessonContentId, setGeneratingMentorLessonContentId] = useState<string | null>(null)
+  const [generatingChapterSkeletonId, setGeneratingChapterSkeletonId] = useState<string | null>(null)
+  const [generatingChapterSkeletonPathId, setGeneratingChapterSkeletonPathId] = useState<string | null>(null)
+  const [isQuizSkeletonLoading, setIsQuizSkeletonLoading] = useState(false)
+  const [hasQuizSkeleton, setHasQuizSkeleton] = useState(false)
+  const [quizSkeletonError, setQuizSkeletonError] = useState<string | null>(null)
+  const [generatingSingleQuizSkeletonLessonId, setGeneratingSingleQuizSkeletonLessonId] = useState<string | null>(null)
+  const [generatingSingleQuizQuestionQuizId, setGeneratingSingleQuizQuestionQuizId] = useState<string | null>(null)
+  const [generatingTaskId, setGeneratingTaskId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(location.state?.toast ?? null)
-  const [activeTab, setActiveTab] = useState<EditorTab>('structure')
+  const [currentStep, setCurrentStep] = useState<EditorStep>('overview')
+  const [assessmentTab, setAssessmentTab] = useState<AssessmentTab>('tasks')
   const [activeChapterId, setActiveChapterId] = useState<string | null>(form.chapters[0]?.id ?? null)
   const [activeLessonId, setActiveLessonId] = useState<string | null>(form.chapters[0]?.lessons[0]?.id ?? null)
   const [studentOptions, setStudentOptions] = useState<Array<{ id: string; label: string }>>([])
@@ -213,20 +673,29 @@ const MentorDraftFormPage: React.FC = () => {
   const [shareError, setShareError] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
-  const collapseLabel = t('drafts.collapse')
-  const expandLabel = t('drafts.expand')
+  const [isVersionUpdateModalOpen, setIsVersionUpdateModalOpen] = useState(false)
+  const [isNavigatorOpen, setIsNavigatorOpen] = useState(!isSmallScreen)
+  const chapterSkeletonPendingByPathRef = useRef<Map<string, string>>(new Map())
+  const chapterSkeletonRequestCounterRef = useRef(0)
+  const subjectPickerRef = useRef<HTMLDivElement | null>(null)
   const currentPathId = String(pathId ?? location.state?.draft?.pathId ?? '')
   const canShare = !!currentPathId
 
   useEffect(() => {
+    setIsNavigatorOpen(!isSmallScreen)
+  }, [isSmallScreen])
+
+  useEffect(() => {
     let active = true
+
     const load = async () => {
       setLoading(!isCreateMode)
       setLoadError(null)
       try {
-        const [subjectList, draft] = await Promise.all([
+        const [subjectList, draft, contacts] = await Promise.all([
           SubjectService.listSubjects(),
-          isCreateMode ? Promise.resolve(location.state?.draft ?? null) : location.state?.draft ? Promise.resolve(location.state.draft) : LearningPathService.getMyDraftDetail(pathId as string),
+          isCreateMode ? Promise.resolve(location.state?.draft ?? null) : LearningPathService.getMyDraftDetail(pathId as string),
+          getContacts().catch(() => []),
         ])
         if (!active) return
         setSubjects(subjectList.map((subject: any) => ({
@@ -234,18 +703,11 @@ const MentorDraftFormPage: React.FC = () => {
           name: subject?.name ?? 'Subject',
           goals: Array.isArray(subject?.goals) ? subject.goals.map((goal: any) => ({ goalId: String(goal?.goalId ?? goal?.id), title: goal?.title ?? goal?.name ?? 'Goal' })) : [],
         })))
-        getContacts()
-          .then((items) => {
-            if (!active) return
-            setStudentOptions(
-              items
-                .filter((item: any) => item?.roleName === 'Student')
-                .map((item: any) => ({ id: String(item?.userId), label: item?.username ?? 'Student' }))
-            )
-          })
-          .catch(() => {
-            if (active) setStudentOptions([])
-          })
+        setStudentOptions(
+          contacts
+            .filter((item: any) => item?.roleName === 'Student')
+            .map((item: any) => ({ id: String(item?.userId), label: item?.username ?? 'Student' })),
+        )
         const hydrated = hydrateDraftForm(draft)
         setForm(hydrated)
         setActiveChapterId(hydrated.chapters[0]?.id ?? null)
@@ -266,27 +728,98 @@ const MentorDraftFormPage: React.FC = () => {
           navigate(ROUTER.MENTOR_DRAFTS, { replace: true, state: { toast: { message: t('drafts.invalidStatus'), type: 'error' } satisfies ToastState } })
           return
         }
-        setLoadError(err?.response?.data?.message || err?.message || t('drafts.loadFailed'))
+        setLoadError(getApiErrorMessage(err, t('drafts.loadFailed')))
       } finally {
         if (active) setLoading(false)
       }
     }
+
     load()
     return () => { active = false }
-  }, [isCreateMode, location.state?.draft, navigate, pathId])
+  }, [isCreateMode, location.state?.draft, navigate, pathId, t])
 
   const selectedSubject = useMemo(() => subjects.find((subject) => subject.id === form.subjectId) ?? null, [form.subjectId, subjects])
+  const filteredSubjects = useMemo(() => {
+    const keyword = subjectSearch.trim().toLowerCase()
+    const matched = keyword ? subjects.filter((subject) => subject.name.toLowerCase().includes(keyword)) : subjects
+    if (selectedSubject && !matched.some((subject) => subject.id === selectedSubject.id)) return [selectedSubject, ...matched]
+    return matched
+  }, [selectedSubject, subjectSearch, subjects])
   const activeChapter = useMemo(() => form.chapters.find((chapter) => chapter.id === activeChapterId) ?? form.chapters[0] ?? null, [activeChapterId, form.chapters])
-  const activeLesson = useMemo(() => activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? activeChapter?.lessons[0] ?? null, [activeChapter?.lessons, activeLessonId])
+  const activeLesson = useMemo(() => activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? activeChapter?.lessons[0] ?? null, [activeChapter, activeLessonId])
+  const isGeneratingActiveMentorLessonContent = activeLesson?.id != null && generatingMentorLessonContentId === activeLesson.id
+  const isGeneratingActiveChapterSkeleton = activeChapter?.id != null && generatingChapterSkeletonId === activeChapter.id
+  const isGeneratingActiveSingleQuizSkeleton = activeLesson?.id != null && generatingSingleQuizSkeletonLessonId === activeLesson.id
+  const hasPendingChapterSkeletonGeneration = generatingChapterSkeletonPathId != null
 
-  const updateChapter = (chapterId: string, updater: (chapter: EditableChapter) => EditableChapter) => setForm((prev) => ({ ...prev, chapters: prev.chapters.map((chapter) => chapter.id === chapterId ? updater(chapter) : chapter) }))
-  const updateLesson = (chapterId: string, lessonId: string, updater: (lesson: EditableLesson) => EditableLesson) => updateChapter(chapterId, (chapter) => ({ ...chapter, lessons: chapter.lessons.map((lesson) => lesson.id === lessonId ? updater(lesson) : lesson) }))
+  useEffect(() => {
+    setIsQuizSkeletonLoading(false)
+    setHasQuizSkeleton(false)
+    setQuizSkeletonError(null)
+  }, [activeLessonId])
+
+  useEffect(() => {
+    if (!selectedSubject) {
+      if (!form.subjectId) setSubjectSearch('')
+      return
+    }
+    setSubjectSearch(selectedSubject.name)
+  }, [form.subjectId, selectedSubject])
+
+  useEffect(() => {
+    if (!selectedSubject || form.goals.length < 2) return
+    const sortedGoals = sortGoalsBySubjectOrder(form.goals, selectedSubject)
+    const isSameOrder = sortedGoals.every((goal, index) => goal.goalId === form.goals[index]?.goalId)
+    if (!isSameOrder) {
+      setForm((prev) => ({ ...prev, goals: sortGoalsBySubjectOrder(prev.goals, selectedSubject) }))
+    }
+  }, [form.goals, selectedSubject])
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!subjectPickerRef.current?.contains(event.target as Node)) setIsSubjectMenuOpen(false)
+    }
+    window.addEventListener('mousedown', handlePointerDown)
+    return () => window.removeEventListener('mousedown', handlePointerDown)
+  }, [])
+
+  const updateChapter = (chapterId: string, updater: (chapter: EditableChapter) => EditableChapter) =>
+    setForm((prev) => ({ ...prev, chapters: prev.chapters.map((chapter) => chapter.id === chapterId ? updater(chapter) : chapter) }))
+  const updateLesson = (chapterId: string, lessonId: string, updater: (lesson: EditableLesson) => EditableLesson) =>
+    updateChapter(chapterId, (chapter) => ({ ...chapter, lessons: chapter.lessons.map((lesson) => lesson.id === lessonId ? updater(lesson) : lesson) }))
+  const updateTask = (chapterId: string, taskId: string, updater: (task: EditableTask) => EditableTask) =>
+    updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.map((task) => task.id === taskId ? updater(task) : task) }))
+  const updateQuiz = (chapterId: string, lessonId: string, quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) =>
+    updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.map((quiz) => quiz.id === quizId ? updater(quiz) : quiz) }))
+  const updateQuestion = (
+    chapterId: string,
+    lessonId: string,
+    quizId: string,
+    questionId: string,
+    updater: (question: EditableQuiz['questions'][number]) => EditableQuiz['questions'][number],
+  ) => updateQuiz(chapterId, lessonId, quizId, (quiz) => ({
+    ...quiz,
+    questions: quiz.questions.map((question) => question.id === questionId ? updater(question) : question),
+  }))
+
+  const selectChapter = (chapterId: string, step: EditorStep = 'chapters') => {
+    const chapter = form.chapters.find((item) => item.id === chapterId)
+    setActiveChapterId(chapterId)
+    setActiveLessonId(chapter?.lessons[0]?.id ?? null)
+    setCurrentStep(step)
+  }
+  const selectLesson = (chapterId: string, lessonId: string, step: EditorStep = 'lesson') => {
+    setActiveChapterId(chapterId)
+    setActiveLessonId(lessonId)
+    setCurrentStep(step)
+  }
+
   const toggleGoal = (goalId: string) => setForm((prev) => {
     const exists = prev.goals.some((goal) => goal.goalId === goalId)
     if (exists) {
       const nextGoals = prev.goals.filter((goal) => goal.goalId !== goalId)
       if (nextGoals.length === 1) nextGoals[0] = { ...nextGoals[0], weight: 100 }
-      return { ...prev, goals: nextGoals }
+      return { ...prev, goals: sortGoalsBySubjectOrder(nextGoals, selectedSubject) }
     }
     if (prev.goals.length >= 2) return prev
     const nextGoals = [...prev.goals, { goalId, weight: prev.goals.length === 0 ? 100 : 50 }]
@@ -294,23 +827,43 @@ const MentorDraftFormPage: React.FC = () => {
       nextGoals[0] = { ...nextGoals[0], weight: 50 }
       nextGoals[1] = { ...nextGoals[1], weight: 50 }
     }
-    return { ...prev, goals: nextGoals }
+    return { ...prev, goals: sortGoalsBySubjectOrder(nextGoals, selectedSubject) }
   })
-  const setPrimaryWeight = (weight: number) => setForm((prev) => prev.goals.length !== 2 ? prev : { ...prev, goals: [{ ...prev.goals[0], weight }, { ...prev.goals[1], weight: 100 - weight }] })
+  const setPrimaryWeight = (weight: number) => setForm((prev) => {
+    if (prev.goals.length !== 2) return prev
+    const clampedWeight = Math.min(90, Math.max(10, weight))
+    return {
+      ...prev,
+      goals: [
+        { ...prev.goals[0], weight: clampedWeight },
+        { ...prev.goals[1], weight: 100 - clampedWeight },
+      ],
+    }
+  })
+  const selectSubject = (subject: SubjectOption) => {
+    setForm((prev) => ({ ...prev, subjectId: subject.id, goals: [] }))
+    setSubjectSearch(subject.name)
+    setIsSubjectMenuOpen(false)
+  }
+
   const addChapter = () => {
     const chapter = emptyChapter()
     setForm((prev) => ({ ...prev, chapters: [...prev.chapters, chapter] }))
     setActiveChapterId(chapter.id)
-    setActiveLessonId(chapter.lessons[0].id)
-    setActiveTab('structure')
+    setActiveLessonId(chapter.lessons[0]?.id ?? null)
+    setCurrentStep('chapters')
   }
   const addLesson = (chapterId: string) => {
     const lesson = emptyLesson()
     updateChapter(chapterId, (chapter) => ({ ...chapter, lessons: [...chapter.lessons, lesson] }))
     setActiveChapterId(chapterId)
     setActiveLessonId(lesson.id)
-    setActiveTab('lesson')
+    setCurrentStep('lesson')
   }
+  const addTask = (chapterId: string) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: [...chapter.tasks, emptyTask()] }))
+  const addQuiz = (chapterId: string, lessonId: string) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: [...lesson.quizzes, emptyQuiz()] }))
+  const addQuestion = (chapterId: string, lessonId: string, quizId: string) =>
+    updateQuiz(chapterId, lessonId, quizId, (quiz) => ({ ...quiz, questions: [...quiz.questions, emptyQuestion()] }))
   const moveChapter = (chapterId: string, direction: -1 | 1) => setForm((prev) => {
     const index = prev.chapters.findIndex((chapter) => chapter.id === chapterId)
     const targetIndex = index + direction
@@ -334,7 +887,7 @@ const MentorDraftFormPage: React.FC = () => {
     if (nextChapters.length === 0) {
       const fallback = emptyChapter()
       setActiveChapterId(fallback.id)
-      setActiveLessonId(fallback.lessons[0].id)
+      setActiveLessonId(fallback.lessons[0]?.id ?? null)
       return { ...prev, chapters: [fallback] }
     }
     setActiveChapterId(nextChapters[0].id)
@@ -347,6 +900,650 @@ const MentorDraftFormPage: React.FC = () => {
     setActiveLessonId(safeLessons[0].id)
     return { ...chapter, lessons: safeLessons }
   })
+  const removeTask = (chapterId: string, taskId: string) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.filter((task) => task.id !== taskId) }))
+  const removeQuiz = (chapterId: string, lessonId: string, quizId: string) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.filter((quiz) => quiz.id !== quizId) }))
+  const removeQuestion = (chapterId: string, lessonId: string, quizId: string, questionId: string) =>
+    updateQuiz(chapterId, lessonId, quizId, (quiz) => ({ ...quiz, questions: quiz.questions.filter((question) => question.id !== questionId) }))
+
+  const generateAiDraftFromSettings = async () => {
+    const validationError = validateAiDraftInput(form)
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
+      return
+    }
+    setGeneratingAiDraft(true)
+    try {
+      const draft = await LearningPathService.generateAiDraft({ subjectId: form.subjectId, goals: form.goals, complexityLevel: form.complexityLevel, languageSelection: form.languageSelection })
+      if (!draft?.pathId) {
+        setToast({ message: t('aiPlans.missingDraftId'), type: 'error' })
+        return
+      }
+      navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(draft.pathId)), { state: { pathId: draft.pathId, draft, toast: { message: t('drafts.aiGenerateSuccess'), type: 'success' } satisfies ToastState } })
+    } catch (err: any) {
+      setToast({ message: getApiErrorMessage(err, t('aiPlans.detailLoadFailed')), type: 'error' })
+    } finally {
+      setGeneratingAiDraft(false)
+    }
+  }
+
+  const persistDraft = async (
+    versionOptions?: {
+      increaseVersion: boolean
+      versionUpdateType: ManualDraftVersionUpdateType | null
+    },
+  ) => {
+    const validationError = validateDraftForm(form)
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
+      return null
+    }
+
+    const previousTitle = form.title
+    setSaving(true)
+    try {
+      const response = currentPathId
+        ? await LearningPathService.updateManualDraft(currentPathId, buildPayload(form, versionOptions))
+        : await LearningPathService.createManualDraft(buildPayload(form))
+
+      const resolvedPathId = String(response?.pathId ?? currentPathId ?? '')
+      if (!resolvedPathId) {
+        setToast({ message: t('drafts.saveFailed'), type: 'error' })
+        return null
+      }
+
+      const latestDraft = await LearningPathService.getMyDraftDetail(resolvedPathId).catch(() => response)
+      const nextForm = hydrateDraftForm(latestDraft, form)
+      const nextSelection = resolveSelectionAfterHydrate(form, nextForm, activeChapterId, activeLessonId)
+
+      setForm(nextForm)
+      setActiveChapterId(nextSelection.chapterId)
+      setActiveLessonId(nextSelection.lessonId)
+
+      if (isCreateMode && response?.pathId) {
+        navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(response.pathId)), { replace: true, state: { draft: latestDraft } })
+      }
+
+      return {
+        resolvedPathId,
+        response,
+        latestDraft,
+        nextForm,
+        nextSelection,
+        successMessage: isCreateMode
+          ? t('drafts.manualCreateSuccess')
+          : resolveDraftUpdateSuccessMessage(response, latestDraft, previousTitle, t),
+      }
+    } catch (err: any) {
+      setToast({ message: getApiErrorMessage(err, t('drafts.saveFailed')), type: 'error' })
+      return null
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveDraftForGeneration = async () => persistDraft(
+    currentPathId
+      ? { increaseVersion: false, versionUpdateType: null }
+      : undefined,
+  )
+
+  const generateChapterMentorSkeletonForActiveChapter = async () => {
+    if (!activeChapter) {
+      setToast({ message: t('drafts.noChapterSelected'), type: 'warning' })
+      return
+    }
+
+    const activeChapterSnapshot = {
+      id: activeChapter.id,
+      title: activeChapter.title,
+      content: activeChapter.content,
+    }
+    const activeChapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
+
+    if (currentPathId && chapterSkeletonPendingByPathRef.current.has(currentPathId)) {
+      setToast({ message: t('drafts.chapterMentorSkeletonGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    setGeneratingChapterSkeletonId(activeChapter.id)
+    let requestPathId: string | null = null
+    let requestKey: string | null = null
+
+    try {
+      const persisted = await saveDraftForGeneration()
+      if (!persisted) return
+
+      requestPathId = persisted.resolvedPathId
+      if (chapterSkeletonPendingByPathRef.current.has(requestPathId)) {
+        setToast({ message: t('drafts.chapterMentorSkeletonGenerateInProgress'), type: 'warning' })
+        return
+      }
+
+      const chapterFromSelection = persisted.nextSelection.chapterId
+        ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
+        : null
+      const chapterFromIndex = activeChapterIndex >= 0
+        ? (persisted.nextForm.chapters[activeChapterIndex] ?? null)
+        : null
+
+      const chapterForContext = chapterFromSelection ?? chapterFromIndex ?? {
+        ...activeChapterSnapshot,
+        lessons: [],
+        tasks: [],
+        startDate: '',
+        endDate: '',
+        estimatedDays: '',
+        persistedId: null,
+      }
+
+      const chapterIdToUpdate = chapterFromSelection?.id ?? chapterFromIndex?.id ?? null
+
+      requestKey = `${requestPathId}:${chapterForContext.title.trim().toLowerCase()}:${++chapterSkeletonRequestCounterRef.current}`
+      chapterSkeletonPendingByPathRef.current.set(requestPathId, requestKey)
+      setGeneratingChapterSkeletonPathId(requestPathId)
+
+      setGeneratingChapterSkeletonId(chapterIdToUpdate ?? activeChapterSnapshot.id)
+
+      const chapterSkeleton = await LearningPathService.generateChapterMentorSkeleton(
+        requestPathId,
+        chapterForContext.title,
+        chapterForContext.content,
+        {
+          useSignalR: true,
+          onLoading: () => {
+            setGeneratingChapterSkeletonId(chapterIdToUpdate ?? activeChapterSnapshot.id)
+          },
+        },
+      )
+
+      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) !== requestKey) {
+        return
+      }
+
+      const rawLessonArray = Array.isArray((chapterSkeleton as any)?.lessons)
+        ? (chapterSkeleton as any).lessons
+        : Array.isArray((chapterSkeleton as any)?.Lessons)
+          ? (chapterSkeleton as any).Lessons
+          : []
+
+      const parsedLessons = parseChapterMentorSkeletonLessons(chapterSkeleton)
+      if (rawLessonArray.length === 0) {
+        setToast({ message: t('drafts.chapterMentorSkeletonGenerateEmpty'), type: 'warning' })
+        return
+      }
+      if (rawLessonArray.length > 0 && parsedLessons.length === 0) {
+        setToast({ message: t('drafts.chapterMentorSkeletonGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      const nextLessons: EditableLesson[] = parsedLessons.map((lesson) => {
+        const base = emptyLesson()
+        return {
+          ...base,
+          title: lesson.title,
+        }
+      })
+
+      const nextChapters = [...persisted.nextForm.chapters]
+      let targetChapterIndex = chapterIdToUpdate
+        ? nextChapters.findIndex((chapter) => chapter.id === chapterIdToUpdate)
+        : -1
+
+      if (targetChapterIndex < 0 && activeChapterIndex >= 0 && activeChapterIndex < nextChapters.length) {
+        targetChapterIndex = activeChapterIndex
+      }
+
+      let resolvedChapterId: string
+      if (targetChapterIndex >= 0) {
+        const targetChapter = nextChapters[targetChapterIndex]
+        nextChapters[targetChapterIndex] = {
+          ...targetChapter,
+          lessons: nextLessons,
+        }
+        resolvedChapterId = nextChapters[targetChapterIndex].id
+      } else {
+        const fallbackChapter = emptyChapter()
+        fallbackChapter.title = chapterForContext.title
+        fallbackChapter.content = chapterForContext.content
+        fallbackChapter.lessons = nextLessons
+        nextChapters.push(fallbackChapter)
+        resolvedChapterId = fallbackChapter.id
+      }
+
+      setForm({
+        ...persisted.nextForm,
+        chapters: nextChapters,
+      })
+      setActiveChapterId(resolvedChapterId)
+      setActiveLessonId(nextLessons[0]?.id ?? null)
+      setToast({ message: t('drafts.chapterMentorSkeletonGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) !== requestKey) {
+        return
+      }
+      const toastPayload = resolveChapterMentorSkeletonErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) === requestKey) {
+        chapterSkeletonPendingByPathRef.current.delete(requestPathId)
+        setGeneratingChapterSkeletonPathId((prev) => (prev === requestPathId ? null : prev))
+      }
+      setGeneratingChapterSkeletonId(null)
+    }
+  }
+
+  const generateAiTaskForChapter = async (chapterId: string, taskId: string) => {
+    const targetChapter = form.chapters.find((chapter) => chapter.id === chapterId) ?? null
+    const targetTask = targetChapter?.tasks.find((task) => task.id === taskId) ?? null
+
+    if (!targetChapter || !targetTask) {
+      setToast({ message: t('drafts.noChapterSelected'), type: 'warning' })
+      return
+    }
+
+    if (generatingTaskId) {
+      setToast({ message: t('drafts.singleTaskGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    if (!targetChapter.persistedId) {
+      setToast({ message: t('drafts.saveBeforeGenerateSingleTask'), type: 'warning' })
+      return
+    }
+
+    setGeneratingTaskId(taskId)
+
+    try {
+      setGeneratingTaskId(targetTask.id)
+      const requestedTaskType = TASK_TYPE_TO_SIGNALR[targetTask.taskType]
+      const preferredTitle = targetTask.title.trim() || null
+      const generatedTaskPayload = await LearningPathService.generateSingleTask(
+        targetChapter.persistedId,
+        preferredTitle,
+        requestedTaskType,
+        {
+          onLoading: () => setGeneratingTaskId(targetTask.id),
+        },
+      )
+
+      const source = extractSingleTaskPayload(generatedTaskPayload) as any
+      if (!source) {
+        setToast({ message: t('drafts.singleTaskGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      const nextPersistedId = toPersistedId(source?.taskId ?? source?.TaskId ?? source?.id ?? source?.Id)
+      const nextTitle = String(source?.title ?? source?.Title ?? '').trim()
+      const nextDescription = String(source?.description ?? source?.Description ?? '').trim()
+      const hasTaskType = source?.taskType != null || source?.TaskType != null
+      const hasPriority = source?.priority != null || source?.Priority != null
+      const hasTaskStatus = source?.taskStatus != null || source?.TaskStatus != null
+      const hasQuizJson = source?.quizQuestionsJson != null
+        || source?.QuizQuestionsJson != null
+        || source?.quizQuestions != null
+        || source?.QuizQuestions != null
+
+      updateTask(targetChapter.id, targetTask.id, (task) => ({
+        ...task,
+        persistedId: nextPersistedId ?? task.persistedId,
+        title: nextTitle || task.title,
+        description: nextDescription || task.description,
+        taskType: hasTaskType ? normalizeTaskType(source?.taskType ?? source?.TaskType) : task.taskType,
+        priority: hasPriority ? normalizeTaskPriority(source?.priority ?? source?.Priority) : task.priority,
+        taskStatus: hasTaskStatus ? normalizeTaskStatus(source?.taskStatus ?? source?.TaskStatus) : task.taskStatus,
+        quizQuestionsJson: hasQuizJson
+          ? normalizeJsonField(source?.quizQuestionsJson ?? source?.QuizQuestionsJson ?? source?.quizQuestions ?? source?.QuizQuestions)
+          : task.quizQuestionsJson,
+      }))
+
+      setToast({ message: t('drafts.singleTaskGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      const toastPayload = resolveSingleTaskGenerationErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      setGeneratingTaskId(null)
+    }
+  }
+
+  const generateMentorLessonContentForActiveLesson = async () => {
+    if (!activeChapter || !activeLesson) {
+      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' })
+      return
+    }
+
+    if (generatingMentorLessonContentId) {
+      setToast({ message: t('drafts.lessonContentGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    let targetChapterId = activeChapter.id
+    let targetLessonId = activeLesson.id
+    let persistedLessonId = activeLesson.persistedId
+
+    setGeneratingMentorLessonContentId(activeLesson.id)
+
+    try {
+      if (!persistedLessonId) {
+        const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
+        const lessonIndex = chapterIndex >= 0
+          ? form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLesson.id)
+          : -1
+
+        const persisted = await saveDraftForGeneration()
+        if (!persisted) return
+
+        const chapterFromSelection = persisted.nextSelection.chapterId
+          ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
+          : null
+        const chapterFromIndex = chapterIndex >= 0
+          ? (persisted.nextForm.chapters[chapterIndex] ?? null)
+          : null
+        const targetChapter = chapterFromSelection ?? chapterFromIndex
+        const lessonFromSelection = persisted.nextSelection.lessonId && targetChapter
+          ? targetChapter.lessons.find((lesson) => lesson.id === persisted.nextSelection.lessonId)
+          : null
+        const lessonFromIndex = targetChapter && lessonIndex >= 0
+          ? (targetChapter.lessons[lessonIndex] ?? null)
+          : null
+        const targetLesson = lessonFromSelection ?? lessonFromIndex ?? targetChapter?.lessons[0] ?? null
+
+        if (!targetChapter || !targetLesson?.persistedId) {
+          setToast({ message: t('drafts.saveBeforeGenerateLessonContent'), type: 'warning' })
+          return
+        }
+
+        targetChapterId = targetChapter.id
+        targetLessonId = targetLesson.id
+        persistedLessonId = targetLesson.persistedId
+        setGeneratingMentorLessonContentId(targetLesson.id)
+      }
+
+      if (!persistedLessonId) {
+        setToast({ message: t('drafts.saveBeforeGenerateLessonContent'), type: 'warning' })
+        return
+      }
+
+      const generatedLessonPayload = await LearningPathService.generateMentorLessonContent(persistedLessonId, {
+        onLoading: () => setGeneratingMentorLessonContentId(targetLessonId),
+      })
+
+      const generatedContent = extractMentorLessonGeneratedContent(generatedLessonPayload)
+      if (!generatedContent.trim()) {
+        setToast({ message: t('drafts.lessonContentGenerateEmpty'), type: 'warning' })
+        return
+      }
+
+      updateLesson(targetChapterId, targetLessonId, (lesson) => ({
+        ...lesson,
+        sections: parseLessonSections(generatedContent),
+      }))
+
+      setToast({ message: t('drafts.lessonContentGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      const toastPayload = resolveMentorLessonContentErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      setGeneratingMentorLessonContentId(null)
+    }
+  }
+
+  const generateSingleQuizSkeletonForActiveLesson = async () => {
+    if (!activeChapter || !activeLesson) {
+      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' })
+      return
+    }
+
+    if (generatingSingleQuizSkeletonLessonId) {
+      setToast({ message: t('drafts.singleQuizSkeletonGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    let targetChapterId = activeChapter.id
+    let targetLessonId = activeLesson.id
+    let persistedLessonId = activeLesson.persistedId
+
+    setGeneratingSingleQuizSkeletonLessonId(activeLesson.id)
+    setIsQuizSkeletonLoading(true)
+    setHasQuizSkeleton(false)
+    setQuizSkeletonError(null)
+
+    try {
+      if (!persistedLessonId) {
+        const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
+        const lessonIndex = chapterIndex >= 0
+          ? form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLesson.id)
+          : -1
+
+        const persisted = await saveDraftForGeneration()
+        if (!persisted) return
+
+        const chapterFromSelection = persisted.nextSelection.chapterId
+          ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
+          : null
+        const chapterFromIndex = chapterIndex >= 0
+          ? (persisted.nextForm.chapters[chapterIndex] ?? null)
+          : null
+        const targetChapter = chapterFromSelection ?? chapterFromIndex
+        const lessonFromSelection = persisted.nextSelection.lessonId && targetChapter
+          ? targetChapter.lessons.find((lesson) => lesson.id === persisted.nextSelection.lessonId)
+          : null
+        const lessonFromIndex = targetChapter && lessonIndex >= 0
+          ? (targetChapter.lessons[lessonIndex] ?? null)
+          : null
+        const targetLesson = lessonFromSelection ?? lessonFromIndex ?? targetChapter?.lessons[0] ?? null
+
+        if (!targetChapter || !targetLesson?.persistedId) {
+          setToast({ message: t('drafts.saveBeforeGenerateSingleQuizSkeleton'), type: 'warning' })
+          return
+        }
+
+        targetChapterId = targetChapter.id
+        targetLessonId = targetLesson.id
+        persistedLessonId = targetLesson.persistedId
+        setGeneratingSingleQuizSkeletonLessonId(targetLesson.id)
+      }
+
+      if (!persistedLessonId) {
+        setToast({ message: t('drafts.saveBeforeGenerateSingleQuizSkeleton'), type: 'warning' })
+        return
+      }
+
+      const generatedQuizPayload = await LearningPathService.generateSingleQuizSkeleton(persistedLessonId, {
+        onLoading: () => {
+          setGeneratingSingleQuizSkeletonLessonId(targetLessonId)
+          setIsQuizSkeletonLoading(true)
+        },
+      })
+
+      const parsedQuiz = extractSingleQuizSkeletonPayload(generatedQuizPayload)
+      if (!parsedQuiz || !parsedQuiz.title) {
+        const message = t('drafts.singleQuizSkeletonGenerateInvalidPayload')
+        setQuizSkeletonError(message)
+        setToast({ message, type: 'warning' })
+        return
+      }
+
+      const quizTemplate = emptyQuiz()
+      const nextQuiz: EditableQuiz = {
+        ...quizTemplate,
+        persistedId: parsedQuiz.persistedId,
+        title: parsedQuiz.title,
+        description: parsedQuiz.description,
+      }
+
+      updateLesson(targetChapterId, targetLessonId, (lesson) => ({
+        ...lesson,
+        quizzes: [...lesson.quizzes, nextQuiz],
+      }))
+
+      setHasQuizSkeleton(true)
+      setQuizSkeletonError(null)
+      setToast({ message: t('drafts.singleQuizSkeletonGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      const toastPayload = resolveSingleQuizSkeletonErrorToast(err, t)
+      setHasQuizSkeleton(false)
+      setQuizSkeletonError(toastPayload.message)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      setIsQuizSkeletonLoading(false)
+      setGeneratingSingleQuizSkeletonLessonId(null)
+    }
+  }
+
+  const generateSingleQuizQuestionForQuiz = async (
+    quiz: EditableQuiz,
+    questionId: string,
+    questionType: QuestionType,
+  ) => {
+    if (!activeChapter || !activeLesson) {
+      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' })
+      return
+    }
+
+    if (generatingSingleQuizQuestionQuizId) {
+      setToast({ message: t('drafts.singleQuizQuestionGenerateInProgress'), type: 'warning' })
+      return
+    }
+
+    const requestedQuestionType = questionType
+    const requestedQuestionTypeNumber = QUESTION_TYPE_TO_SIGNALR[questionType]
+
+    let targetChapterId = activeChapter.id
+    let targetLessonId = activeLesson.id
+    let targetQuizId = quiz.id
+    let targetQuestionId = questionId
+    const targetQuestionIndex = quiz.questions.findIndex((item) => item.id === questionId)
+    let persistedQuizId = quiz.persistedId
+
+    setGeneratingSingleQuizQuestionQuizId(quiz.id)
+
+    try {
+      if (!persistedQuizId) {
+        const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
+        const lessonIndex = chapterIndex >= 0
+          ? form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLesson.id)
+          : -1
+        const quizIndex = chapterIndex >= 0 && lessonIndex >= 0
+          ? form.chapters[chapterIndex]?.lessons[lessonIndex]?.quizzes.findIndex((item) => item.id === quiz.id)
+          : -1
+
+        const persisted = await saveDraftForGeneration()
+        if (!persisted) return
+
+        const chapterFromSelection = persisted.nextSelection.chapterId
+          ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
+          : null
+        const chapterFromIndex = chapterIndex >= 0
+          ? (persisted.nextForm.chapters[chapterIndex] ?? null)
+          : null
+        const targetChapter = chapterFromSelection ?? chapterFromIndex
+
+        const lessonFromSelection = persisted.nextSelection.lessonId && targetChapter
+          ? targetChapter.lessons.find((lesson) => lesson.id === persisted.nextSelection.lessonId)
+          : null
+        const lessonFromIndex = targetChapter && lessonIndex >= 0
+          ? (targetChapter.lessons[lessonIndex] ?? null)
+          : null
+        const targetLesson = lessonFromSelection ?? lessonFromIndex ?? targetChapter?.lessons[0] ?? null
+
+        const quizFromIndex = targetLesson && quizIndex >= 0
+          ? (targetLesson.quizzes[quizIndex] ?? null)
+          : null
+        const targetQuiz = quizFromIndex
+          ?? targetLesson?.quizzes.find((item) => item.id === quiz.id)
+          ?? null
+
+        const targetQuestionFromIndex = targetQuiz && targetQuestionIndex >= 0
+          ? (targetQuiz.questions[targetQuestionIndex] ?? null)
+          : null
+        const targetQuestion = targetQuiz?.questions.find((item) => item.id === questionId)
+          ?? targetQuestionFromIndex
+          ?? null
+
+        if (!targetChapter || !targetLesson || !targetQuiz?.persistedId || !targetQuestion) {
+          setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' })
+          return
+        }
+
+        targetChapterId = targetChapter.id
+        targetLessonId = targetLesson.id
+        targetQuizId = targetQuiz.id
+        targetQuestionId = targetQuestion.id
+        persistedQuizId = targetQuiz.persistedId
+        setGeneratingSingleQuizQuestionQuizId(targetQuiz.id)
+      }
+
+      if (!persistedQuizId) {
+        setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' })
+        return
+      }
+
+      const generatedQuestionPayload = await LearningPathService.generateSingleQuizQuestion(
+        persistedQuizId,
+        requestedQuestionTypeNumber,
+        {
+          onLoading: () => setGeneratingSingleQuizQuestionQuizId(targetQuizId),
+        },
+      )
+
+      const parsedGeneratedQuestion = extractSingleQuizQuestionPayload(generatedQuestionPayload)
+      if (!parsedGeneratedQuestion || !parsedGeneratedQuestion.hasExplicitType || !parsedGeneratedQuestion.question.questionText.trim()) {
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      if (
+        parsedGeneratedQuestion.quizPersistedId
+        && !isSameIdentifier(parsedGeneratedQuestion.quizPersistedId, persistedQuizId)
+      ) {
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      if (parsedGeneratedQuestion.question.type !== requestedQuestionType) {
+        setToast({ message: t('drafts.singleQuizQuestionErrorQuestionTypeMismatch'), type: 'warning' })
+        return
+      }
+
+      let didReplaceQuestion = false
+      updateQuiz(targetChapterId, targetLessonId, targetQuizId, (currentQuiz) => {
+        let targetFound = false
+        const { id: _generatedQuestionId, ...generatedQuestionPatch } = parsedGeneratedQuestion.question
+        const nextQuestions = currentQuiz.questions.map((currentQuestion) => {
+          if (currentQuestion.id !== targetQuestionId) return currentQuestion
+          targetFound = true
+          didReplaceQuestion = true
+          return {
+            ...currentQuestion,
+            ...generatedQuestionPatch,
+            id: currentQuestion.id,
+            persistedId: generatedQuestionPatch.persistedId ?? currentQuestion.persistedId,
+          }
+        })
+
+        if (!targetFound) {
+          return currentQuiz
+        }
+
+        return {
+          ...currentQuiz,
+          questions: nextQuestions,
+        }
+      })
+
+      if (!didReplaceQuestion) {
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
+        return
+      }
+
+      setToast({ message: t('drafts.singleQuizQuestionGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      const toastPayload = resolveSingleQuizQuestionErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
+    } finally {
+      setGeneratingSingleQuizQuestionQuizId(null)
+    }
+  }
 
   const saveDraft = async () => {
     const validationError = validateDraftForm(form)
@@ -354,218 +1551,197 @@ const MentorDraftFormPage: React.FC = () => {
       setToast({ message: validationError, type: 'warning' })
       return
     }
-    setSaving(true)
-    try {
-      const response = isCreateMode ? await LearningPathService.createManualDraft(buildPayload(form)) : await LearningPathService.updateManualDraft(pathId as string, buildPayload(form))
-      const nextForm = hydrateDraftForm(response)
-      setForm(nextForm)
-      setActiveChapterId(nextForm.chapters[0]?.id ?? null)
-      setActiveLessonId(nextForm.chapters[0]?.lessons[0]?.id ?? null)
-      setToast({ message: isCreateMode ? t('drafts.manualCreateSuccess') : t('drafts.manualUpdateSuccess'), type: 'success' })
-      if (isCreateMode && response?.pathId) navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(response.pathId)), { replace: true, state: { draft: response } })
-    } catch (err: any) {
-      setToast({ message: err?.response?.data?.message || err?.message || t('drafts.saveFailed'), type: 'error' })
-    } finally {
-      setSaving(false)
+
+    if (!isCreateMode) {
+      setIsVersionUpdateModalOpen(true)
+      return
+    }
+
+    const result = await persistDraft()
+    if (result?.successMessage) {
+      setToast({ message: result.successMessage, type: 'success' })
     }
   }
 
+  const handleConfirmVersionUpdate = async (options: {
+    increaseVersion: boolean
+    versionUpdateType: ManualDraftVersionUpdateType | null
+  }) => {
+    const result = await persistDraft(options)
+    if (!result) return
+    setIsVersionUpdateModalOpen(false)
+    setToast({ message: result.successMessage, type: 'success' })
+  }
+
   const handleShareDraft = async () => {
-    const nextPathId = currentPathId
-    if (!nextPathId || !selectedStudentId) return
+    if (!currentPathId || !selectedStudentId) return
     setSharing(true)
     setShareError(null)
     try {
       const conversation = await createOrGetConversation(selectedStudentId)
-      await shareToStudent(nextPathId, selectedStudentId)
-      navigate(ROUTER.MENTOR_CHAT, {
-        state: {
-          conversationId: conversation.conversationId,
-          toast: { message: t('chat.shareSuccess'), type: 'success' } satisfies ToastState,
-        },
-      })
+      await shareToStudent(currentPathId, selectedStudentId)
+      navigate(ROUTER.MENTOR_CHAT, { state: { conversationId: conversation.conversationId, toast: { message: t('chat.shareSuccess'), type: 'success' } satisfies ToastState } })
     } catch (err: any) {
-      const code = err?.response?.data?.errorCode
-      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : (err?.response?.data?.message || err?.message || t('chat.shareError')))
+      setShareError(resolveShareToStudentErrorMessage(err, t, getApiErrorMessage(err, t('chat.shareError'))))
     } finally {
       setSharing(false)
     }
   }
 
+  const contextLabel = useMemo(() => {
+    if (currentStep === 'chapters' && activeChapter) return `${t('drafts.contextChapter')}: ${activeChapter.title || t('drafts.untitledChapter')}`
+    if (currentStep === 'lesson' && activeChapter && activeLesson) return `${t('drafts.contextChapter')}: ${activeChapter.title || t('drafts.untitledChapter')} · ${t('drafts.contextLesson')}: ${activeLesson.title || t('drafts.untitledLesson')}`
+    if (currentStep === 'assessments') {
+      if (assessmentTab === 'tasks' && activeChapter) return `${t('drafts.contextTasks')}: ${activeChapter.title || t('drafts.untitledChapter')}`
+      if (assessmentTab === 'quizzes' && activeLesson) return `${t('drafts.contextQuizzes')}: ${activeLesson.title || t('drafts.untitledLesson')}`
+    }
+    return null
+  }, [activeChapter, activeLesson, assessmentTab, currentStep, t])
+
   if (loading) return <Layout sidebar={sidebarConfig}><div style={{ ...shellStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}><Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" /><p>{t('drafts.loading')}</p></div></div></Layout>
-  if (loadError) return <Layout sidebar={sidebarConfig}><div style={shellStyle}><Panel title={t('drafts.title')} subtitle={loadError}><button type="button" style={buttonStyle} onClick={() => navigate(ROUTER.MENTOR_DRAFTS)}><ArrowLeft size={14} /> {t('drafts.backToList')}</button></Panel></div></Layout>
+  if (loadError) return <Layout sidebar={sidebarConfig}><div style={shellStyle}><div style={{ ...cardStyle, padding: 20, color: 'var(--danger-primary)' }}>{loadError}</div></div></Layout>
 
   return (
     <Layout sidebar={sidebarConfig}>
       <div style={shellStyle}>
-        <div style={{ maxWidth: 1380, margin: '0 auto', display: 'grid', gap: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="button" style={buttonStyle} onClick={() => navigate(ROUTER.MENTOR_DRAFTS)}><ArrowLeft size={14} /> {t('drafts.backToList')}</button>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button type="button" style={buttonStyle} onClick={() => setActiveTab('structure')}><BookOpen size={14} /> {t('drafts.pathSettings')}</button>
-              <button type="button" style={buttonStyle} onClick={() => setActiveTab('lesson')}><Sparkles size={14} /> {t('drafts.lessonStudio')}</button>
-              <button
-                type="button"
-                style={{
-                  ...buttonStyle,
-                  borderColor: 'var(--accent-primary)',
-                  color: 'var(--accent-primary)',
-                  opacity: canShare ? 1 : 0.55,
-                  cursor: canShare ? 'pointer' : 'not-allowed',
-                }}
-                onClick={() => {
-                  if (!canShare) {
-                    setToast({ message: t('drafts.saveBeforeShare', { defaultValue: 'Save the draft before sharing it.' }), type: 'warning' })
-                    return
-                  }
-                  setShareError(null)
-                  setSelectedStudentId('')
-                  setIsShareModalOpen(true)
-                }}
-                disabled={sharing}
-              >
-                <Share2 size={14} /> {t('chat.sharePathBtn')}
-              </button>
-              <button type="button" style={{ ...buttonStyle, borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }} onClick={saveDraft} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={14} />}{saving ? t('drafts.saving') : t('drafts.save')}</button>
-            </div>
-          </div>
+        <div style={{ maxWidth: 1440, margin: '0 auto', display: 'grid', gap: 20 }}>
+          <DraftEditorHeader
+            isCreateMode={isCreateMode}
+            title={form.title}
+            chapterCount={form.chapters.length}
+            version={form.version}
+            currentStep={currentStep}
+            contextLabel={contextLabel}
+            canShare={canShare}
+            saving={saving}
+            sharing={sharing}
+            onBack={() => navigate(ROUTER.MENTOR_DRAFTS)}
+            onSave={saveDraft}
+            onShare={() => { setShareError(null); setSelectedStudentId(''); setIsShareModalOpen(true) }}
+            onStepChange={setCurrentStep}
+          />
 
-          <div style={{ ...cardStyle, padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }}>
-              <div>
-                <h1 style={{ margin: 0, fontSize: 26, color: 'var(--text-primary)' }}>{isCreateMode ? t('drafts.createManualTitle') : form.title || t('drafts.title')}</h1>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)', maxWidth: 760 }}>{t('drafts.manualEditorHint')}</p>
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ padding: '6px 10px', borderRadius: 999, border: '1px dashed var(--warning-primary)', color: 'var(--warning-primary)', fontSize: 12, fontWeight: 700 }}>{t('drafts.draftBadge')}</span>
-                <span style={{ padding: '6px 10px', borderRadius: 999, border: '1px dashed var(--border-base)', color: 'var(--text-secondary)', fontSize: 12 }}>{t('drafts.chapterCount', { count: form.chapters.length })}</span>
-              </div>
-            </div>
-          </div>
+          {isSmallScreen ? (
+            <ContentNavigator
+              chapters={form.chapters}
+              activeChapterId={activeChapterId}
+              activeLessonId={activeLessonId}
+              isCompact
+              isOpen={isNavigatorOpen}
+              currentStep={currentStep}
+              onToggleOpen={() => setIsNavigatorOpen((prev) => !prev)}
+              onSelectChapter={(chapterId) => selectChapter(chapterId, 'chapters')}
+              onSelectLesson={selectLesson}
+              onAddChapter={addChapter}
+              onAddLesson={addLesson}
+              onMoveChapter={moveChapter}
+              onMoveLesson={moveLesson}
+              onRemoveChapter={removeChapter}
+              onRemoveLesson={removeLesson}
+            />
+          ) : null}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
-            <aside style={{ ...cardStyle, padding: 16, position: 'sticky', top: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <strong style={{ color: 'var(--text-primary)' }}>{t('drafts.contentTree')}</strong>
-                <button type="button" style={buttonStyle} onClick={addChapter}><Plus size={14} /> {t('drafts.addChapter')}</button>
-              </div>
-              <div style={{ display: 'grid', gap: 10 }}>
-                {form.chapters.map((chapter, chapterIndex) => (
-                  <div key={chapter.id} style={{ ...cardStyle, padding: 12, background: chapter.id === activeChapterId ? 'var(--bg-main)' : 'var(--bg-surface)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-                      <button type="button" onClick={() => { setActiveChapterId(chapter.id); setActiveLessonId(chapter.lessons[0]?.id ?? null); setActiveTab('structure') }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', flex: 1 }}>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Chapter {chapterIndex + 1}</div>
-                        <div style={{ color: 'var(--text-primary)', fontWeight: 700, marginTop: 4 }}>{chapter.title || t('drafts.untitledChapter')}</div>
-                      </button>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button type="button" style={buttonStyle} onClick={() => moveChapter(chapter.id, -1)}><ChevronUp size={14} /></button>
-                        <button type="button" style={buttonStyle} onClick={() => moveChapter(chapter.id, 1)}><ChevronDown size={14} /></button>
-                        <button type="button" style={buttonStyle} onClick={() => removeChapter(chapter.id)}><Trash2 size={14} /></button>
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-                      {chapter.lessons.map((lesson, lessonIndex) => (
-                        <div key={lesson.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <button type="button" onClick={() => { setActiveChapterId(chapter.id); setActiveLessonId(lesson.id); setActiveTab('lesson') }} style={{ flex: 1, background: lesson.id === activeLessonId ? 'var(--bg-blue-hover)' : 'var(--bg-main)', border: `1px solid ${lesson.id === activeLessonId ? 'var(--accent-primary)' : 'var(--border-base)'}`, borderRadius: 4, padding: '8px 10px', cursor: 'pointer', textAlign: 'left', color: 'var(--text-primary)' }}>
-                            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Lesson {lessonIndex + 1}</div>
-                            <div>{lesson.title || t('drafts.untitledLesson')}</div>
-                          </button>
-                          <button type="button" style={buttonStyle} onClick={() => moveLesson(chapter.id, lesson.id, -1)}><ChevronUp size={14} /></button>
-                          <button type="button" style={buttonStyle} onClick={() => moveLesson(chapter.id, lesson.id, 1)}><ChevronDown size={14} /></button>
-                          <button type="button" style={buttonStyle} onClick={() => removeLesson(chapter.id, lesson.id)}><Trash2 size={14} /></button>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: 10 }}>
-                      <button type="button" style={buttonStyle} onClick={() => addLesson(chapter.id)}><Plus size={14} /> {t('drafts.addLesson')}</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </aside>
+          <div style={{ display: 'grid', gridTemplateColumns: isSmallScreen ? '1fr' : '320px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
+            {!isSmallScreen ? (
+              <ContentNavigator
+                chapters={form.chapters}
+                activeChapterId={activeChapterId}
+                activeLessonId={activeLessonId}
+                isCompact={false}
+                isOpen
+                currentStep={currentStep}
+                onToggleOpen={() => {}}
+                onSelectChapter={(chapterId) => selectChapter(chapterId, 'chapters')}
+                onSelectLesson={selectLesson}
+                onAddChapter={addChapter}
+                onAddLesson={addLesson}
+                onMoveChapter={moveChapter}
+                onMoveLesson={moveLesson}
+                onRemoveChapter={removeChapter}
+                onRemoveLesson={removeLesson}
+              />
+            ) : null}
 
-            <main style={{ display: 'grid', gap: 20 }}>
-              {activeTab === 'structure' && (
-                <>
-                  <Panel
-                    title={t('drafts.pathSettings')}
-                    subtitle={t('drafts.pathSettingsHint')}
-                    collapsible
-                    collapseLabel={collapseLabel}
-                    expandLabel={expandLabel}
-                  >
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
-                      <Field label={t('drafts.subject')}><select style={inputStyle} value={form.subjectId} onChange={(event) => setForm((prev) => ({ ...prev, subjectId: event.target.value, goals: [] }))}><option value="">{t('drafts.selectSubject')}</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></Field>
-                      <Field label={t('drafts.level')}><select style={inputStyle} value={form.complexityLevel} onChange={(event) => setForm((prev) => ({ ...prev, complexityLevel: event.target.value as Level }))}>{LEVEL_OPTIONS.map((level) => <option key={level} value={level}>{level}</option>)}</select></Field>
-                      <Field label={t('drafts.titleLabel')}><input style={inputStyle} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} /></Field>
-                      <Field label={t('drafts.language')}><select style={inputStyle} value={form.languageSelection} onChange={(event) => setForm((prev) => ({ ...prev, languageSelection: Number(event.target.value) }))}><option value={LanguageSelection.Vietnamese}>Tiếng Việt</option><option value={LanguageSelection.English}>English</option></select></Field>
-                      <Field label={t('drafts.startDate')}><input type="date" style={inputStyle} value={form.startDate} onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))} /></Field>
-                      <Field label={t('drafts.endDate')}><input type="date" style={inputStyle} value={form.endDate} onChange={(event) => setForm((prev) => ({ ...prev, endDate: event.target.value }))} /></Field>
-                    </div>
-                    <div style={{ marginTop: 14 }}><Field label={t('drafts.description')}><textarea style={{ ...textAreaStyle, minHeight: 90 }} value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} /></Field></div>
-                    <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('drafts.goals')}</div>
-                      {!selectedSubject ? <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('drafts.selectSubjectForGoals')}</div> : selectedSubject.goals.length === 0 ? <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('drafts.noGoalsForSubject')}</div> : <div style={{ display: 'grid', gap: 10 }}>
-                        {selectedSubject.goals.map((goal) => {
-                          const selected = form.goals.some((item) => item.goalId === goal.goalId)
-                          return <label key={goal.goalId} style={{ ...cardStyle, padding: 12, display: 'flex', gap: 10, alignItems: 'center', background: selected ? 'var(--bg-blue-hover)' : 'var(--bg-main)' }}><input type="checkbox" checked={selected} onChange={() => toggleGoal(goal.goalId)} /><span style={{ color: 'var(--text-primary)', flex: 1 }}>{goal.title}</span></label>
-                        })}
-                        {form.goals.length === 2 && <div style={{ ...cardStyle, padding: 14, background: 'var(--bg-main)' }}><div style={{ display: 'grid', gap: 8 }}><div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{t('drafts.goalWeightHint')}</div><input type="range" min={0} max={100} value={form.goals[0].weight} onChange={(event) => setPrimaryWeight(Number(event.target.value))} /><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)' }}><span>{selectedSubject.goals.find((goal) => goal.goalId === form.goals[0].goalId)?.title}: {form.goals[0].weight}%</span><span>{selectedSubject.goals.find((goal) => goal.goalId === form.goals[1].goalId)?.title}: {form.goals[1].weight}%</span></div></div></div>}
-                      </div>}
-                    </div>
-                  </Panel>
+            <main style={{ display: 'grid', gap: 20, minWidth: 0 }}>
+              {currentStep === 'overview' ? (
+                <OverviewStep
+                  form={form}
+                  subjectSearch={subjectSearch}
+                  selectedSubject={selectedSubject}
+                  filteredSubjects={filteredSubjects}
+                  isSubjectMenuOpen={isSubjectMenuOpen}
+                  subjectPickerRef={subjectPickerRef}
+                  generatingAiDraft={generatingAiDraft}
+                  saving={saving}
+                  levelOptions={LEVEL_OPTIONS}
+                  onFormChange={(updater) => setForm((prev) => updater(prev))}
+                  onToggleGoal={toggleGoal}
+                  onSetPrimaryWeight={setPrimaryWeight}
+                  onSelectSubject={selectSubject}
+                  onSubjectSearchChange={(value) => {
+                    setSubjectSearch(value)
+                    setIsSubjectMenuOpen(true)
+                    if (selectedSubject && value !== selectedSubject.name) setForm((prev) => ({ ...prev, subjectId: '', goals: [] }))
+                  }}
+                  onSubjectMenuToggle={(next) => setIsSubjectMenuOpen((prev) => next ?? !prev)}
+                  onGenerateAiDraft={generateAiDraftFromSettings}
+                  isCreateMode={isCreateMode}
+                />
+              ) : null}
 
-                  {activeChapter && <Panel
-                    title={t('drafts.chapterSettings')}
-                    subtitle={t('drafts.chapterSettingsHint')}
-                    collapsible
-                    collapseLabel={collapseLabel}
-                    expandLabel={expandLabel}
-                  >
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
-                      <Field label={t('drafts.chapterTitle')}><input style={inputStyle} value={activeChapter.title} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, title: event.target.value }))} /></Field>
-                      <Field label={t('drafts.estimatedDays')}><input type="number" min={1} style={inputStyle} value={activeChapter.estimatedDays} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, estimatedDays: event.target.value }))} /></Field>
-                      <Field label={t('drafts.startDate')}><input type="date" style={inputStyle} value={activeChapter.startDate} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, startDate: event.target.value }))} /></Field>
-                      <Field label={t('drafts.endDate')}><input type="date" style={inputStyle} value={activeChapter.endDate} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, endDate: event.target.value }))} /></Field>
-                    </div>
-                    <div style={{ marginTop: 14 }}><Field label={t('drafts.chapterDescription')}><textarea style={textAreaStyle} value={activeChapter.content} onChange={(event) => updateChapter(activeChapter.id, (chapter) => ({ ...chapter, content: event.target.value }))} /></Field></div>
-                    <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
-                      {activeChapter.lessons.map((lesson, lessonIndex) => <div key={lesson.id} style={{ ...cardStyle, padding: 12, background: 'var(--bg-main)' }}><div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 10, alignItems: 'end' }}><Field label={`Lesson ${lessonIndex + 1}`}><input style={inputStyle} value={lesson.title} onChange={(event) => updateLesson(activeChapter.id, lesson.id, (item) => ({ ...item, title: event.target.value }))} /></Field><Field label={t('drafts.lessonDay')}><input type="date" style={inputStyle} value={lesson.lessonDay} onChange={(event) => updateLesson(activeChapter.id, lesson.id, (item) => ({ ...item, lessonDay: event.target.value }))} /></Field><button type="button" style={{ ...buttonStyle, alignSelf: 'stretch' }} onClick={() => { setActiveLessonId(lesson.id); setActiveTab('lesson') }}>{t('drafts.openStudio')}</button></div></div>)}
-                    </div>
-                  </Panel>}
-                </>
-              )}
+              {currentStep === 'chapters' ? (
+                <ChaptersStep
+                  activeChapter={activeChapter}
+                  generatingChapterSkeleton={isGeneratingActiveChapterSkeleton}
+                  disableChapterSkeletonAction={saving || hasPendingChapterSkeletonGeneration}
+                  onUpdateChapter={(updater) => activeChapter ? updateChapter(activeChapter.id, updater) : undefined}
+                  onUpdateLesson={(lessonId, updater) => activeChapter ? updateLesson(activeChapter.id, lessonId, updater) : undefined}
+                  onOpenLessonStudio={(lessonId) => activeChapter ? selectLesson(activeChapter.id, lessonId, 'lesson') : undefined}
+                  onGenerateChapterSkeleton={generateChapterMentorSkeletonForActiveChapter}
+                />
+              ) : null}
 
-              {activeTab === 'lesson' && activeChapter && activeLesson && <Panel
-                title={t('drafts.lessonStudio')}
-                subtitle={t('drafts.lessonStudioHint')}
-                action={<span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{activeLesson.title || t('drafts.untitledLesson')}</span>}
-                collapsible
-                collapseLabel={collapseLabel}
-                expandLabel={expandLabel}
-              >
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20 }}>
-                  <div style={{ display: 'grid', gap: 14 }}>
-                    {SECTION_KEYS.map((key) => <Field key={key} label={SECTION_LABELS[key]}><><div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t(SECTION_HINT_KEYS[key])}</div><textarea style={{ ...textAreaStyle, minHeight: key === 'code-examples' || key === 'common-mistakes' ? 180 : 110 }} value={activeLesson.sections[key]} onChange={(event) => updateLesson(activeChapter.id, activeLesson.id, (lesson) => ({ ...lesson, sections: { ...lesson.sections, [key]: event.target.value } }))} /></></Field>)}
-                  </div>
-                  <div style={{ display: 'grid', gap: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>Markdown Sync</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>{t('drafts.markdownSyncHint')}</div>
-                      <Editor height="340px" defaultLanguage="markdown" theme="vs-light" value={buildLessonContentFromSections(activeLesson.sections)} onChange={(next) => updateLesson(activeChapter.id, activeLesson.id, (lesson) => ({ ...lesson, sections: parseLessonSections(next ?? '') }))} options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>Preview</div>
-                      <div style={{ ...cardStyle, padding: 16, background: 'var(--bg-main)', maxHeight: 580, overflow: 'auto' }}>
-                        <LessonContent content={buildLessonContentFromSections(activeLesson.sections)} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Panel>}
+              {currentStep === 'lesson' ? (
+                <LessonStudioStep
+                  activeChapter={activeChapter}
+                  activeLesson={activeLesson}
+                  isGeneratingLessonContent={isGeneratingActiveMentorLessonContent}
+                  isQuizSkeletonLoading={isQuizSkeletonLoading}
+                  hasQuizSkeleton={hasQuizSkeleton}
+                  quizSkeletonError={quizSkeletonError}
+                  onGenerateLessonContent={generateMentorLessonContentForActiveLesson}
+                  onUpdateLesson={(updater) => activeChapter && activeLesson ? updateLesson(activeChapter.id, activeLesson.id, updater) : undefined}
+                />
+              ) : null}
+
+              {currentStep === 'assessments' ? (
+                <AssessmentsStep
+                  assessmentTab={assessmentTab}
+                  activeChapter={activeChapter}
+                  activeLesson={activeLesson}
+                  generatingTaskId={generatingTaskId}
+                  generatingSingleQuizSkeleton={isGeneratingActiveSingleQuizSkeleton}
+                  generatingSingleQuizQuestionQuizId={generatingSingleQuizQuestionQuizId}
+                  saving={saving}
+                  onAssessmentTabChange={setAssessmentTab}
+                  onAddTask={() => activeChapter ? addTask(activeChapter.id) : undefined}
+                  onUpdateTask={(taskId, updater) => activeChapter ? updateTask(activeChapter.id, taskId, updater) : undefined}
+                  onRemoveTask={(taskId) => activeChapter ? removeTask(activeChapter.id, taskId) : undefined}
+                  onGenerateTask={(task) => activeChapter ? generateAiTaskForChapter(activeChapter.id, task.id) : undefined}
+                  onAddQuiz={() => activeChapter && activeLesson ? addQuiz(activeChapter.id, activeLesson.id) : undefined}
+                  onUpdateQuiz={(quizId, updater) => activeChapter && activeLesson ? updateQuiz(activeChapter.id, activeLesson.id, quizId, updater) : undefined}
+                  onRemoveQuiz={(quizId) => activeChapter && activeLesson ? removeQuiz(activeChapter.id, activeLesson.id, quizId) : undefined}
+                  onGenerateSingleQuizQuestion={generateSingleQuizQuestionForQuiz}
+                  onAddQuestion={(quizId) => activeChapter && activeLesson ? addQuestion(activeChapter.id, activeLesson.id, quizId) : undefined}
+                  onUpdateQuestion={(quizId, questionId, updater) => activeChapter && activeLesson ? updateQuestion(activeChapter.id, activeLesson.id, quizId, questionId, updater) : undefined}
+                  onRemoveQuestion={(quizId, questionId) => activeChapter && activeLesson ? removeQuestion(activeChapter.id, activeLesson.id, quizId, questionId) : undefined}
+                  onGenerateSingleQuizSkeleton={generateSingleQuizSkeletonForActiveLesson}
+                />
+              ) : null}
             </main>
           </div>
         </div>
+
         <ShareLearningPathModal
           isOpen={isShareModalOpen}
           title={t('chat.shareTitle')}
@@ -588,7 +1764,13 @@ const MentorDraftFormPage: React.FC = () => {
           submitting={sharing}
           lockPath
         />
-        {toast && <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div>}
+        <VersionUpdateModal
+          isOpen={isVersionUpdateModalOpen}
+          saving={saving}
+          onClose={() => setIsVersionUpdateModalOpen(false)}
+          onSubmit={handleConfirmVersionUpdate}
+        />
+        {toast ? <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div> : null}
       </div>
     </Layout>
   )

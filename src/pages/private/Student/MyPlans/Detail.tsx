@@ -71,10 +71,142 @@ const getProgressStatusLabel = (
   return t(`quizStatus.${status}`, status)
 }
 
+type ItemVisualStatus = 'completed' | 'overdue' | 'due-today' | 'default'
+
+const normalizeVisualStatus = (value: unknown): ItemVisualStatus | undefined => {
+  if (value === null || value === undefined) return undefined
+
+  if (typeof value === 'number') {
+    if (value === 2) return 'completed'
+    if (value === 3) return 'overdue'
+    return undefined
+  }
+
+  const normalized = String(value).trim().toLowerCase().replace(/[\s_-]/g, '')
+  if (!normalized) return undefined
+
+  if (['completed', 'done', 'finished', 'success'].includes(normalized)) return 'completed'
+  if (['overdue', 'pastdue', 'expired', 'late'].includes(normalized)) return 'overdue'
+  if (['duetoday', 'today', 'due'].includes(normalized)) return 'due-today'
+
+  return undefined
+}
+
+const resolveVisualStatus = (rawStatus: unknown, dueDate?: unknown): ItemVisualStatus => {
+  const fromStatus = normalizeVisualStatus(rawStatus)
+  if (fromStatus) return fromStatus
+
+  if (dueDate) {
+    const parsedDate = new Date(String(dueDate))
+    if (!Number.isNaN(parsedDate.getTime())) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const dueDay = new Date(parsedDate)
+      dueDay.setHours(0, 0, 0, 0)
+
+      if (dueDay.getTime() < today.getTime()) {
+        return 'overdue'
+      }
+
+      if (dueDay.getTime() === today.getTime()) {
+        return 'due-today'
+      }
+    }
+  }
+
+  return 'default'
+}
+
+const getItemStatusStyles = (status: ItemVisualStatus) => {
+  if (status === 'completed') {
+    return {
+      background: 'rgba(34, 197, 94, 0.06)',
+      borderColor: 'rgba(34, 197, 94, 0.3)',
+      leftAccent: 'var(--success-primary)',
+      badgeBackground: 'var(--success-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      metaColor: 'var(--success-primary)',
+      nestedBackground: 'rgba(34, 197, 94, 0.03)'
+    }
+  }
+
+  if (status === 'overdue') {
+    return {
+      background: 'rgba(207, 34, 46, 0.06)',
+      borderColor: 'rgba(207, 34, 46, 0.28)',
+      leftAccent: 'var(--danger-primary)',
+      badgeBackground: 'var(--danger-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      metaColor: 'var(--danger-primary)',
+      nestedBackground: 'rgba(207, 34, 46, 0.04)'
+    }
+  }
+
+  if (status === 'due-today') {
+    return {
+      background: 'rgba(245, 158, 11, 0.08)',
+      borderColor: 'rgba(245, 158, 11, 0.32)',
+      leftAccent: 'var(--warning-primary)',
+      badgeBackground: 'var(--warning-primary)',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      metaColor: 'var(--warning-primary)',
+      nestedBackground: 'rgba(245, 158, 11, 0.06)'
+    }
+  }
+
+  return {
+    background: 'var(--bg-main)',
+    borderColor: 'var(--border-base)',
+    leftAccent: 'transparent',
+    badgeBackground: 'var(--text-disabled)',
+    badgeColor: 'var(--bg-surface)',
+    titleColor: 'var(--text-primary)',
+    metaColor: 'var(--accent-primary)',
+    nestedBackground: 'var(--bg-surface)'
+  }
+}
+
+const getLessonCornerTag = (status: ItemVisualStatus, t: any) => {
+  if (status === 'completed') {
+    return {
+      label: t('plansResult.lessonTagCompleted'),
+      color: 'var(--success-primary)',
+      background: 'rgba(22, 163, 74, 0.10)',
+      borderColor: 'rgba(22, 163, 74, 0.28)'
+    }
+  }
+
+  if (status === 'due-today') {
+    return {
+      label: t('plansResult.lessonTagDueToday'),
+      color: 'var(--warning-primary)',
+      background: 'rgba(245, 158, 11, 0.12)',
+      borderColor: 'rgba(245, 158, 11, 0.32)'
+    }
+  }
+
+  if (status === 'overdue') {
+    return {
+      label: t('plansResult.lessonTagOverdue'),
+      color: 'var(--danger-primary)',
+      background: 'rgba(220, 38, 38, 0.10)',
+      borderColor: 'rgba(220, 38, 38, 0.3)'
+    }
+  }
+
+  return null
+}
+
 const MyPlansDetailPage: React.FC = () => {
   const location = useLocation() as any
   const pathId = location.state?.pathId
   const initialSkeleton = location.state?.skeleton
+  const activeChapterFromNav = location.state?.activeChapterId || null
+  const selectedTaskFromNav = location.state?.selectedTaskId || null
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { t } = useTranslation('student')
@@ -85,7 +217,8 @@ const MyPlansDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(!initialSkeleton)
   const [error, setError] = useState<string | null>(null)
 
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(location.state?.activeChapterId || null)
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(activeChapterFromNav)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(selectedTaskFromNav)
   const detailScrollRef = useRef<HTMLDivElement>(null)
   // Track chapter completion status
   const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
@@ -100,6 +233,14 @@ const MyPlansDetailPage: React.FC = () => {
     fetchPlanDetail()
   }, [pathId, location?.key, user?.id])
 
+  useEffect(() => {
+    setActiveChapterId(activeChapterFromNav)
+  }, [activeChapterFromNav, pathId, location?.key])
+
+  useEffect(() => {
+    setSelectedTaskId(selectedTaskFromNav)
+  }, [selectedTaskFromNav, location?.key])
+
   const fetchPlanDetail = async () => {
     if (!user?.id || !pathId) return
 
@@ -111,6 +252,7 @@ const MyPlansDetailPage: React.FC = () => {
         LearningPathService.getUserLearningPaths(user.id, {
           pageNumber: 1,
           pageSize: 100,
+          includeDetails: true,
         }),
         LearningPathService.getLearningPathProgress(pathId),
       ])
@@ -438,7 +580,10 @@ const MyPlansDetailPage: React.FC = () => {
                     >
                       <button
                         className={`chapter-btn ${isActive ? 'active' : ''}`}
-                        onClick={() => setActiveChapterId(chapter.id)}
+                        onClick={() => {
+                          setActiveChapterId(chapter.id)
+                          setSelectedTaskId(null)
+                        }}
                         style={{
                           width: '100%', padding: '16px', display: 'flex', alignItems: 'center', gap: 12,
                           background: isActive ? 'var(--bg-surface)' : 'transparent',
@@ -521,26 +666,55 @@ const MyPlansDetailPage: React.FC = () => {
                             }}
                             style={{ display: 'grid', gap: 16 }}
                           >
-                            {chapter.lessons.map((lesson, lessonIdx) => (
-                              <motion.div 
-                                key={lesson.id || lessonIdx} 
-                                variants={{
-                                  hidden: { opacity: 0, y: 10 },
-                                  visible: { opacity: 1, y: 0 }
-                                }}
-                                transition={{ duration: 0.3 }}
-                                style={{ 
-                                  display: 'flex', 
-                                  alignItems: 'flex-start', 
-                                  gap: 16, 
-                                  padding: '16px', 
-                                  background: 'var(--bg-main)', 
-                                  border: '1px solid var(--border-base)', 
-                                  borderRadius: 4 
-                                }}
-                              >
+                            {chapter.lessons.map((lesson, lessonIdx) => {
+                              const lessonVisualStatus = resolveVisualStatus(
+                                lesson.status ?? lesson.lessonStatus ?? lesson.Status ?? lesson.LessonStatus,
+                                lesson.lessonDay
+                              )
+                              const lessonStyles = getItemStatusStyles(lessonVisualStatus)
+                              const lessonCornerTag = getLessonCornerTag(lessonVisualStatus, t)
+
+                              return (
+                                <motion.div 
+                                  key={lesson.id || lessonIdx} 
+                                  variants={{
+                                    hidden: { opacity: 0, y: 10 },
+                                    visible: { opacity: 1, y: 0 }
+                                  }}
+                                  transition={{ duration: 0.3 }}
+                                  style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'flex-start', 
+                                    gap: 16, 
+                                    padding: '16px', 
+                                    position: 'relative',
+                                    background: lessonStyles.background,
+                                    border: `1px solid ${lessonStyles.borderColor}`,
+                                    borderLeft: `3px solid ${lessonStyles.leftAccent}`,
+                                    borderRadius: 4 
+                                  }}
+                                >
+                                {lessonCornerTag && (
+                                  <span style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 10,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    padding: '4px 8px',
+                                    borderRadius: 999,
+                                    border: `1px solid ${lessonCornerTag.borderColor}`,
+                                    color: lessonCornerTag.color,
+                                    background: lessonCornerTag.background,
+                                    lineHeight: 1.2,
+                                    maxWidth: 220,
+                                    textAlign: 'center'
+                                  }}>
+                                    {lessonCornerTag.label}
+                                  </span>
+                                )}
                                 <div style={{
-                                  width: 24, height: 24, borderRadius: '50%', background: 'var(--text-disabled)', color: 'var(--bg-surface)',
+                                  width: 24, height: 24, borderRadius: '50%', background: lessonStyles.badgeBackground, color: lessonStyles.badgeColor,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
                                 }}>
                                   {lessonIdx + 1}
@@ -550,12 +724,19 @@ const MyPlansDetailPage: React.FC = () => {
                                     className="lesson-link"
                                     onClick={() => {
                                       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(plan)) } catch { }
-                                      navigate(`/lesson/${lesson.id}`, { state: { skeleton: plan } })
+                                      navigate(`/lesson/${lesson.id}`, {
+                                        state: {
+                                          skeleton: plan,
+                                          chapterId: chapter.id,
+                                          chapterTitle: chapter.title,
+                                          lessonTitle: lesson.title,
+                                        }
+                                      })
                                     }}
                                     whileHover={{ x: 4 }}
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
-                                      fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
+                                      fontSize: 15, fontWeight: 600, color: lessonStyles.titleColor, cursor: 'pointer',
                                       textDecoration: 'none', textAlign: 'left', display: 'block'
                                     }}
                                   >
@@ -566,7 +747,7 @@ const MyPlansDetailPage: React.FC = () => {
                                   {lesson.lessonDay && (
                                     <div style={{ 
                                       display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
-                                      fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600
+                                      fontSize: 12, color: lessonStyles.metaColor, fontWeight: 600
                                     }}>
                                       <span>📅</span>
                                       <span>{new Date(lesson.lessonDay).toLocaleDateString('vi-VN', { 
@@ -593,6 +774,11 @@ const MyPlansDetailPage: React.FC = () => {
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                                         {lesson.quizzes.map((quiz, quizIdx) => {
                                           const quizId = quiz?.id ?? quiz?.quizId ?? quiz?.quizzId
+                                          const quizVisualStatus = resolveVisualStatus(
+                                            quiz?.status ?? quiz?.quizStatus ?? quiz?.Status ?? quiz?.QuizStatus,
+                                            quiz?.dueDate ?? quiz?.DueDate
+                                          )
+                                          const quizStyles = getItemStatusStyles(quizVisualStatus)
                                           return (
                                             <motion.button
                                               key={quizId || quizIdx}
@@ -607,13 +793,19 @@ const MyPlansDetailPage: React.FC = () => {
                                                 })
                                               }}
                                               style={{
-                                                background: 'transparent', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent-primary)',
+                                                background: quizStyles.nestedBackground,
+                                                border: `1px solid ${quizStyles.borderColor}`,
+                                                borderLeft: `3px solid ${quizStyles.leftAccent}`,
+                                                borderRadius: 4,
+                                                padding: '6px 8px',
+                                                fontSize: 13,
+                                                color: quizStyles.metaColor,
                                                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left'
                                               }}
                                               onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                                               onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
                                             >
-                                              <span style={{ color: 'var(--success-primary)' }}>➔</span>
+                                              <span style={{ color: quizStyles.leftAccent === 'transparent' ? 'var(--success-primary)' : quizStyles.leftAccent }}>➔</span>
                                               <span style={{ display: 'flex', alignItems: 'center' }}>
                                                 {quiz.title}
                                                 {quizId && <QuizStatusBadge quizId={quizId} />}
@@ -625,8 +817,9 @@ const MyPlansDetailPage: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
-                              </motion.div>
-                            ))}
+                                </motion.div>
+                              )
+                            })}
                           </motion.div>
                         </div>
                       )}
@@ -635,6 +828,8 @@ const MyPlansDetailPage: React.FC = () => {
                       <div style={{ marginTop: 'auto' }}>
                         <ChapterTasks
                           chapterId={chapter.id!}
+                          selectedTaskId={chapter.id === activeChapterId ? selectedTaskId : null}
+                          initialTasks={chapter.tasks}
                           onAllTasksCompleted={handleChapterTasksCompleted}
                         />
                       </div>

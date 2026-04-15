@@ -67,6 +67,20 @@ export interface CurrentSubscriptionPlan {
   [key: string]: unknown
 }
 
+function normalizeCurrentSubscription(raw: unknown): CurrentSubscriptionPlan | null {
+  if (!raw || typeof raw !== 'object') {
+    return null
+  }
+
+  const record = raw as Record<string, unknown>
+
+  if (record.data && typeof record.data === 'object') {
+    return record.data as CurrentSubscriptionPlan
+  }
+
+  return record as CurrentSubscriptionPlan
+}
+
 function normalizeEnumValue(
   value: unknown,
   fallback: number,
@@ -264,29 +278,8 @@ class SubscriptionService {
   }
 
   async getCurrentSubscription(): Promise<CurrentSubscriptionPlan | null> {
-    if (currentSubscriptionMemoryCache && currentSubscriptionMemoryCache.expiresAt > Date.now()) {
-      return currentSubscriptionMemoryCache.data
-    }
-
-    const storageEntry = readCurrentSubscriptionStorageCache()
-    if (storageEntry) {
-      currentSubscriptionMemoryCache = storageEntry
-      return storageEntry.data
-    }
-
     const response = await axiosInstance.get('/subscription-plans/me') as unknown
-    let normalizedData: CurrentSubscriptionPlan | null = null
-
-    if (response && typeof response === 'object') {
-      const record = response as Record<string, unknown>
-      const nestedData = record.data
-
-      if (nestedData && typeof nestedData === 'object') {
-        normalizedData = nestedData as CurrentSubscriptionPlan
-      } else {
-        normalizedData = record as CurrentSubscriptionPlan
-      }
-    }
+    const normalizedData = normalizeCurrentSubscription(response)
 
     const cacheEntry: CurrentSubscriptionCacheEntry = {
       data: normalizedData,

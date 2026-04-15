@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr'
 import useAuthStore from '../../store/useAuthStore'
+import type { NotificationDto } from '../../types/notification'
 
 // ==== Hub URLs ====
 const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
@@ -20,7 +21,10 @@ const QUIZ_HUB_URL = `${HUB_BASE}/hubs/quiz`
 const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
+const NOTIFICATION_HUB_URL = `${HUB_BASE}/hubs/notification`
 const REQUEST_TIMEOUT = 120000 // 2m timeout
+const SIGNALR_DEBUG_STORAGE_KEY = 'signalr:debug'
+const SIGNALR_DEBUG_QUERY_KEY = 'debugSignalR'
 
 
 // ==== State ====
@@ -31,6 +35,11 @@ let quizHub: signalR.HubConnection | null = null
 let summaryHub: signalR.HubConnection | null = null
 let learningPathHub: signalR.HubConnection | null = null
 let tutorHub: signalR.HubConnection | null = null
+let notificationHub: signalR.HubConnection | null = null
+let notificationHubBound = false
+
+const notificationReceiveListeners = new Set<(payload: NotificationDto | unknown) => void>()
+const notificationUnreadCountListeners = new Set<(payload: unknown) => void>()
 
 // single-flight guards (avoid duplicate invokes for the same id)
 const inflightLesson = new Map<string, Promise<any>>()
@@ -40,11 +49,17 @@ const inflightQuiz = new Map<string, Promise<any>>()
 const inflightSummary = new Map<string, Promise<any>>()
 const inflightLearningPath = new Map<string, Promise<any>>()
 const inflightChapterSkeleton = new Map<string, Promise<any>>()
+const inflightChapterMentorSkeleton = new Map<string, Promise<any>>()
+const inflightMentorLessonContent = new Map<string, Promise<any>>()
+const inflightSingleTask = new Map<string, Promise<any>>()
+const inflightSingleQuizSkeleton = new Map<string, Promise<any>>()
+const inflightSingleQuizQuestion = new Map<string, Promise<any>>()
 const inflightQuizSkeleton = new Map<string, Promise<any>>()
 const inflightLearningPathSuggestions = new Map<string, Promise<any>>()
 const inflightAdoptSuggestedPath = new Map<string, Promise<any>>()
 const inflightTutorMessages = new Map<string, Promise<any>>()
 const inflightTutorMessageHistory = new Map<string, Promise<any>>()
+const inflightTutorSummaryHistory = new Map<string, Promise<any>>()
 const inflightTutorConversationResolve = new Map<string, Promise<any>>()
 
 // ==== Utils ====
@@ -56,9 +71,76 @@ function isGuid(value: any): value is string {
   return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)
 }
 
+function getPayloadCorrelationId(payload: any, keys: string[]): string | null {
+  if (!payload || typeof payload !== 'object') return null
+  for (const key of keys) {
+    const value = payload[key]
+    if (value != null && value !== '') return String(value)
+  }
+  return null
+}
+
+function resolveHubErrorMessage(err: any, fallback: string): string {
+  return err?.ErrorMessage
+    || err?.errorMessage
+    || err?.message
+    || err?.Message
+    || fallback
+}
+
+function readSignalRDebugFlagFromWindow(): boolean {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const query = new URLSearchParams(window.location.search)
+    const queryValue = query.get(SIGNALR_DEBUG_QUERY_KEY)
+    if (queryValue != null) {
+      return ['1', 'true', 'yes', 'on'].includes(queryValue.trim().toLowerCase())
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const storageValue = window.localStorage.getItem(SIGNALR_DEBUG_STORAGE_KEY)
+    if (storageValue != null) {
+      return ['1', 'true', 'yes', 'on'].includes(storageValue.trim().toLowerCase())
+    }
+  } catch {
+    // ignore
+  }
+
+  return false
+}
+
+function isSignalRDebugEnabled(): boolean {
+  const envValue = String((import.meta.env.VITE_SIGNALR_DEBUG as string | undefined) ?? '').trim().toLowerCase()
+  const envEnabled = ['1', 'true', 'yes', 'on'].includes(envValue)
+  return envEnabled || readSignalRDebugFlagFromWindow()
+}
+
+function debugSignalR(scope: string, message: string, payload?: unknown) {
+  if (!isSignalRDebugEnabled()) return
+  if (payload === undefined) {
+    console.debug(`[SignalR:${scope}] ${message}`)
+    return
+  }
+  console.debug(`[SignalR:${scope}] ${message}`, payload)
+}
+
+export function setSignalRDebug(enabled: boolean): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(SIGNALR_DEBUG_STORAGE_KEY, enabled ? '1' : '0')
+  } catch {
+    // ignore
+  }
+}
+
 async function ensureStarted(conn: signalR.HubConnection, _name: string) {
   // If already connected, return immediately
   if (conn.state === signalR.HubConnectionState.Connected) {
+    debugSignalR(_name, 'connection already started')
     return
   }
 
@@ -70,6 +152,7 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
     while (Date.now() - startTime < maxWait) {
       const currentState = conn.state
       if (currentState === signalR.HubConnectionState.Connected) {
+        debugSignalR(_name, 'connection became connected while waiting')
         return
       }
       if (currentState === signalR.HubConnectionState.Disconnected) {
@@ -85,12 +168,14 @@ async function ensureStarted(conn: signalR.HubConnection, _name: string) {
 
   // If disconnected, start the connection
   if (conn.state === signalR.HubConnectionState.Disconnected) {
+    debugSignalR(_name, 'starting connection')
     await conn.start()
+    debugSignalR(_name, 'connection started')
   }
 }
 
-function buildConnection(url: string): signalR.HubConnection {
-  return new signalR.HubConnectionBuilder()
+function buildConnection(url: string, name: string): signalR.HubConnection {
+  const conn = new signalR.HubConnectionBuilder()
     .withUrl(url, {
       accessTokenFactory: () => {
         const token = getToken()
@@ -101,13 +186,25 @@ function buildConnection(url: string): signalR.HubConnection {
     .withAutomaticReconnect({
       nextRetryDelayInMilliseconds: (ctx) => ctx.previousRetryCount === 0 ? 0 : Math.min(1000 << ctx.previousRetryCount, 30000),
     })
-    .configureLogging(signalR.LogLevel.Information) // Tăng log level để debug
+    .configureLogging(isSignalRDebugEnabled() ? signalR.LogLevel.Information : signalR.LogLevel.None)
     .build()
+
+  conn.onreconnecting((error) => {
+    debugSignalR(name, 'connection reconnecting', { error: resolveHubErrorMessage(error, 'Unknown reconnect error') })
+  })
+  conn.onreconnected((connectionId) => {
+    debugSignalR(name, 'connection reconnected', { connectionId })
+  })
+  conn.onclose((error) => {
+    debugSignalR(name, 'connection closed', error ? { error: resolveHubErrorMessage(error, 'Unknown close error') } : undefined)
+  })
+
+  return conn
 }
 
 export async function getLessonHub(): Promise<signalR.HubConnection> {
   if (!lessonHub) {
-    lessonHub = buildConnection(LESSON_HUB_URL)
+    lessonHub = buildConnection(LESSON_HUB_URL, 'lesson')
   }
   await ensureStarted(lessonHub, 'lesson')
   return lessonHub
@@ -115,7 +212,7 @@ export async function getLessonHub(): Promise<signalR.HubConnection> {
 
 export async function getChapterHub(): Promise<signalR.HubConnection> {
   if (!chapterHub) {
-    chapterHub = buildConnection(CHAPTER_HUB_URL)
+    chapterHub = buildConnection(CHAPTER_HUB_URL, 'chapter')
   }
   await ensureStarted(chapterHub, 'chapter')
   return chapterHub
@@ -123,7 +220,7 @@ export async function getChapterHub(): Promise<signalR.HubConnection> {
 
 export async function getTaskHub(): Promise<signalR.HubConnection> {
   if (!taskHub) {
-    taskHub = buildConnection(TASK_HUB_URL)
+    taskHub = buildConnection(TASK_HUB_URL, 'task')
   }
   await ensureStarted(taskHub, 'task')
   return taskHub
@@ -131,7 +228,7 @@ export async function getTaskHub(): Promise<signalR.HubConnection> {
 
 export async function getQuizHub(): Promise<signalR.HubConnection> {
   if (!quizHub) {
-    quizHub = buildConnection(QUIZ_HUB_URL)
+    quizHub = buildConnection(QUIZ_HUB_URL, 'quiz')
   }
   await ensureStarted(quizHub, 'quiz')
   return quizHub
@@ -139,7 +236,7 @@ export async function getQuizHub(): Promise<signalR.HubConnection> {
 
 export async function getSummaryHub(): Promise<signalR.HubConnection> {
   if (!summaryHub) {
-    summaryHub = buildConnection(SUMMARY_HUB_URL)
+    summaryHub = buildConnection(SUMMARY_HUB_URL, 'summary')
   }
   await ensureStarted(summaryHub, 'summary')
   return summaryHub
@@ -147,7 +244,7 @@ export async function getSummaryHub(): Promise<signalR.HubConnection> {
 
 export async function getLearningPathHub(): Promise<signalR.HubConnection> {
   if (!learningPathHub) {
-    learningPathHub = buildConnection(LEARNING_PATH_HUB_URL)
+    learningPathHub = buildConnection(LEARNING_PATH_HUB_URL, 'learningpath')
   }
   await ensureStarted(learningPathHub, 'learningpath')
   return learningPathHub
@@ -155,10 +252,70 @@ export async function getLearningPathHub(): Promise<signalR.HubConnection> {
 
 export async function getTutorHub(): Promise<signalR.HubConnection> {
   if (!tutorHub) {
-    tutorHub = buildConnection(TUTOR_HUB_URL)
+    tutorHub = buildConnection(TUTOR_HUB_URL, 'tutor')
   }
   await ensureStarted(tutorHub, 'tutor')
   return tutorHub
+}
+
+function bindNotificationHubListeners(hub: signalR.HubConnection) {
+  if (notificationHubBound) return
+
+  hub.on('ReceiveNotification', (payload: NotificationDto | unknown) => {
+    notificationReceiveListeners.forEach((listener) => listener(payload))
+  })
+  hub.on('NotificationUnreadCountChanged', (payload: unknown) => {
+    notificationUnreadCountListeners.forEach((listener) => listener(payload))
+  })
+
+  notificationHubBound = true
+}
+
+export async function getNotificationHub(): Promise<signalR.HubConnection> {
+  if (!notificationHub) {
+    notificationHub = buildConnection(NOTIFICATION_HUB_URL, 'notification')
+  }
+  await ensureStarted(notificationHub, 'notification')
+  bindNotificationHubListeners(notificationHub)
+  return notificationHub
+}
+
+export async function subscribeToNotifications(handlers: {
+  onReceiveNotification?: (payload: NotificationDto | unknown) => void
+  onUnreadCountChanged?: (payload: unknown) => void
+}): Promise<() => void> {
+  if (handlers.onReceiveNotification) {
+    notificationReceiveListeners.add(handlers.onReceiveNotification)
+  }
+  if (handlers.onUnreadCountChanged) {
+    notificationUnreadCountListeners.add(handlers.onUnreadCountChanged)
+  }
+
+  await getNotificationHub()
+
+  return () => {
+    if (handlers.onReceiveNotification) {
+      notificationReceiveListeners.delete(handlers.onReceiveNotification)
+    }
+    if (handlers.onUnreadCountChanged) {
+      notificationUnreadCountListeners.delete(handlers.onUnreadCountChanged)
+    }
+  }
+}
+
+export async function disconnectNotificationHub(): Promise<void> {
+  try {
+    if (notificationHub && notificationHub.state !== signalR.HubConnectionState.Disconnected) {
+      await notificationHub.stop()
+    }
+  } catch {
+    // ignore
+  } finally {
+    notificationReceiveListeners.clear()
+    notificationUnreadCountListeners.clear()
+    notificationHub = null
+    notificationHubBound = false
+  }
 }
 
 // ==== Request lesson content (pure SignalR, per spec) ====
@@ -174,8 +331,10 @@ export async function requestLessonContent(
   if (!isGuid(lessonId)) {
     return Promise.reject(new Error('lessonId phải là GUID hợp lệ'))
   }
+  debugSignalR('lesson.request-content', 'request started', { lessonId })
   // single-flight: return running promise for same lessonId
   if (inflightLesson.has(lessonId)) {
+    debugSignalR('lesson.request-content', 'reusing inflight request', { lessonId })
     return inflightLesson.get(lessonId)!
   }
 
@@ -189,8 +348,15 @@ export async function requestLessonContent(
       let isResolved = false
       let lessonContent: any = null
       let quizSkeleton: any = null
+      let quizSkeletonError: any = null
+      const isMatchingLessonPayload = (payload: any, requireId = false) => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['LessonId', 'lessonId'])
+        if (!payloadLessonId) return !requireId
+        return payloadLessonId === lessonId
+      }
 
       const cleanup = () => {
+        debugSignalR('lesson.request-content', 'cleanup listeners', { lessonId })
         hub.off('LessonContentLoading', handleLoading)
         hub.off('ReceiveLessonContent', handleContent)
         hub.off('LessonContentError', handleError)
@@ -201,81 +367,78 @@ export async function requestLessonContent(
         inflightLesson.delete(lessonId)
       }
 
-      const resolveEarly = () => {
-        if (!isResolved && lessonContent) {
-          isResolved = true
-          resolve({
-            ...lessonContent,
-            quizSkeleton: quizSkeleton === false ? null : quizSkeleton
-          })
-        }
-      }
-
-      const handleLoading = () => {
+      const handleLoading = (data: any) => {
+        if (!isMatchingLessonPayload(data, true)) return
+        debugSignalR('lesson.request-content', 'LessonContentLoading', data)
         onLoading?.()
       }
 
       const handleContent = (content: any) => {
-        if (content?.LessonId === lessonId || content?.lessonId === lessonId) {
-          lessonContent = content
-          resolveEarly()
-        }
+        if (!isMatchingLessonPayload(content)) return
+        debugSignalR('lesson.request-content', 'ReceiveLessonContent', content)
+        lessonContent = content
       }
 
       const handleQuizLoading = (data: any) => {
         // Quiz skeleton loading started
-        if (data?.LessonId === lessonId || data?.lessonId === lessonId) {
-          onQuizEvent?.onLoading?.()
-        }
+        if (!isMatchingLessonPayload(data, true)) return
+        debugSignalR('lesson.request-content', 'QuizSkeletonLoading', data)
+        onQuizEvent?.onLoading?.()
       }
 
       const handleQuizSkeleton = (quizData: any) => {
-        if (quizData?.LessonId === lessonId || quizData?.lessonId === lessonId) {
-          quizSkeleton = quizData
-          onQuizEvent?.onSuccess?.(quizData)
-        }
+        if (!isMatchingLessonPayload(quizData, true)) return
+        debugSignalR('lesson.request-content', 'ReceiveQuizSkeleton', quizData)
+        quizSkeleton = quizData
+        quizSkeletonError = null
+        onQuizEvent?.onSuccess?.(quizData)
       }
 
       const handleQuizError = (err: any) => {
-        if (err?.LessonId === lessonId || err?.lessonId === lessonId) {
-          quizSkeleton = false // Mark as failed but don't fail the whole request
-          onQuizEvent?.onError?.(err)
-        }
+        if (!isMatchingLessonPayload(err, true)) return
+        debugSignalR('lesson.request-content', 'QuizSkeletonError', err)
+        quizSkeleton = false // Mark as failed but don't fail the whole request
+        quizSkeletonError = err
+        onQuizEvent?.onError?.(err)
       }
 
       const handleCompleted = (result: any) => {
-        if (result?.LessonId === lessonId || result?.lessonId === lessonId) {
-          if (!isResolved) {
-            isResolved = true
-            resolve({
-              lessonId,
-              content: lessonContent?.content || result?.content,
-              quizSkeleton: quizSkeleton === false ? null : (quizSkeleton || result?.quizSkeleton),
-              ...result
-            })
-          }
-          if (!done) {
-            done = true
-            cleanup()
-            clearTo()
-          }
+        if (!isMatchingLessonPayload(result, true)) return
+        debugSignalR('lesson.request-content', 'LessonGenerationCompleted', result)
+        if (!isResolved) {
+          isResolved = true
+          resolve({
+            lessonId,
+            content: lessonContent?.content || result?.content,
+            quizSkeleton: quizSkeleton === false ? null : (quizSkeleton || result?.quizSkeleton),
+            quizSkeletonError,
+            ...result
+          })
+        }
+        if (!done) {
+          done = true
+          cleanup()
+          clearTo()
         }
       }
 
       const handleError = (err: any) => {
+        if (!isMatchingLessonPayload(err, true)) return
+        debugSignalR('lesson.request-content', 'LessonContentError', err)
         if (done) return
         done = true
         cleanup()
         clearTo()
         if (!isResolved) {
           isResolved = true
-          reject(new Error(err?.message || 'Failed to load lesson content'))
+          reject(new Error(resolveHubErrorMessage(err, 'Failed to load lesson content')))
         }
       }
 
       // timeout safety
       const to = setTimeout(() => {
         if (done) return
+        debugSignalR('lesson.request-content', 'request timeout', { lessonId, timeoutMs: REQUEST_TIMEOUT })
         done = true
         cleanup()
         if (!isResolved) {
@@ -299,6 +462,7 @@ export async function requestLessonContent(
       hub.on('LessonGenerationCompleted', handleCompletedWrap)
 
       try {
+        debugSignalR('lesson.request-content', 'invoking hub method', { method: 'RequestLessonContent', lessonId })
         hub.invoke('RequestLessonContent', lessonId).catch(handleErrorWrap)
       } catch (e) {
         handleErrorWrap(e)
@@ -307,6 +471,494 @@ export async function requestLessonContent(
   })()
 
   inflightLesson.set(lessonId, p)
+  return p
+}
+
+export async function requestLessonQuizSkeleton(
+  lessonId: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(lessonId)) {
+    return Promise.reject(new Error('lessonId pháº£i lÃ  GUID há»£p lá»‡'))
+  }
+
+  debugSignalR('lesson.quiz-skeleton', 'request started', { lessonId })
+  if (inflightQuizSkeleton.has(lessonId)) {
+    debugSignalR('lesson.quiz-skeleton', 'reusing inflight request', { lessonId })
+    return inflightQuizSkeleton.get(lessonId)!
+  }
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const isMatchingLessonPayload = (payload: any, requireId = false) => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['LessonId', 'lessonId'])
+        if (!payloadLessonId) return !requireId
+        return payloadLessonId === lessonId
+      }
+
+      const cleanup = () => {
+        debugSignalR('lesson.quiz-skeleton', 'cleanup listeners', { lessonId })
+        hub.off('QuizSkeletonLoading', handleLoading)
+        hub.off('ReceiveQuizSkeleton', handleQuizSkeleton)
+        hub.off('QuizSkeletonError', handleQuizError)
+        inflightQuizSkeleton.delete(lessonId)
+      }
+
+      const handleLoading = (data: any) => {
+        if (!isMatchingLessonPayload(data, true)) return
+        debugSignalR('lesson.quiz-skeleton', 'QuizSkeletonLoading', data)
+        onLoading?.()
+      }
+
+      const handleQuizSkeleton = (quizData: any) => {
+        if (!isMatchingLessonPayload(quizData, true)) return
+        debugSignalR('lesson.quiz-skeleton', 'ReceiveQuizSkeleton', quizData)
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(quizData)
+      }
+
+      const handleQuizError = (err: any) => {
+        if (!isMatchingLessonPayload(err, true)) return
+        debugSignalR('lesson.quiz-skeleton', 'QuizSkeletonError', err)
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(new Error(resolveHubErrorMessage(err, 'Failed to load lesson quiz skeleton')))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        debugSignalR('lesson.quiz-skeleton', 'request timeout', { lessonId, timeoutMs: REQUEST_TIMEOUT })
+        done = true
+        cleanup()
+        reject(new Error('Lesson quiz skeleton request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleQuizSkeletonWrap = (q: any) => { handleQuizSkeleton(q) }
+      const handleQuizErrorWrap = (e: any) => { handleQuizError(e) }
+
+      hub.on('QuizSkeletonLoading', handleLoading)
+      hub.on('ReceiveQuizSkeleton', handleQuizSkeletonWrap)
+      hub.on('QuizSkeletonError', handleQuizErrorWrap)
+
+      try {
+        debugSignalR('lesson.quiz-skeleton', 'invoking hub method', { method: 'RequestQuizSkeleton', lessonId })
+        hub.invoke('RequestQuizSkeleton', lessonId).catch(handleQuizErrorWrap)
+      } catch (e) {
+        handleQuizErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightQuizSkeleton.set(lessonId, p)
+  return p
+}
+
+export async function requestSingleQuizSkeleton(
+  lessonId: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(lessonId)) {
+    return Promise.reject(new Error('lessonId must be a valid GUID'))
+  }
+
+  if (inflightSingleQuizSkeleton.has(lessonId)) {
+    return inflightSingleQuizSkeleton.get(lessonId)!
+  }
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+
+      const isMatchingLessonPayload = (payload: any): boolean => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['lessonId', 'LessonId'])
+        return !!payloadLessonId && payloadLessonId === lessonId
+      }
+
+      const buildSingleQuizError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        hub.off('SingleQuizSkeletonLoading', handleLoading)
+        hub.off('ReceiveSingleQuizSkeleton', handleSuccess)
+        hub.off('SingleQuizSkeletonError', handleError)
+        inflightSingleQuizSkeleton.delete(lessonId)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLessonPayload(payload)) return
+        onLoading?.()
+      }
+
+      const handleSuccess = (payload: any) => {
+        if (!isMatchingLessonPayload(payload)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingLessonPayload(err)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildSingleQuizError(err, 'Failed to generate single quiz skeleton'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Single quiz skeleton generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleSuccessWrap = (payload: any) => { clearTo(); handleSuccess(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('SingleQuizSkeletonLoading', handleLoading)
+      hub.on('ReceiveSingleQuizSkeleton', handleSuccessWrap)
+      hub.on('SingleQuizSkeletonError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestSingleQuizSkeleton', lessonId).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightSingleQuizSkeleton.set(lessonId, p)
+  return p
+}
+
+export async function requestSingleQuizQuestion(
+  quizId: string,
+  questionType: number,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(quizId)) {
+    return Promise.reject(new Error('quizId must be a valid GUID'))
+  }
+
+  const normalizedQuestionType = Number(questionType)
+  if (!Number.isFinite(normalizedQuestionType) || ![0, 1, 2, 3, 4, 5].includes(normalizedQuestionType)) {
+    return Promise.reject(new Error('questionType must be one of 0 (TrueFalse), 1 (MultipleChoice), 2 (SingleChoice), 3 (Matching), 4 (FillInTheBlank), or 5 (Ordering)'))
+  }
+
+  const key = `${quizId}:${normalizedQuestionType}`
+  if (inflightSingleQuizQuestion.has(key)) {
+    return inflightSingleQuizQuestion.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getQuizHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+
+      const toNumber = (value: unknown): number | null => {
+        const numeric = Number(value)
+        return Number.isFinite(numeric) ? numeric : null
+      }
+
+      const isMatchingQuizPayload = (payload: any): boolean => {
+        const payloadQuizId = getPayloadCorrelationId(payload, ['quizId', 'QuizId'])
+        return !!payloadQuizId && payloadQuizId === quizId
+      }
+
+      const isMatchingLoadingPayload = (payload: any): boolean => {
+        if (!isMatchingQuizPayload(payload)) return false
+        const payloadQuestionType = toNumber(payload?.questionType ?? payload?.QuestionType)
+        if (payloadQuestionType != null && payloadQuestionType !== normalizedQuestionType) return false
+        return true
+      }
+
+      const isMatchingSuccessPayload = (payload: any): boolean => {
+        if (!isMatchingQuizPayload(payload)) return false
+
+        const payloadQuestionType = toNumber(
+          payload?.questionType
+          ?? payload?.QuestionType
+          ?? payload?.question?.type
+          ?? payload?.question?.Type
+          ?? payload?.Question?.type
+          ?? payload?.Question?.Type,
+        )
+        if (payloadQuestionType != null && payloadQuestionType !== normalizedQuestionType) return false
+        return true
+      }
+
+      const isMatchingErrorPayload = (payload: any): boolean => {
+        if (!isMatchingQuizPayload(payload)) return false
+
+        const payloadQuestionType = toNumber(payload?.questionType ?? payload?.QuestionType)
+        if (payloadQuestionType != null && payloadQuestionType !== normalizedQuestionType) return false
+        return true
+      }
+
+      const buildSingleQuizQuestionError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        hub.off('SingleQuizQuestionLoading', handleLoading)
+        hub.off('ReceiveSingleQuizQuestion', handleSuccess)
+        hub.off('SingleQuizQuestionError', handleError)
+        inflightSingleQuizQuestion.delete(key)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLoadingPayload(payload)) return
+        onLoading?.()
+      }
+
+      const handleSuccess = (payload: any) => {
+        if (!isMatchingSuccessPayload(payload)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingErrorPayload(err)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildSingleQuizQuestionError(err, 'Failed to generate single quiz question'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Single quiz question generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleSuccessWrap = (payload: any) => { clearTo(); handleSuccess(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('SingleQuizQuestionLoading', handleLoading)
+      hub.on('ReceiveSingleQuizQuestion', handleSuccessWrap)
+      hub.on('SingleQuizQuestionError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestSingleQuizQuestion', quizId, normalizedQuestionType).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightSingleQuizQuestion.set(key, p)
+  return p
+}
+
+export async function requestMentorLessonContent(
+  lessonId: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(lessonId)) {
+    return Promise.reject(new Error('lessonId must be a valid GUID'))
+  }
+
+  if (inflightMentorLessonContent.has(lessonId)) {
+    return inflightMentorLessonContent.get(lessonId)!
+  }
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      let generatedLessonContent: any = null
+      let completionPayload: any = null
+      let completionFallbackTo: ReturnType<typeof setTimeout> | null = null
+      const isMatchingLessonPayload = (payload: any, requireId = false): boolean => {
+        const payloadLessonId = getPayloadCorrelationId(payload, ['lessonId', 'LessonId'])
+        if (!payloadLessonId) return !requireId
+        return payloadLessonId === lessonId
+      }
+
+      const extractContentFromPayload = (payload: any): string => {
+        if (!payload || typeof payload !== 'object') return ''
+        return String(
+          payload?.content
+          ?? payload?.Content
+          ?? payload?.markdown
+          ?? payload?.Markdown
+          ?? payload?.body
+          ?? payload?.Body
+          ?? payload?.text
+          ?? payload?.Text
+          ?? payload?.generatedContent
+          ?? payload?.GeneratedContent
+          ?? payload?.lessonContent
+          ?? payload?.LessonContent
+          ?? payload?.lessonResult?.value?.content
+          ?? payload?.LessonResult?.Value?.Content
+          ?? '',
+        ).trim()
+      }
+
+      const clearCompletionFallback = () => {
+        if (!completionFallbackTo) return
+        try { clearTimeout(completionFallbackTo) } catch { }
+        completionFallbackTo = null
+      }
+
+      const finalizeSuccess = (payload: any) => {
+        const generatedContent = extractContentFromPayload(generatedLessonContent)
+        const completedContent = extractContentFromPayload(payload)
+
+        resolve({
+          ...payload,
+          lessonId,
+          lessonContent: generatedLessonContent,
+          content: generatedContent || completedContent,
+        })
+      }
+
+      const buildMentorLessonError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        clearCompletionFallback()
+        hub.off('LessonContentLoading', handleLoading)
+        hub.off('ReceiveLessonContent', handleContent)
+        hub.off('LessonGenerationCompleted', handleCompleted)
+        hub.off('LessonContentError', handleError)
+        inflightMentorLessonContent.delete(lessonId)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLessonPayload(payload, true)) return
+        onLoading?.()
+      }
+
+      const handleContent = (payload: any) => {
+        if (!isMatchingLessonPayload(payload)) return
+        generatedLessonContent = payload
+
+        if (completionPayload && !done) {
+          done = true
+          cleanup()
+          clearTo()
+          finalizeSuccess(completionPayload)
+        }
+      }
+
+      const handleCompleted = (payload: any) => {
+        if (!isMatchingLessonPayload(payload, true)) return
+        if (done) return
+
+        completionPayload = payload
+        const hasContent = Boolean(extractContentFromPayload(generatedLessonContent) || extractContentFromPayload(payload))
+
+        if (hasContent) {
+          done = true
+          cleanup()
+          clearTo()
+          finalizeSuccess(payload)
+          return
+        }
+
+        clearCompletionFallback()
+        completionFallbackTo = setTimeout(() => {
+          if (done) return
+          done = true
+          cleanup()
+          clearTo()
+          finalizeSuccess(payload)
+        }, 1200)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingLessonPayload(err, true)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildMentorLessonError(err, 'Failed to generate mentor lesson content'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Mentor lesson content request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleCompletedWrap = (payload: any) => { clearTo(); handleCompleted(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('LessonContentLoading', handleLoading)
+      hub.on('ReceiveLessonContent', handleContent)
+      hub.on('LessonGenerationCompleted', handleCompletedWrap)
+      hub.on('LessonContentError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestMentorLessonContent', lessonId).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightMentorLessonContent.set(lessonId, p)
   return p
 }
 
@@ -440,6 +1092,143 @@ export async function requestChapterTasks(chapterId: string, onLoading?: () => v
   return p
 }
 
+export async function requestSingleTask(
+  chapterId: string,
+  title: string | null,
+  taskType: number,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(chapterId)) {
+    return Promise.reject(new Error('chapterId must be a valid GUID'))
+  }
+
+  if (!Number.isFinite(taskType) || ![0, 1, 2].includes(taskType)) {
+    return Promise.reject(new Error('taskType must be one of 0 (Practice), 1 (Theory), or 2 (Quizz)'))
+  }
+
+  const normalizedTitle = title == null ? '' : String(title).trim()
+  const key = `${chapterId}:${taskType}:${normalizedTitle.toLowerCase()}`
+  if (inflightSingleTask.has(key)) {
+    return inflightSingleTask.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getTaskHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const requestTaskType = Number(taskType)
+      const requestTitle = normalizedTitle.toLowerCase()
+
+      const toNumber = (value: unknown): number | null => {
+        const numeric = Number(value)
+        return Number.isFinite(numeric) ? numeric : null
+      }
+
+      const isMatchingLoadingPayload = (payload: any): boolean => {
+        const payloadChapterId = getPayloadCorrelationId(payload, ['chapterId', 'ChapterId'])
+        if (!payloadChapterId || payloadChapterId !== chapterId) return false
+
+        const payloadTaskType = toNumber(payload?.taskType ?? payload?.TaskType)
+        if (payloadTaskType != null && payloadTaskType !== requestTaskType) return false
+
+        const payloadTitle = String(payload?.title ?? payload?.Title ?? '').trim().toLowerCase()
+        if (payloadTitle && requestTitle && payloadTitle !== requestTitle) return false
+
+        return true
+      }
+
+      const isMatchingSuccessPayload = (payload: any): boolean => {
+        const payloadTaskType = toNumber(payload?.taskType ?? payload?.TaskType)
+        if (payloadTaskType != null && payloadTaskType !== requestTaskType) return false
+        return true
+      }
+
+      const isMatchingErrorPayload = (payload: any): boolean => {
+        const payloadChapterId = getPayloadCorrelationId(payload, ['chapterId', 'ChapterId'])
+        if (!payloadChapterId || payloadChapterId !== chapterId) return false
+
+        const payloadTaskType = toNumber(payload?.taskType ?? payload?.TaskType)
+        if (payloadTaskType != null && payloadTaskType !== requestTaskType) return false
+
+        const payloadTitle = String(payload?.title ?? payload?.Title ?? '').trim().toLowerCase()
+        if (payloadTitle && requestTitle && payloadTitle !== requestTitle) return false
+
+        return true
+      }
+
+      const buildTaskError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const cleanup = () => {
+        hub.off('SingleTaskLoading', handleLoading)
+        hub.off('ReceiveSingleTask', handleSuccess)
+        hub.off('SingleTaskError', handleError)
+        inflightSingleTask.delete(key)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingLoadingPayload(payload)) return
+        onLoading?.()
+      }
+
+      const handleSuccess = (payload: any) => {
+        if (!isMatchingSuccessPayload(payload)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingErrorPayload(err)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(buildTaskError(err, 'Failed to generate single task'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Single task generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleSuccessWrap = (payload: any) => { clearTo(); handleSuccess(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('SingleTaskLoading', handleLoading)
+      hub.on('ReceiveSingleTask', handleSuccessWrap)
+      hub.on('SingleTaskError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestSingleTask', chapterId, normalizedTitle || null, requestTaskType).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightSingleTask.set(key, p)
+  return p
+}
+
 // ==== Request quiz questions (pure SignalR) ====
 export async function requestQuizQuestions(quizId: string, onLoading?: () => void): Promise<any> {
   if (!quizId || typeof quizId !== 'string') {
@@ -462,6 +1251,11 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
 
     return new Promise<any>((resolve, reject) => {
       let done = false
+      const isMatchingQuizPayload = (payload: any) => {
+        const payloadQuizId = getPayloadCorrelationId(payload, ['QuizId', 'quizId'])
+        return !payloadQuizId || payloadQuizId === quizId
+      }
+
       const cleanup = () => {
         hub.off('QuizQuestionsLoading', handleLoading)
         hub.off('ReceiveQuizQuestions', handleQuestions)
@@ -469,11 +1263,13 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
         inflightQuiz.delete(quizId)
       }
 
-      const handleLoading = () => {
+      const handleLoading = (data: any) => {
+        if (!isMatchingQuizPayload(data)) return
         onLoading?.()
       }
 
       const handleQuestions = (questions: any) => {
+        if (!isMatchingQuizPayload(questions)) return
         if (done) return
         done = true
         cleanup()
@@ -481,10 +1277,11 @@ export async function requestQuizQuestions(quizId: string, onLoading?: () => voi
       }
 
       const handleError = (err: any) => {
+        if (!isMatchingQuizPayload(err)) return
         if (done) return
         done = true
         cleanup()
-        reject(new Error(err?.message || 'Failed to load quiz questions'))
+        reject(new Error(resolveHubErrorMessage(err, 'Failed to load quiz questions')))
       }
 
       // timeout safety
@@ -1023,6 +1820,176 @@ export async function requestAdoptSuggestedLearningPath(
 }
 
 // ==== Send tutor message (pure SignalR) ====
+export type TutorHubErrorCode =
+  | 'UNAUTHORIZED'
+  | 'EMPTY_MESSAGE'
+  | 'AI_CONFIG_NOT_FOUND'
+  | 'CONVERSATION_NOT_FOUND'
+  | 'AI_RESPONSE_FAILED'
+  | 'CHAPTER_NOT_FOUND'
+  | 'LESSON_NOT_FOUND'
+  | 'LESSON_NOT_IN_CHAPTER'
+  | 'LEARNING_PATH_NOT_FOUND'
+  | 'ACCESS_DENIED'
+  | 'CONVERSATION_CONTEXT_MISMATCH'
+  | 'CONTEXT_REQUIRED'
+  | 'TUTOR_MESSAGE_LIMIT_EXCEEDED'
+  | 'CONVERSATION_ID_REQUIRED'
+  | 'UNEXPECTED_ERROR'
+
+export interface TutorHubError extends Error {
+  code: TutorHubErrorCode | string
+}
+
+export type TutorConversationResolvedPayload = {
+  conversationId: string
+  created: boolean
+}
+
+export type TutorMessageHistoryItem = {
+  messageId?: string
+  conversationId?: string
+  userMessageId?: string
+  assistantMessageId?: string
+  userMessage?: string
+  assistantMessage?: string
+  role?: string
+  senderRole?: string
+  type?: string
+  content?: string
+  message?: string
+  createdAt?: string
+}
+
+export type TutorMessagesPageResponse = {
+  items: TutorMessageHistoryItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+  contextUsagePercent?: number
+}
+
+export type TutorSummaryHistoryItem = {
+  summaryId: string
+  conversationId: string
+  summaryContent: string
+  messageCount: number
+  startMessageCreatedAt: string | null
+  endMessageCreatedAt: string | null
+  createdAt: string
+}
+
+export type TutorSummariesPageResponse = {
+  items: TutorSummaryHistoryItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export type TutorChatResponse = {
+  conversationId: string
+  userMessageId: string
+  assistantMessageId: string
+  assistantMessage: string
+  createdAt: string
+  contextUsagePercent: number
+}
+
+function normalizeTutorMessagesPagePayload(payload: any): TutorMessagesPageResponse {
+  const source = payload?.data ?? payload
+  const items = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(source?.Items)
+      ? source.Items
+      : []
+
+  const pageSize = Number(source?.pageSize ?? source?.PageSize ?? items.length ?? 0)
+  const totalCount = Number(source?.totalCount ?? source?.TotalCount ?? items.length ?? 0)
+  const totalPages = Number(source?.totalPages ?? source?.TotalPages ?? (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1))
+  const contextUsagePercent = Number(source?.contextUsagePercent ?? source?.ContextUsagePercent)
+
+  return {
+    items,
+    pageNumber: Number(source?.pageNumber ?? source?.PageNumber ?? 1),
+    pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 1,
+    totalCount: Number.isFinite(totalCount) && totalCount >= 0 ? totalCount : items.length,
+    totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 1,
+    hasPreviousPage: Boolean(source?.hasPreviousPage ?? source?.HasPreviousPage),
+    hasNextPage: Boolean(source?.hasNextPage ?? source?.HasNextPage),
+    ...(Number.isFinite(contextUsagePercent) ? { contextUsagePercent } : {}),
+  }
+}
+
+function normalizeTutorSummariesPagePayload(payload: any): TutorSummariesPageResponse {
+  const rawItems = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.Items)
+      ? payload.Items
+      : []
+
+  const items: TutorSummaryHistoryItem[] = rawItems.map((item: any) => ({
+    summaryId: String(item?.summaryId ?? item?.SummaryId ?? item?.id ?? ''),
+    conversationId: String(item?.conversationId ?? item?.ConversationId ?? ''),
+    summaryContent: String(item?.summaryContent ?? item?.SummaryContent ?? item?.content ?? ''),
+    messageCount: Number(item?.messageCount ?? item?.MessageCount ?? 0) || 0,
+    startMessageCreatedAt: item?.startMessageCreatedAt ?? item?.StartMessageCreatedAt ?? null,
+    endMessageCreatedAt: item?.endMessageCreatedAt ?? item?.EndMessageCreatedAt ?? null,
+    createdAt: String(item?.createdAt ?? item?.CreatedAt ?? ''),
+  }))
+
+  const pageSize = Number(payload?.pageSize ?? payload?.PageSize ?? items.length ?? 0)
+  const totalCount = Number(payload?.totalCount ?? payload?.TotalCount ?? items.length ?? 0)
+  const totalPages = Number(payload?.totalPages ?? payload?.TotalPages ?? (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1))
+
+  return {
+    items,
+    pageNumber: Number(payload?.pageNumber ?? payload?.PageNumber ?? 1),
+    pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 1,
+    totalCount: Number.isFinite(totalCount) && totalCount >= 0 ? totalCount : items.length,
+    totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 1,
+    hasPreviousPage: Boolean(payload?.hasPreviousPage ?? payload?.HasPreviousPage),
+    hasNextPage: Boolean(payload?.hasNextPage ?? payload?.HasNextPage),
+  }
+}
+
+function normalizeTutorChatResponse(payload: any): TutorChatResponse {
+  return {
+    conversationId: String(payload?.conversationId ?? payload?.ConversationId ?? ''),
+    userMessageId: String(payload?.userMessageId ?? payload?.UserMessageId ?? ''),
+    assistantMessageId: String(payload?.assistantMessageId ?? payload?.AssistantMessageId ?? ''),
+    assistantMessage: String(payload?.assistantMessage ?? payload?.AssistantMessage ?? ''),
+    createdAt: String(payload?.createdAt ?? payload?.CreatedAt ?? new Date().toISOString()),
+    contextUsagePercent: Number(payload?.contextUsagePercent ?? payload?.ContextUsagePercent ?? 0) || 0,
+  }
+}
+
+function normalizeTutorConversationResolvedPayload(payload: any): TutorConversationResolvedPayload {
+  return {
+    conversationId: String(payload?.conversationId ?? payload?.ConversationId ?? ''),
+    created: Boolean(payload?.created ?? payload?.Created),
+  }
+}
+
+function normalizeTutorPageSize(pageSize: number): number {
+  const numeric = Number(pageSize)
+  if (!Number.isFinite(numeric)) return 30
+  return Math.min(100, Math.max(1, Math.floor(numeric)))
+}
+
+function normalizeTutorHubError(rawError: any, fallbackMessage: string): TutorHubError {
+  const errorCode = rawError?.errorCode || rawError?.code || 'UNEXPECTED_ERROR'
+  const errorMessage = rawError?.errorMessage || rawError?.message || fallbackMessage
+  const normalized = new Error(errorMessage) as TutorHubError
+  normalized.code = errorCode
+  return normalized
+}
+
 export async function sendTutorMessage(
   conversationId: string | null,
   learningPathId: string | null,
@@ -1030,10 +1997,11 @@ export async function sendTutorMessage(
   lessonId: string | null,
   message: string,
   onMessageStarted?: () => void,
-  onMessageReceived?: (data: any) => void
-): Promise<any> {
+  onMessageReceived?: (data: TutorChatResponse) => void,
+  onMessageError?: (error: TutorHubError) => void
+): Promise<TutorChatResponse> {
   if (!message || message.trim().length === 0) {
-    return Promise.reject(new Error('Message cannot be empty'))
+    return Promise.reject(normalizeTutorHubError({ errorCode: 'EMPTY_MESSAGE', errorMessage: 'Message cannot be empty' }, 'Message cannot be empty'))
   }
 
   // single-flight: return running promise for same message
@@ -1046,7 +2014,7 @@ export async function sendTutorMessage(
   const p = (async () => {
     const hub = await getTutorHub()
 
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<TutorChatResponse>((resolve, reject) => {
       let done = false
       const cleanup = () => {
         hub.off('TutorMessageStarted', handleStarted)
@@ -1061,12 +2029,18 @@ export async function sendTutorMessage(
 
       const handleReceived = (data: any) => {
         if (data) {
-          onMessageReceived?.(data)
+          const normalized = normalizeTutorChatResponse(data)
+
+          if (conversationId && normalized.conversationId && normalized.conversationId !== conversationId) {
+            return
+          }
+
+          onMessageReceived?.(normalized)
           
           if (done) return
           done = true
           cleanup()
-          resolve(data)
+          resolve(normalized)
         }
       }
 
@@ -1074,46 +2048,10 @@ export async function sendTutorMessage(
         if (done) return
         done = true
         cleanup()
-        
-        // Handle specific error codes
-        const errorCode = err?.errorCode
-        let errorMessage = err?.errorMessage || err?.message || 'Failed to send tutor message'
-        
-        switch (errorCode) {
-          case 'UNAUTHORIZED':
-            errorMessage = 'You are not authorized to use the tutor'
-            break
-          case 'EMPTY_MESSAGE':
-            errorMessage = 'Message cannot be empty'
-            break
-          case 'AI_CONFIG_NOT_FOUND':
-            errorMessage = 'AI configuration not found'
-            break
-          case 'CONVERSATION_NOT_FOUND':
-            errorMessage = 'Conversation not found'
-            break
-          case 'LEARNING_PATH_NOT_FOUND':
-            errorMessage = 'Learning path not found'
-            break
-          case 'CHAPTER_NOT_FOUND':
-            errorMessage = 'Chapter not found'
-            break
-          case 'LESSON_NOT_FOUND':
-            errorMessage = 'Lesson not found'
-            break
-          case 'ACCESS_DENIED':
-            errorMessage = 'Access denied to this resource'
-            break
-          case 'AI_RESPONSE_FAILED':
-            errorMessage = 'AI failed to generate response'
-            break
-          case 'UNEXPECTED_ERROR':
-          default:
-            errorMessage = errorMessage || 'An unexpected error occurred'
-            break
-        }
-        
-        reject(new Error(errorMessage))
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to send tutor message')
+        onMessageError?.(normalizedError)
+        reject(normalizedError)
       }
 
       // timeout safety
@@ -1160,14 +2098,17 @@ export async function requestTutorMessages(
   pageNumber: number = 1,
   pageSize: number = 30,
   onLoading?: () => void,
-  onMessagesLoaded?: (data: any) => void
-): Promise<any> {
+  onMessagesLoaded?: (data: TutorMessagesPageResponse) => void,
+  onMessagesError?: (error: TutorHubError) => void
+): Promise<TutorMessagesPageResponse> {
   if (!conversationId) {
-    return Promise.reject(new Error('conversationId is required for requesting tutor messages'))
+    return Promise.reject(normalizeTutorHubError({ errorCode: 'CONVERSATION_ID_REQUIRED', errorMessage: 'conversationId is required for requesting tutor messages' }, 'conversationId is required for requesting tutor messages'))
   }
 
+  const normalizedPageSize = normalizeTutorPageSize(pageSize)
+
   // single-flight: return running promise for same conversationId-page
-  const key = `messages-${conversationId}-${pageNumber}-${pageSize}`
+  const key = `messages-${conversationId}-${pageNumber}-${normalizedPageSize}`
   if (inflightTutorMessageHistory.has(key)) {
     return inflightTutorMessageHistory.get(key)!
   }
@@ -1176,7 +2117,7 @@ export async function requestTutorMessages(
   const p = (async () => {
     const hub = await getTutorHub()
 
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<TutorMessagesPageResponse>((resolve, reject) => {
       let done = false
       const cleanup = () => {
         hub.off('TutorMessagesLoading', handleLoading)
@@ -1191,12 +2132,26 @@ export async function requestTutorMessages(
 
       const handleLoaded = (data: any) => {
         if (data) {
-          onMessagesLoaded?.(data)
+          const normalized = normalizeTutorMessagesPagePayload(data)
+          const payloadConversationId = String(
+            data?.conversationId
+            ?? data?.ConversationId
+            ?? data?.data?.conversationId
+            ?? data?.data?.ConversationId
+            ?? normalized.items?.[0]?.conversationId
+            ?? ''
+          )
+
+          if (payloadConversationId && payloadConversationId !== conversationId) {
+            return
+          }
+
+          onMessagesLoaded?.(normalized)
           
           if (done) return
           done = true
           cleanup()
-          resolve(data)
+          resolve(normalized)
         }
       }
 
@@ -1204,31 +2159,10 @@ export async function requestTutorMessages(
         if (done) return
         done = true
         cleanup()
-        
-        // Handle specific error codes
-        const errorCode = err?.errorCode
-        let errorMessage = err?.errorMessage || err?.message || 'Failed to load tutor messages'
-        
-        switch (errorCode) {
-          case 'CONVERSATION_NOT_FOUND':
-            errorMessage = 'Conversation not found'
-            break
-          case 'UNAUTHORIZED':
-            errorMessage = 'You are not authorized to view this conversation'
-            break
-          case 'INVALID_PAGE_NUMBER':
-            errorMessage = 'Invalid page number'
-            break
-          case 'INVALID_PAGE_SIZE':
-            errorMessage = 'Invalid page size'
-            break
-          case 'UNEXPECTED_ERROR':
-          default:
-            errorMessage = errorMessage || 'An unexpected error occurred'
-            break
-        }
-        
-        reject(new Error(errorMessage))
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to load tutor messages')
+        onMessagesError?.(normalizedError)
+        reject(normalizedError)
       }
 
       // timeout safety
@@ -1255,7 +2189,7 @@ export async function requestTutorMessages(
         hub.invoke('RequestTutorMessages',
           conversationId,
           pageNumber,
-          pageSize
+          normalizedPageSize
         ).catch(handleErrorWrap)
       } catch (e) {
         handleErrorWrap(e)
@@ -1267,6 +2201,105 @@ export async function requestTutorMessages(
   return p
 }
 
+export async function requestTutorSummaries(
+  conversationId: string,
+  pageNumber: number = 1,
+  pageSize: number = 20,
+  onLoading?: () => void,
+  onSummariesLoaded?: (data: TutorSummariesPageResponse) => void,
+  onSummariesError?: (error: TutorHubError) => void
+): Promise<TutorSummariesPageResponse> {
+  if (!conversationId) {
+    return Promise.reject(
+      normalizeTutorHubError(
+        { errorCode: 'CONVERSATION_ID_REQUIRED', errorMessage: 'conversationId is required for requesting tutor summaries' },
+        'conversationId is required for requesting tutor summaries'
+      )
+    )
+  }
+
+  const normalizedPageSize = normalizeTutorPageSize(pageSize)
+  const key = `summaries-${conversationId}-${pageNumber}-${normalizedPageSize}`
+  if (inflightTutorSummaryHistory.has(key)) {
+    return inflightTutorSummaryHistory.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getTutorHub()
+
+    return new Promise<TutorSummariesPageResponse>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('TutorSummariesLoading', handleLoading)
+        hub.off('TutorSummariesLoaded', handleLoaded)
+        hub.off('TutorSummariesError', handleError)
+        inflightTutorSummaryHistory.delete(key)
+      }
+
+      const handleLoading = () => {
+        onLoading?.()
+      }
+
+      const handleLoaded = (data: any) => {
+        if (!data) return
+
+        const normalized = normalizeTutorSummariesPagePayload(data)
+        const payloadConversationId = String(
+          data?.conversationId
+          ?? data?.ConversationId
+          ?? normalized.items?.[0]?.conversationId
+          ?? ''
+        )
+
+        if (payloadConversationId && payloadConversationId !== conversationId) {
+          return
+        }
+
+        onSummariesLoaded?.(normalized)
+
+        if (done) return
+        done = true
+        cleanup()
+        resolve(normalized)
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to load tutor summaries')
+        onSummariesError?.(normalizedError)
+        reject(normalizedError)
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Tutor summaries request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleLoadedWrap = (data: any) => { clearTo(); handleLoaded(data) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('TutorSummariesLoading', handleLoading)
+      hub.on('TutorSummariesLoaded', handleLoadedWrap)
+      hub.on('TutorSummariesError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestTutorSummaries', conversationId, pageNumber, normalizedPageSize).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTutorSummaryHistory.set(key, p)
+  return p
+}
+
 // ==== Request resolve tutor conversation (pure SignalR) ====
 export async function requestResolveTutorConversation(
   learningPathId: string | null,
@@ -1274,8 +2307,9 @@ export async function requestResolveTutorConversation(
   lessonId: string | null,
   createIfMissing: boolean = true,
   onLoading?: () => void,
-  onResolved?: (data: any) => void
-): Promise<any> {
+  onResolved?: (data: TutorConversationResolvedPayload) => void,
+  onResolveError?: (error: TutorHubError) => void
+): Promise<TutorConversationResolvedPayload> {
   // single-flight: return running promise for same context
   const key = `resolve-${learningPathId || 'null'}-${chapterId || 'null'}-${lessonId || 'null'}`
   if (inflightTutorConversationResolve.has(key)) {
@@ -1286,7 +2320,7 @@ export async function requestResolveTutorConversation(
   const p = (async () => {
     const hub = await getTutorHub()
 
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<TutorConversationResolvedPayload>((resolve, reject) => {
       let done = false
       const cleanup = () => {
         hub.off('TutorConversationResolveStarted', handleStarted)
@@ -1301,12 +2335,13 @@ export async function requestResolveTutorConversation(
 
       const handleResolved = (data: any) => {
         if (data) {
-          onResolved?.(data)
+          const normalized = normalizeTutorConversationResolvedPayload(data)
+          onResolved?.(normalized)
           
           if (done) return
           done = true
           cleanup()
-          resolve(data)
+          resolve(normalized)
         }
       }
 
@@ -1314,34 +2349,10 @@ export async function requestResolveTutorConversation(
         if (done) return
         done = true
         cleanup()
-        
-        // Handle specific error codes
-        const errorCode = err?.errorCode
-        let errorMessage = err?.errorMessage || err?.message || 'Failed to resolve tutor conversation'
-        
-        switch (errorCode) {
-          case 'LEARNING_PATH_NOT_FOUND':
-            errorMessage = 'Learning path not found'
-            break
-          case 'CHAPTER_NOT_FOUND':
-            errorMessage = 'Chapter not found'
-            break
-          case 'LESSON_NOT_FOUND':
-            errorMessage = 'Lesson not found'
-            break
-          case 'UNAUTHORIZED':
-            errorMessage = 'You are not authorized to access this conversation'
-            break
-          case 'CONVERSATION_CREATION_FAILED':
-            errorMessage = 'Failed to create conversation'
-            break
-          case 'UNEXPECTED_ERROR':
-          default:
-            errorMessage = errorMessage || 'An unexpected error occurred'
-            break
-        }
-        
-        reject(new Error(errorMessage))
+
+        const normalizedError = normalizeTutorHubError(err, 'Failed to resolve tutor conversation')
+        onResolveError?.(normalizedError)
+        reject(normalizedError)
       }
 
       // timeout safety
@@ -1469,6 +2480,150 @@ export async function requestChapterSkeleton(
   return p
 }
 
+export async function requestChapterMentorSkeleton(
+  pathId: string,
+  chapterTitle: string,
+  chapterDescription: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(pathId)) {
+    return Promise.reject(new Error('pathId must be a valid GUID'))
+  }
+
+  if (typeof chapterTitle !== 'string' || typeof chapterDescription !== 'string') {
+    return Promise.reject(new Error('chapterTitle and chapterDescription must be strings'))
+  }
+
+  const key = `${pathId}:${chapterTitle.trim()}:${chapterDescription.trim()}`
+  if (inflightChapterMentorSkeleton.has(key)) {
+    return inflightChapterMentorSkeleton.get(key)!
+  }
+
+  const p = (async () => {
+    const hub = await getChapterHub()
+    debugSignalR('chapter', 'RequestChapterMentorSkeleton invoke payload', {
+      pathId,
+      chapterTitle,
+      chapterDescription,
+    })
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const normalizedTitle = chapterTitle.trim().toLowerCase()
+      const normalizedDescription = chapterDescription.trim().toLowerCase()
+
+      const toNormalizedString = (value: unknown) => String(value ?? '').trim().toLowerCase()
+      const buildChapterMentorError = (err: any, fallback: string) => {
+        const error = new Error(resolveHubErrorMessage(err, fallback)) as Error & {
+          code?: string
+          errorCode?: string
+          detail?: any
+        }
+        const code = String(err?.ErrorCode ?? err?.errorCode ?? '').trim()
+        if (code) {
+          error.code = code
+          error.errorCode = code
+        }
+        error.detail = err
+        return error
+      }
+
+      const hasValidLessonsShape = (payload: any): boolean => {
+        const lessonItems = Array.isArray(payload?.lessons)
+          ? payload.lessons
+          : Array.isArray(payload?.Lessons)
+            ? payload.Lessons
+            : null
+
+        if (!lessonItems) return false
+        return lessonItems.every((lesson: any) => {
+          const lessonTitle = String(lesson?.title ?? lesson?.Title ?? '').trim()
+          const orderIndex = Number(lesson?.orderIndex ?? lesson?.OrderIndex)
+          return lessonTitle.length > 0 && Number.isFinite(orderIndex)
+        })
+      }
+
+      const isMatchingPayload = (payload: any) => {
+        const payloadPathId = getPayloadCorrelationId(payload, ['pathId', 'PathId'])
+        if (!payloadPathId || payloadPathId !== pathId) return false
+
+        const payloadTitle = toNormalizedString(payload?.chapterTitle ?? payload?.ChapterTitle)
+        const payloadDescription = toNormalizedString(payload?.chapterDescription ?? payload?.ChapterDescription)
+
+        if (payloadTitle && payloadTitle !== normalizedTitle) return false
+        if (payloadDescription && payloadDescription !== normalizedDescription) return false
+
+        return true
+      }
+
+      const cleanup = () => {
+        hub.off('ChapterMentorSkeletonGenerationStarted', handleLoading)
+        hub.off('ChapterMentorSkeletonGenerated', handleGenerated)
+        hub.off('ChapterMentorSkeletonError', handleError)
+        inflightChapterMentorSkeleton.delete(key)
+      }
+
+      const handleLoading = (payload: any) => {
+        if (!isMatchingPayload(payload)) return
+        debugSignalR('chapter', 'ChapterMentorSkeletonGenerationStarted', payload)
+        onLoading?.()
+      }
+
+      const handleGenerated = (payload: any) => {
+        if (!isMatchingPayload(payload)) return
+        debugSignalR('chapter', 'ChapterMentorSkeletonGenerated', payload)
+        if (!hasValidLessonsShape(payload)) {
+          handleError({
+            ErrorCode: 'INVALID_AI_RESPONSE',
+            ErrorMessage: 'Chapter mentor skeleton payload is invalid.',
+            PathId: pathId,
+            ChapterTitle: chapterTitle,
+            ChapterDescription: chapterDescription,
+          })
+          return
+        }
+        if (done) return
+        done = true
+        cleanup()
+        resolve(payload)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingPayload(err)) return
+        debugSignalR('chapter', 'ChapterMentorSkeletonError', err)
+        if (done) return
+        done = true
+        cleanup()
+        reject(buildChapterMentorError(err, 'Failed to generate chapter mentor skeleton'))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Chapter mentor skeleton generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleGeneratedWrap = (payload: any) => { clearTo(); handleGenerated(payload) }
+      const handleErrorWrap = (err: any) => { clearTo(); handleError(err) }
+
+      hub.on('ChapterMentorSkeletonGenerationStarted', handleLoading)
+      hub.on('ChapterMentorSkeletonGenerated', handleGeneratedWrap)
+      hub.on('ChapterMentorSkeletonError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestChapterMentorSkeleton', pathId, chapterTitle, chapterDescription).catch(handleErrorWrap)
+      } catch (err) {
+        handleErrorWrap(err)
+      }
+    })
+  })()
+
+  inflightChapterMentorSkeleton.set(key, p)
+  return p
+}
+
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
@@ -1492,6 +2647,9 @@ export async function disconnectHubs(): Promise<void> {
     if (tutorHub && tutorHub.state !== signalR.HubConnectionState.Disconnected) {
       await tutorHub.stop()
     }
+    if (notificationHub && notificationHub.state !== signalR.HubConnectionState.Disconnected) {
+      await notificationHub.stop()
+    }
 
     // Reset all hub references to null so they get recreated with new token
     lessonHub = null
@@ -1501,6 +2659,8 @@ export async function disconnectHubs(): Promise<void> {
     summaryHub = null
     learningPathHub = null
     tutorHub = null
+    notificationHub = null
+    notificationHubBound = false
 
     // Clear all inflight requests
     inflightLesson.clear()
@@ -1510,12 +2670,20 @@ export async function disconnectHubs(): Promise<void> {
     inflightSummary.clear()
     inflightLearningPath.clear()
     inflightChapterSkeleton.clear()
+    inflightChapterMentorSkeleton.clear()
+    inflightMentorLessonContent.clear()
+    inflightSingleTask.clear()
+    inflightSingleQuizSkeleton.clear()
+    inflightSingleQuizQuestion.clear()
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()
     inflightTutorMessages.clear()
     inflightTutorMessageHistory.clear()
+    inflightTutorSummaryHistory.clear()
     inflightTutorConversationResolve.clear()
+    notificationReceiveListeners.clear()
+    notificationUnreadCountListeners.clear()
   } catch {
     // ignore
   }
@@ -1526,3 +2694,4 @@ export async function reconnectHubs(): Promise<void> {
   await disconnectHubs()
   // Hubs will be recreated automatically on next use with new token
 }
+

@@ -1,5 +1,59 @@
 import api from '../Axios'
-import { getMyResourcesUrl, createResourceUrl, updateResourceUrl, deleteResourceUrl, getResourcePagesUrl, generateSummaryUrl } from './url'
+import {
+  getMyResourcesUrl,
+  createResourceUrl,
+  updateResourceUrl,
+  deleteResourceUrl,
+  getResourcePagesUrl,
+  generateSummaryUrl,
+  getResourceSummariesUrl,
+  deleteResourceSummaryUrl,
+} from './url'
+
+const RESOURCES_LIST_CACHE_PREFIX = 'my-resources:list:'
+const RESOURCE_PAGES_CACHE_PREFIX = 'resource-pages:'
+
+const removeSessionStorageKeysByPrefix = (prefix: string) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    const keysToRemove: string[] = []
+    for (let index = 0; index < window.sessionStorage.length; index += 1) {
+      const key = window.sessionStorage.key(index)
+      if (key?.startsWith(prefix)) {
+        keysToRemove.push(key)
+      }
+    }
+
+    keysToRemove.forEach((key) => window.sessionStorage.removeItem(key))
+  } catch {
+  }
+}
+
+export const invalidateMyResourcesListCache = () => {
+  removeSessionStorageKeysByPrefix(RESOURCES_LIST_CACHE_PREFIX)
+}
+
+export const invalidateResourcePagesCache = (resourceId?: string) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    if (resourceId) {
+      window.sessionStorage.removeItem(`${RESOURCE_PAGES_CACHE_PREFIX}${resourceId}`)
+      return
+    }
+
+    removeSessionStorageKeysByPrefix(RESOURCE_PAGES_CACHE_PREFIX)
+  } catch {
+  }
+}
+
+export const invalidateResourceCaches = (resourceId?: string) => {
+  invalidateMyResourcesListCache()
+  if (resourceId) {
+    invalidateResourcePagesCache(resourceId)
+  }
+}
 
 export interface GetMyResourcesParams {
   PageNumber?: number
@@ -24,16 +78,19 @@ export async function createResource(formData: FormData, onUploadProgress?: (pro
       onUploadProgress({ loaded: progressEvent.loaded, total: progressEvent.total, percent: percentCompleted })
     } : undefined,
   })
+  invalidateMyResourcesListCache()
   return res?.data ?? res
 }
 
 export async function updateResource(resourceId: string, formData: FormData) {
   const res: any = await api.put(updateResourceUrl(resourceId), formData)
+  invalidateResourceCaches(resourceId)
   return res?.data ?? res
 }
 
 export async function deleteResource(resourceId: string) {
   const res: any = await api.delete(deleteResourceUrl(resourceId))
+  invalidateResourceCaches(resourceId)
   return res?.data ?? res
 }
 
@@ -43,8 +100,29 @@ export async function getResourcePages(resourceId: string) {
 }
 
 export async function generateSummary(resourceId: string, startPage: number, endPage: number) {
-  const res: any = await api.post(generateSummaryUrl(resourceId), { startPage, endPage })
+  const res: any = await api.post(generateSummaryUrl(resourceId), null, {
+    params: { startPage, endPage },
+  })
   return res?.data ?? res
 }
 
-export default { getMyResources, createResource, updateResource, deleteResource, getResourcePages, generateSummary }
+export async function getResourceSummaries(resourceId: string) {
+  const res: any = await api.get(getResourceSummariesUrl(resourceId))
+  return res?.data ?? res
+}
+
+export async function deleteResourceSummary(summaryId: string) {
+  const res: any = await api.delete(deleteResourceSummaryUrl(summaryId))
+  return res?.data ?? res
+}
+
+export default {
+  getMyResources,
+  createResource,
+  updateResource,
+  deleteResource,
+  getResourcePages,
+  generateSummary,
+  getResourceSummaries,
+  deleteResourceSummary,
+}

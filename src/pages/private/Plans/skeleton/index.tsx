@@ -203,9 +203,37 @@ const ResultPage: React.FC = () => {
   }, [activeChapterId])
 
   // Handle lesson click - navigate to lesson detail page
-  const handleLessonClick = (lessonId: string) => {
-    // Navigate to lesson detail page with skeleton data
-    navigate(`/lesson/${lessonId}`, { state: { skeleton } })
+  const handleLessonClick = (
+    lessonId: string,
+    chapterId?: string | null,
+    chapterTitle?: string,
+    lessonTitle?: string,
+  ) => {
+    // Navigate to lesson detail page with skeleton and chapter context
+    navigate(`/lesson/${lessonId}`, {
+      state: {
+        skeleton,
+        chapterId: chapterId || null,
+        chapterTitle: chapterTitle || null,
+        lessonTitle: lessonTitle || null,
+      },
+    })
+  }
+
+  const isLessonCompleted = (lesson: any) => {
+    const normalizedStatus = String(
+      lesson?.status ?? lesson?.lessonStatus ?? lesson?.lessonContentStatus ?? ''
+    ).trim().toLowerCase()
+
+    return Boolean(
+      lesson?.isCompleted ??
+      lesson?.completed ??
+      lesson?.isLessonContentRead ??
+      lesson?.lessonContentRead ??
+      lesson?.isRead ??
+      lesson?.readAt ??
+      lesson?.completedAt
+    ) || ['completed', 'done', 'finished', 'read'].includes(normalizedStatus)
   }
 
   // Focus session dialog states - removed, using ChapterTasks component for focus sessions
@@ -378,10 +406,13 @@ const ResultPage: React.FC = () => {
                             {'//'} {t('plansResult.lessonsCount', { count: chapter.lessons.length })}
                           </h4>
                           <div style={{ display: 'grid', gap: 16 }}>
-                            {chapter.lessons.map((lesson: any, lessonIdx: number) => (
-                              <div key={lesson.id || lessonIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+                            {chapter.lessons.map((lesson: any, lessonIdx: number) => {
+                              const lessonCompleted = isLessonCompleted(lesson)
+
+                              return (
+                              <div key={lesson.id || lessonIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px', background: lessonCompleted ? 'var(--bg-green-tint)' : 'var(--bg-main)', border: lessonCompleted ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid var(--border-base)', borderRadius: 4 }}>
                                 <div style={{
-                                  width: 24, height: 24, borderRadius: '50%', background: 'var(--text-disabled)', color: 'var(--bg-surface)',
+                                  width: 24, height: 24, borderRadius: '50%', background: lessonCompleted ? 'var(--success-primary)' : 'var(--text-disabled)', color: 'var(--bg-surface)',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
                                 }}>
                                   {lessonIdx + 1}
@@ -389,15 +420,41 @@ const ResultPage: React.FC = () => {
                                 <div style={{ flex: 1 }}>
                                   <button
                                     className="lesson-link"
-                                    onClick={() => handleLessonClick(lesson.id)}
+                                    onClick={() =>
+                                      handleLessonClick(
+                                        lesson.id,
+                                        chapter?.id ?? chapter?.chapterId ?? null,
+                                        chapter?.title,
+                                        lesson?.title,
+                                      )
+                                    }
                                     style={{
                                       background: 'none', border: 'none', padding: 0, margin: '0 0 8px 0',
-                                      fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer',
+                                      fontSize: 15, fontWeight: 600, color: lessonCompleted ? 'var(--success-primary)' : 'var(--text-primary)', cursor: 'pointer',
                                       textDecoration: 'none', textAlign: 'left', display: 'block'
                                     }}
                                   >
                                     {lesson.title}
                                   </button>
+
+                                  {lessonCompleted && (
+                                    <div style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 6,
+                                      marginBottom: 8,
+                                      padding: '2px 8px',
+                                      borderRadius: 999,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: 'var(--success-primary)',
+                                      background: 'rgba(34, 197, 94, 0.12)',
+                                      border: '1px solid rgba(34, 197, 94, 0.35)'
+                                    }}>
+                                      <span>✓</span>
+                                      <span>{t('plansResult.lessonCompleted')}</span>
+                                    </div>
+                                  )}
                                   
                                   {/* Lesson Day */}
                                   {lesson.lessonDay && (
@@ -458,7 +515,7 @@ const ResultPage: React.FC = () => {
                                   )}
                                 </div>
                               </div>
-                            ))}
+                            )})}
                           </div>
                         </div>
                       )}

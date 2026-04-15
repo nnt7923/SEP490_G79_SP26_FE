@@ -74,7 +74,11 @@ const ResetPassword: React.FC = () => {
 
     try {
       setSubmitting(true)
-      await AuthService.resetPassword({ Token: token, Password: pwd, Email: email || undefined })
+      await AuthService.resetPassword({
+        resetToken: token,
+        newPassword: pwd,
+        email: email.trim() || undefined,
+      })
       navigate(ROUTER.LOGIN, { state: { toast: t('resetPassword.success') } })
     } catch (err: any) {
       setError(extractErrorMessage(err, t('resetPassword.failed')))

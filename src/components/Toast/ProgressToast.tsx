@@ -1,91 +1,111 @@
-import React from 'react'
-import { CheckCircle, XCircle, X } from 'lucide-react'
+﻿import React from 'react'
+import { CheckCircle2, XCircle, Loader2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface ProgressToastProps {
   message: string
-  progress: number // 0-100
+  progress: number
   status: 'loading' | 'success' | 'error'
   onClose?: () => void
 }
 
 const ProgressToast: React.FC<ProgressToastProps> = ({ message, progress, status, onClose }) => {
-  const circumference = 2 * Math.PI * 16 // radius = 16
+  const { t } = useTranslation('common')
 
-  const bgColors = {
-    loading: 'bg-status-blue-bg border-blue-200',
-    success: 'bg-status-green-bg border-green-200',
-    error: 'bg-status-red-bg border-red-200',
-  }
+  const styles = {
+    loading: {
+      accent: '#2563eb',
+      border: 'rgba(37, 99, 235, 0.28)',
+      background: 'rgba(239, 246, 255, 0.96)',
+      title: t('toast.loading'),
+    },
+    success: {
+      accent: '#16a34a',
+      border: 'rgba(22, 163, 74, 0.28)',
+      background: 'rgba(240, 253, 244, 0.96)',
+      title: t('toast.success'),
+    },
+    error: {
+      accent: '#dc2626',
+      border: 'rgba(220, 38, 38, 0.28)',
+      background: 'rgba(254, 242, 242, 0.96)',
+      title: t('toast.error'),
+    },
+  } as const
 
-  const textColors = {
-    loading: 'text-status-blue-dark',
-    success: 'text-status-green-darker',
-    error: 'text-status-red-darker',
-  }
+  const current = styles[status]
 
   return (
-    <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg ${bgColors[status]} min-w-[300px] max-w-md`}>
-        {/* Progress Circle or Status Icon */}
-        <div className="flex-shrink-0">
-          {status === 'loading' && (
-            <div className="relative w-10 h-10">
-              {/* Background Circle */}
-              <svg className="w-10 h-10 transform -rotate-90">
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  fill="none"
-                  className="text-status-blue-muted"
-                />
-                {/* Progress Circle */}
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  fill="none"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference - (progress / 100) * circumference}
-                  className="text-status-blue transition-all duration-300"
-                  strokeLinecap="round"
-                />
-              </svg>
-              {/* Percentage Text */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-bold text-status-blue">
-                  {Math.round(progress)}%
-                </span>
-              </div>
-            </div>
-          )}
-          
-          {status === 'success' && (
-            <CheckCircle className="w-5 h-5 text-status-green" />
-          )}
-          
-          {status === 'error' && (
-            <XCircle className="w-5 h-5 text-status-red-muted" />
+    <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999, width: 'min(420px, calc(100vw - 32px))' }}>
+      <div
+        style={{
+          borderRadius: 12,
+          border: `1px solid ${current.border}`,
+          background: current.background,
+          boxShadow: '0 14px 34px rgba(15, 23, 42, 0.16)',
+          backdropFilter: 'blur(8px)',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: current.accent,
+              background: 'rgba(255,255,255,0.72)',
+              flexShrink: 0,
+            }}
+          >
+            {status === 'loading' && <Loader2 size={16} className="animate-spin" />}
+            {status === 'success' && <CheckCircle2 size={16} />}
+            {status === 'error' && <XCircle size={16} />}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: current.accent, marginBottom: 2 }}>{current.title}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4 }}>{message}</div>
+          </div>
+
+          {status !== 'loading' && onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                padding: 4,
+                color: 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <X size={14} />
+            </button>
           )}
         </div>
 
-        {/* Message */}
-        <p className={`flex-1 text-sm font-medium ${textColors[status]}`}>
-          {message}
-        </p>
-
-        {/* Close Button (only for success/error) */}
-        {status !== 'loading' && onClose && (
-          <button
-            onClick={onClose}
-            className="text-sl-400 hover:text-sl-600 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        {status === 'loading' && (
+          <div style={{ padding: '0 14px 12px' }}>
+            <div style={{ height: 6, borderRadius: 999, background: 'rgba(148, 163, 184, 0.25)', overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${Math.max(2, Math.min(100, progress))}%`,
+                  height: '100%',
+                  background: `linear-gradient(90deg, ${current.accent}, #60a5fa)`,
+                  transition: 'width 0.25s ease',
+                }}
+              />
+            </div>
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right', fontWeight: 700 }}>
+              {Math.round(progress)}%
+            </div>
+          </div>
         )}
       </div>
     </div>

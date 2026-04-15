@@ -113,7 +113,8 @@ const Login: React.FC = () => {
       return t('login.invalidCredentials')
     }
 
-    return t(`login.errorCodes.${normalized}`, {
+    return t(`codes.${normalized}`, {
+      ns: 'errors',
       defaultValue: t('login.invalidCredentials'),
     })
   }
@@ -122,9 +123,10 @@ const Login: React.FC = () => {
     try {
       const credential: string | undefined = response?.credential
       if (!credential) throw new Error('Did not receive idToken from Google')
-      const { token, user } = await AuthService.loginWithGoogle({ ClientId: CLIENT_ID, IdToken: credential })
+      const { token, user, shouldPromptDailyReminderTime } = await AuthService.loginWithGoogle({ ClientId: CLIENT_ID, IdToken: credential })
       authStore.setToken(token)
       authStore.setUser(user as any)
+      authStore.setShouldPromptDailyReminderTime(Boolean(shouldPromptDailyReminderTime))
       // Tải đầy đủ thông tin user sau khi có token từ Google
       await authStore.fetchProfile()
       const roleName = (authStore.user?.role?.name) || (user as any)?.role?.name || (user as any)?.roleName || (user as any)?.roles?.[0]

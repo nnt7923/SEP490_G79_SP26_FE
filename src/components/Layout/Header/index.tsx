@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../../../store/useAuthStore'
 import ROUTER from '../../../router/ROUTER'
@@ -8,24 +8,38 @@ import ReactMarkdown from 'react-markdown'
 import { useTheme } from '../../../contexts/ThemeContext'
 import LanguageSwitcher from '../../LanguageSwitcher'
 import { useTranslation } from 'react-i18next'
-import { MessageSquare } from 'lucide-react'
-import useChatStore from '../../../store/useChatStore'
+import { FaBell } from 'react-icons/fa'
+import NotificationList from '../../Notifications/NotificationList'
+import useAppNotificationStore from '../../../store/useAppNotificationStore'
+import useNotificationStore from '../../../store/useNotificationStore'
+import { navigateAndMarkNotificationRead } from '../../Notifications/utils'
+
+const FOCUS_SESSION_RUNNING_LOCK_KEY = 'focus_session_running_lock'
 
 const Header: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { token, user, logout } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
   const [open, setOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { t } = useTranslation('common')
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const { globalUnreadCount } = useChatStore()
+  const panelItems = useAppNotificationStore((state) => state.panelItems)
+  const panelLoading = useAppNotificationStore((state) => state.panelLoading)
+  const notificationError = useAppNotificationStore((state) => state.error)
+  const unreadNotificationCount = useAppNotificationStore((state) => state.unreadCount)
+  const refreshPanel = useAppNotificationStore((state) => state.refreshPanel)
+  const markAsRead = useAppNotificationStore((state) => state.markAsRead)
+  const showToast = useNotificationStore((state) => state.showToast)
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!menuRef.current) return
       if (!menuRef.current.contains(e.target as Node)) {
         setOpen(false)
+        setNotificationsOpen(false)
         setMobileMenuOpen(false)
       }
     }
@@ -67,8 +81,41 @@ const Header: React.FC = () => {
   const md = mdLines.join('\n')
 
   const onLogout = async () => {
+    const isFocusSessionRoute = location.pathname === ROUTER.FOCUS_SESSION
+    const hasRunningFocusSession = typeof window !== 'undefined' && Boolean(window.sessionStorage.getItem(FOCUS_SESSION_RUNNING_LOCK_KEY))
+
+    if (isFocusSessionRoute && hasRunningFocusSession) {
+      showToast(t('userMenu.mustPauseBeforeLogout'), 'warning')
+      setOpen(false)
+      setMobileMenuOpen(false)
+      return
+    }
+
     try { await logout() } catch {}
     navigate(ROUTER.HOME)
+  }
+
+  const handleNotificationsToggle = async () => {
+    const nextOpen = !notificationsOpen
+    setNotificationsOpen(nextOpen)
+    setOpen(false)
+
+    if (!nextOpen) return
+
+    try {
+      await refreshPanel()
+    } catch (error: any) {
+      showToast(error?.message || t('notifications.fetchError'), 'error')
+    }
+  }
+
+  const handleNotificationClick = async (notification: any) => {
+    setNotificationsOpen(false)
+    try {
+      await navigateAndMarkNotificationRead(notification, navigate, markAsRead)
+    } catch (error: any) {
+      showToast(error?.message || t('notifications.markReadError'), 'error')
+    }
   }
 
   const AvatarEl = (
@@ -329,51 +376,53 @@ const Header: React.FC = () => {
             ) : (
               <div style={{ position: 'relative' }} ref={menuRef}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {/* Chat Icon & Badge */}
-                  {(isStudent || isMentor) && (
-                    <Link
-                      to={isMentor ? ROUTER.MENTOR_CHAT : ROUTER.CHAT}
+                  {isStudent && (
+                    <button
+                      type="button"
+                      onClick={() => { void handleNotificationsToggle() }}
                       style={{
                         position: 'relative',
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: 32,
-                        height: 32,
-                        color: 'var(--text-secondary)',
-                        textDecoration: 'none',
-                        transition: 'color 0.2s ease',
+                        width: 34,
+                        height: 34,
+                        padding: 0,
+                        color: 'var(--text-primary)',
+                        background: notificationsOpen || unreadNotificationCount > 0 ? 'var(--bg-main)' : 'transparent',
+                        border: notificationsOpen || unreadNotificationCount > 0 ? '1px solid var(--border-base)' : '1px solid transparent',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
-                      title={t('sidebar.chat', { defaultValue: 'Chat' })}
+                      title={t('notifications.title')}
                     >
-                      <MessageSquare size={18} />
-                      {globalUnreadCount > 0 && (
+                      <FaBell size={15} />
+                      {unreadNotificationCount > 0 && (
                         <span
                           style={{
                             position: 'absolute',
                             top: 0,
                             right: 0,
                             background: 'var(--danger-primary)',
-                            color: '#fff',
                             borderRadius: '999px',
-                            fontSize: 10,
-                            fontWeight: 700,
                             minWidth: 16,
                             height: 16,
+                            padding: '0 4px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            padding: '0 4px',
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 700,
                             transform: 'translate(25%, -25%)',
-                            border: '2px solid var(--bg-surface)'
+                            boxShadow: '0 0 0 2px var(--bg-surface)',
                           }}
                         >
-                          {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
+                          {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
                         </span>
                       )}
-                    </Link>
+                    </button>
                   )}
 
                   {profilePath ? (
@@ -467,6 +516,72 @@ const Header: React.FC = () => {
                     </div>
                   </motion.div>
                 )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {notificationsOpen && (
+                    <motion.div
+                      key="notifications-dropdown"
+                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                      transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      style={{
+                        position: 'absolute',
+                        right: 72,
+                        top: 40,
+                        width: 320,
+                        maxWidth: 'calc(100vw - 32px)',
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 6,
+                        padding: 12,
+                        zIndex: 55,
+                        boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {t('notifications.title')}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                            {t('notifications.unreadCountLabel', { count: unreadNotificationCount })}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNotificationsOpen(false)
+                            navigate(ROUTER.NOTIFICATIONS)
+                          }}
+                          style={{
+                            border: '1px solid var(--border-base)',
+                            borderRadius: 4,
+                            background: 'var(--bg-main)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            padding: '6px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {t('notifications.viewAll')}
+                        </button>
+                      </div>
+
+                      <NotificationList
+                        items={panelItems.slice(0, 5)}
+                        loading={panelLoading}
+                        error={notificationError}
+                        emptyLabel={t('notifications.empty')}
+                        onItemClick={handleNotificationClick}
+                        onReadVisible={markAsRead}
+                        compact
+                        titleOnly
+                      />
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             )}

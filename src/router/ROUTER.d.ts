@@ -16,11 +16,18 @@ declare const ROUTER: {
   PROFILE: string
   CHANGE_PASSWORD: string
   MY_RESOURCES: string
+  NOTIFICATIONS: string
   ADMIN_DASHBOARD: string
   MENTOR_DASHBOARD: string
+  MENTOR_AI_PLANS: string
+  MENTOR_AI_PLAN_DETAIL: string
+  MENTOR_DRAFTS: string
+  MENTOR_DRAFT_CREATE: string
+  MENTOR_DRAFT_DETAIL: string
   ADMIN_API_KEY: string
   ADMIN_SUBSCRIPTION_PLANS: string
   ADMIN_BILLING_TRANSACTIONS: string
+  ADMIN_AI_SPENDING: string
   ADMIN_MENTOR_AI_USAGE: string
   ADMIN_USERS: string
   ADMIN_REPORTS: string
@@ -29,11 +36,15 @@ declare const ROUTER: {
   QUIZ: string
   TASK: string
   FOCUS_SESSION: string
+  FOCUS_SESSION_HISTORY: string
   CHAT: string
   CHAT_SHARE_PREVIEW: string
   MENTOR_CHAT: string
+  CHANNEL_CHAT: string
+  MENTOR_CHANNEL_CHAT: string
   SUBSCRIPTION: string
   SUBSCRIPTION_CURRENT: string
+  BILLING_RESULT: string
   SUBSCRIPTION_SUCCESS: string
 }
 

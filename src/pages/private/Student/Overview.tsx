@@ -7,7 +7,15 @@ import Footer from '../../../components/Layout/Footer'
 import { getMyGoals } from '../../../services/GoalService'
 import { getUserLearningPaths } from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
-import { FileText, Target, BookOpen, GraduationCap } from 'lucide-react'
+import { getGoalTitle } from '../../../utils/goalTranslation'
+import { FileText, Target, BookOpen, GraduationCap, AlertTriangle, ArrowRight } from 'lucide-react'
+import useAppNotificationStore from '../../../store/useAppNotificationStore'
+import { navigateAndMarkNotificationRead } from '../../../components/Notifications/utils'
+import useNotificationStore from '../../../store/useNotificationStore'
+import useChatStore from '../../../store/useChatStore'
+import type { NotificationDto } from '../../../types/notification'
+import SubscriptionService from '../../../services/SubscriptionService'
+import { shouldShowSourceUpdateBadge } from './shareVersionBadge'
 
 const StudentOverview: React.FC = () => {
   const { user } = useAuthStore()
@@ -15,6 +23,11 @@ const StudentOverview: React.FC = () => {
   const navigate = useNavigate()
   const { t } = useTranslation('student')
   const { t: tc } = useTranslation('common')
+  const items = useAppNotificationStore((state) => state.items)
+  const panelItems = useAppNotificationStore((state) => state.panelItems)
+  const markAsRead = useAppNotificationStore((state) => state.markAsRead)
+  const showToast = useNotificationStore((state) => state.showToast)
+  const receivedLearningPathShares = useChatStore((state) => state.receivedLearningPathShares)
   const [plansCount, setPlansCount] = React.useState(0)
   const [recentPlans, setRecentPlans] = React.useState<any[]>([])
   const [recentGoals, setRecentGoals] = React.useState<any[]>([])
@@ -25,6 +38,7 @@ const StudentOverview: React.FC = () => {
     totalChapters: 0,
     activeGoals: 0
   })
+  const [currentSubExpiredAt, setCurrentSubExpiredAt] = React.useState<Date | null>(null)
 
   React.useEffect(() => {
     const fetchDashboardData = async () => {
@@ -46,7 +60,8 @@ const StudentOverview: React.FC = () => {
         let totalChapters = 0
         plansArray.forEach((plan: any) => {
           totalChapters += plan.chapterCount || plan.chapters?.length || 0
-          if (plan.chapters) {
+          totalLessons += plan.lessonCount ?? 0
+          if (plan.lessonCount === undefined && plan.chapters) {
             plan.chapters.forEach((chapter: any) => {
               totalLessons += chapter.lessons?.length || 0
             })
@@ -63,7 +78,25 @@ const StudentOverview: React.FC = () => {
       }
     }
 
+    const fetchCurrentSub = async () => {
+      try {
+        const sub = await SubscriptionService.getCurrentSubscription()
+        if (sub) {
+          const expiredStr = (sub.expiresAt || sub.expiredAt || sub.endDate) as string | undefined
+          if (expiredStr) {
+            const parsed = new Date(expiredStr)
+            if (!Number.isNaN(parsed.getTime())) {
+              setCurrentSubExpiredAt(parsed)
+            }
+          }
+        }
+      } catch {
+        // Error handling
+      }
+    }
+
     fetchDashboardData()
+    fetchCurrentSub()
   }, [user?.id])
 
   const getInitials = (name: string) => {
@@ -73,6 +106,41 @@ const StudentOverview: React.FC = () => {
   const progressPercentage = stats.totalLessons > 0
     ? Math.round((stats.completedLessons / stats.totalLessons) * 100)
     : 0
+
+  const expiringSoonNotification = React.useMemo<NotificationDto | null>(() => {
+    const seen = new Set<string>()
+    const deduped = [...panelItems, ...items].filter((item) => {
+      if (!item.notificationId || seen.has(item.notificationId)) return false
+      seen.add(item.notificationId)
+      return true
+    })
+
+    const matched = deduped
+      .filter((item) => {
+        const type = String(item.type || '').trim()
+        return (type === 'PlanExpiringSoon' || type === 'PlanExpired') && !item.isRead
+      })
+      .map((item) => {
+        const type = String(item.type || '').trim()
+        if (type === 'PlanExpiringSoon' && currentSubExpiredAt && currentSubExpiredAt.getTime() < Date.now()) {
+          return { ...item, type: 'PlanExpired' }
+        }
+        return item
+      })
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+
+    return matched[0] ?? null
+  }, [items, panelItems, currentSubExpiredAt])
+
+  const handleSubscriptionNoticeClick = React.useCallback(async () => {
+    if (!expiringSoonNotification) return
+
+    try {
+      await navigateAndMarkNotificationRead(expiringSoonNotification, navigate, markAsRead)
+    } catch (error: any) {
+      showToast(error?.message || tc('notifications.markReadError'), 'error')
+    }
+  }, [expiringSoonNotification, markAsRead, navigate, showToast, tc])
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-surface)' }}>
@@ -99,6 +167,75 @@ const StudentOverview: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {expiringSoonNotification && (
+            <button
+              type="button"
+              onClick={() => { void handleSubscriptionNoticeClick() }}
+              style={{
+                width: '100%',
+                maxWidth: 760,
+                margin: '0 auto 20px',
+                display: 'block',
+                padding: '18px 22px',
+                borderRadius: 8,
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(251, 191, 36, 0.08))',
+                textAlign: 'left',
+                cursor: 'pointer',
+                boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 999,
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(245, 158, 11, 0.18)',
+                      color: '#b45309',
+                    }}
+                  >
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#b45309' }}>
+                      <span>{String(expiringSoonNotification.type).trim() === 'PlanExpired' ? t('overview.subscriptionNotice.eyebrowExpired') : t('overview.subscriptionNotice.eyebrow')}</span>
+                    </div>
+                    <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {expiringSoonNotification.title || t('overview.subscriptionNotice.title')}
+                    </h2>
+                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                      {expiringSoonNotification.message || t('overview.subscriptionNotice.description')}
+                    </p>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexShrink: 0,
+                    padding: '10px 12px',
+                    borderRadius: 999,
+                    background: 'rgba(255, 255, 255, 0.72)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    color: 'var(--text-primary)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>{t('overview.subscriptionNotice.action')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </div>
+            </button>
+          )}
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)', fontSize: 13 }}>{tc('status.loading')}</div>
@@ -154,8 +291,32 @@ const StudentOverview: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {recentPlans.map((plan, idx) => (
                         <button key={plan.pathId || plan.id || idx} type="button" onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })} style={{ padding: 12, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.2s', width: '100%' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
-                          <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.title || t('overview.recentPlans.untitled')}</h3>
+                          {(() => {
+                            const pathId = String(plan.pathId || plan.id || '').trim()
+                            const fallbackShare = receivedLearningPathShares.find(
+                              (share) => share.status === 'Accepted' && String(share.pathId || '').trim() === pathId,
+                            )
+                            const sharedByUserName = String(plan.sharedByUserName || fallbackShare?.mentorName || '').trim()
+
+                            return (
+                              <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{plan.title || t('overview.recentPlans.untitled')}</h3>
+                            {shouldShowSourceUpdateBadge(plan) && (
+                              <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#854d0e', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 999, padding: '2px 6px', background: 'rgba(245, 158, 11, 0.12)' }}>
+                                {t('myPlans.newVersionBadge', { defaultValue: 'Có phiên bản mới' })}
+                              </span>
+                            )}
+                          </div>
                           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{t('overview.recentPlans.chapters', { count: plan.chapterCount || plan.chapters?.length || 0 })} {plan.createdAt && `· ${new Date(plan.createdAt).toLocaleDateString()}`}</p>
+                          {sharedByUserName && (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                              {t('myPlans.sharedBy', { defaultValue: 'Được chia sẻ bởi {{name}}', name: sharedByUserName })}
+                            </p>
+                          )}
+                              </>
+                            )
+                          })()}
                         </button>
                       ))}
                     </div>
@@ -176,9 +337,9 @@ const StudentOverview: React.FC = () => {
                   {recentGoals.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {recentGoals.map((goal, idx) => (
-                        <button key={goal.id || idx} type="button" onClick={() => navigate(`/goals/${goal.id}`)} style={{ padding: 12, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.2s', width: '100%' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
+                        <button key={goal.id || idx} type="button" onClick={() => navigate(ROUTER.GOALS)} style={{ padding: 12, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface-short)', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.2s', width: '100%' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{goal.title || goal.name || t('overview.recentGoals.untitled')}</h3>
+                            <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{getGoalTitle(t, goal.goalId || goal.id, goal.title || goal.name) || t('overview.recentGoals.untitled')}</h3>
                             <span style={{ fontSize: 11, padding: '2px 8px', border: '1px solid var(--border-base)', borderRadius: 2, color: goal.status === 'Completed' ? 'var(--success-primary)' : 'var(--text-secondary)', flexShrink: 0, marginLeft: 8 }}>
                               {goal.status === 'Completed' ? tc('status.done') : tc('status.active')}
                             </span>

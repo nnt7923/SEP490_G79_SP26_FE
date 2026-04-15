@@ -31,6 +31,74 @@ interface Resource {
   uploadProgress?: number
 }
 
+interface ResourcesCacheEntry {
+  timestamp: number
+  data: Resource[]
+}
+
+const RESOURCES_CACHE_PREFIX = 'my-resources:list:'
+const RESOURCES_CACHE_TTL_MS = 5 * 60 * 1000
+
+const buildResourcesCacheKey = (searchTerm: string, sortBy: string, sortDescending: boolean) => {
+  return `${RESOURCES_CACHE_PREFIX}${JSON.stringify({
+    searchTerm: searchTerm || '',
+    sortBy,
+    sortDescending,
+  })}`
+}
+
+const readResourcesCache = (key: string): Resource[] | null => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.sessionStorage.getItem(key)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as ResourcesCacheEntry
+    if (!parsed?.timestamp || !Array.isArray(parsed?.data)) return null
+
+    const isExpired = Date.now() - parsed.timestamp > RESOURCES_CACHE_TTL_MS
+    if (isExpired) {
+      window.sessionStorage.removeItem(key)
+      return null
+    }
+
+    return parsed.data
+  } catch {
+    return null
+  }
+}
+
+const writeResourcesCache = (key: string, data: Resource[]) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    const payload: ResourcesCacheEntry = {
+      timestamp: Date.now(),
+      data,
+    }
+    window.sessionStorage.setItem(key, JSON.stringify(payload))
+  } catch {
+  }
+}
+
+const clearResourcesCache = () => {
+  if (typeof window === 'undefined') return
+
+  try {
+    const keysToRemove: string[] = []
+    for (let index = 0; index < window.sessionStorage.length; index += 1) {
+      const key = window.sessionStorage.key(index)
+      if (key?.startsWith(RESOURCES_CACHE_PREFIX)) {
+        keysToRemove.push(key)
+      }
+    }
+
+    keysToRemove.forEach((key) => window.sessionStorage.removeItem(key))
+  } catch {
+  }
+}
+
 const MyResourcesPage: React.FC = () => {
   const navigate = useNavigate()
   const [resources, setResources] = useState<Resource[]>([])
@@ -49,9 +117,25 @@ const MyResourcesPage: React.FC = () => {
   const [sortDescending, setSortDescending] = useState(true)
   const { t } = useTranslation('admin')
 
+  const getCurrentCacheKey = () => buildResourcesCacheKey(searchTerm, sortBy, sortDescending)
+
+  const syncCurrentCache = (list: Resource[]) => {
+    writeResourcesCache(getCurrentCacheKey(), list)
+  }
+
   useEffect(() => { fetchResources() }, [searchTerm, sortBy, sortDescending])
 
-  const fetchResources = async () => {
+  const fetchResources = async (forceRefresh = false) => {
+    const cacheKey = getCurrentCacheKey()
+    const cached = !forceRefresh ? readResourcesCache(cacheKey) : null
+
+    if (cached) {
+      setResources(cached)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -63,19 +147,44 @@ const MyResourcesPage: React.FC = () => {
       } else if (Array.isArray(data)) resourcesList = data
       else if (Array.isArray(data?.data)) resourcesList = data.data
       else if (Array.isArray(data?.value)) resourcesList = data.value
+
+      writeResourcesCache(cacheKey, resourcesList)
       setResources(resourcesList)
     } catch (err: any) {
+      const staleCache = readResourcesCache(cacheKey)
+      if (staleCache) {
+        setResources(staleCache)
+        setError(null)
+        return
+      }
+
       setError(err?.response?.data?.message || t('resources.loadFailed'))
       setResources([])
     } finally { setLoading(false) }
   }
 
-  const handleCreateSuccess = () => { fetchResources() }
-  const handleUploadStart = (tempResource: Resource) => { setResources(prev => [tempResource, ...prev]) }
-  const handleUploadProgress = (uploadId: string, progress: number) => {
-    setResources(prev => prev.map(r => r.resourceId === uploadId ? { ...r, uploadProgress: progress } : r))
+  const handleCreateSuccess = () => {
+    clearResourcesCache()
+    fetchResources(true)
   }
-  const handleEditSuccess = () => { fetchResources() }
+  const handleUploadStart = (tempResource: Resource) => {
+    setResources(prev => {
+      const updated = [tempResource, ...prev]
+      syncCurrentCache(updated)
+      return updated
+    })
+  }
+  const handleUploadProgress = (uploadId: string, progress: number) => {
+    setResources(prev => {
+      const updated = prev.map(r => r.resourceId === uploadId ? { ...r, uploadProgress: progress } : r)
+      syncCurrentCache(updated)
+      return updated
+    })
+  }
+  const handleEditSuccess = () => {
+    clearResourcesCache()
+    fetchResources(true)
+  }
   const showToast = (message: string, type: 'success' | 'error' | 'warning') => { setToast({ message, type }) }
   const handleEdit = (resource: Resource) => { setSelectedResource(resource); setIsEditModalOpen(true) }
   const handleDownload = (resource: Resource) => {
@@ -85,7 +194,12 @@ const MyResourcesPage: React.FC = () => {
   const handleDelete = (resource: Resource) => { setResourceToDelete(resource); setIsDeleteDialogOpen(true) }
   const confirmDelete = async () => {
     if (!resourceToDelete) return
-    try { await ResourceService.deleteResource(resourceToDelete.resourceId); showToast(t('resources.deleteSuccess'), 'success'); fetchResources() }
+    try {
+      await ResourceService.deleteResource(resourceToDelete.resourceId)
+      clearResourcesCache()
+      showToast(t('resources.deleteSuccess'), 'success')
+      fetchResources(true)
+    }
     catch (err: any) { showToast(err?.response?.data?.message || err?.message || t('resources.deleteFailed'), 'error') }
     finally { setIsDeleteDialogOpen(false); setResourceToDelete(null) }
   }

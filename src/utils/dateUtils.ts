@@ -41,29 +41,56 @@ export const formatDateTimeVN = (date: string | Date | null | undefined): string
   if (!date) return 'N/A'
   
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date
+    const parseUtcFromBackend = (rawDate: string | Date): Date => {
+      if (rawDate instanceof Date) return rawDate
+
+      const hasTimezone = /Z|[+-]\d{2}:?\d{2}$/.test(rawDate)
+      if (hasTimezone) {
+        return new Date(rawDate)
+      }
+
+      const matched = rawDate.match(
+        /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/
+      )
+
+      if (!matched) {
+        return new Date(rawDate)
+      }
+
+      const [, year, month, day, hour, minute, second, fraction] = matched
+      const milliseconds = fraction
+        ? Math.floor(Number(`0.${fraction}`) * 1000)
+        : 0
+
+      return new Date(
+        Date.UTC(
+          Number(year),
+          Number(month) - 1,
+          Number(day),
+          Number(hour),
+          Number(minute),
+          Number(second),
+          milliseconds
+        )
+      )
+    }
+
+    const dateObj = parseUtcFromBackend(date)
     
     // Check if date is valid
     if (isNaN(dateObj.getTime())) {
       return 'Invalid date'
     }
     
-    // Get UTC timestamp and add 7 hours (25200000 ms = 7 * 60 * 60 * 1000)
-    const vnTimestamp = dateObj.getTime() + 25200000
-    const vnDate = new Date(vnTimestamp)
-    
-    // Format the date parts using UTC methods (since we already added the offset)
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const month = months[vnDate.getUTCMonth()]
-    const day = vnDate.getUTCDate()
-    const year = vnDate.getUTCFullYear()
-    
-    let hours = vnDate.getUTCHours()
-    const minutes = vnDate.getUTCMinutes().toString().padStart(2, '0')
-    const ampm = hours >= 12 ? 'PM' : 'AM'
-    hours = hours % 12 || 12
-    
-    return `${month} ${day}, ${year}, ${hours}:${minutes} ${ampm}`
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(dateObj)
   } catch (error) {
     return 'Invalid date'
   }

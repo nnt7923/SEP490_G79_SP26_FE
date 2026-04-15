@@ -12,7 +12,18 @@ import {
   myDraftDetailUrl,
   learningPathProgressUrl,
 } from './url'
-import { requestLearningPathGeneration, requestChapterSkeleton, requestLessonContent, requestLearningPathSuggestions } from '../SignalR'
+import {
+  requestLearningPathGeneration,
+  requestChapterMentorSkeleton,
+  requestChapterSkeleton,
+  requestLessonContent,
+  requestMentorLessonContent,
+  requestLessonQuizSkeleton,
+  requestSingleQuizSkeleton,
+  requestSingleQuizQuestion,
+  requestSingleTask,
+  requestLearningPathSuggestions,
+} from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -20,7 +31,20 @@ export type Quiz = {
   quizzId?: string
   title: string
   description?: string | null
+  dueDate?: string | null
+  questions?: Question[]
   quizQuestionsJson?: string | null
+  [key: string]: any
+}
+
+export type Question = {
+  id?: string
+  questionId?: string
+  questionText: string
+  type: string | number
+  options?: string[] | null
+  correctAnswer?: string | null
+  points: number | string
   [key: string]: any
 }
 
@@ -66,13 +90,28 @@ export type ManualDraftGoalInput = {
   weight: number
 }
 
+export type ManualDraftVersionUpdateType = 'Minor' | 'Major'
+
 export type ManualDraftQuizInput = {
   id?: string
   quizId?: string
   quizzId?: string
   title: string
   description?: string | null
+  dueDate?: string | null
+  questions?: ManualDraftQuestionInput[]
   quizQuestionsJson?: string | null
+  [key: string]: any
+}
+
+export type ManualDraftQuestionInput = {
+  id?: string
+  questionId?: string
+  questionText: string
+  type: number | string
+  options?: string[] | null
+  correctAnswer?: string | null
+  points: number
   [key: string]: any
 }
 
@@ -113,9 +152,11 @@ export type ManualDraftChapterInput = {
 }
 
 export type ManualDraftPayload = {
+  increaseVersion?: boolean
+  versionUpdateType?: ManualDraftVersionUpdateType | null
   subjectId: string
   goals: ManualDraftGoalInput[]
-  complexityLevel: string
+  complexityLevel: string | number
   languageSelection: number | string
   title: string
   description?: string | null
@@ -129,6 +170,15 @@ export type SkeletonResponse = {
   pathId?: string
   title?: string
   description?: string | null
+  version?: number | null
+  previousVersion?: number | null
+  hasMeaningfulChange?: boolean
+  sharedByUserId?: string | null
+  sharedByUserName?: string | null
+  sourceLearningPathId?: string | null
+  sourceVersion?: number | null
+  sourceLatestVersion?: number | null
+  hasSourceUpdate?: boolean
   chapterDtos?: Array<{
     chapterId: string
     title: string
@@ -158,14 +208,6 @@ export type SkeletonResponse = {
   [key: string]: any
 }
 
-function normalizeLanguageSelectionValue(value: unknown): unknown {
-  if (typeof value === 'number') {
-    if (value === 1) return 'VietNamese'
-    if (value === 2) return 'English'
-  }
-  return value
-}
-
 function normalizeNumber(value: unknown, fallback = 0): number {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : fallback
@@ -182,81 +224,170 @@ function unwrap<T>(res: any): T {
   return data as T
 }
 
+function pickArray<T = any>(...candidates: unknown[]): T[] | undefined {
+  let firstArray: T[] | undefined
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue
+    const arrayCandidate = candidate as T[]
+    if (!firstArray) firstArray = arrayCandidate
+    if (arrayCandidate.length > 0) return arrayCandidate
+  }
+  return firstArray
+}
+
+function normalizeQuestion(question: any): Question {
+  return {
+    ...question,
+    id: question?.questionId ?? question?.id,
+    questionId: question?.questionId ?? question?.QuestionId ?? question?.id,
+    questionText: question?.questionText ?? question?.QuestionText ?? '',
+    type: question?.type ?? question?.Type,
+    options: question?.options ?? question?.Options ?? [],
+    correctAnswer: question?.correctAnswer ?? question?.CorrectAnswer ?? null,
+    points: question?.points ?? question?.Points ?? 0,
+  }
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+function toNullableBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true') return true
+    if (normalized === 'false') return false
+  }
+  return null
+}
+
 function normalizeSkeleton(payload: any): SkeletonResponse {
-  const hasChapterDtos = Array.isArray(payload?.chapterDtos)
-  const chapters: Chapter[] | undefined = hasChapterDtos
-    ? payload.chapterDtos.map((ch: any) => ({
-      ...ch,
-      id: ch?.chapterId ?? ch?.id,
-      title: ch?.title,
-      content: ch?.content ?? null,
-      orderIndex: ch?.orderIndex,
-      startDate: ch?.startDate ?? ch?.StartDate ?? null,
-      endDate: ch?.endDate ?? ch?.EndDate ?? null,
-      estimatedDays: ch?.estimatedDays ?? ch?.EstimatedDays ?? null,
-      lessons: Array.isArray(ch?.lessons)
-        ? ch.lessons.map((ls: any) => ({
-          ...ls,
-          id: ls?.lessonId ?? ls?.id,
-          title: ls?.title,
-          description: ls?.description ?? null,
-          content: ls?.content ?? null,
-          lessonDay: ls?.lessonDay ?? null,
-          quizzes: Array.isArray(ls?.quizzes)
-            ? ls.quizzes.map((q: any) => ({
-              ...q,
-              id: q?.quizzId ?? q?.id,
-              quizId: q?.quizId ?? q?.id,
-              quizzId: q?.quizzId ?? q?.id,
-              title: q?.title,
-              description: q?.description ?? null,
-              quizQuestionsJson: q?.quizQuestionsJson ?? q?.QuizQuestionsJson ?? null,
-            }))
-            : [],
-        }))
-        : [],
-      tasks: Array.isArray(ch?.tasks)
-        ? ch.tasks.map((t: any) => ({
-          ...t,
-          id: t?.taskId ?? t?.id,
-          title: t?.title,
-          description: t?.description ?? null,
-          priority: t?.priority ?? null,
-          taskStatus: t?.taskStatus ?? null,
-          dueDate: t?.dueDate ?? null,
-          taskType: t?.taskType ?? t?.TaskType ?? null,
-          quizQuestionsJson: t?.quizQuestionsJson ?? t?.QuizQuestionsJson ?? null,
-        }))
-        : [],
-    }))
-    : payload?.chapters
+  const chapterDtos = pickArray<any>(payload?.chapterDtos, payload?.ChapterDtos)
+  const chapterItems = chapterDtos ?? pickArray<any>(payload?.chapters, payload?.Chapters)
+  const hasChapterDtos = Array.isArray(chapterDtos)
+
+  const chapters: Chapter[] | undefined = chapterItems?.map((chapter: any) => {
+    const lessonItems = pickArray<any>(
+      chapter?.lessons,
+      chapter?.Lessons,
+      chapter?.lessonDtos,
+      chapter?.LessonDtos,
+    )
+    const taskItems = pickArray<any>(
+      chapter?.tasks,
+      chapter?.Tasks,
+      chapter?.taskDtos,
+      chapter?.TaskDtos,
+    )
+
+    return {
+      ...chapter,
+      id: chapter?.chapterId ?? chapter?.id,
+      title: chapter?.title ?? chapter?.Title,
+      content: chapter?.content ?? chapter?.Content ?? null,
+      orderIndex: chapter?.orderIndex ?? chapter?.OrderIndex,
+      startDate: chapter?.startDate ?? chapter?.StartDate ?? null,
+      endDate: chapter?.endDate ?? chapter?.EndDate ?? null,
+      estimatedDays: chapter?.estimatedDays ?? chapter?.EstimatedDays ?? null,
+      lessons: lessonItems?.map((lesson: any) => {
+        const quizItems = pickArray<any>(
+          lesson?.quizzes,
+          lesson?.Quizzes,
+          lesson?.quizDtos,
+          lesson?.QuizDtos,
+        )
+        return {
+          ...lesson,
+          id: lesson?.lessonId ?? lesson?.id,
+          title: lesson?.title ?? lesson?.Title,
+          description: lesson?.description ?? lesson?.Description ?? null,
+          content: lesson?.content ?? lesson?.Content ?? null,
+          lessonDay: lesson?.lessonDay ?? lesson?.LessonDay ?? null,
+          quizzes: quizItems?.map((quiz: any) => ({
+            ...quiz,
+            id: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
+            quizId: quiz?.quizId ?? quiz?.quizzId ?? quiz?.id,
+            quizzId: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
+            title: quiz?.title ?? quiz?.Title,
+            description: quiz?.description ?? quiz?.Description ?? null,
+            dueDate: quiz?.dueDate ?? quiz?.DueDate ?? null,
+            questions: pickArray<any>(
+              quiz?.questions,
+              quiz?.Questions,
+              quiz?.questionDtos,
+              quiz?.QuestionDtos,
+            )?.map((question: any) => normalizeQuestion(question)),
+            quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
+          })),
+        }
+      }) ?? [],
+      tasks: taskItems?.map((task: any) => ({
+        ...task,
+        id: task?.taskId ?? task?.id,
+        title: task?.title ?? task?.Title,
+        description: task?.description ?? task?.Description ?? null,
+        priority: task?.priority ?? task?.Priority ?? null,
+        taskStatus: task?.taskStatus ?? task?.TaskStatus ?? null,
+        dueDate: task?.dueDate ?? task?.DueDate ?? null,
+        taskType: task?.taskType ?? task?.TaskType ?? null,
+        quizQuestionsJson: task?.quizQuestionsJson ?? task?.QuizQuestionsJson ?? task?.quizQuestions ?? task?.QuizQuestions ?? null,
+      })) ?? [],
+    }
+  })
 
   const lessons: Lesson[] | undefined = hasChapterDtos
-    ? (chapters || []).flatMap((ch) => ch.lessons || [])
-    : Array.isArray(payload?.lessons)
-      ? payload.lessons.map((ls: any) => ({
-        ...ls,
-        id: ls?.id ?? ls?.lessonId,
-        title: ls?.title,
-        description: ls?.description ?? null,
-        content: ls?.content ?? null,
-        lessonDay: ls?.lessonDay ?? null,
-        quizzes: Array.isArray(ls?.quizzes)
-          ? ls.quizzes.map((q: any) => ({
-            ...q,
-            id: q?.id ?? q?.quizzId,
-            quizId: q?.quizId ?? q?.id,
-            quizzId: q?.quizzId ?? q?.id,
-            title: q?.title,
-            description: q?.description ?? null,
-            quizQuestionsJson: q?.quizQuestionsJson ?? q?.QuizQuestionsJson ?? null,
-          }))
-          : [],
-      }))
-      : undefined
+    ? (chapters || []).flatMap((chapter) => chapter.lessons || [])
+    : pickArray<any>(payload?.lessons, payload?.Lessons)?.map((lesson: any) => {
+      const quizItems = pickArray<any>(
+        lesson?.quizzes,
+        lesson?.Quizzes,
+        lesson?.quizDtos,
+        lesson?.QuizDtos,
+      )
+      return {
+        ...lesson,
+        id: lesson?.id ?? lesson?.lessonId,
+        title: lesson?.title ?? lesson?.Title,
+        description: lesson?.description ?? lesson?.Description ?? null,
+        content: lesson?.content ?? lesson?.Content ?? null,
+        lessonDay: lesson?.lessonDay ?? lesson?.LessonDay ?? null,
+        quizzes: quizItems?.map((quiz: any) => ({
+          ...quiz,
+          id: quiz?.id ?? quiz?.quizId ?? quiz?.quizzId,
+          quizId: quiz?.quizId ?? quiz?.id ?? quiz?.quizzId,
+          quizzId: quiz?.quizzId ?? quiz?.id ?? quiz?.quizId,
+          title: quiz?.title ?? quiz?.Title,
+          description: quiz?.description ?? quiz?.Description ?? null,
+          dueDate: quiz?.dueDate ?? quiz?.DueDate ?? null,
+          questions: pickArray<any>(
+            quiz?.questions,
+            quiz?.Questions,
+            quiz?.questionDtos,
+            quiz?.QuestionDtos,
+          )?.map((question: any) => normalizeQuestion(question)),
+          quizQuestionsJson: quiz?.quizQuestionsJson ?? quiz?.QuizQuestionsJson ?? quiz?.quizQuestions ?? quiz?.QuizQuestions ?? null,
+        })),
+      }
+    })
+
+  const normalizedVersion = toNullableNumber(payload?.version ?? payload?.Version)
+  const normalizedPreviousVersion = toNullableNumber(payload?.previousVersion ?? payload?.PreviousVersion)
+  const normalizedMeaningfulChange = toNullableBoolean(payload?.hasMeaningfulChange ?? payload?.HasMeaningfulChange)
 
   return {
     ...payload,
+    version: normalizedVersion,
+    previousVersion: normalizedPreviousVersion,
+    hasMeaningfulChange: normalizedMeaningfulChange ?? undefined,
+    sharedByUserId: payload?.sharedByUserId ?? payload?.SharedByUserId ?? null,
+    sharedByUserName: payload?.sharedByUserName ?? payload?.SharedByUserName ?? null,
+    sourceLearningPathId: payload?.sourceLearningPathId ?? payload?.SourceLearningPathId ?? null,
+    sourceVersion: payload?.sourceVersion ?? payload?.SourceVersion ?? null,
+    sourceLatestVersion: payload?.sourceLatestVersion ?? payload?.SourceLatestVersion ?? null,
+    hasSourceUpdate: Boolean(payload?.hasSourceUpdate ?? payload?.HasSourceUpdate),
     chapters,
     lessons,
   } as SkeletonResponse
@@ -363,24 +494,14 @@ export async function generateAiDraft(payload: any): Promise<SkeletonResponse> {
 }
 
 export async function createManualDraft(payload: ManualDraftPayload): Promise<SkeletonResponse> {
-  const reqBody = {
-    ...payload,
-    languageSelection: normalizeLanguageSelectionValue(payload?.languageSelection),
-  }
-
-  const res: any = await api.post(manualDraftUrl, reqBody)
+  const res: any = await api.post(manualDraftUrl, payload)
   const raw = unwrap<SkeletonResponse>(res)
   clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
 }
 
 export async function updateManualDraft(pathId: string, payload: ManualDraftPayload): Promise<SkeletonResponse> {
-  const reqBody = {
-    ...payload,
-    languageSelection: normalizeLanguageSelectionValue(payload?.languageSelection),
-  }
-
-  const res: any = await api.put(manualDraftDetailUrl(pathId), reqBody)
+  const res: any = await api.put(manualDraftDetailUrl(pathId), payload)
   const raw = unwrap<SkeletonResponse>(res)
   clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
@@ -389,12 +510,22 @@ export async function updateManualDraft(pathId: string, payload: ManualDraftPayl
 export async function generateLessonContent(
   lessonId: string,
   payload?: any,
-  onQuizSkeleton?: (quizSkeleton: any) => void
+  onQuizEvent?: ((quizSkeleton: any) => void) | {
+    onLoading?: () => void
+    onSuccess?: (quizSkeleton: any) => void
+    onError?: (err: any) => void
+  }
 ): Promise<Lesson> {
+  const quizHandlers = typeof onQuizEvent === 'function'
+    ? { onSuccess: onQuizEvent }
+    : onQuizEvent
+
   // Use SignalR by default for lesson content generation (includes quiz skeleton)
   if (!payload || payload.useSignalR !== false) {
     return await requestLessonContent(lessonId, payload?.onLoading, {
-      onSuccess: onQuizSkeleton
+      onLoading: quizHandlers?.onLoading,
+      onSuccess: quizHandlers?.onSuccess,
+      onError: quizHandlers?.onError,
     })
   }
 
@@ -402,6 +533,67 @@ export async function generateLessonContent(
   const body = payload && typeof payload === 'object' ? payload : {}
   const res: any = await api.post(lessonContentUrl(lessonId), body)
   return unwrap<Lesson>(res)
+}
+
+type LessonQuizSkeletonOptions = {
+  onLoading?: () => void
+}
+
+function resolveServiceError(err: any, fallback: string): Error {
+  if (err instanceof Error) return err
+
+  return new Error(
+    err?.ErrorMessage
+    || err?.errorMessage
+    || err?.message
+    || err?.Message
+    || fallback,
+  )
+}
+
+export async function generateLessonQuizSkeleton(
+  lessonId: string,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestLessonQuizSkeleton(lessonId, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to load lesson quiz skeleton')
+  }
+}
+
+export async function generateSingleQuizSkeleton(
+  lessonId: string,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestSingleQuizSkeleton(lessonId, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate single quiz skeleton')
+  }
+}
+
+export async function generateSingleQuizQuestion(
+  quizId: string,
+  questionType: number,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestSingleQuizQuestion(quizId, questionType, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate single quiz question')
+  }
+}
+
+export async function generateMentorLessonContent(
+  lessonId: string,
+  options?: LessonQuizSkeletonOptions,
+): Promise<any> {
+  try {
+    return await requestMentorLessonContent(lessonId, options?.onLoading)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate mentor lesson content')
+  }
 }
 
 export async function generateChapterSkeleton(
@@ -421,6 +613,38 @@ export async function generateChapterSkeleton(
   throw new Error('REST API for chapter skeleton generation not implemented. Use SignalR instead.')
 }
 
+export async function generateChapterMentorSkeleton(
+  pathId: string,
+  chapterTitle: string,
+  chapterDescription: string,
+  options?: {
+    useSignalR?: boolean
+    onLoading?: () => void
+  },
+): Promise<any> {
+  if (!options || options.useSignalR !== false) {
+    return await requestChapterMentorSkeleton(pathId, chapterTitle, chapterDescription, options?.onLoading)
+  }
+
+  throw new Error('REST API for chapter mentor skeleton generation not implemented. Use SignalR instead.')
+}
+
+export async function generateSingleTask(
+  chapterId: string,
+  title: string | null,
+  taskType: number,
+  options?: {
+    useSignalR?: boolean
+    onLoading?: () => void
+  },
+): Promise<any> {
+  if (!options || options.useSignalR !== false) {
+    return await requestSingleTask(chapterId, title, taskType, options?.onLoading)
+  }
+
+  throw new Error('REST API for single task generation not implemented. Use SignalR instead.')
+}
+
 export interface UserLearningPathsParams {
   pageNumber?: number
   pageSize?: number
@@ -429,6 +653,7 @@ export interface UserLearningPathsParams {
   status?: string
   sortDescending?: boolean
   useCache?: boolean
+  includeDetails?: boolean
 }
 
 export interface UserLearningPathsResponse {
@@ -486,6 +711,7 @@ function buildUserLearningPathsCacheKey(
     subjectId: params?.subjectId ?? '',
     status: params?.status ?? '',
     sortDescending: params?.sortDescending ?? false,
+    includeDetails: params?.includeDetails ?? false,
   }
   return `${userId}:${JSON.stringify(normalized)}`
 }
@@ -583,8 +809,14 @@ export async function getUserLearningPaths(
   const res: any = await api.get(url)
   const data = unwrap<UserLearningPathsResponse>(res)
 
+  const items = Array.isArray(data?.items)
+    ? data.items.map((item) =>
+        params?.includeDetails ? normalizeSkeleton(item) : normalizeSkeletonListItem(item)
+      )
+    : []
+
   const normalizedResponse = {
-    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeleton) : [],
+    items,
     totalCount: data?.totalCount ?? 0,
     pageNumber: data?.pageNumber ?? 1,
     pageSize: data?.pageSize ?? 10,
@@ -659,7 +891,7 @@ export async function getMyDrafts(
   const data = unwrap<UserLearningPathsResponse>(res)
 
   return {
-    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeleton) : [],
+    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeletonListItem) : [],
     totalCount: data?.totalCount ?? 0,
     pageNumber: data?.pageNumber ?? 1,
     pageSize: data?.pageSize ?? 10,
@@ -716,13 +948,54 @@ export async function getSuggestions(
   throw new Error('REST API for learning path suggestions not implemented. Use SignalR instead.')
 }
 
+export function normalizeSkeletonListItem(payload: any): SkeletonResponse {
+  const normalizedVersion = toNullableNumber(payload?.version ?? payload?.Version)
+  const normalizedPreviousVersion = toNullableNumber(payload?.previousVersion ?? payload?.PreviousVersion)
+  const normalizedMeaningfulChange = toNullableBoolean(payload?.hasMeaningfulChange ?? payload?.HasMeaningfulChange)
+
+  const chapterDtos = pickArray<any>(payload?.chapterDtos, payload?.ChapterDtos)
+  const chapterItems = chapterDtos ?? pickArray<any>(payload?.chapters, payload?.Chapters) ?? []
+
+  const lessonItems = pickArray<any>(payload?.lessons, payload?.Lessons) ?? []
+  let totalLessonsLength = lessonItems.length
+  if (totalLessonsLength === 0 && chapterItems.length > 0) {
+    totalLessonsLength = chapterItems.reduce((acc: number, chapter: any) => {
+      const cLessons = pickArray<any>(chapter?.lessons, chapter?.Lessons, chapter?.lessonDtos, chapter?.LessonDtos) ?? []
+      return acc + cLessons.length
+    }, 0)
+  }
+
+  return {
+    ...payload,
+    version: normalizedVersion,
+    previousVersion: normalizedPreviousVersion,
+    hasMeaningfulChange: normalizedMeaningfulChange ?? undefined,
+    sharedByUserId: payload?.sharedByUserId ?? payload?.SharedByUserId ?? null,
+    sharedByUserName: payload?.sharedByUserName ?? payload?.SharedByUserName ?? null,
+    sourceLearningPathId: payload?.sourceLearningPathId ?? payload?.SourceLearningPathId ?? null,
+    sourceVersion: payload?.sourceVersion ?? payload?.SourceVersion ?? null,
+    sourceLatestVersion: payload?.sourceLatestVersion ?? payload?.SourceLatestVersion ?? null,
+    hasSourceUpdate: Boolean(payload?.hasSourceUpdate ?? payload?.HasSourceUpdate),
+    chapters: undefined,
+    lessons: undefined,
+    chapterCount: payload?.chapterCount ?? chapterItems.length ?? 0,
+    lessonCount: payload?.lessonCount ?? totalLessonsLength
+  } as SkeletonResponse
+}
+
 export default {
   generateSkeleton,
   generateAiDraft,
   createManualDraft,
   updateManualDraft,
   generateLessonContent,
+  generateMentorLessonContent,
+  generateLessonQuizSkeleton,
+  generateSingleQuizSkeleton,
+  generateSingleQuizQuestion,
   generateChapterSkeleton,
+  generateChapterMentorSkeleton,
+  generateSingleTask,
   getUserLearningPaths,
   clearUserLearningPathsCache,
   getLearningPathProgress,

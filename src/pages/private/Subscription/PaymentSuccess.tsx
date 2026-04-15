@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Layout from '../../../components/Layout'
 import ROUTER from '../../../router/ROUTER'
 import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
-import { clearSubscriptionCaches } from '../../../services/SubscriptionService'
+import SubscriptionService, { clearCurrentSubscriptionCache, clearSubscriptionCaches } from '../../../services/SubscriptionService'
 
 const PaymentSuccess: React.FC = () => {
   const { t } = useTranslation('student')
@@ -19,14 +19,80 @@ const PaymentSuccess: React.FC = () => {
     brand: { name: 'Subscription', subtitle: 'Student' },
   }), [navItems])
 
-  const responseCode = searchParams.get('vnp_ResponseCode')
-  const isSuccess = !responseCode || responseCode === '00'
+  const status = String(searchParams.get('status') || '').trim().toLowerCase()
+  const expectedPlanId = String(searchParams.get('planId') || '').trim()
+  const isSuccess = status === 'success'
+  const [isVerifying, setIsVerifying] = useState<boolean>(false)
+  const [isPlanUpdated, setIsPlanUpdated] = useState<boolean>(false)
+
+  const resolveSubscriptionPlanId = (subscription: any): string => {
+    if (!subscription || typeof subscription !== 'object') return ''
+
+    const directId = String(subscription.subscriptionPlanId || '').trim()
+    if (directId) return directId
+
+    const nestedPlan = subscription.subscriptionPlan
+    if (nestedPlan && typeof nestedPlan === 'object') {
+      return String((nestedPlan as { subscriptionPlanId?: string }).subscriptionPlanId || '').trim()
+    }
+
+    return ''
+  }
 
   useEffect(() => {
-    if (isSuccess) {
-      clearSubscriptionCaches()
+    if (!isSuccess) {
+      setIsPlanUpdated(false)
+      return
     }
-  }, [isSuccess])
+
+    let cancelled = false
+    setIsVerifying(true)
+    setIsPlanUpdated(false)
+
+    const verifyPlan = async () => {
+      clearSubscriptionCaches()
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          clearCurrentSubscriptionCache()
+          const latest = await SubscriptionService.getCurrentSubscription()
+          const currentPlanId = resolveSubscriptionPlanId(latest)
+          const matched = !expectedPlanId || currentPlanId === expectedPlanId
+
+          if (matched) {
+            if (!cancelled) {
+              setIsPlanUpdated(true)
+              setIsVerifying(false)
+            }
+            return
+          }
+        } catch {
+          // Ignore and retry a few times for eventual consistency.
+        }
+
+        if (attempt < 2) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1200))
+        }
+      }
+
+      if (!cancelled) {
+        setIsPlanUpdated(false)
+        setIsVerifying(false)
+      }
+    }
+
+    void verifyPlan()
+
+    return () => {
+      cancelled = true
+    }
+  }, [expectedPlanId, isSuccess])
+
+  const renderSuccessDescription = () => {
+    if (isVerifying) return t('subscription.paymentSuccessProcessing')
+    if (isPlanUpdated) return t('subscription.paymentSuccessDescription')
+    return t('subscription.paymentSuccessPending')
+  }
 
   return (
     <Layout sidebar={sidebarConfig}>
@@ -43,16 +109,39 @@ const PaymentSuccess: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             {isSuccess
-              ? <CheckCircle2 size={26} color="var(--success-primary)" />
+              ? (isVerifying
+                ? <Loader2 size={26} color="var(--accent-primary)" className="animate-spin" />
+                : <CheckCircle2 size={26} color="var(--success-primary)" />)
               : <XCircle size={26} color="var(--danger-primary)" />}
             <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 24, fontWeight: 800 }}>
-              {isSuccess ? t('subscription.paymentSuccessTitle') : t('subscription.paymentFailedTitle')}
+              {isSuccess
+                ? (isVerifying ? t('subscription.paymentSuccessCheckingTitle') : t('subscription.paymentSuccessTitle'))
+                : t('subscription.paymentFailedTitle')}
             </h1>
           </div>
 
           <p style={{ margin: '0 0 16px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            {isSuccess ? t('subscription.paymentSuccessDescription') : t('subscription.paymentFailedDescription')}
+            {isSuccess ? renderSuccessDescription() : t('subscription.paymentFailedDescription')}
           </p>
+
+          {isSuccess && !isVerifying && !isPlanUpdated && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                borderRadius: 8,
+                border: '1px solid var(--border-base)',
+                background: 'var(--bg-main)',
+                color: 'var(--text-primary)',
+                padding: '10px 16px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginRight: 10,
+              }}
+            >
+              {t('subscription.retrySync')}
+            </button>
+          )}
 
           <button
             type="button"
@@ -67,7 +156,7 @@ const PaymentSuccess: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            {t('subscription.backToSubscription')}
+            {isSuccess ? t('subscription.backToSubscription') : t('subscription.retryPayment')}
           </button>
         </div>
       </div>

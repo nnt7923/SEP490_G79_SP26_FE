@@ -2,15 +2,13 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import * as AuthService from '../../../services/AuthService'
-import useAuthStore from '../../../store/useAuthStore'
+import ROUTER from '../../../router/ROUTER'
 import { extractErrorMessage } from '../../../components/Error/ErrorHandler'
-import { useResponsive } from '../../../hook/useResponsive'
 import { useTranslation } from 'react-i18next'
 
 const VerifyOtp: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const store = useAuthStore()
   const { t } = useTranslation('auth')
 
   const emailFromQuery = useMemo(() => {
@@ -19,6 +17,16 @@ const VerifyOtp: React.FC = () => {
       return (params.get('email') || '').trim()
     } catch {
       return ''
+    }
+  }, [location.search])
+
+  const purposeFromQuery = useMemo<'register' | 'reset-password'>(() => {
+    try {
+      const params = new URLSearchParams(location.search)
+      const value = (params.get('purpose') || '').trim().toLowerCase()
+      return value === 'reset-password' ? 'reset-password' : 'register'
+    } catch {
+      return 'register'
     }
   }, [location.search])
 
@@ -40,13 +48,34 @@ const VerifyOtp: React.FC = () => {
       setError(t('verifyOtp.enterBothFields'))
       return
     }
+    if (!/^\d{6}$/.test(otp)) {
+      setError(t('verifyOtp.invalidOtpFormat'))
+      return
+    }
 
     try {
       setVerifying(true)
       const result = await AuthService.verifyOtp({ Email: mail, Otp: otp })
-      const toastMsg = result?.msg || t('verifyOtp.verifySuccess')
-      // On success, redirect to login page with a toast message
-      navigate('/login', { state: { toast: toastMsg } })
+      const responsePurpose = String(result?.purpose ?? '').trim()
+      const resetToken: string | undefined = result?.resetToken ?? undefined
+      const toastMsg = result?.message ?? result?.msg ?? t('verifyOtp.verifySuccess')
+
+      if (
+        (responsePurpose === 'ResetPassword' || purposeFromQuery === 'reset-password') &&
+        resetToken
+      ) {
+        navigate(`${ROUTER.RESET_PASSWORD}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(mail)}`, {
+          state: { toast: t('forgotPassword.setNewPassword') },
+        })
+        return
+      }
+
+      if (purposeFromQuery === 'reset-password' && !resetToken) {
+        setError(t('verifyOtp.resetTokenMissing'))
+        return
+      }
+
+      navigate(ROUTER.LOGIN, { state: { toast: toastMsg } })
     } catch (err: any) {
       const msg = extractErrorMessage(err, t('verifyOtp.verifyFailed'))
       setError(msg)
@@ -66,7 +95,10 @@ const VerifyOtp: React.FC = () => {
     }
     try {
       setResending(true)
-      await AuthService.resendOtp({ Email: mail })
+      await AuthService.resendOtp({
+        Email: mail,
+        Purpose: purposeFromQuery === 'reset-password' ? 'ResetPassword' : 'Register',
+      })
       setMessage(t('verifyOtp.resendSuccess'))
     } catch (err: any) {
       const msg = extractErrorMessage(err, t('verifyOtp.resendFailed'))
@@ -76,13 +108,13 @@ const VerifyOtp: React.FC = () => {
     }
   }
 
-  const { isSmallScreen } = useResponsive()
-  const containerClass = `auth auth--split ${isSmallScreen ? 'auth--stack auth--fluid' : ''}`
+  const backTarget = purposeFromQuery === 'reset-password' ? ROUTER.FORGOT_PASSWORD : ROUTER.REGISTER
+  const backText = purposeFromQuery === 'reset-password' ? t('verifyOtp.backToForgotPassword') : t('verifyOtp.register')
 
   return (
-    <div className="page">
-      <section className={containerClass}>
-        <div className="auth__card">
+    <div className="page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <section style={{ width: '100%', maxWidth: 480, margin: '0 auto' }}>
+        <div className="auth__card" style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: 32, background: 'var(--bg-surface)' }}>
           <h2 className="auth__title">{t('verifyOtp.title')}</h2>
           <p className="auth__subtitle">{t('verifyOtp.subtitle')}</p>
           <form className="form" onSubmit={onSubmit}>
@@ -90,7 +122,20 @@ const VerifyOtp: React.FC = () => {
             <input id="email" type="email" className="form__input" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
 
             <label className="form__label" htmlFor="otp">{t('verifyOtp.otp')}</label>
-            <input id="otp" type="text" className="form__input" placeholder={t('verifyOtp.otpPlaceholder')} value={code} onChange={(e) => setCode(e.target.value)} />
+            <input
+              id="otp"
+              type="text"
+              className="form__input"
+              placeholder={t('verifyOtp.otpPlaceholder')}
+              value={code}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              onChange={(e) => {
+                const next = e.target.value.replace(/\D/g, '').slice(0, 6)
+                setCode(next)
+              }}
+            />
 
             {error && <div className="form__error" role="alert">{error}</div>}
             {message && <div style={{ color: 'var(--color-emerald-500)', fontSize: 14 }}>{message}</div>}
@@ -104,7 +149,7 @@ const VerifyOtp: React.FC = () => {
 
             <div className="auth__links">
               <span>{t('verifyOtp.back')}</span>
-              <Link to="/register">{t('verifyOtp.register')}</Link>
+              <Link to={backTarget}>{backText}</Link>
             </div>
           </form>
         </div>

@@ -9,9 +9,16 @@ import Toast from '../../../../components/Toast'
 import ROUTER from '../../../../router/ROUTER'
 import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
 import { shareToStudent } from '../../../../services/LearningPathShareService'
+import { resolveShareToStudentErrorMessage } from '../../../../services/LearningPathShareService/shareErrorMessage'
 import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 
 type ToastState = { message: string; type: 'success' | 'error' | 'warning' | 'info' }
+
+const getApiErrorMessage = (err: any, fallback: string) =>
+  err?.response?.data?.message
+  || err?.response?.data?.errorMessage
+  || err?.message
+  || fallback
 
 const MentorDraftsPage: React.FC = () => {
   const { t } = useTranslation('mentor')
@@ -96,7 +103,7 @@ const MentorDraftsPage: React.FC = () => {
         setTotalCount(res.totalCount)
       } catch (err: any) {
         if (!active) return
-        setError(err?.response?.data?.message || err?.message || t('drafts.loadFailed'))
+        setError(getApiErrorMessage(err, t('drafts.loadFailed')))
       } finally {
         if (active) setLoading(false)
       }
@@ -131,8 +138,7 @@ const MentorDraftsPage: React.FC = () => {
         },
       })
     } catch (err: any) {
-      const code = err?.response?.data?.errorCode
-      setShareError(code === 'SHARE_ALREADY_PENDING' ? t('chat.shareAlreadyPending') : (err?.response?.data?.message || err?.message || t('chat.shareError')))
+      setShareError(resolveShareToStudentErrorMessage(err, t, getApiErrorMessage(err, t('chat.shareError'))))
     } finally {
       setSharing(false)
     }

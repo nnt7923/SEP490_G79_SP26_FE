@@ -4,11 +4,14 @@ import Header from '../../../../components/Layout/Header'
 import Footer from '../../../../components/Layout/Footer'
 import TutorChatbot from '../../../../components/TutorChatbot'
 import { requestLessonContent, requestResolveTutorConversation } from '../../../../services/SignalR'
+import { DailyCheckinService } from '../../../../services'
 import LearningPathService from '../../../../services/LearningPathService'
 import LessonContent from '../components/LessonContent'
 import ROUTER from '../../../../router/ROUTER'
 import { ArrowLeft, Maximize2, Minimize2, BookOpen, AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import useDailyCheckinActivitySync from '../../../../hooks/useDailyCheckinActivitySync'
+import DailyCheckinPopup from '../../Student/components/DailyCheckinPopup'
 
 // Helper to extract headings (## and ###) from markdown
 const extractHeadings = (md: string) => {
@@ -64,6 +67,40 @@ const ORDER: LessonSectionKey[] = [
 ]
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const TUTOR_CONVERSATION_CACHE_KEY = 'tutorConversationByChapter'
+
+const readTutorConversationCache = (): Record<string, string> => {
+  try {
+    const raw = sessionStorage.getItem(TUTOR_CONVERSATION_CACHE_KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const getCachedTutorConversationId = (chapterId: string | null | undefined): string | null => {
+  if (!chapterId) return null
+  const cache = readTutorConversationCache()
+  return typeof cache[chapterId] === 'string' ? cache[chapterId] : null
+}
+
+const setCachedTutorConversationId = (chapterId: string | null | undefined, conversationId: string | null | undefined) => {
+  if (!chapterId || !conversationId) return
+  try {
+    const cache = readTutorConversationCache()
+    cache[chapterId] = conversationId
+    sessionStorage.setItem(TUTOR_CONVERSATION_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // ignore cache failures
+  }
+}
+
+const normalizeEntityId = (value: unknown): string => {
+  const normalized = String(value ?? '').trim()
+  return normalized
+}
 
 const extractSectionByMarkers = (markdown: string, key: LessonSectionKey): string => {
   const start = `<!-- SECTION:${key}:start -->`
@@ -121,6 +158,7 @@ const LessonDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation() as any
   const { t } = useTranslation('student')
+  const syncDailyCheckin = useDailyCheckinActivitySync()
   
   const [skeleton] = useState<any | null>(() => {
     const fromState = location?.state?.skeleton
@@ -143,11 +181,12 @@ const LessonDetailPage: React.FC = () => {
   const [lessonReadError, setLessonReadError] = useState<string | null>(null)
   
   const [isFocusMode, setIsFocusMode] = useState(false)
+  const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
 
   // Tutor conversation state
   const [conversationId, setConversationId] = useState<string | null>(null)
-  const [conversationCreated, setConversationCreated] = useState<boolean>(false)
-  const [conversationLoading, setConversationLoading] = useState<boolean>(false)
+  const [isResolvingTutorConversation, setIsResolvingTutorConversation] = useState<boolean>(false)
+  const [tutorResolveErrorCode, setTutorResolveErrorCode] = useState<string | null>(null)
 
   const toggleFocusMode = async () => {
     if (!isFocusMode) {
@@ -182,26 +221,72 @@ const LessonDetailPage: React.FC = () => {
     return skeleton.chapters.flatMap((chapter: any, chapterIdx: number) => 
       (chapter.lessons || []).map((lesson: any, lessonIdx: number) => ({
         ...lesson,
+        id: normalizeEntityId(lesson?.id ?? lesson?.lessonId),
         chapterTitle: chapter.title,
         chapterIndex: chapterIdx,
-        chapterId: chapter.id,
+        chapterId: normalizeEntityId(chapter?.id ?? chapter?.chapterId),
         lessonIndex: lessonIdx
       }))
     )
   }, [skeleton])
 
+  const chapterIdFromState = useMemo(() => {
+    return normalizeEntityId(location?.state?.chapterId ?? location?.state?.activeChapterId) || null
+  }, [location?.state?.activeChapterId, location?.state?.chapterId])
+
   const currentLessonIndex = useMemo(() => {
-    return allLessons.findIndex((l: any) => l.id === lessonId)
-  }, [allLessons, lessonId])
+    const targetLessonId = normalizeEntityId(lessonId)
+    if (!targetLessonId) return -1
+
+    if (chapterIdFromState) {
+      const indexByChapter = allLessons.findIndex(
+        (lesson: any) =>
+          normalizeEntityId(lesson.id) === targetLessonId &&
+          normalizeEntityId(lesson.chapterId) === chapterIdFromState
+      )
+      if (indexByChapter >= 0) return indexByChapter
+    }
+
+    return allLessons.findIndex((l: any) => normalizeEntityId(l.id) === targetLessonId)
+  }, [allLessons, lessonId, chapterIdFromState])
 
   const currentLesson = allLessons[currentLessonIndex]
+  const displayLesson = useMemo(() => {
+    if (currentLesson) return currentLesson
+    const stateLessonTitle = String(location?.state?.lessonTitle ?? '').trim()
+    const stateChapterTitle = String(location?.state?.chapterTitle ?? '').trim()
+    return {
+      id: lessonId,
+      title: stateLessonTitle || t('lessonDetail.defaultLessonTitle', 'Lesson'),
+      description: '',
+      chapterTitle: stateChapterTitle || t('lessonDetail.unknownChapter', 'Chapter'),
+    }
+  }, [currentLesson, lessonId, location?.state?.chapterTitle, location?.state?.lessonTitle, t])
   const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null
-  const nextLesson = currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
-  const currentChapterId = currentLesson?.chapterId
-  const canShowMarkRead = !loading && !error && md.trim().length > 0
+  const nextLesson = currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null
+  const currentChapterId = normalizeEntityId(currentLesson?.chapterId) || chapterIdFromState || null
+  const isLessonContentReady = !loading && !error && md.trim().length > 0
+  const canShowMarkRead = isLessonContentReady
+  const canShowLessonNavigation = isLessonContentReady
   const lessonReadLabel = isLessonRead
     ? t('lessonDetail.readCompleted', 'Marked as completed')
     : t('lessonDetail.markRead', 'Mark lesson as completed')
+
+  useEffect(() => {
+    if (!currentChapterId) {
+      setConversationId(null)
+      return
+    }
+
+    const cachedConversationId = getCachedTutorConversationId(currentChapterId)
+    if (cachedConversationId) {
+      setConversationId(cachedConversationId)
+      setTutorResolveErrorCode(null)
+      return
+    }
+
+    setConversationId(null)
+  }, [currentChapterId])
 
   const handleBack = () => {
     if (skeleton?.pathId || skeleton?.id) {
@@ -214,12 +299,12 @@ const LessonDetailPage: React.FC = () => {
         } 
       })
     } else {
-      navigate(ROUTER.PLANS_RESULT, { state: { skeleton, selectedLessonId: lessonId, activeChapterId: currentChapterId } })
+      navigate(ROUTER.MY_PLANS)
     }
   }
 
   useEffect(() => {
-    if (!lessonId || !currentLesson) return
+    if (!lessonId) return
 
     let cancelled = false
 
@@ -247,7 +332,7 @@ const LessonDetailPage: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [lessonId, currentLesson, t])
+  }, [lessonId, t])
 
   const handleMarkLessonRead = async () => {
     if (!lessonId || isLessonRead || markLessonReadLoading) return
@@ -255,10 +340,20 @@ const LessonDetailPage: React.FC = () => {
     setMarkLessonReadLoading(true)
     setLessonReadError(null)
     try {
+      const preActionStatus = await DailyCheckinService.getDailyCheckinStatus().catch(() => null)
       await LearningPathService.markLessonContentRead(lessonId)
       const now = new Date().toISOString()
       setIsLessonRead(true)
       setLessonReadAt((prev) => prev ?? now)
+      const dailyCheckinResult = await syncDailyCheckin({ preActionStatus })
+      if (dailyCheckinResult?.shouldShowPopup) {
+        setDailyCheckinPopup({
+          message: dailyCheckinResult.message,
+          currentStreak: dailyCheckinResult.stats.currentStreak,
+          mood: dailyCheckinResult.todayCheckin?.mood,
+          productivity: dailyCheckinResult.todayCheckin?.productivity,
+        })
+      }
     } catch (error: any) {
       const message = error?.response?.data?.message || error?.message || t('lessonDetail.markReadError', 'Unable to mark this lesson as completed.')
       setLessonReadError(message)
@@ -309,41 +404,81 @@ const LessonDetailPage: React.FC = () => {
 
   // Resolve tutor conversation when entering lesson
   useEffect(() => {
-    if (!lessonId || !skeleton?.pathId) return
+    if (!lessonId) return
+    if (!currentChapterId) {
+      setConversationId(null)
+      return
+    }
+
+    let cancelled = false
 
     const resolveConversation = async () => {
-      setConversationLoading(true)
       try {
+        setIsResolvingTutorConversation(true)
+        setTutorResolveErrorCode(null)
+
+        const learningPathId = String(skeleton?.pathId || skeleton?.id || '').trim() || null
+        const chapterIdForTutor = String(currentChapterId || '').trim() || null
+        const lessonIdForTutor = String(lessonId || '').trim() || null
+
         const result = await requestResolveTutorConversation(
-          skeleton.pathId, // learningPathId
-          currentChapterId, // chapterId
-          lessonId, // lessonId
+          learningPathId,
+          chapterIdForTutor,
+          lessonIdForTutor,
           true, // createIfMissing
           () => {
             // onLoading - already set loading above
           },
           (data) => {
             // onResolved
-            setConversationId(data.conversationId)
-            setConversationCreated(data.created || false)
-          }
+            if (cancelled) return
+            const incomingConversationId = data?.conversationId || null
+            const finalConversationId = incomingConversationId
+
+            if (finalConversationId) {
+              setConversationId(finalConversationId)
+              setCachedTutorConversationId(currentChapterId, finalConversationId)
+            }
+
+            setTutorResolveErrorCode(null)
+          },
+          (resolveError) => {
+            setTutorResolveErrorCode(resolveError?.code || 'UNEXPECTED_ERROR')
+          },
         )
+
+        if (cancelled) return
 
         // Set conversation data from result
         if (result?.conversationId) {
-          setConversationId(result.conversationId)
-          setConversationCreated(result.created || false)
+          const incomingConversationId = result?.conversationId || null
+          const finalConversationId = incomingConversationId
+
+          if (finalConversationId) {
+            setConversationId(finalConversationId)
+            setCachedTutorConversationId(currentChapterId, finalConversationId)
+          }
+
+          setTutorResolveErrorCode(null)
         }
       } catch (error: any) {
+        if (cancelled) return
         console.warn('Failed to resolve tutor conversation:', error.message)
         // Don't show error to user, just continue without conversation
+        setConversationId(null)
+        setTutorResolveErrorCode(error?.code || 'UNEXPECTED_ERROR')
       } finally {
-        setConversationLoading(false)
+        if (!cancelled) {
+          setIsResolvingTutorConversation(false)
+        }
       }
     }
 
     resolveConversation()
-  }, [lessonId, skeleton?.pathId, currentChapterId])
+    return () => {
+      cancelled = true
+    }
+  }, [lessonId, currentChapterId, skeleton?.id, skeleton?.pathId])
 
   // Fetch lesson content
   useEffect(() => {
@@ -356,6 +491,7 @@ const LessonDetailPage: React.FC = () => {
     const run = async () => {
       setLoading(true)
       setError(null)
+      setMd('')
 
       // 1) Check if content is in skeleton
       const found = allLessons.find((l: any) => l.id === lessonId)
@@ -402,52 +538,6 @@ const LessonDetailPage: React.FC = () => {
     window.scrollTo({ top: height, behavior: 'smooth' })
   }
 
-  if (!skeleton) {
-    return (
-      <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace' }}>
-        <Header />
-        <main className="page-main py-12">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p style={{ color: 'var(--text-secondary)' }} className="mb-4">{t('lessonDetail.noPathFound', 'No learning path found. Please generate a learning path first.')}</p>
-            <button
-              onClick={() => navigate(ROUTER.PLANS)}
-              style={{
-                background: 'var(--accent-primary)', color: 'var(--bg-surface)', border: 'none',
-                padding: '8px 16px', borderRadius: 4, fontWeight: 700, cursor: 'pointer'
-              }}
-            >
-              {t('lessonDetail.goToPlans', 'Go to Plans')}
-            </button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
-
-  if (!currentLesson) {
-    return (
-      <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace' }}>
-        <Header />
-        <main className="page-main py-12">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p style={{ color: 'var(--error-primary)' }} className="mb-4">{t('lessonDetail.lessonNotFound', 'Lesson not found.')}</p>
-            <button
-              onClick={handleBack}
-              style={{
-                background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)',
-                padding: '8px 16px', borderRadius: 4, fontWeight: 600, cursor: 'pointer'
-              }}
-            >
-              {t('lessonDetail.backToPath', 'Back to Learning Path')}
-            </button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
-
   return (
     <div className="layout min-h-screen" style={{ background: 'var(--bg-main)', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
       {!isFocusMode && <Header />}
@@ -477,7 +567,7 @@ const LessonDetailPage: React.FC = () => {
                  }}
                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
-                 title="Toggle Distraction-Free Reading"
+                 title={t('lessonDetail.focusToggleTitle')}
                >
                  <Maximize2 className="w-4 h-4" />
                  <span>{t('lessonDetail.enableFocus')}</span>
@@ -487,7 +577,7 @@ const LessonDetailPage: React.FC = () => {
           
           {/* Progress Bar inside banner */}
           <div style={{ height: 2, width: '100%', background: 'var(--bg-main)' }}>
-             <div style={{ height: '100%', background: 'var(--accent-primary)', width: `${((currentLessonIndex + 1) / allLessons.length) * 100}%`, transition: 'width 0.3s ease' }} />
+             <div style={{ height: '100%', background: 'var(--accent-primary)', width: `${allLessons.length > 0 ? ((Math.max(currentLessonIndex, 0) + 1) / allLessons.length) * 100 : 0}%`, transition: 'width 0.3s ease' }} />
           </div>
         </div>
       )}
@@ -526,14 +616,14 @@ const LessonDetailPage: React.FC = () => {
             <div style={{ marginBottom: 40, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
               <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
                  <BookOpen className="w-4 h-4" />
-                 {currentLesson.chapterTitle} <span style={{ color: 'var(--border-strong)' }}>/</span> {String(currentLessonIndex + 1).padStart(2, '0')}
+                 {displayLesson.chapterTitle || t('lessonDetail.unknownChapter', 'Chapter')} <span style={{ color: 'var(--border-strong)' }}>/</span> {String(Math.max(currentLessonIndex + 1, 1)).padStart(2, '0')}
               </div>
               <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 16px 0', lineHeight: 1.3, color: 'var(--text-primary)' }}>
-                {currentLesson.title}
+                {displayLesson.title}
               </h1>
-              {currentLesson.description && (
+              {displayLesson.description && (
                 <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6, borderLeft: '3px solid var(--accent-primary)', paddingLeft: 16 }}>
-                  {currentLesson.description}
+                  {displayLesson.description}
                 </p>
               )}
             </div>
@@ -616,12 +706,18 @@ const LessonDetailPage: React.FC = () => {
 
             {/* Interactive Footer & Actions */}
             <div style={{ marginTop: 64, borderTop: '1px solid var(--border-base)', paddingTop: 32, maxWidth: isFocusMode ? 800 : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
-               
-               {/* Next / Prev Lessons */}
-               <div style={{ display: 'flex', gap: 24, justifyContent: 'space-between' }}>
+              {canShowLessonNavigation ? (
+                <div style={{ display: 'flex', gap: 24, justifyContent: 'space-between' }}>
                   {prevLesson ? (
                     <button
-                      onClick={() => navigate(`/lesson/${prevLesson.id}`, { state: { skeleton } })}
+                      onClick={() => navigate(`/lesson/${prevLesson.id}`, {
+                        state: {
+                          skeleton,
+                          chapterId: normalizeEntityId(prevLesson?.chapterId) || null,
+                          chapterTitle: prevLesson?.chapterTitle,
+                          lessonTitle: prevLesson?.title,
+                        }
+                      })}
                       style={{
                         flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
                         borderRadius: 6, cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8
@@ -636,7 +732,14 @@ const LessonDetailPage: React.FC = () => {
 
                   {nextLesson ? (
                     <button
-                      onClick={() => navigate(`/lesson/${nextLesson.id}`, { state: { skeleton } })}
+                      onClick={() => navigate(`/lesson/${nextLesson.id}`, {
+                        state: {
+                          skeleton,
+                          chapterId: normalizeEntityId(nextLesson?.chapterId) || null,
+                          chapterTitle: nextLesson?.chapterTitle,
+                          lessonTitle: nextLesson?.title,
+                        }
+                      })}
                       style={{
                         flex: 1, padding: 24, background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
                         borderRadius: 6, cursor: 'pointer', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 8
@@ -660,7 +763,21 @@ const LessonDetailPage: React.FC = () => {
                       <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--bg-surface)' }}>{t('lessonDetail.returnToPlan')}</span>
                     </button>
                   )}
-               </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '14px 16px',
+                  borderRadius: 4,
+                  border: '1px dashed var(--border-base)',
+                  color: 'var(--text-secondary)',
+                  fontSize: 13,
+                  background: 'var(--bg-surface)'
+                }}>
+                  {loading
+                    ? t('lessonDetail.navigationPending')
+                    : t('lessonDetail.navigationPendingFallback')}
+                </div>
+              )}
             </div>
           </div>
 
@@ -737,7 +854,7 @@ const LessonDetailPage: React.FC = () => {
             background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
             color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
-          title="Scroll to top"
+          title={t('lessonDetail.scrollTop')}
         >
           <ArrowUp className="w-4 h-4" />
         </button>
@@ -748,7 +865,7 @@ const LessonDetailPage: React.FC = () => {
             background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
             color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
-          title="Scroll to bottom"
+          title={t('lessonDetail.scrollBottom')}
         >
           <ArrowDown className="w-4 h-4" />
         </button>
@@ -756,10 +873,43 @@ const LessonDetailPage: React.FC = () => {
       
       {/* AI Tutor Chatbot - Only show in lesson pages */}
       <TutorChatbot
+        key={`tutor-chat-${currentChapterId || 'none'}`}
         conversationId={conversationId}
-        learningPathId={skeleton?.pathId || null}
+        learningPathId={String(skeleton?.pathId || skeleton?.id || '').trim() || null}
         chapterId={currentChapterId || null}
         lessonId={lessonId || null}
+        chapterTitle={displayLesson.chapterTitle || null}
+        lessonTitle={displayLesson.title || null}
+      />
+
+      <DailyCheckinPopup
+        isOpen={dailyCheckinPopup != null}
+        title={t('dashboard.dailyCheckin.popupTitle')}
+        message={dailyCheckinPopup?.message ?? ''}
+        currentStreakLabel={t('dashboard.dailyCheckin.currentStreak')}
+        moodLabel={t('dashboard.dailyCheckin.mood')}
+        productivityLabel={t('dashboard.dailyCheckin.productivity')}
+        productivityValueTemplate={t('dashboard.dailyCheckin.productivityValue', { value: '{{value}}' })}
+        closeLabel={t('dashboard.dailyCheckin.close')}
+        stats={dailyCheckinPopup ? {
+          todayCheckedIn: true,
+          currentStreak: dailyCheckinPopup.currentStreak,
+          longestStreak: 0,
+          totalCheckins: 0,
+          lastCheckinDate: null,
+          isStreakMilestone: false,
+          popupCode: '',
+          popupParams: null,
+        } : null}
+        todayCheckin={dailyCheckinPopup ? {
+          checkinId: '',
+          userId: '',
+          checkinDate: '',
+          mood: dailyCheckinPopup.mood ?? null,
+          productivity: dailyCheckinPopup.productivity ?? null,
+          createdAt: '',
+        } : null}
+        onClose={() => setDailyCheckinPopup(null)}
       />
       
       {!isFocusMode && <Footer />}
