@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Hash,
-  LogOut,
   MessageSquare,
   Reply,
   Share2,
@@ -579,22 +578,10 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate(ROUTER.LOGIN);
-  };
-
   const navItems = useMentorSidebarConfig();
   const sidebarConfig = {
     navItems,
-    actions: [
-      {
-        label: tc("sidebar.logout"),
-        icon: <LogOut className="w-5 h-5" />,
-        onClick: handleLogout,
-        variant: "danger" as const,
-      },
-    ],
+    actions: [],
     brand: { name: t("chat.title"), subtitle: "Mentor" },
   };
 

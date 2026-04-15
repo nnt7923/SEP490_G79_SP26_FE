@@ -152,12 +152,7 @@ const MentorDashboard: React.FC = () => {
                 </p>
               </div>
 
-              <button
-                className="hidden md:inline-flex items-center gap-2 px-4 py-2 border border-bd-strong bg-th-card text-body font-bold hover:bg-th-page transition-colors cursor-pointer rounded-sm"
-                title={t('dashboard.settings')}
-              >
-                <Settings size={18} /> {t('dashboard.settings').toLowerCase()}
-              </button>
+              
             </div>
           </div>
 
