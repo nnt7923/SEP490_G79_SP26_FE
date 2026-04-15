@@ -242,7 +242,92 @@
     "cancelBtn": "Hủy",
     "deleteSuccess": "Đã xóa tài nguyên thành công!",
     "deleteFailed": "Không thể xóa tài nguyên",
-    "logout": "Đăng xuất"
+    "logout": "Đăng xuất",
+    "pageViewer": {
+      "noPagesFound": "Khong tim thay trang nao. Tai lieu co the chua duoc xu ly.",
+      "extractionUnavailable": "Tinh nang tach trang chua san sang.",
+      "failedToLoadPages": "Khong the tai noi dung trang tai lieu",
+      "pageOf": "Trang {{current}} / {{total}}",
+      "toggleSummaryPanel": "Bat/tat bang AI Summary",
+      "closeSummaryPanel": "Dong bang AI Summary",
+      "openSummaryPanel": "Mo bang AI Summary",
+      "close": "Dong (Esc)",
+      "loadingDocument": "Dang tai tai lieu...",
+      "unableToLoad": "Khong the tai du lieu",
+      "retry": "Thu lai",
+      "page": "Trang {{page}}",
+      "totalPagesBadge": "{{count}} trang",
+      "pageImageAlt": "Trang {{page}}",
+      "pageContentUnavailable": "Khong co noi dung trang",
+      "pageNotProcessed": "Trang nay co the chua duoc xu ly.",
+      "previous": "Truoc",
+      "next": "Sau",
+      "pageLabel": "Trang",
+      "ofTotal": "tren {{total}}",
+      "footerHint": "Dung phim mui ten trai/phai de chuyen trang. Nhan Esc de dong."
+    },
+    "summaryPanel": {
+      "title": "AI Summary",
+      "ariaLabel": "Bang AI Summary",
+      "closePanel": "Dong bang tom tat",
+      "newSummary": "Tom tat moi",
+      "history": "Lich su",
+      "refresh": "Lam moi",
+      "loadingSummaries": "Dang tai lich su tom tat...",
+      "summaryDetail": "Chi tiet tom tat",
+      "pickSummary": "Chon mot ban tom tat trong lich su de xem chi tiet.",
+      "historyEmptyTitle": "Chua co ban tom tat.",
+      "historyEmptyHint": "Hay tao yeu cau tom tat de bat dau.",
+      "pagesTitle": "Trang {{start}}-{{end}}",
+      "failedToLoadSummaries": "Khong the tai lich su tom tat",
+      "failedToGenerateSummary": "Khong the tao tom tat. Vui long thu lai.",
+      "failedToSendRequest": "Khong gui duoc yeu cau tom tat. Vui long thu lai.",
+      "failedToDeleteSummary": "Khong the xoa ban tom tat",
+      "status": {
+        "generating": "Dang tao",
+        "failed": "That bai",
+        "done": "Hoan tat"
+      },
+      "connection": {
+        "connected": "Da ket noi",
+        "reconnecting": "Dang ket noi lai...",
+        "disconnected": "Mat ket noi",
+        "connectedAria": "Trang thai ket noi: Da ket noi",
+        "reconnectingAria": "Trang thai ket noi: Dang ket noi lai",
+        "disconnectedAria": "Trang thai ket noi: Mat ket noi"
+      },
+      "form": {
+        "startPage": "Trang bat dau",
+        "endPage": "Trang ket thuc",
+        "from": "Tu",
+        "to": "Den",
+        "maxPagesHint": "Toi da {{maxPages}} trang moi yeu cau.",
+        "generating": "Dang tao...",
+        "generate": "Tao tom tat",
+        "validation": {
+          "startMin": "Trang bat dau phai lon hon hoac bang 1",
+          "endMax": "Trang ket thuc khong duoc vuot qua {{totalPages}}",
+          "startBeforeEnd": "Trang bat dau phai nho hon hoac bang trang ket thuc",
+          "maxPages": "Ban chi co the tao toi da {{maxPages}} trang moi yeu cau",
+          "duplicateRange": "Tom tat cho trang {{start}}-{{end}} da ton tai hoac dang xu ly",
+          "invalidNumber": "Vui long nhap so trang hop le"
+        }
+      },
+      "item": {
+        "generating": "Dang tao tom tat...",
+        "generatingAria": "Dang tao tom tat cho trang {{start}} den {{end}}",
+        "generatedAria": "Da tao tom tat thanh cong cho trang {{start}} den {{end}}",
+        "errorAria": "Loi tao tom tat cho trang {{start}} den {{end}}: {{message}}",
+        "failedDefault": "Khong the tao tom tat. Vui long thu lai.",
+        "failedDefaultShort": "Khong the tao tom tat",
+        "retry": "Thu lai",
+        "retryTitle": "Thu tao lai tom tat",
+        "retryAria": "Thu tao lai tom tat cho trang {{start}} den {{end}}",
+        "pagesRange": "Trang {{start}}-{{end}}",
+        "deleteTitle": "Xoa ban tom tat",
+        "deleteAria": "Xoa tom tat cho trang {{start}} den {{end}}"
+      }
+    }
   },
   "auditLogs": {
     "title": "Nhật ký hệ thống",

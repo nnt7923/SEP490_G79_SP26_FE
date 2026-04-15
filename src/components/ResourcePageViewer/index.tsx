@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, ChevronLeft, ChevronRight, Loader2, Sparkles, FileText } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { ResourceService } from '../../services'
-import Toast from '../Toast'
 import { useResponsive } from '../../hook/useResponsive'
 import SummaryPanel from './SummaryPanel'
 
@@ -18,7 +18,6 @@ interface ResourcePageViewerProps {
   resourceId: string
   fileName: string
   onClose: () => void
-  onSummaryRequest?: (pageNumber: number, pageText: string) => Promise<string>
 }
 
 interface ResourcePagesCacheEntry {
@@ -73,18 +72,15 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
   resourceId,
   fileName,
   onClose,
-  onSummaryRequest,
 }) => {
+  const { t } = useTranslation('admin')
   const { isMobile } = useResponsive()
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
   const [pages, setPages] = useState<PageData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [loadingSummary, setLoadingSummary] = useState(false)
-  const [pageSummaries, setPageSummaries] = useState<Record<number, string>>({})
   const [showSummaryPanel, setShowSummaryPanel] = useState(!isMobile)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
 
   useEffect(() => {
     if (isOpen && resourceId) {
@@ -101,7 +97,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
       setError(null)
       setLoading(false)
       if (cached.totalPages === 0) {
-        setError('No pages found. The document may not have been processed yet.')
+        setError(t('resources.pageViewer.noPagesFound'))
       }
       return
     }
@@ -120,18 +116,18 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
       writeResourcePagesCache(resourceId, pagesData, total)
       
       if (total === 0) {
-        setError('No pages found. The document may not have been processed yet.')
+        setError(t('resources.pageViewer.noPagesFound'))
       }
     } catch (err: any) {
       
       if (err?.response?.status === 404) {
-        setError('Page extraction not available yet. Backend needs to implement the /api/resources/{id}/pages endpoint.')
+        setError(t('resources.pageViewer.extractionUnavailable'))
       } else {
         const errorMsg = 
           err?.response?.data?.message || 
           err?.response?.data?.msg ||
           err?.message ||
-          'Failed to load document pages'
+          t('resources.pageViewer.failedToLoadPages')
         setError(errorMsg)
       }
     } finally {
@@ -153,22 +149,6 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page)
-  }
-
-  const handleSummary = async () => {
-    if (!onSummaryRequest || pageSummaries[currentPage]) return
-    
-    const pageText = currentPageData?.extractedText || currentPageData?.text
-    if (!pageText) return
-
-    try {
-      setLoadingSummary(true)
-      const summary = await onSummaryRequest(currentPage, pageText)
-      setPageSummaries((prev) => ({ ...prev, [currentPage]: summary }))
-    } catch (error) {
-    } finally {
-      setLoadingSummary(false)
-    }
   }
 
   useEffect(() => {
@@ -199,7 +179,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
               </h3>
               {totalPages > 0 && (
                 <p className="text-sm text-sl-500">
-                  Page {currentPage} of {totalPages}
+                  {t('resources.pageViewer.pageOf', { current: currentPage, total: totalPages })}
                 </p>
               )}
             </div>
@@ -211,34 +191,21 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
               <button
                 onClick={() => setShowSummaryPanel(!showSummaryPanel)}
                 className="md:hidden p-2.5 bg-status-blue-bg text-status-blue hover:bg-status-blue-bg-strong transition-all duration-200 cursor-pointer shadow-sm"
-                title="Toggle AI Summary Panel"
-                aria-label={showSummaryPanel ? "Close AI Summary Panel" : "Open AI Summary Panel"}
+                title={t('resources.pageViewer.toggleSummaryPanel')}
+                aria-label={
+                  showSummaryPanel
+                    ? t('resources.pageViewer.closeSummaryPanel')
+                    : t('resources.pageViewer.openSummaryPanel')
+                }
               >
                 <Sparkles className="w-5 h-5" />
               </button>
             )}
             
-            {onSummaryRequest && (currentPageData?.extractedText || currentPageData?.text) && (
-              <button
-                onClick={handleSummary}
-                disabled={loadingSummary || !!pageSummaries[currentPage]}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 hover:from-purple-100 hover:to-purple-200 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                title="Generate AI summary for current page"
-              >
-                {loadingSummary ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                <span className="text-sm font-medium">
-                  {pageSummaries[currentPage] ? 'View Summary' : 'Page Summary'}
-                </span>
-              </button>
-            )}
             <button
               onClick={onClose}
               className="p-2.5 bg-sl-100 text-sl-600 hover:bg-status-red-bg hover:text-status-red transition-all duration-200 cursor-pointer shadow-sm"
-              title="Close (Esc)"
+              title={t('resources.pageViewer.close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -253,7 +220,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
               {loading && (
                 <div className="flex flex-col items-center justify-center h-full gap-4">
                   <Loader2 className="w-12 h-12 text-status-blue animate-spin" />
-                  <p className="text-sl-600">Loading document...</p>
+                  <p className="text-sl-600">{t('resources.pageViewer.loadingDocument')}</p>
                 </div>
               )}
 
@@ -265,7 +232,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                         <X className="w-5 h-5 text-status-red" />
                       </div>
                       <h4 className="text-lg font-semibold text-sl-900">
-                        Unable to Load
+                        {t('resources.pageViewer.unableToLoad')}
                       </h4>
                     </div>
                     <p className="text-sm text-sl-600 mb-6 leading-relaxed">
@@ -275,7 +242,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                       onClick={() => fetchPages(true)}
                       className="w-full px-4 py-2.5 bg-status-blue-solid hover:bg-status-blue-solid-hover text-white transition-colors duration-200 cursor-pointer font-medium shadow-sm"
                     >
-                      Retry
+                      {t('resources.pageViewer.retry')}
                     </button>
                   </div>
                 </div>
@@ -288,10 +255,10 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                     <div className="px-6 py-4 bg-sl-50 border-b border-sl-200">
                       <div className="flex items-center justify-between">
                         <h4 className="text-base font-semibold text-sl-900">
-                          Page {currentPage}
+                          {t('resources.pageViewer.page', { page: currentPage })}
                         </h4>
                         <span className="px-3 py-1 bg-status-blue-bg text-status-blue text-xs font-medium">
-                          {totalPages} pages
+                          {t('resources.pageViewer.totalPagesBadge', { count: totalPages })}
                         </span>
                       </div>
                     </div>
@@ -307,14 +274,14 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                       ) : currentPageData.imageUrl ? (
                         <img
                           src={currentPageData.imageUrl}
-                          alt={`Page ${currentPage}`}
+                          alt={t('resources.pageViewer.pageImageAlt', { page: currentPage })}
                           className="max-w-full h-auto"
                         />
                       ) : (
                         <div className="text-center py-16 text-sl-500">
                           <FileText className="w-16 h-16 mx-auto mb-4 opacity-40" />
-                          <p className="text-base font-medium mb-2">Page content not available</p>
-                          <p className="text-sm">This page may not have been processed yet.</p>
+                          <p className="text-base font-medium mb-2">{t('resources.pageViewer.pageContentUnavailable')}</p>
+                          <p className="text-sm">{t('resources.pageViewer.pageNotProcessed')}</p>
                         </div>
                       )}
                     </div>
@@ -333,11 +300,11 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                     className="flex items-center gap-2 px-4 py-2.5 bg-sl-100 text-sl-700 hover:bg-sl-200 transition-colors duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed font-medium shadow-sm"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    Previous
+                    {t('resources.pageViewer.previous')}
                   </button>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-sl-600">Page</span>
+                    <span className="text-sm text-sl-600">{t('resources.pageViewer.pageLabel')}</span>
                     <input
                       type="number"
                       min={1}
@@ -346,7 +313,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                       onChange={(e) => handlePageChange(parseInt(e.target.value))}
                       className="w-20 px-3 py-2 text-center border border-sl-300 bg-th-card text-sl-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                     />
-                    <span className="text-sm text-sl-600">of {totalPages}</span>
+                    <span className="text-sm text-sl-600">{t('resources.pageViewer.ofTotal', { total: totalPages })}</span>
                   </div>
 
                   <button
@@ -354,7 +321,7 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
                     disabled={currentPage === totalPages}
                     className="flex items-center gap-2 px-4 py-2.5 bg-status-blue-solid hover:bg-status-blue-solid-hover text-white transition-colors duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed font-medium shadow-sm"
                   >
-                    Next
+                    {t('resources.pageViewer.next')}
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -376,19 +343,11 @@ const ResourcePageViewer: React.FC<ResourcePageViewerProps> = ({
         {/* Footer */}
         <div className="px-6 py-3 bg-th-card border-t border-sl-200">
           <p className="text-xs text-sl-500 text-center">
-            💡 Use arrow keys (← →) to navigate • Press Esc to close
+            {t('resources.pageViewer.footerHint')}
           </p>
         </div>
       </div>
 
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   )
 }
