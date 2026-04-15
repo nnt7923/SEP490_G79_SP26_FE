@@ -122,6 +122,7 @@ const router = createBrowserRouter([
           { path: ROUTER.CHANNEL_CHAT, element: <StudentChannelChatPage /> },
           { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },
+          { path: ROUTER.BILLING_RESULT, element: <SubscriptionPaymentSuccessPage /> },
           { path: ROUTER.SUBSCRIPTION_SUCCESS, element: <SubscriptionPaymentSuccessPage /> },
         ],
       },

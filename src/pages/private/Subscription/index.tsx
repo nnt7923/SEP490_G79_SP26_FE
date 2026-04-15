@@ -191,8 +191,8 @@ const Subscription: React.FC = () => {
 
     try {
       setProcessingPlanId(plan.subscriptionPlanId)
-      const callbackPath = ROUTER.SUBSCRIPTION_SUCCESS
-      const returnUrl = `${window.location.origin}${callbackPath}`
+      const callbackPath = ROUTER.BILLING_RESULT
+      const returnUrl = `${window.location.origin}${callbackPath}?planId=${encodeURIComponent(plan.subscriptionPlanId)}`
       const paymentResponse = await SubscriptionService.createVnpayPayment({
         subscriptionPlanId: plan.subscriptionPlanId,
         orderInfo: plan.name,

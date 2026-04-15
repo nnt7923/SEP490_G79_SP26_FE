@@ -53,11 +53,15 @@ export interface FocusSession {
   title?: string | null
   startTime: string
   endTime?: string | null
+  message?: string | null
   isActive: boolean
   createdAt: string
   serverCurrentTime?: string // Add server current time for offset calculation
   // Pause/Resume specific fields
   sessionStatus?: string // "Paused", "Running", etc.
+  submittedCode?: string | null
+  submittedSummary?: string | null
+  submittedQuizAnswers?: string | null
   elapsedMinutes?: number
   remainingMinutes?: number
   elapsedSeconds?: number
@@ -125,9 +129,30 @@ export interface FocusSessionNotePayload {
   content: string
 }
 
+export interface CompleteSessionRequest {
+  submissionType: 0 | 1
+  isEarlyCompletion?: boolean
+  submittedCode?: string
+  submittedSummary?: string
+  submittedQuizAnswers?: string
+}
+
+export interface CompleteSessionResponse {
+  sessionId: string
+  endTime?: string | null
+  actualDurationMinutes?: number | null
+  sessionStatus?: string | null
+  message?: string | null
+  taskCompleted?: boolean
+  aiFeedback?: string | null
+  verificationScore?: number | null
+  [key: string]: any
+}
+
 export async function startSession(payload: StartSessionRequest): Promise<FocusSession> {
   const res: any = await api.post(startSessionUrl, payload)
-  const data: any = res?.data ?? res
+  const root: any = res?.data ?? res
+  const data: any = root?.data ?? root?.value ?? root
 
   // Parse SessionType properly
   const sessionType = data?.sessionType !== undefined 
@@ -142,8 +167,13 @@ export async function startSession(payload: StartSessionRequest): Promise<FocusS
     title: data?.title ?? null,
     startTime: data?.startTime,
     endTime: data?.endTime ?? null,
+    message: data?.message ?? null,
     isActive: data?.isActive ?? true,
-    createdAt: data?.createdAt,
+    createdAt: data?.createdAt ?? data?.startTime ?? new Date().toISOString(),
+    sessionStatus: data?.sessionStatus,
+    submittedCode: data?.submittedCode ?? null,
+    submittedSummary: data?.submittedSummary ?? null,
+    submittedQuizAnswers: data?.submittedQuizAnswers ?? null,
     serverCurrentTime: data?.serverCurrentTime || data?.currentTime,
     // Don't spread ...data to avoid overriding parsed sessionType
   }
@@ -278,16 +308,26 @@ export async function getSessionHistory(query: FocusSessionHistoryQuery = {}): P
 
 export async function getAiReview(sessionId: string | number, payload: any): Promise<any> {
   const res: any = await api.post(reviewUrl(sessionId), payload)
-  const data: any = res?.data ?? res
-
-  return data
+  const root: any = res?.data ?? res
+  return root?.value ?? root?.data?.value ?? root?.data ?? root
 }
 
-export async function completeSession(sessionId: string | number, payload: any): Promise<any> {
+export async function completeSession(sessionId: string | number, payload: CompleteSessionRequest): Promise<CompleteSessionResponse> {
   const res: any = await api.post(completeUrl(sessionId), payload)
-  const data: any = res?.data ?? res
+  const root: any = res?.data ?? res
+  const data: any = root?.data ?? root?.value ?? root
 
-  return data
+  return {
+    ...data,
+    sessionId: String(data?.sessionId ?? data?.id ?? sessionId),
+    endTime: data?.endTime ?? null,
+    actualDurationMinutes: data?.actualDurationMinutes == null ? null : Number(data.actualDurationMinutes),
+    sessionStatus: data?.sessionStatus ?? null,
+    message: data?.message ?? null,
+    taskCompleted: Boolean(data?.taskCompleted),
+    aiFeedback: data?.aiFeedback ?? null,
+    verificationScore: data?.verificationScore == null ? null : Number(data.verificationScore),
+  }
 }
 
 export async function createSessionNote(sessionId: string | number, payload: FocusSessionNotePayload): Promise<any> {

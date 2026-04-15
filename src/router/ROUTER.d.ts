@@ -44,6 +44,7 @@ declare const ROUTER: {
   MENTOR_CHANNEL_CHAT: string
   SUBSCRIPTION: string
   SUBSCRIPTION_CURRENT: string
+  BILLING_RESULT: string
   SUBSCRIPTION_SUCCESS: string
 }
 
