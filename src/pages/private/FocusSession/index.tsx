@@ -95,6 +95,7 @@ const clampElapsedByPlan = (elapsedSeconds: number, plannedSeconds: number): num
 
 const FOCUS_SESSION_RUNNING_LOCK_KEY = 'focus_session_running_lock'
 const FOCUS_SESSION_META_CACHE_KEY = 'focus_session_meta_cache_v1'
+const FOCUS_SESSION_WORK_DRAFT_PREFIX = 'focus_session_work_draft_v1:'
 
 interface FocusSessionMetaCacheItem {
   sessionId: string
@@ -103,6 +104,76 @@ interface FocusSessionMetaCacheItem {
   startTime?: string
   plannedDurationMinutes?: number
   updatedAtMs: number
+}
+
+interface FocusSessionWorkDraft {
+  sessionId: string
+  taskId?: string
+  taskTypeNum: number
+  code?: string
+  theoryAnswer?: string
+  quizAnswers?: Record<string, number>
+  editorLanguage?: string
+  updatedAtMs: number
+}
+
+const resolveTaskTypeNum = (taskType?: string | number): number => {
+  if (typeof taskType === 'number') return taskType
+  if (typeof taskType === 'string') {
+    if (taskType === 'Theory') return 1
+    if (taskType === 'Quizz' || taskType === 'Quiz') return 2
+  }
+  return 0
+}
+
+const buildFocusSessionWorkDraftKeys = (sessionId?: string | null, taskId?: string | null): string[] => {
+  const keys: string[] = []
+  if (sessionId) {
+    keys.push(`${FOCUS_SESSION_WORK_DRAFT_PREFIX}session:${sessionId}`)
+  }
+  if (taskId) {
+    keys.push(`${FOCUS_SESSION_WORK_DRAFT_PREFIX}task:${taskId}`)
+  }
+  return keys
+}
+
+const readFocusSessionWorkDraft = (keys: string[]): FocusSessionWorkDraft | null => {
+  if (typeof window === 'undefined') return null
+
+  for (const key of keys) {
+    try {
+      const raw = window.sessionStorage.getItem(key)
+      if (!raw) continue
+      const parsed = JSON.parse(raw)
+      if (!parsed || typeof parsed !== 'object') continue
+
+      return parsed as FocusSessionWorkDraft
+    } catch {
+      // ignore malformed draft and continue probing fallback keys
+    }
+  }
+
+  return null
+}
+
+const writeFocusSessionWorkDraft = (key: string, draft: FocusSessionWorkDraft): void => {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(draft))
+  } catch {
+    // ignore storage write failures
+  }
+}
+
+const clearFocusSessionWorkDraft = (keys: string[]): void => {
+  if (typeof window === 'undefined') return
+  for (const key of keys) {
+    try {
+      window.sessionStorage.removeItem(key)
+    } catch {
+      // ignore storage remove failures
+    }
+  }
 }
 
 const readFocusSessionMetaCache = (): Record<string, FocusSessionMetaCacheItem> => {
@@ -197,6 +268,7 @@ const FocusSessionPage: React.FC = () => {
 
   const [session, setSession] = useState<FocusSession | null>(initialSessionData || null)
   const [task] = useState<TaskData | null>(taskData || null)
+  const currentTaskTypeNum = React.useMemo(() => resolveTaskTypeNum(task?.taskType), [task?.taskType])
   const shouldPauseOnLeaveRef = useRef(true)
   const sessionIdRef = useRef<string | null>(initialSessionData?.id ?? null)
   const sessionUiStateRef = useRef<SessionUiState>('Running')
@@ -239,6 +311,7 @@ const FocusSessionPage: React.FC = () => {
   const [selectedSessionNoteDetail, setSelectedSessionNoteDetail] = useState<SessionNoteItem | null>(null)
   const [isSessionNoteDetailModalOpen, setIsSessionNoteDetailModalOpen] = useState<boolean>(false)
   const [noteWidgetPosition, setNoteWidgetPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const noteWidgetCollapsedPositionRef = useRef<{ x: number; y: number } | null>(null)
   const noteWidgetDragRef = useRef({
     dragging: false,
     startX: 0,
@@ -258,6 +331,7 @@ const FocusSessionPage: React.FC = () => {
   // Quiz state
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
   const hydratedProgressSessionIdRef = useRef<string | null>(null)
+  const hydratedDraftSessionIdRef = useRef<string | null>(null)
   const heartbeatWarningShownRef = useRef(false)
   const isSyncingActiveSessionRef = useRef(false)
   const lastServerRemainingSecondsRef = useRef<number | null>(readRemainingSecondsFromSnapshot(initialSessionData) ?? null)
@@ -698,10 +772,11 @@ const FocusSessionPage: React.FC = () => {
   }, [isFocusMode])
 
   const clampNoteWidgetPosition = React.useCallback((x: number, y: number) => {
-    const minX = 12
-    const minY = 12
-    const maxX = window.innerWidth - 72
-    const maxY = window.innerHeight - 72
+    const minX = 16
+    const minY = 16
+    // Keep enough visible width for the note bubble button so it is easy to spot and click.
+    const maxX = window.innerWidth - 180
+    const maxY = window.innerHeight - 110
 
     return {
       x: Math.max(minX, Math.min(x, maxX)),
@@ -709,11 +784,25 @@ const FocusSessionPage: React.FC = () => {
     }
   }, [])
 
+  const getExpandedNoteWidgetCenterPosition = React.useCallback(() => {
+    const panelWidth = Math.min(620, window.innerWidth - 24)
+    const panelHeight = Math.min(Math.floor(window.innerHeight * 0.75), 560)
+    const centeredX = (window.innerWidth - panelWidth) / 2
+    const centeredY = (window.innerHeight - panelHeight) / 2
+    return clampNoteWidgetPosition(centeredX, centeredY)
+  }, [clampNoteWidgetPosition])
+
   useEffect(() => {
     if (noteWidgetPosition.x !== 0 || noteWidgetPosition.y !== 0) return
-    const initial = clampNoteWidgetPosition(window.innerWidth - 24, window.innerHeight - 120)
+    const initial = clampNoteWidgetPosition(window.innerWidth - 210, window.innerHeight - 170)
     setNoteWidgetPosition(initial)
   }, [clampNoteWidgetPosition, noteWidgetPosition.x, noteWidgetPosition.y])
+
+  useEffect(() => {
+    if (isNoteWidgetOpen) return
+    if (noteWidgetPosition.x === 0 && noteWidgetPosition.y === 0) return
+    noteWidgetCollapsedPositionRef.current = noteWidgetPosition
+  }, [isNoteWidgetOpen, noteWidgetPosition])
 
   useEffect(() => {
     const handleMove = (event: MouseEvent) => {
@@ -767,7 +856,22 @@ const FocusSessionPage: React.FC = () => {
       noteWidgetDragRef.current.moved = false
       return
     }
-    setIsNoteWidgetOpen((prev) => !prev)
+
+    if (!isNoteWidgetOpen) {
+      noteWidgetCollapsedPositionRef.current = {
+        x: noteWidgetPosition.x,
+        y: noteWidgetPosition.y,
+      }
+      setNoteWidgetPosition(getExpandedNoteWidgetCenterPosition())
+      setIsNoteWidgetOpen(true)
+      return
+    }
+
+    const collapsedPosition = noteWidgetCollapsedPositionRef.current
+    if (collapsedPosition) {
+      setNoteWidgetPosition(clampNoteWidgetPosition(collapsedPosition.x, collapsedPosition.y))
+    }
+    setIsNoteWidgetOpen(false)
   }
 
   const handleOpenSavedNotesModal = () => {
@@ -1336,8 +1440,6 @@ const FocusSessionPage: React.FC = () => {
 
     setLoading(true)
     try {
-      const taskTypeNum = (window as any).currentTaskTypeNum || 0
-
       // Prepare payload based on submitType and taskType
       const payload: any = {
         submissionType,
@@ -1345,13 +1447,13 @@ const FocusSessionPage: React.FC = () => {
       }
 
       // Add task-specific data based on taskType
-      if (taskTypeNum === 0) {
+      if (currentTaskTypeNum === 0) {
         // Practice - send code
         payload.submittedCode = code
-      } else if (taskTypeNum === 1) {
+      } else if (currentTaskTypeNum === 1) {
         // Theory - send summary
         payload.submittedSummary = theoryAnswers.answer || ''
-      } else if (taskTypeNum === 2) {
+      } else if (currentTaskTypeNum === 2) {
         // Quiz - send quiz answers
         payload.submittedQuizAnswers = formatQuizAnswers()
       }
@@ -1361,6 +1463,7 @@ const FocusSessionPage: React.FC = () => {
         ? await DailyCheckinService.getDailyCheckinStatus().catch(() => null)
         : null
       const completeResult = await FocusSessionService.completeSession(session.id, payload)
+      clearCurrentWorkDraft()
       shouldPauseOnLeaveRef.current = false
 
       setSession((prev) => {
@@ -1431,15 +1534,13 @@ const FocusSessionPage: React.FC = () => {
   const handleAiReview = async () => {
     if (!session) return
 
-    const taskTypeNum = (window as any).currentTaskTypeNum || 0
-
     // Validate that we have content to review
     let hasContent = false
-    if (taskTypeNum === 0 && code.trim()) {
+    if (currentTaskTypeNum === 0 && code.trim()) {
       hasContent = true
-    } else if (taskTypeNum === 1 && theoryAnswers.answer?.trim()) {
+    } else if (currentTaskTypeNum === 1 && theoryAnswers.answer?.trim()) {
       hasContent = true
-    } else if (taskTypeNum === 2 && Object.keys(quizAnswers).length > 0) {
+    } else if (currentTaskTypeNum === 2 && Object.keys(quizAnswers).length > 0) {
       hasContent = true
     }
 
@@ -1455,13 +1556,13 @@ const FocusSessionPage: React.FC = () => {
     try {
       const payload: any = {}
 
-      if (taskTypeNum === 0) {
+      if (currentTaskTypeNum === 0) {
         // Practice - send code
         payload.submittedCode = code
-      } else if (taskTypeNum === 1) {
+      } else if (currentTaskTypeNum === 1) {
         // Theory - send summary
         payload.submittedSummary = theoryAnswers.answer || ''
-      } else if (taskTypeNum === 2) {
+      } else if (currentTaskTypeNum === 2) {
         // Quiz - send quiz answers
         payload.submittedQuizAnswers = formatQuizAnswers()
       }
@@ -1520,37 +1621,95 @@ const FocusSessionPage: React.FC = () => {
 
     hydratedProgressSessionIdRef.current = session.id
 
-    const taskType = task?.taskType
-    let taskTypeNum = 0
-    if (typeof taskType === 'number') taskTypeNum = taskType
-    else if (typeof taskType === 'string') {
-      if (taskType === 'Theory') taskTypeNum = 1
-      else if (taskType === 'Quizz' || taskType === 'Quiz') taskTypeNum = 2
-    }
+    const draftKeys = buildFocusSessionWorkDraftKeys(session.id, session.taskId || task?.taskId)
+    const draft = readFocusSessionWorkDraft(draftKeys)
 
-    if (taskTypeNum === 0) {
+    if (currentTaskTypeNum === 0) {
       const submitted = typeof session.submittedCode === 'string' ? session.submittedCode : ''
       if (submitted.trim().length > 0) {
         setCode(submitted)
+      } else if (typeof draft?.code === 'string') {
+        setCode(draft.code)
       }
+
+      if (typeof draft?.editorLanguage === 'string' && draft.editorLanguage.trim().length > 0) {
+        setEditorLanguage(draft.editorLanguage)
+      }
+      hydratedDraftSessionIdRef.current = session.id
       return
     }
 
-    if (taskTypeNum === 1) {
+    if (currentTaskTypeNum === 1) {
       const submitted = typeof session.submittedSummary === 'string' ? session.submittedSummary : ''
       if (submitted.trim().length > 0) {
         setTheoryAnswers((prev) => ({ ...prev, answer: submitted }))
+      } else if (typeof draft?.theoryAnswer === 'string') {
+        setTheoryAnswers((prev) => ({ ...prev, answer: draft.theoryAnswer ?? '' }))
       }
+      hydratedDraftSessionIdRef.current = session.id
       return
     }
 
-    if (taskTypeNum === 2) {
+    if (currentTaskTypeNum === 2) {
       const parsedQuizAnswers = parseSubmittedQuizAnswers(session.submittedQuizAnswers)
       if (Object.keys(parsedQuizAnswers).length > 0) {
         setQuizAnswers(parsedQuizAnswers)
+      } else if (draft?.quizAnswers && typeof draft.quizAnswers === 'object') {
+        const normalizedDraftAnswers = Object.entries(draft.quizAnswers).reduce<Record<string, number>>((acc, [key, item]) => {
+          const answerIndex = Number(item)
+          if (Number.isFinite(answerIndex) && answerIndex >= 0) {
+            const normalizedKey = key.startsWith('q') ? key : `q${key}`
+            acc[normalizedKey] = answerIndex
+          }
+          return acc
+        }, {})
+
+        if (Object.keys(normalizedDraftAnswers).length > 0) {
+          setQuizAnswers(normalizedDraftAnswers)
+        }
       }
     }
-  }, [session?.id, session?.submittedCode, session?.submittedSummary, session?.submittedQuizAnswers, task?.taskType])
+
+    hydratedDraftSessionIdRef.current = session.id
+  }, [currentTaskTypeNum, session?.id, session?.submittedCode, session?.submittedSummary, session?.submittedQuizAnswers, session?.taskId, task?.taskId])
+
+  const clearCurrentWorkDraft = React.useCallback(() => {
+    const draftKeys = buildFocusSessionWorkDraftKeys(session?.id, session?.taskId || task?.taskId)
+    clearFocusSessionWorkDraft(draftKeys)
+  }, [session?.id, session?.taskId, task?.taskId])
+
+  useEffect(() => {
+    if (!session?.id) return
+    if (hydratedDraftSessionIdRef.current !== session.id) return
+    if (sessionUiState === 'Completed') return
+
+    const draftKeys = buildFocusSessionWorkDraftKeys(session.id, session.taskId || task?.taskId)
+    const primaryKey = draftKeys[0]
+    if (!primaryKey) return
+
+    const draftPayload: FocusSessionWorkDraft = {
+      sessionId: session.id,
+      taskId: session.taskId || task?.taskId,
+      taskTypeNum: currentTaskTypeNum,
+      editorLanguage,
+      updatedAtMs: Date.now(),
+    }
+
+    if (currentTaskTypeNum === 0) {
+      draftPayload.code = code
+    } else if (currentTaskTypeNum === 1) {
+      draftPayload.theoryAnswer = theoryAnswers.answer || ''
+    } else if (currentTaskTypeNum === 2) {
+      draftPayload.quizAnswers = quizAnswers
+    }
+
+    writeFocusSessionWorkDraft(primaryKey, draftPayload)
+
+    // Keep fallback key updated so draft survives changes in session identifier strategy.
+    if (draftKeys.length > 1) {
+      writeFocusSessionWorkDraft(draftKeys[1], draftPayload)
+    }
+  }, [code, currentTaskTypeNum, editorLanguage, quizAnswers, session?.id, session?.taskId, sessionUiState, task?.taskId, theoryAnswers.answer])
 
   const handleBackToPlans = async () => {
     if (sessionUiState === 'Running') {
@@ -1593,22 +1752,7 @@ const FocusSessionPage: React.FC = () => {
   }
 
   const renderWorkspace = () => {
-    const taskType = task?.taskType
-
-    // Convert to number for easier comparison
-    let taskTypeNum = 0
-    if (typeof taskType === 'number') {
-      taskTypeNum = taskType
-    } else if (typeof taskType === 'string') {
-      if (taskType === "Theory") taskTypeNum = 1
-      else if (taskType === "Quizz" || taskType === "Quiz") taskTypeNum = 2
-      else taskTypeNum = 0 // Default to Practice
-    }
-
-    // Store taskTypeNum for use in other functions
-    ; (window as any).currentTaskTypeNum = taskTypeNum
-
-    switch (taskTypeNum) {
+    switch (currentTaskTypeNum) {
       case 0: // Practice - Code Editor (Monaco)
         return (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

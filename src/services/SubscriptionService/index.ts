@@ -37,8 +37,10 @@ export interface SubscriptionPlan {
 }
 
 export interface CreateVnpayPaymentRequest {
-  subscriptionPlanId: string
-  orderInfo: string
+  subscriptionPlanId?: string
+  tokenPackageId?: string
+  topUpAmountVnd?: number
+  orderInfo?: string
   returnUrl: string
 }
 
@@ -65,6 +67,68 @@ export interface CurrentSubscriptionPlan {
   isActive?: boolean
   status?: string
   [key: string]: unknown
+}
+
+export interface TokenPackage {
+  tokenPackageId: string
+  name: string
+  description: string
+  priceVnd: number
+  creditedTokens: number
+  creditedBalanceVnd: number
+  bonusVnd: number
+  isActive: boolean
+  displayOrder: number
+  [key: string]: unknown
+}
+
+export interface TokenTopUpPricing {
+  vndPerToken: number
+  tokensPer1000Vnd: number
+  minimumTopUpVnd: number
+  maximumTopUpVnd: number
+  [key: string]: unknown
+}
+
+export type PaymentTransactionStatus =
+  | 'pending'
+  | 'success'
+  | 'already-processed'
+  | 'failed'
+  | 'canceled'
+
+export interface PaymentTransactionItem {
+  paymentTransactionId: string
+  tokenPackageName?: string
+  amount: number
+  creditedAmountVnd: number
+  status: string
+  paidAt?: string
+  createdAt?: string
+  bankCode?: string
+  txnRef?: string
+  message?: string
+  orderInfo?: string
+  [key: string]: unknown
+}
+
+export interface PaymentTransactionDetail extends PaymentTransactionItem {
+  updatedAt?: string
+}
+
+export interface MyTransactionsQuery {
+  PageNumber: number
+  PageSize: number
+  FromUtc?: string
+  ToUtc?: string
+  Status?: 'pending' | 'success' | 'failed' | 'canceled'
+}
+
+export interface MyTransactionsResult {
+  items: PaymentTransactionItem[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
 }
 
 function normalizeCurrentSubscription(raw: unknown): CurrentSubscriptionPlan | null {
@@ -140,6 +204,43 @@ function normalizePlan(raw: unknown): SubscriptionPlan {
   }
 }
 
+function normalizeTokenPackage(raw: unknown): TokenPackage {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+
+  const priceVnd = Number.isFinite(Number(record.priceVnd ?? record.PriceVnd))
+    ? Number(record.priceVnd ?? record.PriceVnd)
+    : 0
+  const creditedTokens = Number.isFinite(Number(record.creditedTokens ?? record.CreditedTokens ?? record.creditedBalanceVnd ?? record.CreditedBalanceVnd))
+    ? Number(record.creditedTokens ?? record.CreditedTokens ?? record.creditedBalanceVnd ?? record.CreditedBalanceVnd)
+    : 0
+  const bonusVnd = Math.max(0, creditedTokens - priceVnd)
+
+  return {
+    tokenPackageId: String(record.tokenPackageId ?? record.id ?? ''),
+    name: String(record.name ?? ''),
+    description: String(record.description ?? ''),
+    priceVnd,
+    creditedTokens,
+    creditedBalanceVnd: creditedTokens,
+    bonusVnd,
+    isActive: Boolean(record.isActive ?? true),
+    displayOrder: Number.isFinite(Number(record.displayOrder)) ? Number(record.displayOrder) : 0,
+    ...record,
+  }
+}
+
+function normalizeTokenTopUpPricing(raw: unknown): TokenTopUpPricing {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+
+  return {
+    vndPerToken: toNumberValue(record.vndPerToken ?? record.VndPerToken),
+    tokensPer1000Vnd: toNumberValue(record.tokensPer1000Vnd ?? record.TokensPer1000Vnd),
+    minimumTopUpVnd: Math.max(0, Math.round(toNumberValue(record.minimumTopUpVnd ?? record.MinimumTopUpVnd))),
+    maximumTopUpVnd: Math.max(0, Math.round(toNumberValue(record.maximumTopUpVnd ?? record.MaximumTopUpVnd))),
+    ...record,
+  }
+}
+
 function unwrapPlansResponse(raw: unknown): unknown[] {
   if (Array.isArray(raw)) {
     return raw
@@ -166,6 +267,90 @@ function unwrapPlansResponse(raw: unknown): unknown[] {
   if (Array.isArray(record.value)) return record.value
 
   return []
+}
+
+function toNumberValue(raw: unknown): number {
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : 0
+}
+
+function normalizePaymentTransaction(raw: unknown): PaymentTransactionItem {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+  const amountRaw = toNumberValue(record.amount ?? record.amountVnd ?? record.vnpAmount)
+  const creditedRaw = toNumberValue(record.creditedAmountVnd ?? record.creditedAmount ?? record.creditAmountVnd)
+
+  return {
+    paymentTransactionId: String(record.paymentTransactionId ?? record.id ?? ''),
+    tokenPackageName: String(record.tokenPackageName ?? record.packageName ?? '').trim() || undefined,
+    amount: Math.max(0, Math.round(amountRaw)),
+    creditedAmountVnd: Math.max(0, Math.round(creditedRaw)),
+    txnRef: String(record.txnRef ?? record.vnpTxnRef ?? ''),
+    status: String(record.status ?? record.paymentStatus ?? '').trim(),
+    paidAt: String(record.paidAt ?? record.paymentTime ?? '').trim() || undefined,
+    createdAt: String(record.createdAt ?? '').trim() || undefined,
+    message: String(record.message ?? record.description ?? '').trim() || undefined,
+    bankCode: String(record.bankCode ?? record.vnpBankCode ?? '').trim() || undefined,
+    orderInfo: String(record.orderInfo ?? record.vnpOrderInfo ?? '').trim() || undefined,
+    ...record,
+  }
+}
+
+function unwrapPaymentTransactionList(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw
+  if (!raw || typeof raw !== 'object') return []
+
+  const record = raw as Record<string, unknown>
+  if (Array.isArray(record.data)) return record.data
+  if (Array.isArray(record.items)) return record.items
+
+  if (record.data && typeof record.data === 'object') {
+    const nested = record.data as Record<string, unknown>
+    if (Array.isArray(nested.items)) return nested.items
+    if (Array.isArray(nested.data)) return nested.data
+    if (Array.isArray(nested.value)) return nested.value
+  }
+
+  return []
+}
+
+function unwrapPaginationMeta(raw: unknown): {
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+} {
+  const fallback = { totalCount: 0, pageNumber: 1, pageSize: 10 }
+  if (!raw || typeof raw !== 'object') return fallback
+
+  const record = raw as Record<string, unknown>
+  const rootData = record.data && typeof record.data === 'object'
+    ? record.data as Record<string, unknown>
+    : null
+  const paging = (record.pagination && typeof record.pagination === 'object'
+    ? record.pagination
+    : rootData?.pagination) as Record<string, unknown> | undefined
+
+  const totalCount = toNumberValue(
+    record.totalCount
+    ?? rootData?.totalCount
+    ?? paging?.totalCount
+    ?? paging?.TotalCount,
+  )
+  const pageNumber = Math.max(1, Math.round(toNumberValue(
+    record.pageNumber
+    ?? rootData?.pageNumber
+    ?? paging?.pageNumber
+    ?? paging?.PageNumber
+    ?? 1,
+  )))
+  const pageSize = Math.max(1, Math.round(toNumberValue(
+    record.pageSize
+    ?? rootData?.pageSize
+    ?? paging?.pageSize
+    ?? paging?.PageSize
+    ?? 10,
+  )))
+
+  return { totalCount, pageNumber, pageSize }
 }
 
 function readSubscriptionPlansStorageCache(): SubscriptionPlansCacheEntry | null {
@@ -275,6 +460,55 @@ class SubscriptionService {
   async createVnpayPayment(payload: CreateVnpayPaymentRequest): Promise<CreateVnpayPaymentResponse> {
     const response = await axiosInstance.post('/payments/vnpay/create', payload)
     return response as unknown as CreateVnpayPaymentResponse
+  }
+
+  async getTokenPackages(): Promise<TokenPackage[]> {
+    const response = await axiosInstance.get('/token-packages')
+    return unwrapPlansResponse(response).map(normalizeTokenPackage)
+  }
+
+  async getTokenTopUpPricing(): Promise<TokenTopUpPricing> {
+    const response = await axiosInstance.get('/token-packages/pricing')
+    const source = (response as any)?.data ?? (response as any)?.value ?? response
+    return normalizeTokenTopUpPricing(source)
+  }
+
+  async verifyVnpayCallback(query: Record<string, string>): Promise<Record<string, unknown>> {
+    try {
+      const response = await axiosInstance.get('/payments/vnpay/callback', { params: query })
+      return (response ?? {}) as Record<string, unknown>
+    } catch (error: any) {
+      const status = Number(error?.response?.status)
+      if (status === 404 || status === 405) {
+        const response = await axiosInstance.post('/payments/vnpay/callback', query)
+        return (response ?? {}) as Record<string, unknown>
+      }
+      throw error
+    }
+  }
+
+  async getMyTransactions(query: MyTransactionsQuery): Promise<MyTransactionsResult> {
+    const response = await axiosInstance.get('/payments/my-transactions', {
+      params: query,
+    })
+    const items = unwrapPaymentTransactionList(response).map(normalizePaymentTransaction)
+    const meta = unwrapPaginationMeta(response)
+
+    return {
+      items,
+      totalCount: meta.totalCount,
+      pageNumber: meta.pageNumber,
+      pageSize: meta.pageSize,
+    }
+  }
+
+  async getMyTransactionById(paymentTransactionId: string): Promise<PaymentTransactionDetail> {
+    const response = await axiosInstance.get(`/payments/my-transactions/${paymentTransactionId}`)
+    const normalized = normalizePaymentTransaction(
+      (response as any)?.data ?? (response as any)?.value ?? response,
+    )
+
+    return normalized as PaymentTransactionDetail
   }
 
   async getCurrentSubscription(): Promise<CurrentSubscriptionPlan | null> {

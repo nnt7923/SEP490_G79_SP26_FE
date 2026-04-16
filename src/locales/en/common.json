@@ -16,7 +16,9 @@
     "myPlans": "My Plans",
     "changePassword": "Change Password",
     "logout": "Logout",
-    "mustPauseBeforeLogout": "Pause your focus session before logging out."
+    "mustPauseBeforeLogout": "Pause your focus session before logging out.",
+    "balanceBadgeTitle": "Token balance",
+    "balanceBadge": "{{amount}} tokens"
   },
   "theme": {
     "switchToDark": "Switch to dark mode",
@@ -78,7 +80,8 @@
     "progress": "Generate Path",
     "resources": "Resources",
     "achievements": "Achievements",
-    "upgrade": "Upgrade",
+    "upgrade": "Top Up Tokens",
+    "transactionHistory": "Transaction History",
     "profile": "Profile",
     "focusSessionHistory": "Focus Session History",
     "subjects": "Subjects",
@@ -90,7 +93,7 @@
     "users": "Users",
     "reports": "Reports",
     "apiKey": "API Key",
-    "subscriptionPlans": "Subscription Plans",
+    "subscriptionPlans": "Token Packages",
     "billing": "Billing",
     "aiSpending": "AI Spending",
     "mentorAiUsage": "Mentor AI Usage",

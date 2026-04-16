@@ -64,6 +64,7 @@ const MentorChannelChatPage = React.lazy(() => import('../pages/private/Mentor/C
 const SubscriptionPage = React.lazy(() => import('../pages/private/Subscription'))
 const CurrentSubscriptionPage = React.lazy(() => import('../pages/private/Subscription/CurrentSubscription'))
 const SubscriptionPaymentSuccessPage = React.lazy(() => import('../pages/private/Subscription/PaymentSuccess'))
+const SubscriptionTransactionHistoryPage = React.lazy(() => import('../pages/private/Subscription/TransactionHistory'))
 
 const Fallback = () => <PageSkeleton />
 
@@ -123,6 +124,7 @@ const router = createBrowserRouter([
           { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },
           { path: ROUTER.BILLING_RESULT, element: <SubscriptionPaymentSuccessPage /> },
+          { path: ROUTER.BILLING_HISTORY, element: <SubscriptionTransactionHistoryPage /> },
           { path: ROUTER.SUBSCRIPTION_SUCCESS, element: <SubscriptionPaymentSuccessPage /> },
         ],
       },

@@ -45,6 +45,7 @@ declare const ROUTER: {
   SUBSCRIPTION: string
   SUBSCRIPTION_CURRENT: string
   BILLING_RESULT: string
+  BILLING_HISTORY: string
   SUBSCRIPTION_SUCCESS: string
 }
 

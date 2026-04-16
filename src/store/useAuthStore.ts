@@ -18,6 +18,9 @@ export type User = {
   name: string
   email?: string
   role?: { name: string }
+  tokenBalance?: number
+  balanceVnd?: number
+  BalanceVnd?: number
 }
 
 interface AuthState {

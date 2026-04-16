@@ -1,71 +1,46 @@
 import api from '../Axios'
 
-type AdminSubscriptionPlansCacheEntry = {
+type AdminTokenPackagesCacheEntry = {
   expiresAt: number
-  data: AdminSubscriptionPlan[]
+  data: AdminTokenPackage[]
 }
 
-const ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY = 'admin:subscription-plans:list'
-const ADMIN_SUBSCRIPTION_PLANS_CACHE_TTL_MS = 2 * 60 * 1000
-let adminSubscriptionPlansMemoryCache: AdminSubscriptionPlansCacheEntry | null = null
+const ADMIN_TOKEN_PACKAGES_CACHE_KEY = 'admin:token-packages:list'
+const ADMIN_TOKEN_PACKAGES_CACHE_TTL_MS = 2 * 60 * 1000
+let adminTokenPackagesMemoryCache: AdminTokenPackagesCacheEntry | null = null
 
-export const SubscriptionFeatureKey = {
-  LearningPathCreation: 1,
-  TutorMessages: 2,
-  FocusSessionReview: 3,
-} as const
-
-export type SubscriptionFeatureKey = typeof SubscriptionFeatureKey[keyof typeof SubscriptionFeatureKey]
-
-export const SubscriptionWindowType = {
-  Daily: 1,
-  Monthly: 2,
-  Lifetime: 3,
-} as const
-
-export type SubscriptionWindowType = typeof SubscriptionWindowType[keyof typeof SubscriptionWindowType]
-
-export interface SubscriptionPlanLimit {
-  featureKey: SubscriptionFeatureKey
-  limitCount: number
-  windowType: SubscriptionWindowType
-  isEnabled: boolean
-}
-
-export interface AdminSubscriptionPlan {
-  subscriptionPlanId: string
-  planType: string
+export interface AdminTokenPackage {
+  tokenPackageId: string
   name: string
   description: string
   priceVnd: number
-  durationDays: number
+  creditedTokens: number
+  bonusVnd: number
   isActive: boolean
   displayOrder: number
-  limits: SubscriptionPlanLimit[]
+  [key: string]: unknown
 }
 
-export interface UpsertAdminSubscriptionPlanPayload {
-  planType: string
+export interface UpsertAdminTokenPackagePayload {
   name: string
   description: string
   priceVnd: number
-  durationDays: number
+  creditedTokens: number
   isActive: boolean
   displayOrder: number
-  limits: SubscriptionPlanLimit[]
 }
 
-const baseUrl = '/admin/subscription-plans'
+const baseUrl = '/admin/token-packages'
 
-function readAdminSubscriptionPlansStorageCache(): AdminSubscriptionPlansCacheEntry | null {
+function readAdminTokenPackagesStorageCache(): AdminTokenPackagesCacheEntry | null {
   try {
     if (typeof window === 'undefined') return null
-    const raw = window.sessionStorage.getItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY)
+    const raw = window.sessionStorage.getItem(ADMIN_TOKEN_PACKAGES_CACHE_KEY)
     if (!raw) return null
 
-    const parsed = JSON.parse(raw) as AdminSubscriptionPlansCacheEntry
+    const parsed = JSON.parse(raw) as AdminTokenPackagesCacheEntry
     if (!parsed?.expiresAt || parsed.expiresAt <= Date.now() || !Array.isArray(parsed?.data)) {
-      window.sessionStorage.removeItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY)
+      window.sessionStorage.removeItem(ADMIN_TOKEN_PACKAGES_CACHE_KEY)
       return null
     }
 
@@ -75,20 +50,20 @@ function readAdminSubscriptionPlansStorageCache(): AdminSubscriptionPlansCacheEn
   }
 }
 
-function writeAdminSubscriptionPlansStorageCache(entry: AdminSubscriptionPlansCacheEntry): void {
+function writeAdminTokenPackagesStorageCache(entry: AdminTokenPackagesCacheEntry): void {
   try {
     if (typeof window === 'undefined') return
-    window.sessionStorage.setItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY, JSON.stringify(entry))
+    window.sessionStorage.setItem(ADMIN_TOKEN_PACKAGES_CACHE_KEY, JSON.stringify(entry))
   } catch {
     // ignore cache write errors
   }
 }
 
 export function clearAdminSubscriptionPlansCache(): void {
-  adminSubscriptionPlansMemoryCache = null
+  adminTokenPackagesMemoryCache = null
   try {
     if (typeof window === 'undefined') return
-    window.sessionStorage.removeItem(ADMIN_SUBSCRIPTION_PLANS_CACHE_KEY)
+    window.sessionStorage.removeItem(ADMIN_TOKEN_PACKAGES_CACHE_KEY)
   } catch {
     // ignore cache clear errors
   }
@@ -125,102 +100,81 @@ function unwrapObject<T>(raw: unknown): T {
   return data as T
 }
 
-function normalizeFeatureKey(value: unknown): SubscriptionFeatureKey {
-  if (typeof value === 'number' && value >= 1 && value <= 3) {
-    return value as SubscriptionFeatureKey
-  }
+function normalizeTokenPackage(raw: any): AdminTokenPackage {
+  const priceVnd = Number.isFinite(Number(raw?.priceVnd ?? raw?.PriceVnd)) ? Number(raw.priceVnd ?? raw.PriceVnd) : 0
+  const creditedTokens = Number.isFinite(Number(raw?.creditedTokens ?? raw?.CreditedTokens ?? raw?.creditedAmountVnd ?? raw?.creditedBalanceVnd ?? raw?.CreditedAmountVnd ?? raw?.CreditedBalanceVnd))
+    ? Number(raw.creditedTokens ?? raw.CreditedTokens ?? raw.creditedAmountVnd ?? raw.creditedBalanceVnd ?? raw.CreditedAmountVnd ?? raw.CreditedBalanceVnd)
+    : 0
 
-  if (typeof value === 'string') {
-    const normalized = Number(value)
-    if (Number.isFinite(normalized) && normalized >= 1 && normalized <= 3) {
-      return normalized as SubscriptionFeatureKey
-    }
-    const enumValue = SubscriptionFeatureKey[value as keyof typeof SubscriptionFeatureKey]
-    if (enumValue) return enumValue
-  }
-
-  return SubscriptionFeatureKey.LearningPathCreation
-}
-
-function normalizeWindowType(value: unknown): SubscriptionWindowType {
-  if (typeof value === 'number' && value >= 1 && value <= 3) {
-    return value as SubscriptionWindowType
-  }
-
-  if (typeof value === 'string') {
-    const normalized = Number(value)
-    if (Number.isFinite(normalized) && normalized >= 1 && normalized <= 3) {
-      return normalized as SubscriptionWindowType
-    }
-    const enumValue = SubscriptionWindowType[value as keyof typeof SubscriptionWindowType]
-    if (enumValue) return enumValue
-  }
-
-  return SubscriptionWindowType.Daily
-}
-
-function normalizeLimit(raw: any): SubscriptionPlanLimit {
   return {
-    featureKey: normalizeFeatureKey(raw?.featureKey),
-    limitCount: Number.isFinite(Number(raw?.limitCount)) ? Number(raw.limitCount) : 0,
-    windowType: normalizeWindowType(raw?.windowType),
-    isEnabled: Boolean(raw?.isEnabled ?? true),
-  }
-}
-
-function normalizePlan(raw: any): AdminSubscriptionPlan {
-  return {
-    subscriptionPlanId: String(raw?.subscriptionPlanId ?? raw?.id ?? ''),
-    planType: String(raw?.planType ?? ''),
+    tokenPackageId: String(raw?.tokenPackageId ?? raw?.id ?? ''),
     name: String(raw?.name ?? ''),
     description: String(raw?.description ?? ''),
-    priceVnd: Number.isFinite(Number(raw?.priceVnd)) ? Number(raw.priceVnd) : 0,
-    durationDays: Number.isFinite(Number(raw?.durationDays)) ? Number(raw.durationDays) : 0,
+    priceVnd,
+    creditedTokens,
+    bonusVnd: Math.max(0, creditedTokens - priceVnd),
     isActive: Boolean(raw?.isActive),
     displayOrder: Number.isFinite(Number(raw?.displayOrder)) ? Number(raw.displayOrder) : 0,
-    limits: Array.isArray(raw?.limits) ? raw.limits.map(normalizeLimit) : [],
+    ...raw,
   }
 }
 
 class AdminSubscriptionService {
-  async getPlans(): Promise<AdminSubscriptionPlan[]> {
-    if (adminSubscriptionPlansMemoryCache && adminSubscriptionPlansMemoryCache.expiresAt > Date.now()) {
-      return adminSubscriptionPlansMemoryCache.data
+  async getTokenPackages(): Promise<AdminTokenPackage[]> {
+    if (adminTokenPackagesMemoryCache && adminTokenPackagesMemoryCache.expiresAt > Date.now()) {
+      return adminTokenPackagesMemoryCache.data
     }
 
-    const storageEntry = readAdminSubscriptionPlansStorageCache()
+    const storageEntry = readAdminTokenPackagesStorageCache()
     if (storageEntry) {
-      adminSubscriptionPlansMemoryCache = storageEntry
+      adminTokenPackagesMemoryCache = storageEntry
       return storageEntry.data
     }
 
     const response = await api.get(baseUrl)
-    const plans = unwrapCollection<any>(response).map(normalizePlan)
-    const cacheEntry: AdminSubscriptionPlansCacheEntry = {
-      data: plans,
-      expiresAt: Date.now() + ADMIN_SUBSCRIPTION_PLANS_CACHE_TTL_MS,
+    const tokenPackages = unwrapCollection<any>(response).map(normalizeTokenPackage)
+    const cacheEntry: AdminTokenPackagesCacheEntry = {
+      data: tokenPackages,
+      expiresAt: Date.now() + ADMIN_TOKEN_PACKAGES_CACHE_TTL_MS,
     }
-    adminSubscriptionPlansMemoryCache = cacheEntry
-    writeAdminSubscriptionPlansStorageCache(cacheEntry)
+    adminTokenPackagesMemoryCache = cacheEntry
+    writeAdminTokenPackagesStorageCache(cacheEntry)
 
-    return plans
+    return tokenPackages
   }
 
-  async createPlan(payload: UpsertAdminSubscriptionPlanPayload): Promise<AdminSubscriptionPlan> {
+  async createTokenPackage(payload: UpsertAdminTokenPackagePayload): Promise<AdminTokenPackage> {
     const response = await api.post(baseUrl, payload)
     clearAdminSubscriptionPlansCache()
-    return normalizePlan(unwrapObject<any>(response))
+    return normalizeTokenPackage(unwrapObject<any>(response))
   }
 
-  async updatePlan(subscriptionPlanId: string, payload: UpsertAdminSubscriptionPlanPayload): Promise<AdminSubscriptionPlan> {
-    const response = await api.put(`${baseUrl}/${subscriptionPlanId}`, payload)
+  async updateTokenPackage(tokenPackageId: string, payload: UpsertAdminTokenPackagePayload): Promise<AdminTokenPackage> {
+    const response = await api.put(`${baseUrl}/${tokenPackageId}`, payload)
     clearAdminSubscriptionPlansCache()
-    return normalizePlan(unwrapObject<any>(response))
+    return normalizeTokenPackage(unwrapObject<any>(response))
   }
 
-  async deletePlan(subscriptionPlanId: string): Promise<void> {
-    await api.delete(`${baseUrl}/${subscriptionPlanId}`)
+  async deleteTokenPackage(tokenPackageId: string): Promise<void> {
+    await api.delete(`${baseUrl}/${tokenPackageId}`)
     clearAdminSubscriptionPlansCache()
+  }
+
+  // Backward-compatible wrappers
+  async getPlans(): Promise<AdminTokenPackage[]> {
+    return this.getTokenPackages()
+  }
+
+  async createPlan(payload: UpsertAdminTokenPackagePayload): Promise<AdminTokenPackage> {
+    return this.createTokenPackage(payload)
+  }
+
+  async updatePlan(tokenPackageId: string, payload: UpsertAdminTokenPackagePayload): Promise<AdminTokenPackage> {
+    return this.updateTokenPackage(tokenPackageId, payload)
+  }
+
+  async deletePlan(tokenPackageId: string): Promise<void> {
+    return this.deleteTokenPackage(tokenPackageId)
   }
 }
 

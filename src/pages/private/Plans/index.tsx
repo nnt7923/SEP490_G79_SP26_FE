@@ -15,6 +15,7 @@ import SingleGoalCard from './components/SingleGoalCard'
 import Stepper from './components/Stepper'
 import { useTranslation } from 'react-i18next'
 import { getGoalTitle } from '../../../utils/goalTranslation'
+import useAuthStore from '../../../store/useAuthStore'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -115,6 +116,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
+  const refreshProfile = useAuthStore((state) => state.fetchProfile)
 
   // Chapter skeleton generation states
   const [generatingChapters, setGeneratingChapters] = useState<Set<string>>(new Set())
@@ -497,6 +499,16 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     return msg
   }
 
+  const syncWalletAfterGeneration = async () => {
+    try {
+      await refreshProfile()
+      await new Promise((resolve) => window.setTimeout(resolve, 1200))
+      await refreshProfile()
+    } catch {
+      // Keep generation success flow even when profile sync fails.
+    }
+  }
+
   const handleGenerateStudentPlan = async () => {
     if (!validateGenerationInput()) return
 
@@ -521,8 +533,10 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
 
       if (sk?.pathId) {
+        void syncWalletAfterGeneration()
         navigate('/my-plans/detail', { state: { pathId: sk.pathId } })
       } else {
+        void syncWalletAfterGeneration()
         navigate(ROUTER.PLANS_RESULT, { state: { skeleton: sk } })
       }
     } catch (e: any) {
@@ -651,6 +665,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
       // Navigate to the adopted learning path
       if (result?.pathId) {
+        void syncWalletAfterGeneration()
         navigate('/my-plans/detail', { state: { pathId: result.pathId } })
         setToast({ message: t('plans.suggestionAdoptedSuccess'), type: 'success' })
       } else {
