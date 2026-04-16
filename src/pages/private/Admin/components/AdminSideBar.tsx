@@ -7,7 +7,6 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
   return [
     { label: 'Overview', path: ROUTER.ADMIN_DASHBOARD, icon: <LayoutDashboard size={18} /> },
     { label: 'Users', path: ROUTER.ADMIN_USERS, icon: <Users size={18} /> },
-    { label: 'Reports', path: '/admin/reports', icon: <FileText size={18} /> },
     { label: 'API Key', path: ROUTER.ADMIN_API_KEY, icon: <Key size={18} /> },
     { label: 'Token Packages', path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
     { label: 'Billing', path: ROUTER.ADMIN_BILLING_TRANSACTIONS, icon: <ReceiptText size={18} /> },
@@ -23,7 +22,6 @@ export const useAdminSidebarConfig = (): SidebarNavItem[] => {
   return [
     { label: t('sidebar.overview'), path: ROUTER.ADMIN_DASHBOARD, icon: <LayoutDashboard size={18} /> },
     { label: t('sidebar.users'), path: ROUTER.ADMIN_USERS, icon: <Users size={18} /> },
-    { label: t('sidebar.reports'), path: '/admin/reports', icon: <FileText size={18} /> },
     { label: t('sidebar.apiKey'), path: ROUTER.ADMIN_API_KEY, icon: <Key size={18} /> },
     { label: t('sidebar.subscriptionPlans'), path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
     { label: t('sidebar.billing', { defaultValue: 'Billing' }), path: ROUTER.ADMIN_BILLING_TRANSACTIONS, icon: <ReceiptText size={18} /> },
