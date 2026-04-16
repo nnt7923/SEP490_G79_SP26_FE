@@ -57,7 +57,7 @@ const Subscription: React.FC = () => {
 
   useEffect(() => {
     const readBalance = (source: any): number => {
-      const value = Number(source?.BalanceVnd ?? source?.balanceVnd ?? source?.walletBalanceVnd)
+      const value = Number(source?.tokenBalance ?? source?.BalanceVnd ?? source?.balanceVnd ?? source?.walletBalanceVnd)
       return Number.isFinite(value) ? value : 0
     }
 
@@ -94,12 +94,12 @@ const Subscription: React.FC = () => {
     return toNumber(pack.priceVnd)
   }
 
-  const getCreditedBalanceVnd = (pack: TokenPackage): number => {
-    return toNumber(pack.creditedBalanceVnd)
+  const getCreditedTokens = (pack: TokenPackage): number => {
+    return toNumber(pack.creditedTokens)
   }
 
   const getBonusVnd = (pack: TokenPackage): number => {
-    return Math.max(0, getCreditedBalanceVnd(pack) - getPriceVnd(pack))
+    return Math.max(0, getCreditedTokens(pack) - getPriceVnd(pack))
   }
 
   const createPayment = async (payload: CreateVnpayPaymentRequest, processingId: string) => {
@@ -173,7 +173,7 @@ const Subscription: React.FC = () => {
             </div>
             <div style={{ fontSize: 20, color: 'var(--text-primary)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Wallet size={18} color="var(--accent-primary)" />
-              {loadingBalance ? t('subscription.loadingBalance') : `${formatCurrency(balanceVnd)} VND`}
+              {loadingBalance ? t('subscription.loadingBalance') : `${formatCurrency(balanceVnd)} token`}
             </div>
           </div>
           <button
@@ -333,7 +333,7 @@ const Subscription: React.FC = () => {
           >
             {tokenPackages.map((pack, index) => {
               const priceVnd = getPriceVnd(pack)
-              const creditedBalanceVnd = getCreditedBalanceVnd(pack)
+              const creditedTokens = getCreditedTokens(pack)
               const bonusVnd = getBonusVnd(pack)
               const isButtonDisabled = Boolean(processingKey) || pack.priceVnd <= 0
               const isProcessing = processingKey === `package:${pack.tokenPackageId}`
@@ -402,10 +402,10 @@ const Subscription: React.FC = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                       <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-                        {t('subscription.creditedBalanceVndLabel')}
+                        {t('subscription.creditedTokensLabel')}
                       </span>
                       <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 700 }}>
-                        {formatCurrency(creditedBalanceVnd)} VND
+                        {formatCurrency(creditedTokens)} token
                       </span>
                     </div>
 

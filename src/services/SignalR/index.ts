@@ -137,7 +137,24 @@ function parseWalletUpdateTimestamp(raw: unknown): number {
 }
 
 function extractWalletBalance(payload: any): number | null {
-  const numeric = Number(payload?.BalanceVnd ?? payload?.balanceVnd)
+  const candidates = [
+    payload,
+    payload?.data,
+    payload?.result,
+    payload?.value,
+    payload?.payload,
+  ]
+
+  let numeric: number | null = null
+  for (const item of candidates) {
+    const next = Number(item?.tokenBalance ?? item?.TokenBalance ?? item?.BalanceVnd ?? item?.balanceVnd)
+    if (Number.isFinite(next)) {
+      numeric = next
+      break
+    }
+  }
+
+  if (numeric == null) return null
   if (!Number.isFinite(numeric)) return null
   return Math.max(0, Math.round(numeric))
 }
@@ -148,7 +165,7 @@ function applyWalletBalanceUpdate(payload: any, source: string): void {
 
   const updatedAtMs = parseWalletUpdateTimestamp(payload?.UpdatedAtUtc ?? payload?.updatedAtUtc)
   if (updatedAtMs < lastWalletBalanceUpdateAtMs) {
-    debugSignalR(source, 'skip stale WalletBalanceUpdated payload', payload)
+    debugSignalR(source, 'skip stale WalletTokenBalanceUpdated payload', payload)
     return
   }
   lastWalletBalanceUpdateAtMs = updatedAtMs
@@ -158,16 +175,21 @@ function applyWalletBalanceUpdate(payload: any, source: string): void {
     const currentUser = authState.user as any
     authState.setUser({
       ...(currentUser ?? {}),
+      tokenBalance: nextBalance,
       BalanceVnd: nextBalance,
       balanceVnd: nextBalance,
     })
-    debugSignalR(source, 'applied WalletBalanceUpdated', {
-      balanceVnd: nextBalance,
+    debugSignalR(source, 'applied WalletTokenBalanceUpdated', {
+      tokenBalance: nextBalance,
       updatedAtUtc: payload?.UpdatedAtUtc ?? payload?.updatedAtUtc,
     })
   } catch {
     // ignore store update errors
   }
+}
+
+function applyWalletBalanceUpdateFromInvokeResult(result: any, source: string): void {
+  applyWalletBalanceUpdate(result, source)
 }
 
 export function setSignalRDebug(enabled: boolean): void {
@@ -231,6 +253,14 @@ function buildConnection(url: string, name: string): signalR.HubConnection {
     .configureLogging(isSignalRDebugEnabled() ? signalR.LogLevel.Information : signalR.LogLevel.None)
     .build()
 
+  const originalInvoke = conn.invoke.bind(conn)
+  conn.invoke = (async (...args: unknown[]) => {
+    const result = await originalInvoke(...args)
+    const methodName = String(args[0] ?? 'unknown')
+    applyWalletBalanceUpdateFromInvokeResult(result, `${name}.invoke.${methodName}`)
+    return result
+  }) as typeof conn.invoke
+
   conn.onreconnecting((error) => {
     debugSignalR(name, 'connection reconnecting', { error: resolveHubErrorMessage(error, 'Unknown reconnect error') })
   })
@@ -241,7 +271,7 @@ function buildConnection(url: string, name: string): signalR.HubConnection {
     debugSignalR(name, 'connection closed', error ? { error: resolveHubErrorMessage(error, 'Unknown close error') } : undefined)
   })
 
-  conn.on('WalletBalanceUpdated', (payload: any) => {
+  conn.on('WalletTokenBalanceUpdated', (payload: any) => {
     applyWalletBalanceUpdate(payload, name)
   })
 

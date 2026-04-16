@@ -1,53 +1,29 @@
-import React, { useEffect, useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { AdminSubscriptionService } from '../../../../services'
 import {
-  SubscriptionFeatureKey,
-  SubscriptionWindowType,
-  type AdminSubscriptionPlan,
-  type SubscriptionPlanLimit,
-  type UpsertAdminSubscriptionPlanPayload,
+  type AdminTokenPackage,
+  type UpsertAdminTokenPackagePayload,
 } from '../../../../services/AdminSubscriptionService'
 import { useTranslation } from 'react-i18next'
-import { CreditCard, RefreshCw, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Package, RefreshCw, Plus, Pencil, Trash2, X } from 'lucide-react'
 
 type NoticeType = 'success' | 'error'
 
-const defaultForm: UpsertAdminSubscriptionPlanPayload = {
-  planType: '',
+const defaultForm: UpsertAdminTokenPackagePayload = {
   name: '',
   description: '',
   priceVnd: 0,
-  durationDays: 0,
+  creditedTokens: 0,
   isActive: true,
   displayOrder: 1,
-  limits: [
-    {
-      featureKey: SubscriptionFeatureKey.LearningPathCreation,
-      limitCount: 0,
-      windowType: SubscriptionWindowType.Daily,
-      isEnabled: true,
-    },
-  ],
 }
 
-const normalizeNumber = (value: string, fallback = 0) => {
+const normalizeNumber = (value: string, fallback = 0): number => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
-
-const featureKeyOptions = [
-  SubscriptionFeatureKey.LearningPathCreation,
-  SubscriptionFeatureKey.TutorMessages,
-  SubscriptionFeatureKey.FocusSessionReview,
-] as const
-
-const windowTypeOptions = [
-  SubscriptionWindowType.Daily,
-  SubscriptionWindowType.Monthly,
-  SubscriptionWindowType.Lifetime,
-] as const
 
 const AdminSubscriptionPlansPage: React.FC = () => {
   const { t } = useTranslation('admin')
@@ -55,10 +31,10 @@ const AdminSubscriptionPlansPage: React.FC = () => {
   const sidebarConfig = {
     navItems: navItems as any,
     actions: [],
-    brand: { name: 'Admin', subtitle: 'Subscriptions' },
+    brand: { name: 'Admin', subtitle: 'Token Packages' },
   }
 
-  const [plans, setPlans] = useState<AdminSubscriptionPlan[]>([])
+  const [tokenPackages, setTokenPackages] = useState<AdminTokenPackage[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [saving, setSaving] = useState<boolean>(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -66,52 +42,15 @@ const AdminSubscriptionPlansPage: React.FC = () => {
   const [notice, setNotice] = useState<{ type: NoticeType; message: string } | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState<boolean>(false)
-  const [form, setForm] = useState<UpsertAdminSubscriptionPlanPayload>(defaultForm)
+  const [form, setForm] = useState<UpsertAdminTokenPackagePayload>(defaultForm)
 
-  const sortedPlans = useMemo(
-    () => [...plans].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name)),
-    [plans]
+  const sortedTokenPackages = useMemo(
+    () => [...tokenPackages].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name)),
+    [tokenPackages],
   )
 
-  const getFeatureKeyLabel = (value: number) => {
-    if (value === SubscriptionFeatureKey.LearningPathCreation) return t('subscriptionPlans.featureKeyLearningPathCreation')
-    if (value === SubscriptionFeatureKey.TutorMessages) return t('subscriptionPlans.featureKeyTutorMessages')
-    if (value === SubscriptionFeatureKey.FocusSessionReview) return t('subscriptionPlans.featureKeyFocusSessionReview')
-    return String(value)
-  }
-
-  const getWindowTypeLabel = (value: number) => {
-    if (value === SubscriptionWindowType.Daily) return t('subscriptionPlans.windowTypeDaily')
-    if (value === SubscriptionWindowType.Monthly) return t('subscriptionPlans.windowTypeMonthly')
-    if (value === SubscriptionWindowType.Lifetime) return t('subscriptionPlans.windowTypeLifetime')
-    return String(value)
-  }
-
-  const formatLimitValue = (limit: SubscriptionPlanLimit) => {
-    const cycle = getWindowTypeLabel(limit.windowType).toLowerCase()
-    if (limit.windowType === SubscriptionWindowType.Lifetime && limit.limitCount <= 0) {
-      return t('subscriptionPlans.durationUnlimited')
-    }
-    if (limit.windowType === SubscriptionWindowType.Lifetime) {
-      return t('subscriptionPlans.lifetimeQuotaLabel', { count: limit.limitCount })
-    }
-    return `${limit.limitCount}/${cycle}`
-  }
-
-  const getLocalizedPlanName = (name: string) => {
-    const normalized = String(name || '').trim().toLowerCase()
-    if (normalized === 'free') return t('subscriptionPlans.planNameFree')
-    if (normalized === 'standard') return t('subscriptionPlans.planNameStandard')
-    if (normalized === 'pro') return t('subscriptionPlans.planNamePro')
-    if (normalized === 'premium') return t('subscriptionPlans.planNamePremium')
-    return name
-  }
-
-  const formatDurationLabel = (durationDays: number) => {
-    if (!Number.isFinite(durationDays) || durationDays <= 0) {
-      return t('subscriptionPlans.durationUnlimited')
-    }
-    return t('subscriptionPlans.durationDaysLabel', { count: durationDays })
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN').format(Math.max(0, Math.round(Number(amount) || 0)))
   }
 
   const resetForm = () => {
@@ -120,12 +59,12 @@ const AdminSubscriptionPlansPage: React.FC = () => {
     setShowForm(false)
   }
 
-  const fetchPlans = async () => {
+  const fetchTokenPackages = async () => {
     setLoading(true)
     setError('')
     try {
-      const list = await AdminSubscriptionService.getPlans()
-      setPlans(list)
+      const list = await AdminSubscriptionService.getTokenPackages()
+      setTokenPackages(list)
     } catch (err: unknown) {
       const message = (err as { message?: string })?.message || t('subscriptionPlans.failedToLoad')
       setError(message)
@@ -135,7 +74,7 @@ const AdminSubscriptionPlansPage: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchPlans()
+    void fetchTokenPackages()
   }, [])
 
   const onCreateOrUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -145,19 +84,14 @@ const AdminSubscriptionPlansPage: React.FC = () => {
     setNotice(null)
 
     try {
-      if (!form.limits.length) {
-        setError(t('subscriptionPlans.limitsRequired'))
-        return
-      }
-
       if (editingId) {
-        await AdminSubscriptionService.updatePlan(editingId, form)
+        await AdminSubscriptionService.updateTokenPackage(editingId, form)
         setNotice({ type: 'success', message: t('subscriptionPlans.updateSuccess') })
       } else {
-        await AdminSubscriptionService.createPlan(form)
+        await AdminSubscriptionService.createTokenPackage(form)
         setNotice({ type: 'success', message: t('subscriptionPlans.createSuccess') })
       }
-      await fetchPlans()
+      await fetchTokenPackages()
       resetForm()
     } catch (err: unknown) {
       const message = (err as { message?: string })?.message || t('subscriptionPlans.saveFailed')
@@ -167,81 +101,33 @@ const AdminSubscriptionPlansPage: React.FC = () => {
     }
   }
 
-  const onEdit = (plan: AdminSubscriptionPlan) => {
-    setEditingId(plan.subscriptionPlanId)
+  const onEdit = (tokenPackage: AdminTokenPackage) => {
+    setEditingId(tokenPackage.tokenPackageId)
     setForm({
-      planType: plan.planType,
-      name: plan.name,
-      description: plan.description,
-      priceVnd: plan.priceVnd,
-      durationDays: plan.durationDays,
-      isActive: plan.isActive,
-      displayOrder: plan.displayOrder,
-      limits: plan.limits?.length
-        ? plan.limits.map((item) => ({
-          featureKey: item.featureKey,
-          limitCount: item.limitCount,
-          windowType: item.windowType,
-          isEnabled: item.isEnabled,
-        }))
-        : [
-          {
-            featureKey: SubscriptionFeatureKey.LearningPathCreation,
-            limitCount: 0,
-            windowType: SubscriptionWindowType.Daily,
-            isEnabled: true,
-          },
-        ],
+      name: tokenPackage.name,
+      description: tokenPackage.description,
+      priceVnd: tokenPackage.priceVnd,
+      creditedTokens: tokenPackage.creditedTokens,
+      isActive: tokenPackage.isActive,
+      displayOrder: tokenPackage.displayOrder,
     })
     setShowForm(true)
     setNotice(null)
     setError('')
   }
 
-  const updateLimit = (index: number, patch: Partial<SubscriptionPlanLimit>) => {
-    setForm((previous) => ({
-      ...previous,
-      limits: previous.limits.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
-    }))
-  }
-
-  const addLimit = () => {
-    setForm((previous) => ({
-      ...previous,
-      limits: [
-        ...previous.limits,
-        {
-          featureKey: SubscriptionFeatureKey.LearningPathCreation,
-          limitCount: 0,
-          windowType: SubscriptionWindowType.Daily,
-          isEnabled: true,
-        },
-      ],
-    }))
-  }
-
-  const removeLimit = (index: number) => {
-    setForm((previous) => {
-      if (previous.limits.length <= 1) return previous
-      return {
-        ...previous,
-        limits: previous.limits.filter((_, itemIndex) => itemIndex !== index),
-      }
-    })
-  }
-
-  const onDelete = async (plan: AdminSubscriptionPlan) => {
-    const accepted = window.confirm(t('subscriptionPlans.deleteConfirm', { name: plan.name }))
+  const onDelete = async (tokenPackage: AdminTokenPackage) => {
+    const accepted = window.confirm(t('subscriptionPlans.deleteConfirm', { name: tokenPackage.name }))
     if (!accepted) return
 
-    setDeletingId(plan.subscriptionPlanId)
+    setDeletingId(tokenPackage.tokenPackageId)
     setError('')
     setNotice(null)
     try {
-      await AdminSubscriptionService.deletePlan(plan.subscriptionPlanId)
+      await AdminSubscriptionService.deleteTokenPackage(tokenPackage.tokenPackageId)
       setNotice({ type: 'success', message: t('subscriptionPlans.deleteSuccess') })
-      await fetchPlans()
-      if (editingId === plan.subscriptionPlanId) {
+      await fetchTokenPackages()
+      if (editingId === tokenPackage.tokenPackageId) {
         resetForm()
       }
     } catch (err: unknown) {
@@ -260,7 +146,7 @@ const AdminSubscriptionPlansPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-heading border-none bg-transparent flex items-center gap-2">
-                  <CreditCard className="text-status-blue" size={28} />
+                  <Package className="text-status-blue" size={28} />
                   {t('subscriptionPlans.title')}
                 </h1>
                 <p className="text-muted mt-2">{t('subscriptionPlans.subtitle')}</p>
@@ -268,7 +154,7 @@ const AdminSubscriptionPlansPage: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={fetchPlans}
+                  onClick={() => { void fetchTokenPackages() }}
                   disabled={loading}
                   className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm disabled:opacity-60"
                 >
@@ -317,17 +203,6 @@ const AdminSubscriptionPlansPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-body mb-2">{t('subscriptionPlans.planType')}</label>
-                  <input
-                    required
-                    value={form.planType}
-                    onChange={(event) => setForm((previous) => ({ ...previous, planType: event.target.value }))}
-                    placeholder={t('subscriptionPlans.planTypePlaceholder')}
-                    className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
-                  />
-                </div>
-
-                <div>
                   <label className="block text-sm font-bold text-body mb-2">{t('subscriptionPlans.name')}</label>
                   <input
                     required
@@ -351,13 +226,13 @@ const AdminSubscriptionPlansPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-body mb-2">{t('subscriptionPlans.durationDays')}</label>
+                  <label className="block text-sm font-bold text-body mb-2">{t('subscriptionPlans.creditedTokens')}</label>
                   <input
                     type="number"
                     min={0}
                     required
-                    value={form.durationDays}
-                    onChange={(event) => setForm((previous) => ({ ...previous, durationDays: normalizeNumber(event.target.value) }))}
+                    value={form.creditedTokens}
+                    onChange={(event) => setForm((previous) => ({ ...previous, creditedTokens: normalizeNumber(event.target.value) }))}
                     className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
                   />
                 </div>
@@ -398,95 +273,6 @@ const AdminSubscriptionPlansPage: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-bold text-body">{t('subscriptionPlans.limits')}</label>
-                  <button
-                    type="button"
-                    onClick={addLimit}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-green-500 text-green-700 text-xs font-bold hover:bg-green-50 transition-colors rounded-sm"
-                  >
-                    <Plus size={14} />
-                    {t('subscriptionPlans.addLimit')}
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {form.limits.map((limit, index) => (
-                    <div key={`limit-${index}`} className="border border-bd p-3 rounded-sm bg-th-page">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold text-body mb-1">{t('subscriptionPlans.featureKey')}</label>
-                          <select
-                            value={limit.featureKey}
-                            onChange={(event) =>
-                              updateLimit(index, {
-                                featureKey: normalizeNumber(event.target.value, SubscriptionFeatureKey.LearningPathCreation) as SubscriptionFeatureKey,
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
-                          >
-                            {featureKeyOptions.map((option) => (
-                              <option key={option} value={option}>{getFeatureKeyLabel(option)}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-body mb-1">{t('subscriptionPlans.limitCount')}</label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={limit.limitCount}
-                            onChange={(event) => updateLimit(index, { limitCount: normalizeNumber(event.target.value) })}
-                            className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-body mb-1">{t('subscriptionPlans.windowType')}</label>
-                          <select
-                            value={limit.windowType}
-                            onChange={(event) =>
-                              updateLimit(index, {
-                                windowType: normalizeNumber(event.target.value, SubscriptionWindowType.Daily) as SubscriptionWindowType,
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
-                          >
-                            {windowTypeOptions.map((option) => (
-                              <option key={option} value={option}>{getWindowTypeLabel(option)}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="flex items-center justify-between md:justify-start gap-4">
-                          <label className="inline-flex items-center gap-2 text-xs font-bold text-body mt-5">
-                            <input
-                              type="checkbox"
-                              checked={limit.isEnabled}
-                              onChange={(event) => updateLimit(index, { isEnabled: event.target.checked })}
-                              className="w-4 h-4"
-                            />
-                            {t('subscriptionPlans.isEnabled')}
-                          </label>
-
-                          <button
-                            type="button"
-                            disabled={form.limits.length <= 1}
-                            onClick={() => removeLimit(index)}
-                            className="mt-5 inline-flex items-center gap-1 px-2 py-1 border border-red-400 text-red-700 text-xs font-bold hover:bg-red-50 transition-colors rounded-sm disabled:opacity-50"
-                          >
-                            <Trash2 size={13} />
-                            {t('subscriptionPlans.removeLimit')}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               <div className="flex items-center gap-3">
                 <button
                   type="submit"
@@ -511,12 +297,12 @@ const AdminSubscriptionPlansPage: React.FC = () => {
 
           <div className="bg-th-card border border-bd-strong overflow-hidden">
             <div className="px-4 py-3 border-b border-bd text-sm font-bold text-heading">
-              {t('subscriptionPlans.listTitle', { count: sortedPlans.length })}
+              {t('subscriptionPlans.listTitle', { count: sortedTokenPackages.length })}
             </div>
 
             {loading ? (
               <div className="px-4 py-8 text-center text-sm text-muted">{t('subscriptionPlans.loading')}</div>
-            ) : sortedPlans.length === 0 ? (
+            ) : sortedTokenPackages.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-muted">{t('subscriptionPlans.empty')}</div>
             ) : (
               <div className="overflow-x-auto">
@@ -524,66 +310,48 @@ const AdminSubscriptionPlansPage: React.FC = () => {
                   <thead className="bg-[var(--gray-100)] border-b border-bd-strong">
                     <tr className="text-left">
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.name')}</th>
-                      <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.planType')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.priceVnd')}</th>
-                      <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.durationDays')}</th>
-                      <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.limits')}</th>
+                      <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.creditedTokens')}</th>
+                      <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.bonusVnd')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.displayOrder')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.status')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedPlans.map((plan) => (
-                      <tr key={plan.subscriptionPlanId} className="border-b border-bd last:border-b-0">
+                    {sortedTokenPackages.map((tokenPackage) => (
+                      <tr key={tokenPackage.tokenPackageId} className="border-b border-bd last:border-b-0">
                         <td className="px-4 py-3">
-                          <p className="font-bold text-heading">{getLocalizedPlanName(plan.name)}</p>
-                          <p className="text-xs text-muted mt-1">{plan.description}</p>
+                          <p className="font-bold text-heading">{tokenPackage.name}</p>
+                          <p className="text-xs text-muted mt-1">{tokenPackage.description}</p>
                         </td>
-                        <td className="px-4 py-3 text-label">{getLocalizedPlanName(plan.planType)}</td>
-                        <td className="px-4 py-3 text-label">{plan.priceVnd.toLocaleString('vi-VN')} VND</td>
-                        <td className="px-4 py-3 text-label">{formatDurationLabel(plan.durationDays)}</td>
+                        <td className="px-4 py-3 text-label">{formatCurrency(tokenPackage.priceVnd)} VND</td>
+                        <td className="px-4 py-3 text-label">{formatCurrency(tokenPackage.creditedTokens)} token</td>
+                        <td className="px-4 py-3 text-label">+{formatCurrency(tokenPackage.bonusVnd)} VND</td>
+                        <td className="px-4 py-3 text-label">{tokenPackage.displayOrder}</td>
                         <td className="px-4 py-3">
-                          {plan.limits?.length ? (
-                            <div className="min-w-[250px] rounded-sm border border-[var(--gray-300)] bg-th-card divide-y divide-[var(--gray-300)]">
-                              {plan.limits.map((limit, index) => (
-                                <div
-                                  key={`${plan.subscriptionPlanId}-limit-${index}`}
-                                  className="px-3 py-2.5"
-                                >
-                                  <p className="text-[13px] font-bold text-[var(--gray-900)] leading-5">{getFeatureKeyLabel(limit.featureKey)}</p>
-                                  <p className="mt-1 text-[12px] text-[var(--gray-700)] font-semibold">{formatLimitValue(limit)}</p>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted">{t('subscriptionPlans.noLimits')}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-label">{plan.displayOrder}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-0.5 border rounded-sm text-xs font-bold ${plan.isActive
+                          <span className={`inline-flex px-2 py-0.5 border rounded-sm text-xs font-bold ${tokenPackage.isActive
                             ? 'bg-green-50 text-green-700 border-green-300'
                             : 'bg-gray-100 text-gray-600 border-gray-300'}`}>
-                            {plan.isActive ? t('subscriptionPlans.active') : t('subscriptionPlans.inactive')}
+                            {tokenPackage.isActive ? t('subscriptionPlans.active') : t('subscriptionPlans.inactive')}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => onEdit(plan)}
+                              onClick={() => onEdit(tokenPackage)}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-blue-400 text-status-blue text-xs font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
                             >
                               <Pencil size={14} />
                               {t('subscriptionPlans.edit')}
                             </button>
                             <button
-                              onClick={() => onDelete(plan)}
-                              disabled={deletingId === plan.subscriptionPlanId}
+                              onClick={() => onDelete(tokenPackage)}
+                              disabled={deletingId === tokenPackage.tokenPackageId}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-red-400 text-red-700 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer rounded-sm disabled:opacity-60"
                             >
                               <Trash2 size={14} />
-                              {deletingId === plan.subscriptionPlanId ? t('subscriptionPlans.deleting') : t('subscriptionPlans.delete')}
+                              {deletingId === tokenPackage.tokenPackageId ? t('subscriptionPlans.deleting') : t('subscriptionPlans.delete')}
                             </button>
                           </div>
                         </td>

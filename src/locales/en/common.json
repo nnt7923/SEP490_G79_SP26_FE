@@ -17,8 +17,8 @@
     "changePassword": "Change Password",
     "logout": "Logout",
     "mustPauseBeforeLogout": "Pause your focus session before logging out.",
-    "balanceBadgeTitle": "Wallet balance",
-    "balanceBadge": "{{amount}} VND"
+    "balanceBadgeTitle": "Token balance",
+    "balanceBadge": "{{amount}} tokens"
   },
   "theme": {
     "switchToDark": "Switch to dark mode",
@@ -93,7 +93,7 @@
     "users": "Users",
     "reports": "Reports",
     "apiKey": "API Key",
-    "subscriptionPlans": "Subscription Plans",
+    "subscriptionPlans": "Token Packages",
     "billing": "Billing",
     "aiSpending": "AI Spending",
     "mentorAiUsage": "Mentor AI Usage",

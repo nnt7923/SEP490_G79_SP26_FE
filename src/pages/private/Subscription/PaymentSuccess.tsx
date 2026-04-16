@@ -30,7 +30,7 @@ const PaymentSuccess: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState<boolean>(true)
   const [message, setMessage] = useState<string>('')
   const [balanceVnd, setBalanceVnd] = useState<number>(() => {
-    const parsed = Number((user as any)?.BalanceVnd ?? (user as any)?.balanceVnd ?? 0)
+    const parsed = Number((user as any)?.tokenBalance ?? (user as any)?.BalanceVnd ?? (user as any)?.balanceVnd ?? 0)
     return Number.isFinite(parsed) ? parsed : 0
   })
 
@@ -62,7 +62,7 @@ const PaymentSuccess: React.FC = () => {
       try {
         const profileRaw = await UserService.getProfile()
         const profile = (profileRaw as any)?.data ?? profileRaw
-        const latestBalance = Number(profile?.BalanceVnd ?? profile?.balanceVnd)
+        const latestBalance = Number(profile?.tokenBalance ?? profile?.BalanceVnd ?? profile?.balanceVnd)
 
         if (!cancelled && Number.isFinite(latestBalance)) {
           setBalanceVnd(latestBalance)

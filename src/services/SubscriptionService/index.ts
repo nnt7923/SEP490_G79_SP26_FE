@@ -74,6 +74,7 @@ export interface TokenPackage {
   name: string
   description: string
   priceVnd: number
+  creditedTokens: number
   creditedBalanceVnd: number
   bonusVnd: number
   isActive: boolean
@@ -201,17 +202,18 @@ function normalizeTokenPackage(raw: unknown): TokenPackage {
   const priceVnd = Number.isFinite(Number(record.priceVnd ?? record.PriceVnd))
     ? Number(record.priceVnd ?? record.PriceVnd)
     : 0
-  const creditedBalanceVnd = Number.isFinite(Number(record.creditedBalanceVnd ?? record.CreditedBalanceVnd))
-    ? Number(record.creditedBalanceVnd ?? record.CreditedBalanceVnd)
+  const creditedTokens = Number.isFinite(Number(record.creditedTokens ?? record.CreditedTokens ?? record.creditedBalanceVnd ?? record.CreditedBalanceVnd))
+    ? Number(record.creditedTokens ?? record.CreditedTokens ?? record.creditedBalanceVnd ?? record.CreditedBalanceVnd)
     : 0
-  const bonusVnd = Math.max(0, creditedBalanceVnd - priceVnd)
+  const bonusVnd = Math.max(0, creditedTokens - priceVnd)
 
   return {
     tokenPackageId: String(record.tokenPackageId ?? record.id ?? ''),
     name: String(record.name ?? ''),
     description: String(record.description ?? ''),
     priceVnd,
-    creditedBalanceVnd,
+    creditedTokens,
+    creditedBalanceVnd: creditedTokens,
     bonusVnd,
     isActive: Boolean(record.isActive ?? true),
     displayOrder: Number.isFinite(Number(record.displayOrder)) ? Number(record.displayOrder) : 0,

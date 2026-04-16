@@ -101,7 +101,7 @@ const Header: React.FC = () => {
   const profilePath = isAdmin ? '' : (isMentor ? ROUTER.MENTOR_PROFILE : ROUTER.PROFILE)
 
   const showPlansLink = !isAdmin
-  const balanceVnd = Number((user as any)?.BalanceVnd ?? (user as any)?.balanceVnd ?? 0)
+  const balanceVnd = Number((user as any)?.tokenBalance ?? (user as any)?.BalanceVnd ?? (user as any)?.balanceVnd ?? 0)
   const formattedBalanceVnd = Number.isFinite(balanceVnd)
     ? new Intl.NumberFormat('vi-VN').format(Math.max(0, Math.round(balanceVnd)))
     : '0'

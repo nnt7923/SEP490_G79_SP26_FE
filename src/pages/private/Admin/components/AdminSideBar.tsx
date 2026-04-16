@@ -9,7 +9,7 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
     { label: 'Users', path: ROUTER.ADMIN_USERS, icon: <Users size={18} /> },
     { label: 'Reports', path: '/admin/reports', icon: <FileText size={18} /> },
     { label: 'API Key', path: ROUTER.ADMIN_API_KEY, icon: <Key size={18} /> },
-    { label: 'Subscription Plans', path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
+    { label: 'Token Packages', path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, icon: <CreditCard size={18} /> },
     { label: 'Billing', path: ROUTER.ADMIN_BILLING_TRANSACTIONS, icon: <ReceiptText size={18} /> },
     { label: 'AI Spending', path: ROUTER.ADMIN_AI_SPENDING, icon: <Wallet size={18} /> },
     { label: 'Mentor AI Usage', path: ROUTER.ADMIN_MENTOR_AI_USAGE, icon: <Bot size={18} /> },
