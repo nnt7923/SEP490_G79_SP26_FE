@@ -36,7 +36,6 @@ const AdminBillingTransactions = React.lazy(() => import('../pages/private/Admin
 const AdminAIUsageSpending = React.lazy(() => import('../pages/private/Admin/AIUsageSpending'))
 const AdminMentorAIUsage = React.lazy(() => import('../pages/private/Admin/MentorAIUsage'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
-const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
 const AdminAuditLogs = React.lazy(() => import('../pages/private/Admin/AuditLogs'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
@@ -149,7 +148,6 @@ const router = createBrowserRouter([
       { path: ROUTER.ADMIN_AI_SPENDING, element: <AdminAIUsageSpending /> },
       { path: ROUTER.ADMIN_MENTOR_AI_USAGE, element: <AdminMentorAIUsage /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
-      { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },
       { path: ROUTER.ADMIN_AUDIT_LOGS, element: <AdminAuditLogs /> },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
