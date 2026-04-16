@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
-import { UserService, AdminSubscriptionService } from '../../../../services'
+import { UserService } from '../../../../services'
 import AdminBillingService, { PaymentStatus, type BillingTransaction } from '../../../../services/AdminBillingService'
-import { RefreshCw, Search, ReceiptText, ChevronLeft, ChevronRight, FilterX, Eye, X } from 'lucide-react'
+import { RefreshCw, Search, ReceiptText, ChevronLeft, ChevronRight, FilterX, Eye, X, SlidersHorizontal } from 'lucide-react'
 import { formatDateTimeVN } from '../../../../utils/dateUtils'
 import { useTranslation } from 'react-i18next'
 
@@ -12,12 +12,7 @@ type StudentOption = {
   label: string
 }
 
-type PlanOption = {
-  id: string
-  name: string
-}
-
-const PAGE_SIZE_OPTIONS = [20, 50, 100]
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
 const AdminBillingPage: React.FC = () => {
   const { t } = useTranslation('admin')
@@ -31,14 +26,13 @@ const AdminBillingPage: React.FC = () => {
 
   const [rows, setRows] = useState<BillingTransaction[]>([])
   const [students, setStudents] = useState<StudentOption[]>([])
-  const [plans, setPlans] = useState<PlanOption[]>([])
 
   const [loading, setLoading] = useState<boolean>(false)
   const [loadingFilters, setLoadingFilters] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
 
   const [pageNumber, setPageNumber] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(20)
+  const [pageSize, setPageSize] = useState<number>(10)
   const [totalCount, setTotalCount] = useState<number>(0)
   const [totalPages, setTotalPages] = useState<number>(1)
 
@@ -46,7 +40,6 @@ const AdminBillingPage: React.FC = () => {
   const [toUtc, setToUtc] = useState<string>('')
   const [status, setStatus] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
-  const [subscriptionPlanId, setSubscriptionPlanId] = useState<string>('')
   const [provider, setProvider] = useState<string>('VNPAY')
   const [search, setSearch] = useState<string>('')
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false)
@@ -119,10 +112,7 @@ const AdminBillingPage: React.FC = () => {
   const loadFilterSources = async () => {
     setLoadingFilters(true)
     try {
-      const [usersData, plansData] = await Promise.all([
-        UserService.listUsers(),
-        AdminSubscriptionService.getPlans(),
-      ])
+      const usersData = await UserService.listUsers()
 
       const studentOptions = (Array.isArray(usersData) ? usersData : [])
         .filter(isStudent)
@@ -133,18 +123,9 @@ const AdminBillingPage: React.FC = () => {
         .filter((item) => item.id)
         .sort((a, b) => a.label.localeCompare(b.label))
 
-      const planOptions = (Array.isArray(plansData) ? plansData : [])
-        .map((item) => ({
-          id: String(item.subscriptionPlanId || ''),
-          name: String(item.name || item.planType || item.subscriptionPlanId || ''),
-        }))
-        .filter((item) => item.id)
-
       setStudents(studentOptions)
-      setPlans(planOptions)
     } catch {
       setStudents([])
-      setPlans([])
     } finally {
       setLoadingFilters(false)
     }
@@ -162,7 +143,6 @@ const AdminBillingPage: React.FC = () => {
         toUtc: toUtc ? new Date(toUtc).toISOString() : undefined,
         status: status === '' ? undefined : Number(status) as PaymentStatus,
         userId: userId || undefined,
-        subscriptionPlanId: subscriptionPlanId || undefined,
         provider: provider || undefined,
         search: search.trim() || undefined,
       })
@@ -187,14 +167,13 @@ const AdminBillingPage: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions()
-  }, [pageNumber, pageSize, fromUtc, toUtc, status, userId, subscriptionPlanId, provider, search])
+  }, [pageNumber, pageSize, fromUtc, toUtc, status, userId, provider, search])
 
   const resetFilters = () => {
     setFromUtc('')
     setToUtc('')
     setStatus('')
     setUserId('')
-    setSubscriptionPlanId('')
     setProvider('VNPAY')
     setSearch('')
     setPageNumber(1)
@@ -252,11 +231,24 @@ const AdminBillingPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-th-card border border-bd-strong p-4 space-y-4">
-            <h2 className="text-sm font-bold text-heading">{t('billing.filters')}</h2>
+          <div className="bg-th-card border border-bd-strong p-5 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bd pb-3">
+              <h2 className="text-sm font-bold text-heading inline-flex items-center gap-2">
+                <SlidersHorizontal size={16} />
+                {t('billing.filters')}
+              </h2>
+              <button
+                onClick={resetFilters}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-bd-input bg-th-card text-body text-sm font-bold hover:bg-th-page transition-colors cursor-pointer rounded-sm"
+              >
+                <FilterX size={16} />
+                {t('billing.resetFilters')}
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.fromUtc')}</label>
+                <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide">{t('billing.fromUtc')}</label>
                 <input
                   type="datetime-local"
                   value={fromUtc}
@@ -264,12 +256,12 @@ const AdminBillingPage: React.FC = () => {
                     setFromUtc(event.target.value)
                     setPageNumber(1)
                   }}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
+                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.toUtc')}</label>
+                <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide">{t('billing.toUtc')}</label>
                 <input
                   type="datetime-local"
                   value={toUtc}
@@ -277,19 +269,19 @@ const AdminBillingPage: React.FC = () => {
                     setToUtc(event.target.value)
                     setPageNumber(1)
                   }}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
+                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.paymentStatus')}</label>
+                <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide">{t('billing.paymentStatus')}</label>
                 <select
                   value={status}
                   onChange={(event) => {
                     setStatus(event.target.value)
                     setPageNumber(1)
                   }}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
+                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                 >
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -298,14 +290,14 @@ const AdminBillingPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.provider')}</label>
+                <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide">{t('billing.provider')}</label>
                 <select
                   value={provider}
                   onChange={(event) => {
                     setProvider(event.target.value)
                     setPageNumber(1)
                   }}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
+                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                 >
                   <option value="">{t('billing.allProviders')}</option>
                   <option value="VNPAY">VNPAY</option>
@@ -313,14 +305,14 @@ const AdminBillingPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.student')}</label>
+                <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide">{t('billing.student')}</label>
                 <select
                   value={userId}
                   onChange={(event) => {
                     setUserId(event.target.value)
                     setPageNumber(1)
                   }}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
+                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                   disabled={loadingFilters}
                 >
                   <option value="">{t('billing.allStudents')}</option>
@@ -330,25 +322,8 @@ const AdminBillingPage: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.subscriptionPlan')}</label>
-                <select
-                  value={subscriptionPlanId}
-                  onChange={(event) => {
-                    setSubscriptionPlanId(event.target.value)
-                    setPageNumber(1)
-                  }}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
-                >
-                  <option value="">{t('billing.allPlans')}</option>
-                  {plans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>{plan.name}</option>
-                  ))}
-                </select>
-              </div>
-
               <div className="md:col-span-2 xl:col-span-2">
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.search')}</label>
+                <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide">{t('billing.search')}</label>
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-placeholder" />
                   <input
@@ -358,36 +333,10 @@ const AdminBillingPage: React.FC = () => {
                       setPageNumber(1)
                     }}
                     placeholder={t('billing.searchPlaceholder')}
-                    className="w-full pl-10 pr-4 py-2 border border-bd-input bg-white text-sm focus:outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-bd-input bg-white text-sm rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('billing.pageSize')}</label>
-                <select
-                  value={pageSize}
-                  onChange={(event) => {
-                    setPageSize(Number(event.target.value))
-                    setPageNumber(1)
-                  }}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                onClick={resetFilters}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-bd-input bg-th-card text-body text-sm font-bold hover:bg-th-page transition-colors cursor-pointer rounded-sm"
-              >
-                <FilterX size={16} />
-                {t('billing.resetFilters')}
-              </button>
             </div>
           </div>
 
@@ -403,7 +352,6 @@ const AdminBillingPage: React.FC = () => {
                 <thead className="bg-th-input border-b border-bd text-heading text-sm font-semibold">
                   <tr>
                     <th className="p-3 w-[260px]">{t('billing.student')}</th>
-                    <th className="p-3 w-[180px]">{t('billing.subscriptionPlan')}</th>
                     <th className="p-3 w-[130px]">{t('billing.amount')}</th>
                     <th className="p-3 w-[100px]">{t('billing.provider')}</th>
                     <th className="p-3 w-[190px]">{t('billing.paidAt')}</th>
@@ -414,7 +362,7 @@ const AdminBillingPage: React.FC = () => {
                 <tbody className="divide-y divide-border-layer text-body text-sm">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="p-6 text-center text-muted">
+                      <td colSpan={6} className="p-6 text-center text-muted">
                         <div className="inline-flex items-center gap-2">
                           <RefreshCw className="w-4 h-4 animate-spin" />
                           {t('billing.loading')}
@@ -423,7 +371,7 @@ const AdminBillingPage: React.FC = () => {
                     </tr>
                   ) : rows.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-6 text-center text-muted">
+                      <td colSpan={6} className="p-6 text-center text-muted">
                         {t('billing.empty')}
                       </td>
                     </tr>
@@ -433,9 +381,6 @@ const AdminBillingPage: React.FC = () => {
                         <td className="p-3">
                           <div className="font-bold text-heading truncate">{item.username || '-'}</div>
                           <div className="text-xs text-muted truncate">{item.email || '-'}</div>
-                        </td>
-                        <td className="p-3 whitespace-nowrap truncate" title={item.subscriptionPlanName || item.subscriptionPlanId || '-'}>
-                          {item.subscriptionPlanName || item.subscriptionPlanId || '-'}
                         </td>
                         <td className="p-3 whitespace-nowrap font-bold">{formatCurrency(item.amount)}</td>
                         <td className="p-3 whitespace-nowrap">{item.provider || '-'}</td>
@@ -474,7 +419,23 @@ const AdminBillingPage: React.FC = () => {
                 })}
               </span>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted whitespace-nowrap">{t('billing.pageSize')}</label>
+                  <select
+                    value={pageSize}
+                    onChange={(event) => {
+                      setPageSize(Number(event.target.value))
+                      setPageNumber(1)
+                    }}
+                    className="px-2 py-1 border border-bd-input bg-white text-sm focus:outline-none"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <button
                   onClick={() => setPageNumber((previous) => Math.max(1, previous - 1))}
                   disabled={pageNumber <= 1 || loading}
