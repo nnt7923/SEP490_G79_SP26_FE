@@ -79,14 +79,30 @@
       "Special": "Special"
     },
     "catalogByName": {
-      "perfectionist": { "name": "Perfectionist" },
-      "focused_learner": { "name": "Focused Learner" },
-      "deep_focus": { "name": "Deep Focus" },
-      "speed_demon": { "name": "Speed Demon" },
-      "early_bird": { "name": "Early Bird" },
-      "night_owl": { "name": "Night Owl" },
-      "weekend_warrior": { "name": "Weekend Warrior" },
-      "profile_complete": { "name": "Profile Complete" }
+      "perfectionist": {
+        "name": "Perfectionist"
+      },
+      "focused_learner": {
+        "name": "Focused Learner"
+      },
+      "deep_focus": {
+        "name": "Deep Focus"
+      },
+      "speed_demon": {
+        "name": "Speed Demon"
+      },
+      "early_bird": {
+        "name": "Early Bird"
+      },
+      "night_owl": {
+        "name": "Night Owl"
+      },
+      "weekend_warrior": {
+        "name": "Weekend Warrior"
+      },
+      "profile_complete": {
+        "name": "Profile Complete"
+      }
     },
     "catalogByDescription": {
       "get_100_score_on_a_task_verification": "Get 100% score on a task verification.",
@@ -608,6 +624,20 @@
         "PAGE_SIZE_INVALID": "The selected check-in page size is invalid.",
         "PAGE_SIZE_TOO_LARGE": "The selected check-in page size is too large.",
         "DEFAULT": "Unable to load daily check-in data right now."
+      },
+      "moodModal": {
+        "title": "How are you feeling today?",
+        "description": "Check in your daily mood to help us personalize your learning experience.",
+        "moods": {
+          "Happy": "Happy",
+          "Motivated": "Motivated",
+          "Focused": "Focused",
+          "Tired": "Tired",
+          "Sad": "Sad",
+          "Stressed": "Stressed"
+        },
+        "skip": "Skip for now",
+        "save": "Check in"
       }
     },
     "recentGoals": "Recent Goals",

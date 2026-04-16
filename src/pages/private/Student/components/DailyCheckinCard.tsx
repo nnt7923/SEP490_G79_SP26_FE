@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Flame, Loader2, Trophy } from 'lucide-react'
 import type { DailyCheckinDto, DailyCheckinStatsDto } from '../../../../services/DailyCheckinService'
 
@@ -102,13 +103,15 @@ const DailyCheckinCard: React.FC<Props> = ({
   stats,
   labels,
 }) => {
+  const { t } = useTranslation('student')
+
   const checkedInToday = Boolean(stats?.todayCheckedIn || todayCheckin)
   const currentStreak = stats?.currentStreak ?? 0
   const longestStreak = stats?.longestStreak ?? 0
   const totalCheckins = stats?.totalCheckins ?? 0
   const theme = getStreakTheme(currentStreak, checkedInToday)
   const summaryText = todayCheckin
-    ? `${labels.mood}: ${todayCheckin.mood || '-'} | ${labels.productivity}: ${todayCheckin.productivity ? labels.productivityValue.replace('{{value}}', String(todayCheckin.productivity)) : '-'}`
+    ? `${labels.mood}: ${todayCheckin.mood || '-'} | ${labels.productivity}: ${todayCheckin.productivityMessage ? t(todayCheckin.productivityMessage) : '-'}`
     : labels.empty
   const metaText = [
     `${labels.longestStreak}: ${longestStreak}`,

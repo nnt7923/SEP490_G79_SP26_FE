@@ -79,14 +79,30 @@
       "Special": "Đặc biệt"
     },
     "catalogByName": {
-      "perfectionist": { "name": "Người cầu toàn" },
-      "focused_learner": { "name": "Người học tập trung" },
-      "deep_focus": { "name": "Tập trung sâu" },
-      "speed_demon": { "name": "Tăng tốc" },
-      "early_bird": { "name": "Dậy sớm" },
-      "night_owl": { "name": "Cú đêm" },
-      "weekend_warrior": { "name": "Chiến binh cuối tuần" },
-      "profile_complete": { "name": "Hồ sơ hoàn chỉnh" }
+      "perfectionist": {
+        "name": "Người cầu toàn"
+      },
+      "focused_learner": {
+        "name": "Người học tập trung"
+      },
+      "deep_focus": {
+        "name": "Tập trung sâu"
+      },
+      "speed_demon": {
+        "name": "Tăng tốc"
+      },
+      "early_bird": {
+        "name": "Dậy sớm"
+      },
+      "night_owl": {
+        "name": "Cú đêm"
+      },
+      "weekend_warrior": {
+        "name": "Chiến binh cuối tuần"
+      },
+      "profile_complete": {
+        "name": "Hồ sơ hoàn chỉnh"
+      }
     },
     "catalogByDescription": {
       "get_100_score_on_a_task_verification": "Đạt 100% điểm trong một lần xác thực nhiệm vụ.",
@@ -608,6 +624,20 @@
         "PAGE_SIZE_INVALID": "Kích thước trang điểm danh không hợp lệ.",
         "PAGE_SIZE_TOO_LARGE": "Kích thước trang điểm danh vượt giới hạn cho phép.",
         "DEFAULT": "Hiện chưa thể tải dữ liệu điểm danh."
+      },
+      "moodModal": {
+        "title": "Hôm nay bạn cảm thấy thế nào?",
+        "description": "Điểm danh tâm trạng hàng ngày giúp chúng tôi cải thiện quá trình học tập của bạn.",
+        "moods": {
+          "Happy": "Vui vẻ",
+          "Motivated": "Có động lực",
+          "Focused": "Tập trung",
+          "Tired": "Mệt mỏi",
+          "Sad": "Buồn",
+          "Stressed": "Căng thẳng"
+        },
+        "skip": "Bỏ qua",
+        "save": "Lưu tâm trạng"
       }
     },
     "recentGoals": "Mục Tiêu Gần Đây",

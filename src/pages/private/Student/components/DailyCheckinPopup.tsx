@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CheckCircle2, Flame, Sparkles, X } from 'lucide-react'
 import type { DailyCheckinDto, DailyCheckinStatsDto } from '../../../../services/DailyCheckinService'
 
@@ -79,6 +80,8 @@ const DailyCheckinPopup: React.FC<Props> = ({
   onClose,
   autoCloseMs = 3500,
 }) => {
+  const { t } = useTranslation('student')
+
   useEffect(() => {
     if (!isOpen) return
     const timeoutId = window.setTimeout(() => {
@@ -183,7 +186,7 @@ const DailyCheckinPopup: React.FC<Props> = ({
             <span>{currentStreakLabel}: {stats?.currentStreak ?? 0}</span>
           </div>
 
-          {(todayCheckin?.mood || todayCheckin?.productivity) ? (
+          {(todayCheckin?.mood || todayCheckin?.productivityMessage) ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
               <div style={{ border: '1px solid var(--border-base)', borderRadius: 6, background: 'var(--bg-surface)', padding: '10px 12px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{moodLabel}</div>
@@ -195,7 +198,7 @@ const DailyCheckinPopup: React.FC<Props> = ({
                   <span>{productivityLabel}</span>
                 </div>
                 <div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {todayCheckin?.productivity ? productivityValueTemplate.replace('{{value}}', String(todayCheckin.productivity)) : '-'}
+                  {todayCheckin?.productivityMessage ? t(todayCheckin.productivityMessage) : '-'}
                 </div>
               </div>
             </div>
