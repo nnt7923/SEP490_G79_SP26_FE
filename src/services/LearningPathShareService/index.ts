@@ -34,7 +34,7 @@ export async function shareToStudent(
 }
 
 /** 4.2.2 — Student accept share */
-export async function acceptShare(shareId: string): Promise<void> {
+export async function acceptShare(shareId: string): Promise<LearningPathShareDto> {
   return api.post(`/learningpath-shares/${shareId}/accept`)
 }
 

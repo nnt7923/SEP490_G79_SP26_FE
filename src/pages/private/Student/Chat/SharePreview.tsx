@@ -74,7 +74,7 @@ const SharePreviewPage: React.FC = () => {
 
     upsertReceivedShare({
       shareId: source.shareId,
-      pathId: source.learningPath?.pathId ?? '',
+      pathId: source.acceptedPathId ?? source.learningPath?.pathId ?? '',
       learningPathTitle: source.learningPath?.title ?? t('myPlans.untitled'),
       learningPathDescription: source.learningPath?.description ?? null,
       mentorId: source.mentorId,
@@ -97,6 +97,13 @@ const SharePreviewPage: React.FC = () => {
     setError(null)
     try {
       const response = await getSharePreview(shareId)
+      
+      // If we are viewing by the original shareId but it has an accepted clone, redirect to the clone
+      if (response.acceptedPathId && response.acceptedPathId !== shareId) {
+        navigate(ROUTER.CHAT_SHARE_PREVIEW.replace(':shareId', response.acceptedPathId), { replace: true, state: location.state })
+        return
+      }
+
       setPreview(response)
       setActiveChapterId(response.learningPath?.chapterDtos?.[0]?.chapterId ?? null)
       if (response.status !== 'Pending') {
@@ -148,13 +155,30 @@ const SharePreviewPage: React.FC = () => {
     setActionLoading(nextStatus)
     try {
       if (decision === 'accept') {
-        await acceptShare(preview.shareId)
+        const acceptResult = await acceptShare(preview.shareId)
         clearUserLearningPathsCache(user?.id)
+
+        const finalAcceptedPathId = acceptResult.acceptedPathId || preview.acceptedPathId || preview.learningPath?.pathId
+        
+        if (finalAcceptedPathId) {
+          navigate(ROUTER.CHAT_SHARE_PREVIEW.replace(':shareId', finalAcceptedPathId), {
+            replace: true,
+            state: {
+              from: location.state?.from,
+              conversationId: location.state?.conversationId,
+              toast: {
+                message: t('chat.inviteAccepted', { defaultValue: 'Accepted' }),
+                type: 'success',
+              } satisfies ToastState,
+            },
+          })
+          return
+        }
       } else {
         await rejectShare(preview.shareId)
       }
       setPreview((prev) => prev ? { ...prev, status: nextStatus, respondedAt } : prev)
-      syncShareState(preview, nextStatus, respondedAt)
+      syncShareState({ ...preview, status: nextStatus, respondedAt }, nextStatus, respondedAt)
       navigate(ROUTER.CHAT, {
         state: {
           activeTab: location.state?.from === 'invites' ? 'invites' : 'conversations',

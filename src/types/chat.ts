@@ -187,6 +187,7 @@ export interface LearningPathSharePreviewDto {
   sentAt: string
   respondedAt: string | null
   invalidatedReason?: string | null
+  acceptedPathId?: string | null
   learningPath: LearningPathSharePreviewPathDto
 }
 
