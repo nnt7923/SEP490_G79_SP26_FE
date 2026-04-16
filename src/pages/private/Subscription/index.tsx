@@ -8,6 +8,7 @@ import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import SubscriptionService, {
   type CreateVnpayPaymentRequest,
   type TokenPackage,
+  type TokenTopUpPricing,
 } from '../../../services/SubscriptionService'
 import ROUTER from '../../../router/ROUTER'
 import useAuthStore from '../../../store/useAuthStore'
@@ -28,6 +29,7 @@ const Subscription: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [loadingBalance, setLoadingBalance] = useState(true)
   const [balanceVnd, setBalanceVnd] = useState<number>(0)
+  const [topUpPricing, setTopUpPricing] = useState<TokenTopUpPricing | null>(null)
   const [processingKey, setProcessingKey] = useState<string | null>(null)
   const [customTopUpAmount, setCustomTopUpAmount] = useState<string>('')
   const [errorMessage, setErrorMessage] = useState<string>('')
@@ -35,7 +37,12 @@ const Subscription: React.FC = () => {
   useEffect(() => {
     const fetchTokenPackages = async () => {
       try {
-        const data = await SubscriptionService.getTokenPackages()
+        const [packagesResponse, pricingResponse] = await Promise.allSettled([
+          SubscriptionService.getTokenPackages(),
+          SubscriptionService.getTokenTopUpPricing(),
+        ])
+
+        const data = packagesResponse.status === 'fulfilled' ? packagesResponse.value : []
         if (Array.isArray(data)) {
           const sorted = [...data]
             .filter((item) => item.isActive)
@@ -44,8 +51,15 @@ const Subscription: React.FC = () => {
         } else {
           setTokenPackages([])
         }
+
+        if (pricingResponse.status === 'fulfilled') {
+          setTopUpPricing(pricingResponse.value)
+        } else {
+          setTopUpPricing(null)
+        }
       } catch (error: any) {
         setTokenPackages([])
+        setTopUpPricing(null)
         setErrorMessage(error?.message || t('subscription.tokenPackagesLoadFailed'))
       } finally {
         setLoading(false)
@@ -84,6 +98,26 @@ const Subscription: React.FC = () => {
   const formatCurrency = (amountVnd: number) => {
     return new Intl.NumberFormat('vi-VN').format(Math.max(0, Math.round(amountVnd)))
   }
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 }).format(Number.isFinite(value) ? value : 0)
+  }
+
+  const customTopUpAmountNumber = Number(customTopUpAmount.replace(/[\D]/g, ''))
+  const customTopUpEstimatedTokens = (() => {
+    if (!topUpPricing) return 0
+    if (!Number.isFinite(customTopUpAmountNumber) || customTopUpAmountNumber <= 0) return 0
+
+    if (topUpPricing.tokensPer1000Vnd > 0) {
+      return (customTopUpAmountNumber / 1000) * topUpPricing.tokensPer1000Vnd
+    }
+
+    if (topUpPricing.vndPerToken > 0) {
+      return customTopUpAmountNumber / topUpPricing.vndPerToken
+    }
+
+    return 0
+  })()
 
   const toNumber = (value: unknown): number => {
     const parsed = Number(value)
@@ -144,6 +178,17 @@ const Subscription: React.FC = () => {
       setErrorMessage(t('subscription.invalidTopUpAmount'))
       return
     }
+
+    if (topUpPricing?.minimumTopUpVnd && amount < topUpPricing.minimumTopUpVnd) {
+      setErrorMessage(t('subscription.invalidTopUpAmountMin', { min: formatCurrency(topUpPricing.minimumTopUpVnd) }))
+      return
+    }
+
+    if (topUpPricing?.maximumTopUpVnd && amount > topUpPricing.maximumTopUpVnd) {
+      setErrorMessage(t('subscription.invalidTopUpAmountMax', { max: formatCurrency(topUpPricing.maximumTopUpVnd) }))
+      return
+    }
+
     await createPayment({ topUpAmountVnd: amount, orderInfo: t('subscription.customTopUpOrderInfo'), returnUrl: '' }, 'custom')
   }
 
@@ -269,9 +314,40 @@ const Subscription: React.FC = () => {
               {processingKey === 'custom' ? t('subscription.processingPayment') : t('subscription.topUpNow')}
             </button>
           </div>
-          <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 12 }}>
-            {t('subscription.customTopUpHint')}
-          </div>
+          {topUpPricing ? (
+            <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 12, display: 'grid', gap: 4 }}>
+              <div>
+                {t('subscription.customTopUpConversionRate', {
+                  vndPerToken: formatCurrency(topUpPricing.vndPerToken),
+                  tokensPer1000Vnd: formatNumber(topUpPricing.tokensPer1000Vnd),
+                })}
+              </div>
+              <div>
+                {t('subscription.customTopUpRange', {
+                  min: formatCurrency(topUpPricing.minimumTopUpVnd),
+                  max: formatCurrency(topUpPricing.maximumTopUpVnd),
+                })}
+              </div>
+              {customTopUpAmountNumber > 0 ? (
+                <div
+                  style={{
+                    marginTop: 4,
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid color-mix(in oklab, var(--accent-primary) 60%, var(--border-base))',
+                    background: 'color-mix(in oklab, var(--accent-primary) 12%, var(--bg-surface))',
+                    color: 'var(--text-primary)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {t('subscription.customTopUpRealtimeEstimate', {
+                    amountVnd: formatCurrency(customTopUpAmountNumber),
+                    tokens: formatNumber(customTopUpEstimatedTokens),
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </motion.div>
 
         {errorMessage && (

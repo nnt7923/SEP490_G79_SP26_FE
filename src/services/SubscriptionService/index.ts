@@ -82,6 +82,14 @@ export interface TokenPackage {
   [key: string]: unknown
 }
 
+export interface TokenTopUpPricing {
+  vndPerToken: number
+  tokensPer1000Vnd: number
+  minimumTopUpVnd: number
+  maximumTopUpVnd: number
+  [key: string]: unknown
+}
+
 export type PaymentTransactionStatus =
   | 'pending'
   | 'success'
@@ -217,6 +225,18 @@ function normalizeTokenPackage(raw: unknown): TokenPackage {
     bonusVnd,
     isActive: Boolean(record.isActive ?? true),
     displayOrder: Number.isFinite(Number(record.displayOrder)) ? Number(record.displayOrder) : 0,
+    ...record,
+  }
+}
+
+function normalizeTokenTopUpPricing(raw: unknown): TokenTopUpPricing {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+
+  return {
+    vndPerToken: toNumberValue(record.vndPerToken ?? record.VndPerToken),
+    tokensPer1000Vnd: toNumberValue(record.tokensPer1000Vnd ?? record.TokensPer1000Vnd),
+    minimumTopUpVnd: Math.max(0, Math.round(toNumberValue(record.minimumTopUpVnd ?? record.MinimumTopUpVnd))),
+    maximumTopUpVnd: Math.max(0, Math.round(toNumberValue(record.maximumTopUpVnd ?? record.MaximumTopUpVnd))),
     ...record,
   }
 }
@@ -445,6 +465,12 @@ class SubscriptionService {
   async getTokenPackages(): Promise<TokenPackage[]> {
     const response = await axiosInstance.get('/token-packages')
     return unwrapPlansResponse(response).map(normalizeTokenPackage)
+  }
+
+  async getTokenTopUpPricing(): Promise<TokenTopUpPricing> {
+    const response = await axiosInstance.get('/token-packages/pricing')
+    const source = (response as any)?.data ?? (response as any)?.value ?? response
+    return normalizeTokenTopUpPricing(source)
   }
 
   async verifyVnpayCallback(query: Record<string, string>): Promise<Record<string, unknown>> {
