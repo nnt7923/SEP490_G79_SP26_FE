@@ -494,7 +494,7 @@ const TransactionHistory: React.FC = () => {
                           {formatCurrency(item.amount)} VND
                         </td>
                         <td style={{ padding: '12px', color: 'var(--text-primary)' }}>
-                          {formatCurrency(item.creditedAmountVnd)} VND
+                          {formatCurrency(item.creditedTokens)} token
                         </td>
                         <td style={{ padding: '12px' }}>
                           <span
@@ -695,7 +695,7 @@ const TransactionHistory: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyTokenPackageName')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{selectedItem.tokenPackageName || '--'}</span></div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyAmount')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{formatCurrency(selectedItem.amount)} VND</span></div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyCreditedAmountVnd')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{formatCurrency(selectedItem.creditedAmountVnd)} VND</span></div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyCreditedAmountVnd')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{formatCurrency(selectedItem.creditedTokens)} token</span></div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyStatus')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{statusLabel(String(selectedItem.status || ''))}</span></div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyBankCode')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{selectedItem.bankCode || '--'}</span></div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyPaidAt')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{formatDateTimeKeepOriginal(selectedItem.paidAt || selectedItem.createdAt)}</span></div>

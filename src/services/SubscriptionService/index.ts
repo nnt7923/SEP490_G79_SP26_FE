@@ -101,6 +101,7 @@ export interface PaymentTransactionItem {
   paymentTransactionId: string
   tokenPackageName?: string
   amount: number
+  creditedTokens: number
   creditedAmountVnd: number
   status: string
   paidAt?: string
@@ -277,13 +278,25 @@ function toNumberValue(raw: unknown): number {
 function normalizePaymentTransaction(raw: unknown): PaymentTransactionItem {
   const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
   const amountRaw = toNumberValue(record.amount ?? record.amountVnd ?? record.vnpAmount)
-  const creditedRaw = toNumberValue(record.creditedAmountVnd ?? record.creditedAmount ?? record.creditAmountVnd)
+  const creditedRaw = toNumberValue(
+    record.creditedTokens
+    ?? record.CreditedTokens
+    ?? record.creditedAmountVnd
+    ?? record.CreditedAmountVnd
+    ?? record.creditedAmount
+    ?? record.creditAmountVnd
+    ?? record.creditedBalanceVnd
+    ?? record.CreditedBalanceVnd,
+  )
+  const normalizedCreditedTokens = Math.max(0, Math.round(creditedRaw))
 
   return {
     paymentTransactionId: String(record.paymentTransactionId ?? record.id ?? ''),
     tokenPackageName: String(record.tokenPackageName ?? record.packageName ?? '').trim() || undefined,
     amount: Math.max(0, Math.round(amountRaw)),
-    creditedAmountVnd: Math.max(0, Math.round(creditedRaw)),
+    creditedTokens: normalizedCreditedTokens,
+    // Backward-compatible alias to avoid breaking old UI branches.
+    creditedAmountVnd: normalizedCreditedTokens,
     txnRef: String(record.txnRef ?? record.vnpTxnRef ?? ''),
     status: String(record.status ?? record.paymentStatus ?? '').trim(),
     paidAt: String(record.paidAt ?? record.paymentTime ?? '').trim() || undefined,

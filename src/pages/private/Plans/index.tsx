@@ -79,6 +79,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       return {}
     }
   })
+  const [goalPriorityDrafts, setGoalPriorityDrafts] = useState<Record<string, string>>({})
   const [level, setLevel] = useState<Level | null>(() => {
     try {
       return (sessionStorage.getItem(storageKey('level')) as Level | null) || null
@@ -1111,6 +1112,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       // Clear selected goals when no language is selected
       setSelectedGoals([])
       setGoalPriorities({})
+      setGoalPriorityDrafts({})
       setCurrentSystemGoalPage(1) // Reset pagination
       setCurrentMyGoalPage(1) // Reset pagination
       return
@@ -1124,6 +1126,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       // Clear selected goals when switching subjects since goals are different
       setSelectedGoals([])
       setGoalPriorities({})
+      setGoalPriorityDrafts({})
       setCurrentSystemGoalPage(1) // Reset pagination
       setCurrentMyGoalPage(1) // Reset pagination
     } else {
@@ -1132,6 +1135,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       setGoalsError(null)
       setSelectedGoals([])
       setGoalPriorities({})
+      setGoalPriorityDrafts({})
       setCurrentSystemGoalPage(1) // Reset pagination
       setCurrentMyGoalPage(1) // Reset pagination
     }
@@ -1232,6 +1236,11 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           delete newPriorities[key]
           return newPriorities
         })
+        setGoalPriorityDrafts(prevDrafts => {
+          const nextDrafts = { ...prevDrafts }
+          delete nextDrafts[key]
+          return nextDrafts
+        })
         return prev.filter(id => id !== key)
       } else {
         // Add goal if less than 2 selected
@@ -1247,7 +1256,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           // If this is the second goal, show toast
           if (newGoals.length === 2) {
             setToast({ 
-              message: 'Great! Now set goal priorities in the next step.', 
+              message: t('plans.goalPriorityToast'), 
               type: 'success' 
             })
           }
@@ -2137,185 +2146,254 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           {step === 3 && selectedGoals.length === 2 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
-                title="Set Goal Priorities"
-                subtitle="Balance the importance of your learning goals"
-                selectedValue={selectedGoals.length === 2 ? 'Priorities set' : undefined}
+                title={t('plans.stepPriorityTitle')}
+                subtitle={t('plans.stepPrioritySubtitle')}
+                selectedValue={selectedGoals.length === 2 ? t('plans.stepPrioritySelected') : undefined}
               />
-              
+
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
-                <div style={{ 
-                  marginBottom: 32, 
-                  padding: 20, 
-                  background: 'var(--bg-surface)', 
-                  border: '1px dashed var(--border-base)', 
-                  borderRadius: 4 
+                <div style={{
+                  marginBottom: 16,
+                  padding: '12px 14px',
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.55,
                 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: 12,
-                    fontSize: 14,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.6
-                  }}>
-                    <span style={{ fontSize: 18 }}>💡</span>
-                    <div>
-                      <strong style={{ color: 'var(--text-primary)' }}>Balance your learning focus</strong>
-                      <br />
-                      Adjust the weight of each goal. The total must equal 100%. The AI will focus more 
-                      on the goal with higher weight when generating your learning path.
-                    </div>
-                  </div>
+                  <strong style={{ color: 'var(--text-primary)' }}>{t('plans.priorityIntroTitle')}</strong>{' '}
+                  {t('plans.priorityIntroBody')}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  {selectedGoals.map((goalId, index) => {
-                    const goal = goalItems.find(g => String(g.key) === String(goalId))
-                    const priority = goalPriorities[goalId] || 50
-                    const otherGoalId = selectedGoals.find(id => id !== goalId)
-                    const otherPriority = otherGoalId ? (goalPriorities[otherGoalId] || 50) : 50
-                    
-                    return (
-                      <div key={goalId} style={{ 
-                        background: 'var(--bg-surface)', 
-                        border: '1px solid var(--border-base)', 
-                        borderRadius: 4, 
-                        padding: 24 
+                {(() => {
+                  const leftGoalId = selectedGoals[0]
+                  const rightGoalId = selectedGoals[1]
+                  const leftGoal = goalItems.find((g) => String(g.key) === String(leftGoalId))
+                  const rightGoal = goalItems.find((g) => String(g.key) === String(rightGoalId))
+                  const leftPriority = goalPriorities[leftGoalId] || 50
+                  const rightPriority = 100 - leftPriority
+                  const leftPriorityDraft = goalPriorityDrafts[leftGoalId]
+                  const rightPriorityDraft = goalPriorityDrafts[rightGoalId]
+                  const leftColor = 'var(--accent-primary)'
+                  const rightColor = 'var(--success-primary)'
+                  const sliderBackground = `linear-gradient(to right, ${leftColor} 0%, ${leftColor} ${leftPriority}%, ${rightColor} ${leftPriority}%, ${rightColor} 100%)`
+                  const clampPriority = (value: number) => Math.max(10, Math.min(90, value))
+
+                  const clearPriorityDrafts = () => {
+                    setGoalPriorityDrafts((prev) => {
+                      if (!(leftGoalId in prev) && !(rightGoalId in prev)) return prev
+                      const next = { ...prev }
+                      delete next[leftGoalId]
+                      delete next[rightGoalId]
+                      return next
+                    })
+                  }
+
+                  const updatePrioritiesFromLeft = (rawValue: number) => {
+                    const nextLeftPriority = clampPriority(rawValue)
+                    const nextRightPriority = 100 - nextLeftPriority
+
+                    setGoalPriorities((prev) => ({
+                      ...prev,
+                      [leftGoalId]: nextLeftPriority,
+                      [rightGoalId]: nextRightPriority,
+                    }))
+                    clearPriorityDrafts()
+                  }
+
+                  const updatePrioritiesFromRight = (rawValue: number) => {
+                    const nextRightPriority = clampPriority(rawValue)
+                    const nextLeftPriority = 100 - nextRightPriority
+
+                    setGoalPriorities((prev) => ({
+                      ...prev,
+                      [leftGoalId]: nextLeftPriority,
+                      [rightGoalId]: nextRightPriority,
+                    }))
+                    clearPriorityDrafts()
+                  }
+
+                  const commitLeftPriorityDraft = () => {
+                    const rawDraft = goalPriorityDrafts[leftGoalId]
+                    if (rawDraft == null) return
+                    const parsed = Number(rawDraft)
+                    if (Number.isFinite(parsed)) {
+                      updatePrioritiesFromLeft(parsed)
+                      return
+                    }
+                    clearPriorityDrafts()
+                  }
+
+                  const commitRightPriorityDraft = () => {
+                    const rawDraft = goalPriorityDrafts[rightGoalId]
+                    if (rawDraft == null) return
+                    const parsed = Number(rawDraft)
+                    if (Number.isFinite(parsed)) {
+                      updatePrioritiesFromRight(parsed)
+                      return
+                    }
+                    clearPriorityDrafts()
+                  }
+
+                  return (
+                    <div style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-base)',
+                      borderRadius: 10,
+                      padding: 18,
+                    }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto 1fr',
+                        alignItems: 'center',
+                        gap: 12,
+                        marginBottom: 12,
                       }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          marginBottom: 20 
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                            <div style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 4,
-                              background: index === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                              color: 'var(--bg-surface)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 18,
-                              fontWeight: 700
-                            }}>
-                              {index + 1}
-                            </div>
-                            <div>
-                              <h4 style={{ 
-                                fontSize: 18, 
-                                fontWeight: 600, 
-                                color: 'var(--text-primary)', 
-                                margin: 0 
-                              }}>
-                                {goal?.label || 'Unknown Goal'}
-                              </h4>
-                            </div>
-                          </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 12,
-                            fontSize: 24,
-                            fontWeight: 700,
-                            color: priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'
-                          }}>
-                            <span>{priority}%</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{t('plans.priorityGoalLabel', { number: 1 })}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {leftGoal?.label || t('plans.unknownGoal')}
                           </div>
                         </div>
-                        
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="range"
-                            min="10"
-                            max="90"
-                            value={priority}
-                            onChange={(e) => {
-                              const newPriority = parseInt(e.target.value)
-                              const otherPriority = 100 - newPriority
-                              
-                              setGoalPriorities(prev => ({
-                                ...prev,
-                                [goalId]: newPriority,
-                                [otherGoalId!]: otherPriority
-                              }))
-                            }}
-                            style={{
-                              width: '100%',
-                              height: 10,
-                              borderRadius: 5,
-                              background: `linear-gradient(to right, 
-                                ${priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} 0%, 
-                                ${priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} ${priority}%, 
-                                var(--border-base) ${priority}%, 
-                                var(--border-base) 100%)`,
-                              outline: 'none',
-                              appearance: 'none',
-                              cursor: 'pointer'
-                            }}
-                          />
-                          <style>
-                            {`
-                              input[type="range"]::-webkit-slider-thumb {
-                                appearance: none;
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: ${priority >= 60 ? 'var(--success-primary)' : 
-                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
-                                cursor: pointer;
-                                border: 3px solid var(--bg-surface);
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                              }
-                              input[type="range"]::-moz-range-thumb {
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: ${priority >= 60 ? 'var(--success-primary)' : 
-                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
-                                cursor: pointer;
-                                border: 3px solid var(--bg-surface);
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                              }
-                            `}
-                          </style>
-                          
-                          {/* Priority scale labels */}
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            marginTop: 16,
-                            fontSize: 12,
-                            color: 'var(--text-secondary)',
-                            fontWeight: 600
-                          }}>
-                            <span>LOW FOCUS</span>
-                            <span>BALANCED</span>
-                            <span>HIGH FOCUS</span>
-                          </div>
-                        </div>
-                        
-                        {/* Show other goal's weight */}
-                        <div style={{ 
-                          marginTop: 16, 
-                          padding: 12, 
-                          background: 'var(--bg-main)', 
-                          border: '1px dashed var(--border-base)', 
-                          borderRadius: 4,
+
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          padding: '6px 10px',
+                          borderRadius: 999,
+                          border: '1px solid var(--border-base)',
+                          background: 'var(--bg-main)',
+                          color: 'var(--text-primary)',
                           fontSize: 13,
-                          color: 'var(--text-secondary)'
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
                         }}>
-                          Other goal will have <strong style={{ color: 'var(--text-primary)' }}>{100 - priority}%</strong> weight
+                          <span>{leftPriority}%</span>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>/</span>
+                          <span>{rightPriority}%</span>
+                        </div>
+
+                        <div style={{ minWidth: 0, textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{t('plans.priorityGoalLabel', { number: 2 })}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {rightGoal?.label || t('plans.unknownGoal')}
+                          </div>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 36px', alignItems: 'center', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromLeft(leftPriority - 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={10}
+                            max={90}
+                            step={5}
+                            value={leftPriorityDraft ?? String(leftPriority)}
+                            onChange={(e) => {
+                              const nextRaw = e.target.value
+                              if (nextRaw === '') {
+                                setGoalPriorityDrafts((prev) => ({ ...prev, [leftGoalId]: '' }))
+                                return
+                              }
+                              if (!/^\d+$/.test(nextRaw)) return
+                              setGoalPriorityDrafts((prev) => ({ ...prev, [leftGoalId]: nextRaw }))
+                            }}
+                            onBlur={commitLeftPriorityDraft}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                commitLeftPriorityDraft()
+                              }
+                            }}
+                            style={{ width: '100%', height: 36, boxSizing: 'border-box', border: '1px solid var(--border-base)', borderRadius: 8, padding: '7px 10px', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromLeft(leftPriority + 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 36px', alignItems: 'center', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromRight(rightPriority - 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={10}
+                            max={90}
+                            step={5}
+                            value={rightPriorityDraft ?? String(rightPriority)}
+                            onChange={(e) => {
+                              const nextRaw = e.target.value
+                              if (nextRaw === '') {
+                                setGoalPriorityDrafts((prev) => ({ ...prev, [rightGoalId]: '' }))
+                                return
+                              }
+                              if (!/^\d+$/.test(nextRaw)) return
+                              setGoalPriorityDrafts((prev) => ({ ...prev, [rightGoalId]: nextRaw }))
+                            }}
+                            onBlur={commitRightPriorityDraft}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                commitRightPriorityDraft()
+                              }
+                            }}
+                            style={{ width: '100%', height: 36, boxSizing: 'border-box', border: '1px solid var(--border-base)', borderRadius: 8, padding: '7px 10px', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromRight(rightPriority + 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          width: '100%',
+                          height: 8,
+                          borderRadius: 999,
+                          background: sliderBackground,
+                        }}
+                      />
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginTop: 10,
+                        fontSize: 11,
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                      }}>
+                        <span>{t('plans.priorityMoreFocusGoal1')}</span>
+                        <span>{t('plans.priorityBalanced')}</span>
+                        <span>{t('plans.priorityMoreFocusGoal2')}</span>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </motion.div>
           )}
