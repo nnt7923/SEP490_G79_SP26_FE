@@ -625,9 +625,29 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
 
   const handleStartConversation = async (participantId: string) => {
     try {
-      await hub.startConversation(participantId);
+      const result = await hub.startConversation(participantId) as any;
+      let targetConvId = null;
+      if (result && typeof result === 'string') {
+        targetConvId = result;
+      } else if (result && typeof result === 'object') {
+        targetConvId = result.conversationId || result.ConversationId;
+      }
+
+      if (!targetConvId) {
+        const existingConv = Object.values(useChatStore.getState().conversationsById).find(
+          (c) => c.mentorId === participantId || c.studentId === participantId
+        );
+        if (existingConv) {
+          targetConvId = existingConv.conversationId;
+        }
+      }
+
       setActiveTab("conversations");
       setSearchQuery("");
+
+      if (targetConvId) {
+        setActiveConversation(targetConvId);
+      }
     } catch {}
   };
 

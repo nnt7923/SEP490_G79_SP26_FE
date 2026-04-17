@@ -2682,7 +2682,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   type="button"
                   style={{
                     padding: 22,
-                    border: '1px dashed var(--border-base)',
+                    border: '1px solid var(--border-base)',
                     borderRadius: 6,
                     background: 'var(--bg-surface)',
                     textAlign: 'left',
@@ -2692,25 +2692,22 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     display: 'flex',
                     flexDirection: 'column',
                     width: '100%',
-                    opacity: 0.9,
-                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)'
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
                   onMouseEnter={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--warning-primary)'
                     e.currentTarget.style.background = 'var(--bg-main)'
                     e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.opacity = '1'
                     e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.10)'
                   }}
                   onMouseLeave={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--border-base)'
                     e.currentTarget.style.background = 'var(--bg-surface)'
                     e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.opacity = '0.9'
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.06)'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
                   onClick={() => {
-                    setToast({ message: t('plans.comingSoon'), type: 'success' })
+                    navigate(ROUTER.CHAT, { state: { activeTab: 'contacts' } })
                   }}
                 >
                   <div style={{ height: 2, width: 42, background: 'var(--warning-primary)', borderRadius: 999, marginBottom: 12 }} />
@@ -2718,9 +2715,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
                       $ {t('plans.askMentor')}
-                    </span>
-                    <span style={{ padding: '2px 8px', border: '1px solid var(--warning-primary)', color: 'var(--warning-primary)', fontSize: 10, fontWeight: 700, borderRadius: 2 }}>
-                      {t('plans.comingSoon')}
                     </span>
                   </div>
 
