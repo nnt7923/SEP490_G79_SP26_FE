@@ -125,6 +125,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   // Lesson content and quiz generation states
   const [generatingLessons, setGeneratingLessons] = useState<Set<string>>(new Set())
   const [lessonErrors, setLessonErrors] = useState<Map<string, string>>(new Map())
+  // Batch generation states
+  const [generatingAllLessons, setGeneratingAllLessons] = useState<boolean>(false)
+  const [generatingAllTasks, setGeneratingAllTasks] = useState<boolean>(false)
   
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
@@ -857,6 +860,130 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
         return newSet
       })
     }
+  }
+
+  // ── Batch: generate ALL lesson contents concurrently ──────────────────────
+  const handleGenerateAllLessons = async () => {
+    if (!skeleton || generatingAllLessons) return
+
+    // Collect every lessonId from all chapters
+    const chaptersArray = skeleton.chapters || skeleton.chapterDtos || []
+    const allLessonIds: string[] = []
+    chaptersArray.forEach((ch: any) => {
+      (ch.lessons || []).forEach((ls: any) => {
+        const id = ls.lessonId || ls.id
+        if (id && !generatingLessons.has(id)) allLessonIds.push(id)
+      })
+    })
+
+    if (allLessonIds.length === 0) return
+
+    setGeneratingAllLessons(true)
+    // Mark all as loading immediately
+    setGeneratingLessons(new Set(allLessonIds))
+    setLessonErrors(new Map())
+
+    const updateLessonInSkeleton = (lessonId: string, patch: Record<string, any>) => {
+      setSkeleton((prev: any) => {
+        if (!prev) return prev
+        const arr = prev.chapters || prev.chapterDtos || []
+        const updated = arr.map((ch: any) => {
+          if (!Array.isArray(ch.lessons)) return ch
+          return {
+            ...ch,
+            lessons: ch.lessons.map((ls: any) => {
+              const id = ls.lessonId || ls.id
+              if (id !== lessonId) return ls
+              return { ...ls, ...patch }
+            }),
+          }
+        })
+        return {
+          ...prev,
+          chapters: prev.chapters ? updated : undefined,
+          chapterDtos: prev.chapterDtos ? updated : undefined,
+        }
+      })
+    }
+
+    await LearningPathService.generateMultipleLessonContents(allLessonIds, {
+      onItemLoading: (lessonId) => {
+        setGeneratingLessons(prev => new Set(prev).add(lessonId))
+      },
+      onItemSuccess: (lessonId, result) => {
+        updateLessonInSkeleton(lessonId, {
+          content: result.content,
+          hasContent: true,
+          quizzes: result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || [],
+          quizCount: (result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || []).length,
+        })
+        setGeneratingLessons(prev => {
+          const next = new Set(prev)
+          next.delete(lessonId)
+          return next
+        })
+      },
+      onItemError: (lessonId, err) => {
+        setLessonErrors(prev => {
+          const next = new Map(prev)
+          next.set(lessonId, err.message || 'Failed to generate lesson content')
+          return next
+        })
+        setGeneratingLessons(prev => {
+          const next = new Set(prev)
+          next.delete(lessonId)
+          return next
+        })
+      },
+      onQuizEvent: {
+        onSuccess: (lessonId, quizData) => {
+          updateLessonInSkeleton(lessonId, {
+            quizzes: quizData?.Quizzes || quizData?.quizzes || [],
+            quizCount: (quizData?.Quizzes || quizData?.quizzes || []).length,
+          })
+        },
+      },
+    })
+
+    setGeneratingAllLessons(false)
+  }
+
+  // ── Batch: generate ALL chapter tasks concurrently ─────────────────────────
+  const handleGenerateAllChapterTasks = async () => {
+    if (!skeleton || generatingAllTasks) return
+
+    const chaptersArray = skeleton.chapters || skeleton.chapterDtos || []
+    const chapterIds: string[] = chaptersArray
+      .map((ch: any) => ch.chapterId || ch.id)
+      .filter(Boolean)
+
+    if (chapterIds.length === 0) return
+
+    setGeneratingAllTasks(true)
+
+    await LearningPathService.generateMultipleChapterTasks(chapterIds, {
+      onItemSuccess: (chapterId, result) => {
+        setSkeleton((prev: any) => {
+          if (!prev) return prev
+          const arr = prev.chapters || prev.chapterDtos || []
+          const updated = arr.map((ch: any) => {
+            const id = ch.chapterId || ch.id
+            if (id !== chapterId) return ch
+            return {
+              ...ch,
+              tasks: result.tasks || result.Tasks || ch.tasks || [],
+            }
+          })
+          return {
+            ...prev,
+            chapters: prev.chapters ? updated : undefined,
+            chapterDtos: prev.chapterDtos ? updated : undefined,
+          }
+        })
+      },
+    })
+
+    setGeneratingAllTasks(false)
   }
 
   // Persist selections

@@ -23,7 +23,15 @@ import {
   requestSingleQuizQuestion,
   requestSingleTask,
   requestLearningPathSuggestions,
+  requestMultipleLessonContents,
+  requestMultipleMentorLessonContents,
+  requestMultipleTasks,
+  requestMultipleChapterTasks,
+  requestMultipleQuizSkeletons,
+  requestMultipleQuizQuestions,
+  requestMultipleQuizQuestionsForQuiz,
 } from '../SignalR'
+import type { BatchSettledEntry, MultiTaskRequest, MultiQuizRequest } from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -645,6 +653,125 @@ export async function generateSingleTask(
   throw new Error('REST API for single task generation not implemented. Use SignalR instead.')
 }
 
+// ===========================================================================
+// === BATCH / CONCURRENT GENERATION SERVICE WRAPPERS ========================
+// ===========================================================================
+// Re-export and wrap the SignalR batch helpers so components only need to
+// import from LearningPathService (same pattern as single-item functions).
+
+export type { BatchSettledEntry, MultiTaskRequest, MultiQuizRequest }
+
+export async function generateMultipleLessonContents(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+    onQuizEvent?: {
+      onLoading?: (lessonId: string) => void
+      onSuccess?: (lessonId: string, quizData: any) => void
+      onError?: (lessonId: string, err: any) => void
+    }
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleLessonContents(lessonIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple lesson contents')
+  }
+}
+
+export async function generateMultipleMentorLessonContents(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleMentorLessonContents(lessonIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple mentor lesson contents')
+  }
+}
+
+export async function generateMultipleTasks(
+  requests: MultiTaskRequest[],
+  callbacks?: {
+    onItemLoading?: (chapterId: string, taskType: number) => void
+    onItemSuccess?: (key: string, chapterId: string, result: any) => void
+    onItemError?: (key: string, chapterId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleTasks(requests, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple tasks')
+  }
+}
+
+export async function generateMultipleChapterTasks(
+  chapterIds: string[],
+  callbacks?: {
+    onItemLoading?: (chapterId: string) => void
+    onItemSuccess?: (chapterId: string, result: any) => void
+    onItemError?: (chapterId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleChapterTasks(chapterIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple chapter tasks')
+  }
+}
+
+export async function generateMultipleQuizSkeletons(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleQuizSkeletons(lessonIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple quiz skeletons')
+  }
+}
+
+export async function generateMultipleQuizQuestions(
+  requests: MultiQuizRequest[],
+  callbacks?: {
+    onItemLoading?: (quizId: string, questionType: number) => void
+    onItemSuccess?: (key: string, quizId: string, result: any) => void
+    onItemError?: (key: string, quizId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleQuizQuestions(requests, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple quiz questions')
+  }
+}
+
+export async function generateMultipleQuizQuestionsForQuiz(
+  quizId: string,
+  questionTypes: number[] = [0, 1, 2, 3, 4, 5],
+  callbacks?: {
+    onItemLoading?: (questionType: number) => void
+    onItemSuccess?: (questionType: number, result: any) => void
+    onItemError?: (questionType: number, err: Error) => void
+  }
+): Promise<Map<number, BatchSettledEntry>> {
+  try {
+    return await requestMultipleQuizQuestionsForQuiz(quizId, questionTypes, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple quiz questions for quiz')
+  }
+}
+
 export interface UserLearningPathsParams {
   pageNumber?: number
   pageSize?: number
@@ -996,6 +1123,13 @@ export default {
   generateChapterSkeleton,
   generateChapterMentorSkeleton,
   generateSingleTask,
+  generateMultipleLessonContents,
+  generateMultipleMentorLessonContents,
+  generateMultipleTasks,
+  generateMultipleChapterTasks,
+  generateMultipleQuizSkeletons,
+  generateMultipleQuizQuestions,
+  generateMultipleQuizQuestionsForQuiz,
   getUserLearningPaths,
   clearUserLearningPathsCache,
   getLearningPathProgress,
