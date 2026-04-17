@@ -5,7 +5,6 @@ import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar
 import ROUTER from '../../../../router/ROUTER'
 import { requestLessonContent } from '../../../../services/SignalR'
 import { generateAllContent } from '../../../../services/ContentGenerator'
-import { LearningPathService } from '../../../../services'
 import LessonContent from '../components/LessonContent'
 import ChapterTasks from '../components/ChapterTasks'
 import { useTranslation } from 'react-i18next'
@@ -106,13 +105,6 @@ const ResultPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Per-lesson batch generation state
-  const [generatingLessons, setGeneratingLessons] = useState<Set<string>>(new Set())
-  const [lessonErrors, setLessonErrors] = useState<Map<string, string>>(new Map())
-  const [generatingAllLessons, setGeneratingAllLessons] = useState<boolean>(false)
-  const [generatingAllTasks, setGeneratingAllTasks] = useState<boolean>(false)
-
-
   // Fetch lesson content via SignalR when selected lesson changes
   useEffect(() => {
     let disposed = false
@@ -136,18 +128,49 @@ const ResultPage: React.FC = () => {
         const content = await requestLessonContent(selectedLessonId, () => {
           if (!disposed) setLoading(true)
         })
-        if (disposed) return
+        
+        // Always save cache and update skeleton even if disposed (user switched tabs)
         try { sessionStorage.setItem(`lessonContent:${selectedLessonId}`, JSON.stringify(content)) } catch { }
-        setMd(extractMarkdown(content))
+        
+        setSkeleton((prev: any) => {
+          if (!prev) return prev
+          const arr = prev.chapters || prev.chapterDtos || []
+          const updated = arr.map((ch: any) => {
+            if (!Array.isArray(ch.lessons)) return ch
+            return {
+              ...ch,
+              lessons: ch.lessons.map((ls: any) => {
+                if ((ls.lessonId || ls.id) === selectedLessonId) {
+                  return {
+                    ...ls,
+                    content: content.content,
+                    hasContent: true,
+                    quizzes: content.quizSkeleton?.Quizzes || content.quizSkeleton?.quizzes || ls.quizzes || [],
+                    quizCount: (content.quizSkeleton?.Quizzes || content.quizSkeleton?.quizzes || ls.quizzes || []).length
+                  }
+                }
+                return ls
+              })
+            }
+          })
+          const next = { ...prev, chapters: prev.chapters ? updated : undefined, chapterDtos: prev.chapterDtos ? updated : undefined }
+          try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(next)) } catch { }
+          return next
+        })
+
+        if (!disposed) {
+          setMd(extractMarkdown(content))
+        }
       } catch (e: any) {
-        if (disposed) return
-        const msg = e?.message || 'Unable to load lesson content.'
-        // Fallback to any cached content
-        const cached = getStored(`lessonContent:${selectedLessonId}`)
-        if (cached) {
-          setMd(extractMarkdown(cached))
-        } else {
-          setError(msg)
+        if (!disposed) {
+          const msg = e?.message || 'Unable to load lesson content.'
+          // Fallback to any cached content
+          const cached = getStored(`lessonContent:${selectedLessonId}`)
+          if (cached) {
+            setMd(extractMarkdown(cached))
+          } else {
+            setError(msg)
+          }
         }
       } finally {
         if (!disposed) setLoading(false)
@@ -156,112 +179,6 @@ const ResultPage: React.FC = () => {
     run()
     return () => { disposed = true }
   }, [selectedLessonId, lessons])
-
-  // ── Batch: generate ALL lessons concurrently ─────────────────────────────
-  const handleGenerateAllLessons = async () => {
-    if (!skeleton || generatingAllLessons) return
-
-    const chaptersArr = skeleton.chapters || skeleton.chapterDtos || []
-    const allLessonIds: string[] = []
-    chaptersArr.forEach((ch: any) => {
-      (ch.lessons || []).forEach((ls: any) => {
-        const id = ls.lessonId || ls.id
-        if (id && !generatingLessons.has(id)) allLessonIds.push(id)
-      })
-    })
-    if (allLessonIds.length === 0) return
-
-    setGeneratingAllLessons(true)
-    setGeneratingLessons(new Set(allLessonIds))
-    setLessonErrors(new Map())
-
-    const patchLesson = (lessonId: string, patch: Record<string, any>) => {
-      setSkeleton((prev: any) => {
-        if (!prev) return prev
-        const arr = prev.chapters || prev.chapterDtos || []
-        const updated = arr.map((ch: any) => {
-          if (!Array.isArray(ch.lessons)) return ch
-          return {
-            ...ch,
-            lessons: ch.lessons.map((ls: any) => {
-              const id = ls.lessonId || ls.id
-              return id === lessonId ? { ...ls, ...patch } : ls
-            }),
-          }
-        })
-        return {
-          ...prev,
-          chapters: prev.chapters ? updated : undefined,
-          chapterDtos: prev.chapterDtos ? updated : undefined,
-        }
-      })
-    }
-
-    await LearningPathService.generateMultipleLessonContents(allLessonIds, {
-      onItemSuccess: (lessonId, result) => {
-        patchLesson(lessonId, {
-          content: result.content,
-          hasContent: true,
-          quizzes: result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || [],
-          quizCount: (result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || []).length,
-        })
-        // If the just-finished lesson is currently selected, refresh the viewer
-        if (lessonId === selectedLessonId) {
-          setMd(extractMarkdown(result.content))
-        }
-        setGeneratingLessons(prev => { const n = new Set(prev); n.delete(lessonId); return n })
-      },
-      onItemError: (lessonId, err) => {
-        setLessonErrors(prev => { const n = new Map(prev); n.set(lessonId, err.message); return n })
-        setGeneratingLessons(prev => { const n = new Set(prev); n.delete(lessonId); return n })
-      },
-      onQuizEvent: {
-        onSuccess: (lessonId, quizData) => {
-          patchLesson(lessonId, {
-            quizzes: quizData?.Quizzes || quizData?.quizzes || [],
-            quizCount: (quizData?.Quizzes || quizData?.quizzes || []).length,
-          })
-        },
-      },
-    })
-
-    setGeneratingAllLessons(false)
-  }
-
-  // ── Batch: generate ALL chapter tasks concurrently ───────────────────────
-  const handleGenerateAllTasks = async () => {
-    if (!skeleton || generatingAllTasks) return
-
-    const chaptersArr = skeleton.chapters || skeleton.chapterDtos || []
-    const chapterIds: string[] = chaptersArr
-      .map((ch: any) => ch.chapterId || ch.id)
-      .filter(Boolean)
-    if (chapterIds.length === 0) return
-
-    setGeneratingAllTasks(true)
-
-    await LearningPathService.generateMultipleChapterTasks(chapterIds, {
-      onItemSuccess: (chapterId, result) => {
-        setSkeleton((prev: any) => {
-          if (!prev) return prev
-          const arr = prev.chapters || prev.chapterDtos || []
-          const updated = arr.map((ch: any) => {
-            const id = ch.chapterId || ch.id
-            if (id !== chapterId) return ch
-            return { ...ch, tasks: result.tasks || result.Tasks || ch.tasks || [] }
-          })
-          return {
-            ...prev,
-            chapters: prev.chapters ? updated : undefined,
-            chapterDtos: prev.chapterDtos ? updated : undefined,
-          }
-        })
-      },
-    })
-
-    setGeneratingAllTasks(false)
-  }
-
 
   // Header info
   const pathTitle: string = skeleton?.title || skeleton?.path?.title || t('plansResult.title')
@@ -421,90 +338,7 @@ const ResultPage: React.FC = () => {
                 </span>
               )}
             </div>
-
-            {/* ── Batch generation action buttons ── */}
-            {chapters.length > 0 && (
-              <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
-                {/* Generate All Lessons */}
-                <button
-                  id="btn-generate-all-lessons"
-                  type="button"
-                  disabled={generatingAllLessons || lessons.length === 0}
-                  onClick={handleGenerateAllLessons}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 16px', borderRadius: 4, fontSize: 13, fontWeight: 600,
-                    border: '1px solid var(--accent-primary)',
-                    background: generatingAllLessons ? 'var(--bg-main)' : 'var(--accent-primary)',
-                    color: generatingAllLessons ? 'var(--accent-primary)' : 'var(--bg-surface)',
-                    cursor: generatingAllLessons || lessons.length === 0 ? 'not-allowed' : 'pointer',
-                    opacity: lessons.length === 0 ? 0.5 : 1,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!generatingAllLessons && lessons.length > 0) {
-                      e.currentTarget.style.opacity = '0.85'
-                    }
-                  }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
-                >
-                  {generatingAllLessons ? (
-                    <>
-                      <span style={{
-                        display: 'inline-block', width: 12, height: 12,
-                        border: '2px solid var(--accent-primary)', borderTopColor: 'transparent',
-                        borderRadius: '50%', animation: 'spin 0.8s linear infinite',
-                      }} />
-                      Generating {lessons.length - generatingLessons.size}/{lessons.length}…
-                    </>
-                  ) : (
-                    <>⚡ Gen All Lessons ({lessons.length})</>
-                  )}
-                </button>
-
-                {/* Generate All Tasks */}
-                <button
-                  id="btn-generate-all-tasks"
-                  type="button"
-                  disabled={generatingAllTasks || chapters.length === 0}
-                  onClick={handleGenerateAllTasks}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 16px', borderRadius: 4, fontSize: 13, fontWeight: 600,
-                    border: '1px solid var(--success-primary)',
-                    background: generatingAllTasks ? 'var(--bg-main)' : 'transparent',
-                    color: generatingAllTasks ? 'var(--success-primary)' : 'var(--success-primary)',
-                    cursor: generatingAllTasks || chapters.length === 0 ? 'not-allowed' : 'pointer',
-                    opacity: chapters.length === 0 ? 0.5 : 1,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!generatingAllTasks && chapters.length > 0) {
-                      e.currentTarget.style.background = 'rgba(34,197,94,0.08)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!generatingAllTasks) e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  {generatingAllTasks ? (
-                    <>
-                      <span style={{
-                        display: 'inline-block', width: 12, height: 12,
-                        border: '2px solid var(--success-primary)', borderTopColor: 'transparent',
-                        borderRadius: '50%', animation: 'spin 0.8s linear infinite',
-                      }} />
-                      Generating tasks…
-                    </>
-                  ) : (
-                    <>✓ Gen All Tasks ({chapters.length} chapters)</>
-                  )}
-                </button>
-              </div>
-            )}
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </section>
-
 
           {/* Chapters & Lessons Display */}
           {chapters.length > 0 ? (
