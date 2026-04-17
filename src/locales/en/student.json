@@ -1019,6 +1019,8 @@
     "previewInvalid": "Invalid learning path share.",
     "previewAccessDenied": "You do not have access to this share preview.",
     "previewNotFound": "Learning path share preview not found.",
+    "previewVersionOutdated": "This shared version no longer exists or has been updated to a newer version.",
+    "previewAlreadyDecided": "Preview is not available after the share has been accepted or rejected.",
     "previewLoadError": "Failed to load share preview.",
     "previewShareStatus": "Share status",
     "previewSentAt": "Sent at",

@@ -97,13 +97,6 @@ const SharePreviewPage: React.FC = () => {
     setError(null)
     try {
       const response = await getSharePreview(shareId)
-      
-      // If we are viewing by the original shareId but it has an accepted clone, redirect to the clone
-      if (response.acceptedPathId && response.acceptedPathId !== shareId) {
-        navigate(ROUTER.CHAT_SHARE_PREVIEW.replace(':shareId', response.acceptedPathId), { replace: true, state: location.state })
-        return
-      }
-
       setPreview(response)
       setActiveChapterId(response.learningPath?.chapterDtos?.[0]?.chapterId ?? null)
       if (response.status !== 'Pending') {
@@ -114,7 +107,15 @@ const SharePreviewPage: React.FC = () => {
     } catch (err: any) {
       const status = err?.response?.status
       const code = err?.response?.data?.errorCode || err?.response?.data?.code
-      if (status === 403 || code === 'ACCESS_DENIED') {
+      if (code === 'SHARE_VERSION_OUTDATED') {
+        setError(t('chat.previewVersionOutdated', {
+          defaultValue: 'This shared version no longer exists or has been updated to a newer version.',
+        }))
+      } else if (code === 'SHARE_ALREADY_DECIDED') {
+        setError(t('chat.previewAlreadyDecided', {
+          defaultValue: 'Preview is not available after the share has been accepted or rejected.',
+        }))
+      } else if (status === 403 || code === 'ACCESS_DENIED') {
         setError(t('chat.previewAccessDenied', { defaultValue: 'You do not have access to this share preview.' }))
       } else if (status === 404 || code === 'SHARE_NOT_FOUND' || code === 'LEARNING_PATH_NOT_FOUND') {
         setError(t('chat.previewNotFound', { defaultValue: 'Learning path share preview not found.' }))
@@ -157,29 +158,18 @@ const SharePreviewPage: React.FC = () => {
       if (decision === 'accept') {
         const acceptResult = await acceptShare(preview.shareId)
         clearUserLearningPathsCache(user?.id)
-
-        const finalAcceptedPathId = acceptResult.acceptedPathId || preview.acceptedPathId || preview.learningPath?.pathId
-        
-        if (finalAcceptedPathId) {
-          navigate(ROUTER.CHAT_SHARE_PREVIEW.replace(':shareId', finalAcceptedPathId), {
-            replace: true,
-            state: {
-              from: location.state?.from,
-              conversationId: location.state?.conversationId,
-              toast: {
-                message: t('chat.inviteAccepted', { defaultValue: 'Accepted' }),
-                type: 'success',
-              } satisfies ToastState,
-            },
-          })
-          return
-        }
+        const finalAcceptedPathId = acceptResult.acceptedPathId || preview.acceptedPathId || null
+        syncShareState(
+          { ...preview, status: nextStatus, respondedAt, acceptedPathId: finalAcceptedPathId ?? preview.acceptedPathId },
+          nextStatus,
+          respondedAt,
+        )
       } else {
         await rejectShare(preview.shareId)
+        syncShareState({ ...preview, status: nextStatus, respondedAt }, nextStatus, respondedAt)
       }
-      setPreview((prev) => prev ? { ...prev, status: nextStatus, respondedAt } : prev)
-      syncShareState({ ...preview, status: nextStatus, respondedAt }, nextStatus, respondedAt)
       navigate(ROUTER.CHAT, {
+        replace: true,
         state: {
           activeTab: location.state?.from === 'invites' ? 'invites' : 'conversations',
           conversationId: location.state?.conversationId,

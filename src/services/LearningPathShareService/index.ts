@@ -52,6 +52,7 @@ export async function getPendingShares(): Promise<PendingLearningPathShareSummar
 export async function getSentShares(filters?: {
   status?: ShareStatus
   studentId?: string
+  pathId?: string
 }): Promise<SentLearningPathShareSummaryDto[]> {
   const response = await api.get('/learningpath-shares/sent', { params: filters })
   return toShareArray<SentLearningPathShareSummaryDto>(response)

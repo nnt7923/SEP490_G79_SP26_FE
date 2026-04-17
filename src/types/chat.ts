@@ -91,10 +91,13 @@ export interface PendingLearningPathShareSummaryDto {
 export interface SentLearningPathShareSummaryDto {
   shareId: string
   pathId: string
+  acceptedPathId?: string | null
   learningPathTitle: string
   learningPathDescription: string | null
   studentId: string
   studentName: string
+  mentorId?: string
+  mentorName?: string
   status: ShareStatus
   sentAt: string
   respondedAt: string | null

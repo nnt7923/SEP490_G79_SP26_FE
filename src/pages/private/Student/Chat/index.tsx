@@ -24,6 +24,7 @@ import ROUTER from "../../../../router/ROUTER";
 import { useChatHub } from "../../../../hooks/useChatHub";
 import {
   getPendingShares,
+  getSentShares,
   getSharePreview,
 } from "../../../../services/LearningPathShareService";
 import {
@@ -315,6 +316,46 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
         reconcilePendingShares(shares);
       })
       .catch(() => {});
+    // Load ALL received shares (including Accepted/Rejected) để hiển thị đúng status
+    getSentShares()
+      .then((sentShares) => {
+        sentShares.forEach((share) => {
+          upsertReceivedShare({
+            shareId: share.shareId,
+            pathId: share.acceptedPathId ?? share.pathId,
+            learningPathTitle: share.learningPathTitle,
+            learningPathDescription: share.learningPathDescription,
+            mentorId: share.mentorId ?? "",
+            mentorName: share.mentorName ?? "",
+            status: share.status,
+            sentAt: share.sentAt,
+            respondedAt: share.respondedAt,
+          });
+          if (share.status !== "Pending") {
+            removePendingShare(share.shareId);
+          }
+          if (share.status === "Pending") {
+            patchShareMessage(share.shareId, {
+              shareStatus: share.status,
+              respondedAt: null,
+              pathId: share.pathId,
+              learningPathTitle: share.learningPathTitle,
+              learningPathDescription: share.learningPathDescription,
+              mentorName: share.mentorName ?? undefined,
+            });
+          } else {
+            patchShareMessage(share.shareId, {
+              shareStatus: share.status,
+              respondedAt: share.respondedAt,
+              pathId: share.acceptedPathId ?? share.pathId,
+              learningPathTitle: share.learningPathTitle,
+              learningPathDescription: share.learningPathDescription,
+              mentorName: share.mentorName ?? undefined,
+            });
+          }
+        });
+      })
+      .catch(() => {});
     getContacts()
       .then((c) => setContacts(c.filter((u) => u.roleName === "Mentor")))
       .catch(() => {});
@@ -474,7 +515,43 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
 
           hydratedShareIdsRef.current.add(normalizedShareId);
         })
-        .catch(() => {})
+        .catch((err) => {
+          const code =
+            err?.response?.data?.errorCode || err?.response?.data?.code;
+          // Share đã được quyết định, getSharePreview bị block — lấy status thực từ getSentShares
+          if (code === "SHARE_ALREADY_DECIDED") {
+            getSentShares()
+              .then((sentShares) => {
+                const match = sentShares.find(
+                  (s) => normalizeShareId(s.shareId) === normalizedShareId,
+                );
+                if (match && match.status !== "Pending") {
+                  patchShareMessage(match.shareId, {
+                    shareStatus: match.status,
+                    respondedAt: match.respondedAt,
+                    pathId: match.acceptedPathId ?? match.pathId,
+                    learningPathTitle: match.learningPathTitle,
+                    learningPathDescription: match.learningPathDescription,
+                    mentorName: match.mentorName ?? undefined,
+                  });
+                  upsertReceivedShare({
+                    shareId: match.shareId,
+                    pathId: match.acceptedPathId ?? match.pathId,
+                    learningPathTitle: match.learningPathTitle,
+                    learningPathDescription: match.learningPathDescription,
+                    mentorId: match.mentorId ?? "",
+                    mentorName: match.mentorName ?? "",
+                    status: match.status,
+                    sentAt: match.sentAt,
+                    respondedAt: match.respondedAt,
+                  });
+                  removePendingShare(match.shareId);
+                  hydratedShareIdsRef.current.add(normalizedShareId);
+                }
+              })
+              .catch(() => {});
+          }
+        })
         .finally(() => {
           hydratingShareIdsRef.current.delete(normalizedShareId);
         });
@@ -832,8 +909,10 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                             respondedAt: share.respondedAt,
                           }}
                           actionMode="invite"
-                          onPreview={() =>
-                            openSharePreview(share.shareId, "invites")
+                          onPreview={
+                            share.status === 'Pending'
+                              ? () => openSharePreview(share.shareId, 'invites')
+                              : undefined
                           }
                           onViewPath={
                             share.pathId && share.status === "Accepted"
@@ -916,16 +995,9 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                             )}
                             <LearningPathShareCard
                               data={shareCardData}
-                              onPreview={() =>
-                                openSharePreview(shareCardData.shareId, "chat")
-                              }
-                              onViewPath={
-                                shareCardData.pathId &&
-                                shareCardData.status === "Accepted"
-                                  ? () =>
-                                      navigate("/my-plans/detail", {
-                                        state: { pathId: shareCardData.pathId },
-                                      })
+                              onPreview={
+                                shareCardData.status === 'Pending'
+                                  ? () => openSharePreview(shareCardData.shareId, 'chat')
                                   : undefined
                               }
                               extraActions={

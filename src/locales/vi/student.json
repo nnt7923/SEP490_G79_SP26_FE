@@ -1019,6 +1019,8 @@
     "previewInvalid": "Liên kết chia sẻ không hợp lệ.",
     "previewAccessDenied": "Bạn không có quyền xem chia sẻ này.",
     "previewNotFound": "Không tìm thấy nội dung chia sẻ.",
+    "previewVersionOutdated": "Bản chia sẻ này không còn tồn tại hoặc đã được cập nhật thành phiên bản khác.",
+    "previewAlreadyDecided": "Không thể xem trước sau khi đã chấp nhận hoặc từ chối bản chia sẻ này.",
     "previewLoadError": "Không thể tải màn xem trước.",
     "previewShareStatus": "Trạng thái chia sẻ",
     "previewSentAt": "Gửi lúc",

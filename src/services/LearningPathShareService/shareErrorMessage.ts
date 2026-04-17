@@ -12,6 +12,12 @@ export function resolveShareToStudentErrorMessage(
     return t('chat.shareAlreadyPending')
   }
 
+  if (code === 'SHARE_ALREADY_ACCEPTED') {
+    return t('errors:codes.SHARE_ALREADY_ACCEPTED', {
+      defaultValue: 'This learning path has already been accepted by the student.',
+    })
+  }
+
   if (code === 'CHAPTER_TASK_REQUIRED') {
     return t('chat.shareMissingChapterTask', {
       defaultValue: 'Mỗi chapter phải có ít nhất 1 task trước khi chia sẻ.',
