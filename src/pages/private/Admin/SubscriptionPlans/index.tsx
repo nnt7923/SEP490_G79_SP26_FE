@@ -312,7 +312,6 @@ const AdminSubscriptionPlansPage: React.FC = () => {
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.name')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.priceVnd')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.creditedTokens')}</th>
-                      <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.bonusVnd')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.displayOrder')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.status')}</th>
                       <th className="px-4 py-3 font-bold text-heading">{t('subscriptionPlans.actions')}</th>
@@ -327,7 +326,6 @@ const AdminSubscriptionPlansPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 text-label">{formatCurrency(tokenPackage.priceVnd)} VND</td>
                         <td className="px-4 py-3 text-label">{formatCurrency(tokenPackage.creditedTokens)} token</td>
-                        <td className="px-4 py-3 text-label">+{formatCurrency(tokenPackage.bonusVnd)} VND</td>
                         <td className="px-4 py-3 text-label">{tokenPackage.displayOrder}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-0.5 border rounded-sm text-xs font-bold ${tokenPackage.isActive

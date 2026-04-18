@@ -54,6 +54,11 @@ export interface AIUsageLogsSummaryQuery {
   includeProviderModelBreakdown?: boolean
 }
 
+export interface AIUsageProfitOverviewQuery {
+  fromDate?: string
+  toDate?: string
+}
+
 export interface AIUsageLogsQuery {
   pageNumber?: number
   pageSize?: number
@@ -67,10 +72,26 @@ export interface AIUsageLogsQuery {
 }
 
 export interface AIUsageSummaryItem {
+  accessTierUsed: string
+  providerName: string
+  model: string
+  totalRequests: number
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalChargedTokens: number
+  totalRawChargedTokens: number
+  totalCostUsd: number
+  totalRevenueUsd: number
+  totalRawRevenueUsd: number
+  totalProfitUsd: number
+  totalRawProfitUsd: number
+  profitMarginPercent: number
+
+  // Backward-compatible aliases used by older admin spending screen.
   tier: string
   usageType: string
   provider: string
-  model: string
+  modelName: string
   requests: number
   inputTokens: number
   outputTokens: number
@@ -95,17 +116,45 @@ export interface AIUsageSummaryResponse {
 }
 
 export interface AIUsageLogItem {
+  usageLogId: string
   id: string
+  configId: string
   createdAt: string
   accessTierUsed: string
   usageType: string
   providerName: string
+  model: string
   modelName: string
   inputTokens: number
   outputTokens: number
   totalTokens: number
+  chargedTokens: number
+  rawChargedTokens: number
   costUsd: number
   userId: string
+}
+
+export interface SystemRuntimePolicyItem {
+  policyKey: string
+  description?: string
+  configJson?: Record<string, unknown> | null
+  isActive?: boolean
+  updatedAt?: string
+  [key: string]: unknown
+}
+
+export interface AIUsageProfitOverview {
+  fromDate: string
+  toDate: string
+  studentUsageFreeUsd: number
+  studentUsagePaidUsd: number
+  totalRevenueFreeUsd: number
+  totalRevenuePaidUsd: number
+  totalRevenueUsd: number
+  studentUsageRawUsd: number
+  studentBilledRevenueUsd: number
+  totalProfitUsd: number
+  profitUsd: number
 }
 
 export interface AIUsageLogPage {
@@ -160,28 +209,8 @@ function buildSummaryQueryParams(query: AIUsageLogsSummaryQuery): URLSearchParam
   return params
 }
 
-function buildLogsQueryParams(query: AIUsageLogsQuery): URLSearchParams {
+function buildProfitOverviewQueryParams(query: AIUsageProfitOverviewQuery): URLSearchParams {
   const params = new URLSearchParams()
-
-  if (Number.isFinite(query.pageNumber) && Number(query.pageNumber) > 0) {
-    params.set('pageNumber', String(query.pageNumber))
-  }
-
-  if (Number.isFinite(query.pageSize) && Number(query.pageSize) > 0) {
-    params.set('pageSize', String(query.pageSize))
-  }
-
-  if (query.usageType?.trim()) {
-    params.set('usageType', query.usageType.trim())
-  }
-
-  if (query.accessTierUsed?.trim()) {
-    params.set('accessTierUsed', query.accessTierUsed.trim())
-  }
-
-  if (query.providerName?.trim()) {
-    params.set('providerName', query.providerName.trim())
-  }
 
   if (query.fromDate) {
     params.set('fromDate', query.fromDate)
@@ -191,12 +220,46 @@ function buildLogsQueryParams(query: AIUsageLogsQuery): URLSearchParams {
     params.set('toDate', query.toDate)
   }
 
+  return params
+}
+
+function buildLogsQueryParams(query: AIUsageLogsQuery): URLSearchParams {
+  const params = new URLSearchParams()
+
+  if (Number.isFinite(query.pageNumber) && Number(query.pageNumber) > 0) {
+    params.set('PageNumber', String(query.pageNumber))
+  }
+
+  if (Number.isFinite(query.pageSize) && Number(query.pageSize) > 0) {
+    params.set('PageSize', String(query.pageSize))
+  }
+
+  if (query.usageType?.trim()) {
+    params.set('UsageType', query.usageType.trim())
+  }
+
+  if (query.accessTierUsed?.trim()) {
+    params.set('AccessTierUsed', query.accessTierUsed.trim())
+  }
+
+  if (query.providerName?.trim()) {
+    params.set('ProviderName', query.providerName.trim())
+  }
+
+  if (query.fromDate) {
+    params.set('FromDate', query.fromDate)
+  }
+
+  if (query.toDate) {
+    params.set('ToDate', query.toDate)
+  }
+
   if (query.sortBy?.trim()) {
-    params.set('sortBy', query.sortBy.trim())
+    params.set('SortBy', query.sortBy.trim())
   }
 
   if (query.sortDescending !== undefined) {
-    params.set('sortDescending', String(Boolean(query.sortDescending)))
+    params.set('SortDescending', String(Boolean(query.sortDescending)))
   }
 
   return params
@@ -278,16 +341,47 @@ function normalizePolicy(raw: unknown): MentorAIAccessPolicy {
 function normalizeSummaryItem(raw: unknown): AIUsageSummaryItem {
   const source = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
 
+  const accessTierUsed = String(source.accessTierUsed ?? source.accessTier ?? source.tier ?? 'Unknown')
+  const providerName = String(source.providerName ?? source.provider ?? 'All')
+  const model = String(source.model ?? source.modelName ?? 'All')
+  const totalRequests = toSafeNumber(source.totalRequests ?? source.requests)
+  const totalInputTokens = toSafeNumber(source.totalInputTokens ?? source.inputTokens)
+  const totalOutputTokens = toSafeNumber(source.totalOutputTokens ?? source.outputTokens)
+  const totalTokens = toSafeNumber(source.totalTokens)
+  const totalCostUsd = toSafeNumber(source.totalCostUsd ?? source.costUsd)
+  const totalChargedTokens = toSafeNumber(source.totalChargedTokens ?? source.chargedTokens)
+  const totalRawChargedTokens = toSafeNumber(source.totalRawChargedTokens ?? source.rawChargedTokens)
+  const totalRevenueUsd = toSafeNumber(source.totalRevenueUsd ?? source.revenueUsd)
+  const totalRawRevenueUsd = toSafeNumber(source.totalRawRevenueUsd ?? source.rawRevenueUsd)
+  const totalProfitUsd = toSafeNumber(source.totalProfitUsd ?? source.profitUsd)
+  const totalRawProfitUsd = toSafeNumber(source.totalRawProfitUsd ?? source.rawProfitUsd)
+  const profitMarginPercent = toSafeNumber(source.profitMarginPercent)
+
   return {
-    tier: String(source.tier ?? source.accessTierUsed ?? source.accessTier ?? 'Unknown'),
+    accessTierUsed,
     usageType: String(source.usageType ?? source.aiUsageType ?? 'Unknown'),
-    provider: String(source.provider ?? source.providerName ?? 'All'),
-    model: String(source.model ?? source.modelName ?? 'All'),
-    requests: toSafeNumber(source.requests ?? source.totalRequests),
-    inputTokens: toSafeNumber(source.inputTokens ?? source.totalInputTokens),
-    outputTokens: toSafeNumber(source.outputTokens ?? source.totalOutputTokens),
-    totalTokens: toSafeNumber(source.totalTokens),
-    costUsd: toSafeNumber(source.costUsd ?? source.totalCostUsd),
+    providerName,
+    model,
+    totalRequests,
+    totalInputTokens,
+    totalOutputTokens,
+    totalTokens,
+    totalChargedTokens,
+    totalRawChargedTokens,
+    totalCostUsd,
+    totalRevenueUsd,
+    totalRawRevenueUsd,
+    totalProfitUsd,
+    totalRawProfitUsd,
+    profitMarginPercent,
+    // Backward-compatible aliases.
+    tier: accessTierUsed,
+    provider: providerName,
+    modelName: model,
+    requests: totalRequests,
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+    costUsd: totalCostUsd,
   }
 }
 
@@ -419,18 +513,71 @@ function normalizeSummary(raw: unknown): AIUsageSummaryResponse {
 function normalizeLogItem(raw: unknown): AIUsageLogItem {
   const source = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
 
+  const usageLogId = String(source.usageLogId ?? source.id ?? source.logId ?? source.aiUsageLogId ?? '')
+  const model = String(source.model ?? source.modelName ?? '')
+
   return {
-    id: String(source.id ?? source.logId ?? source.aiUsageLogId ?? ''),
+    usageLogId,
+    id: usageLogId,
+    configId: String(source.configId ?? ''),
     createdAt: String(source.createdAt ?? source.timestamp ?? source.createdDate ?? ''),
     accessTierUsed: String(source.accessTierUsed ?? source.accessTier ?? 'Unknown'),
     usageType: String(source.usageType ?? source.aiUsageType ?? 'Unknown'),
     providerName: String(source.providerName ?? source.provider ?? ''),
-    modelName: String(source.modelName ?? source.model ?? ''),
+    model,
+    modelName: model,
     inputTokens: toSafeNumber(source.inputTokens ?? source.totalInputTokens),
     outputTokens: toSafeNumber(source.outputTokens ?? source.totalOutputTokens),
     totalTokens: toSafeNumber(source.totalTokens),
+    chargedTokens: toSafeNumber(source.chargedTokens ?? source.totalChargedTokens),
+    rawChargedTokens: toSafeNumber(source.rawChargedTokens ?? source.totalRawChargedTokens),
     costUsd: toSafeNumber(source.costUsd ?? source.totalCostUsd),
     userId: String(source.userId ?? source.createdBy ?? ''),
+  }
+}
+
+function normalizeSystemRuntimePolicy(raw: unknown): SystemRuntimePolicyItem {
+  const source = unwrapValue(raw)
+  const record = (source && typeof source === 'object') ? source as Record<string, unknown> : {}
+
+  const configSource = record.configJson
+  let configJson: Record<string, unknown> | null = null
+  if (configSource && typeof configSource === 'object' && !Array.isArray(configSource)) {
+    configJson = configSource as Record<string, unknown>
+  }
+
+  return {
+    policyKey: String(record.policyKey ?? ''),
+    description: String(record.description ?? ''),
+    configJson,
+    isActive: Boolean(record.isActive),
+    updatedAt: String(record.updatedAt ?? ''),
+    ...record,
+  }
+}
+
+function normalizeProfitOverview(raw: unknown): AIUsageProfitOverview {
+  const source = unwrapValue(raw)
+  const record = (source && typeof source === 'object') ? source as Record<string, unknown> : {}
+
+  const studentUsageFreeUsd = toSafeNumber(record.studentUsageFreeUsd, 0)
+  const studentUsagePaidUsd = toSafeNumber(
+    record.studentUsagePaidUsd ?? record.studentUsageCostUsd,
+    0
+  )
+
+  return {
+    fromDate: String(record.fromDate ?? ''),
+    toDate: String(record.toDate ?? ''),
+    studentUsageFreeUsd,
+    studentUsagePaidUsd,
+    totalRevenueFreeUsd: toSafeNumber(record.totalRevenueFreeUsd ?? record.systemCostFreeUsd),
+    totalRevenuePaidUsd: toSafeNumber(record.totalRevenuePaidUsd ?? record.systemCostPaidUsd),
+    totalRevenueUsd: toSafeNumber(record.totalRevenueUsd ?? record.systemCostTotalUsd),
+    studentUsageRawUsd: toSafeNumber(record.studentUsageRawUsd ?? (studentUsageFreeUsd + studentUsagePaidUsd)),
+    studentBilledRevenueUsd: toSafeNumber(record.studentBilledRevenueUsd ?? record.studentRevenueRawUsd),
+    totalProfitUsd: toSafeNumber(record.totalProfitUsd ?? 0),
+    profitUsd: toSafeNumber(record.profitUsd ?? 0),
   }
 }
 
@@ -481,6 +628,25 @@ class AdminAIUsageService {
     const normalizedPolicyKey = encodeURIComponent(String(policyKey || '').trim())
     const response = await api.put(`/admin/system-runtime-policy/${normalizedPolicyKey}`, payload)
     return normalizePolicy(response)
+  }
+
+  async getSystemRuntimePolicy(policyKey: string): Promise<SystemRuntimePolicyItem> {
+    const normalizedPolicyKey = encodeURIComponent(String(policyKey || '').trim())
+    const response = await api.get(`/admin/system-runtime-policy/${normalizedPolicyKey}`)
+    return normalizeSystemRuntimePolicy(response)
+  }
+
+  async getProfitOverview(query: AIUsageProfitOverviewQuery): Promise<AIUsageProfitOverview> {
+    const params = buildProfitOverviewQueryParams(query)
+    const queryString = params.toString()
+
+    const response = await api.get(
+      queryString
+        ? `/admin/ai-usage-logs/profit-overview?${queryString}`
+        : '/admin/ai-usage-logs/profit-overview'
+    )
+
+    return normalizeProfitOverview(response)
   }
 
   async getUsageLogsSummary(query: AIUsageLogsSummaryQuery): Promise<AIUsageSummaryResponse> {

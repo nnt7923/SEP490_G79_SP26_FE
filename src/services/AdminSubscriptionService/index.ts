@@ -15,7 +15,6 @@ export interface AdminTokenPackage {
   description: string
   priceVnd: number
   creditedTokens: number
-  bonusVnd: number
   isActive: boolean
   displayOrder: number
   [key: string]: unknown
@@ -112,7 +111,6 @@ function normalizeTokenPackage(raw: any): AdminTokenPackage {
     description: String(raw?.description ?? ''),
     priceVnd,
     creditedTokens,
-    bonusVnd: Math.max(0, creditedTokens - priceVnd),
     isActive: Boolean(raw?.isActive),
     displayOrder: Number.isFinite(Number(raw?.displayOrder)) ? Number(raw.displayOrder) : 0,
     ...raw,
