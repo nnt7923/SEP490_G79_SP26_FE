@@ -28,12 +28,15 @@ import {
   getSharePreview,
 } from "../../../../services/LearningPathShareService";
 import {
+  createOrGetConversation,
   getContacts,
   getConversations,
   getMessages,
+  sendMessageRest,
 } from "../../../../services/DirectChatService";
 import MessageStatusIcon from "../../../../components/Chat/MessageStatusIcon";
 import type {
+  AskMentorContextPayload,
   DirectChatContactDto,
   DirectMessageDto,
   LearningPathShareCardData,
@@ -72,6 +75,10 @@ import {
   type ReplyDraft,
   normalizeChatMessageContent,
 } from "../../../../components/Chat/chatReply";
+import {
+  formatAskMentorContextMessage,
+  isValidAskMentorContextPayload,
+} from "../../../../utils/askMentorContext";
 
 type ToastState = {
   message: string;
@@ -81,6 +88,7 @@ type ChatRouteState = {
   conversationId?: string;
   activeTab?: "conversations" | "invites" | "contacts";
   toast?: ToastState;
+  askMentorContext?: AskMentorContextPayload;
 };
 interface StudentChatPageProps {
   initialView?: "direct" | "community";
@@ -173,13 +181,28 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   const [toast, setToast] = useState<ToastState | null>(
     location.state?.toast ?? null,
   );
+  const readAskMentorContextFromStorage = (): AskMentorContextPayload | null => {
+    try {
+      const raw = sessionStorage.getItem("plans.askMentorContext");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as AskMentorContextPayload;
+      return isValidAskMentorContextPayload(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
   const [requestedConversationId, setRequestedConversationId] = useState<
     string | null
   >(location.state?.conversationId ?? null);
+  const [askMentorContext, setAskMentorContext] =
+    useState<AskMentorContextPayload | null>(
+      location.state?.askMentorContext ?? readAskMentorContextFromStorage(),
+    );
   const deliveredRef = useRef<Set<string>>(new Set());
   const seenRef = useRef<Set<string>>(new Set());
   const hydratedShareIdsRef = useRef<Set<string>>(new Set());
   const hydratingShareIdsRef = useRef<Set<string>>(new Set());
+  const sentAskMentorKeysRef = useRef<Set<string>>(new Set());
   const messageListId = "student-chat-message-list";
   const messageInputRef = useRef<any>(null);
 
@@ -368,10 +391,17 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     if (location.state.activeTab) setActiveTab(location.state.activeTab);
     if (location.state.conversationId)
       setRequestedConversationId(location.state.conversationId);
+    if (location.state.askMentorContext)
+      setAskMentorContext(location.state.askMentorContext);
+    if (!location.state.askMentorContext) {
+      const cachedContext = readAskMentorContextFromStorage();
+      if (cachedContext) setAskMentorContext(cachedContext);
+    }
     if (
       location.state.toast ||
       location.state.activeTab ||
-      location.state.conversationId
+      location.state.conversationId ||
+      location.state.askMentorContext
     ) {
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -625,20 +655,32 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
 
   const handleStartConversation = async (participantId: string) => {
     try {
-      const result = await hub.startConversation(participantId) as any;
       let targetConvId = null;
-      if (result && typeof result === 'string') {
-        targetConvId = result;
-      } else if (result && typeof result === 'object') {
-        targetConvId = result.conversationId || result.ConversationId;
+      const existingConv = Object.values(
+        useChatStore.getState().conversationsById,
+      ).find(
+        (c) => c.mentorId === participantId || c.studentId === participantId,
+      );
+      if (existingConv) {
+        targetConvId = existingConv.conversationId;
       }
 
       if (!targetConvId) {
-        const existingConv = Object.values(useChatStore.getState().conversationsById).find(
-          (c) => c.mentorId === participantId || c.studentId === participantId
-        );
-        if (existingConv) {
-          targetConvId = existingConv.conversationId;
+        try {
+          const conversation = await createOrGetConversation(participantId);
+          if (conversation?.conversationId) {
+            targetConvId = conversation.conversationId;
+            useChatStore.getState().upsertConversation(conversation);
+          }
+        } catch {}
+      }
+
+      if (!targetConvId) {
+        const result = (await hub.startConversation(participantId)) as any;
+        if (result && typeof result === "string") {
+          targetConvId = result;
+        } else if (result && typeof result === "object") {
+          targetConvId = result.conversationId || result.ConversationId;
         }
       }
 
@@ -647,8 +689,99 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
 
       if (targetConvId) {
         setActiveConversation(targetConvId);
+
+        if (askMentorContext) {
+          const messagePayload =
+            formatAskMentorContextMessage(askMentorContext);
+          const dedupeKey = `${participantId}:${JSON.stringify(askMentorContext)}`;
+          if (!sentAskMentorKeysRef.current.has(dedupeKey)) {
+            sentAskMentorKeysRef.current.add(dedupeKey);
+            if (!isValidAskMentorContextPayload(askMentorContext)) {
+              setToast({
+                message: t("chat.askMentorContextInvalid", {
+                  defaultValue:
+                    "Plan context is incomplete. You can continue messaging mentor manually.",
+                }),
+                type: "warning",
+              });
+              setAskMentorContext(null);
+              return;
+            }
+
+            let sent = false;
+            try {
+              await hub.joinConversation(targetConvId).catch(() => {});
+              await hub.sendMessage(
+                targetConvId,
+                messagePayload,
+                "Text",
+                null,
+              );
+              sent = true;
+            } catch {
+              try {
+                await sendMessageRest(
+                  targetConvId,
+                  messagePayload,
+                  "Text",
+                  null,
+                );
+                sent = true;
+              } catch {
+                // handled below
+              }
+            }
+
+            try {
+              const latestMessages = await getMessages(targetConvId);
+              setMessages(targetConvId, latestMessages?.items ?? []);
+            } catch {}
+            getConversations().then(setConversations).catch(() => {});
+
+            if (sent) {
+              setToast({
+                message: t("chat.askMentorContextSent", {
+                  defaultValue:
+                    "Plan context was sent to mentor automatically.",
+                }),
+                type: "success",
+              });
+              setAskMentorContext(null);
+              try {
+                sessionStorage.removeItem("plans.askMentorContext");
+              } catch {}
+            } else {
+              sentAskMentorKeysRef.current.delete(dedupeKey);
+              setToast({
+                message: t("chat.askMentorContextSendFailed", {
+                  defaultValue:
+                    "Could not send plan context automatically. You can continue messaging mentor manually.",
+                }),
+                type: "warning",
+              });
+            }
+          }
+        }
+      } else if (askMentorContext) {
+        setToast({
+          message: t("chat.askMentorConversationMissing", {
+            defaultValue:
+              "Could not open mentor conversation for auto context send.",
+          }),
+          type: "warning",
+        });
       }
-    } catch {}
+    } catch {
+      if (askMentorContext) {
+        setToast({
+          message: t("chat.askMentorContextSendFailed", {
+            defaultValue:
+              "Could not send plan context automatically. You can continue messaging mentor manually.",
+            }),
+          type: "warning",
+        });
+      }
+    }
   };
 
   const handleReplyToMessage = (message: DirectMessageDto) => {

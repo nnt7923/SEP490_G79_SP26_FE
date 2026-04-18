@@ -16,6 +16,8 @@ import Stepper from './components/Stepper'
 import { useTranslation } from 'react-i18next'
 import { getGoalTitle } from '../../../utils/goalTranslation'
 import useAuthStore from '../../../store/useAuthStore'
+import type { AskMentorContextPayload } from '../../../types/chat'
+import { buildAskMentorContextPayload } from '../../../utils/askMentorContext'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -1285,6 +1287,51 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       }))
       .filter((it) => !!it.key)
     : []
+
+  const selectedSubjectName = useMemo(() => (
+    language
+      ? String(
+        subjects.find((s: any) => String(s.id ?? s.subjectId) === String(language))?.name ??
+        language
+      ).trim()
+      : ''
+  ), [language, subjects])
+
+  const askMentorContextPayload = useMemo<AskMentorContextPayload | null>(() => (
+    buildAskMentorContextPayload({
+      subjectName: selectedSubjectName,
+      selectedGoals,
+      goalPriorities,
+      goalItems,
+      level,
+      languageSelection,
+    })
+  ), [selectedSubjectName, selectedGoals, goalPriorities, goalItems, level, languageSelection])
+
+  const handleAskMentorClick = () => {
+    try {
+      if (askMentorContextPayload) {
+        sessionStorage.setItem('plans.askMentorContext', JSON.stringify(askMentorContextPayload))
+      } else {
+        sessionStorage.removeItem('plans.askMentorContext')
+      }
+    } catch { }
+
+    navigate(ROUTER.CHAT, {
+      state: {
+        activeTab: 'contacts',
+        askMentorContext: askMentorContextPayload ?? undefined,
+        toast: askMentorContextPayload
+          ? undefined
+          : {
+            type: 'warning' as const,
+            message: t('plans.askMentorContextIncomplete', {
+              defaultValue: 'Some plan details are missing, so context could not be attached automatically.',
+            }),
+          },
+      },
+    })
+  }
 
   // Pagination calculations for system goals
   const totalSystemGoals = systemGoals.length
@@ -2784,9 +2831,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     e.currentTarget.style.transform = 'translateY(0)'
                     e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
-                  onClick={() => {
-                    navigate(ROUTER.CHAT, { state: { activeTab: 'contacts' } })
-                  }}
+                  onClick={handleAskMentorClick}
                 >
                   <div style={{ height: 2, width: 42, background: 'var(--warning-primary)', borderRadius: 999, marginBottom: 12 }} />
 

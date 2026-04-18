@@ -5,6 +5,18 @@
 
 export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare'
 export type ShareStatus = 'Pending' | 'Accepted' | 'Rejected'
+export interface AskMentorGoalItem {
+  goal: string
+  goalWeight: number
+}
+
+export interface AskMentorContextPayload {
+  subject: string
+  goals: AskMentorGoalItem[]
+  level: string
+  language: 'VI' | 'EN'
+}
+
 export type LearningPathShareUpdateAction =
   | 'CreateNewFromLatest'
   | 'UpdateCurrentToLatest'
