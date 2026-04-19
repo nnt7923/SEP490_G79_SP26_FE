@@ -831,6 +831,7 @@ const MyPlansDetailPage: React.FC = () => {
                           selectedTaskId={chapter.id === activeChapterId ? selectedTaskId : null}
                           initialTasks={chapter.tasks}
                           onAllTasksCompleted={handleChapterTasksCompleted}
+                          showReloadButton={false}
                         />
                       </div>
                     </>

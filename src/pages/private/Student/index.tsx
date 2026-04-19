@@ -919,7 +919,18 @@ const StudentIndex: React.FC = () => {
     if (itemType === 'quiz') {
       const quizId = readTimelineIdField(item, ['quizId', 'QuizId', 'quizzId', 'QuizzId', 'itemId', 'id'])
       if (!quizId) return
-      navigate(`/quiz/${encodeURIComponent(quizId)}`)
+      const quizTitle = String(
+        item.title
+        ?? item.quizTitle
+        ?? item.QuizTitle
+        ?? item.itemTitle
+        ?? item.name
+        ?? ''
+      ).trim()
+
+      navigate(`/quiz/${encodeURIComponent(quizId)}`, {
+        state: quizTitle ? { quizTitle } : undefined,
+      })
       return
     }
 
