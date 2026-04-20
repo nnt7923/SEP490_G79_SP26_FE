@@ -134,6 +134,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
+  const [createGoalSubjectId, setCreateGoalSubjectId] = useState<string>('')
+  const [createGoalSubjectOptions, setCreateGoalSubjectOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingCreateGoalSubjects, setLoadingCreateGoalSubjects] = useState<boolean>(false)
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
   const [newGoalDesc, setNewGoalDesc] = useState<string>('')
   const [newGoalDuration, setNewGoalDuration] = useState<string>('OneMonth')
@@ -191,17 +194,59 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     }
   }
 
+  const loadCreateGoalSubjects = async () => {
+    if (createGoalSubjectOptions.length > 0) return
+
+    try {
+      setLoadingCreateGoalSubjects(true)
+      const data = await SubjectService.listSubjects()
+      const options = (Array.isArray(data) ? data : [])
+        .map((subject: any) => ({
+          id: String(subject?.id ?? subject?.subjectId ?? '').trim(),
+          name: String(subject?.name ?? '').trim(),
+        }))
+        .filter((subject) => Boolean(subject.id) && Boolean(subject.name))
+
+      setCreateGoalSubjectOptions(options)
+    } catch (e: any) {
+      const d = e?.response?.data
+      const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSubjects')
+      setCreateGoalError(msg)
+    } finally {
+      setLoadingCreateGoalSubjects(false)
+    }
+  }
+
+  const mapCreateGoalErrorCode = (errorCode: string): string => {
+    switch (errorCode) {
+      case 'GOAL_SUBJECT_MISMATCH':
+        return t('goals.errorCodes.GOAL_SUBJECT_MISMATCH')
+      case 'INVALID_GOAL':
+        return t('goals.errorCodes.INVALID_GOAL')
+      default:
+        return t('goals.goalCreateFailed')
+    }
+  }
+
+  useEffect(() => {
+    if (!showAddGoal) return
+
+    void loadCreateGoalSubjects()
+    setCreateGoalSubjectId((previous) => previous || language || '')
+  }, [showAddGoal, language])
+
   // Handle goal creation
   const handleCreateGoalModal = async () => {
     const title = newGoalTitle.trim()
     const description = newGoalDesc.trim()
     const duration = newGoalDuration
+    const subjectId = createGoalSubjectId
     
     if (!title) {
       setCreateGoalError(t('plans.enterGoalTitle'))
       return
     }
-    if (!language) {
+    if (!subjectId) {
       setCreateGoalError(t('plans.selectSubjectFirst'))
       return
     }
@@ -211,7 +256,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     
     try {
       const payload = {
-        subjectId: language,
+        subjectId,
         title: title,
         description: description,
         duration: duration
@@ -221,35 +266,21 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       
       setToast({ message: t('plans.goalCreated'), type: 'success' })
       setShowAddGoal(false)
+      setCreateGoalSubjectId('')
       setNewGoalTitle('')
       setNewGoalDesc('')
       setNewGoalDuration('OneMonth')
+
+      if (subjectId && subjectId !== language) {
+        setLanguage(subjectId)
+      }
       
       // Reload goals to get updated list
       await reloadSubjectGoals()
     } catch (e: any) {
       const d = e?.response?.data
-      const errorCode = d?.errorCode || d?.code
-      const errorMessage = d?.errorMessage || d?.message || d?.error || e?.message
-      
-      let displayMessage = errorMessage || t('plans.goalCreateFailed')
-      
-      // Handle specific error codes with translated messages
-      if (errorCode === 'GOAL_SUBJECT_MISMATCH') {
-        displayMessage = t('plans.goalSubjectMismatch')
-      } else if (errorCode === 'INVALID_SUBJECT') {
-        displayMessage = t('plans.invalidSubject')
-      } else if (errorCode === 'DUPLICATE_GOAL') {
-        displayMessage = t('plans.duplicateGoal')
-      } else if (errorCode === 'VALIDATION_ERROR') {
-        displayMessage = t('plans.validationError')
-      } else if (errorCode === 'UNAUTHORIZED') {
-        displayMessage = t('plans.unauthorized')
-      } else if (errorCode === 'RATE_LIMIT_EXCEEDED') {
-        displayMessage = t('plans.rateLimitExceeded')
-      }
-      
-      setCreateGoalError(displayMessage)
+      const errorCode = String(d?.errorCode || d?.code || '').toUpperCase()
+      setCreateGoalError(mapCreateGoalErrorCode(errorCode))
     } finally {
       setCreatingGoal(false)
     }
@@ -1998,6 +2029,25 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                             onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                           />
                         </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.languageLabel')}</label>
+                          <select
+                            value={createGoalSubjectId}
+                            onChange={(e) => setCreateGoalSubjectId(e.target.value)}
+                            disabled={creatingGoal || loadingCreateGoalSubjects}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          >
+                            <option value="">
+                              {loadingCreateGoalSubjects ? t('goals.loadingSubjects') : t('plans.selectSubjectFirst')}
+                            </option>
+                            {createGoalSubjectOptions.map((subject) => (
+                              <option key={subject.id} value={subject.id}>{subject.name}</option>
+                            ))}
+                          </select>
+                        </div>
                         
                         {/* Description Field */}
                         <div>
@@ -2036,6 +2086,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                             type="button"
                             onClick={() => { 
                               setShowAddGoal(false); 
+                              setCreateGoalSubjectId('');
                               setNewGoalTitle(''); 
                               setNewGoalDesc(''); 
                               setNewGoalDuration('OneMonth');
@@ -2047,11 +2098,11 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                           >{t('plans.cancel')}</button>
                           <button
                             type="button"
-                            disabled={creatingGoal}
+                            disabled={creatingGoal || loadingCreateGoalSubjects || !createGoalSubjectId}
                             onClick={handleCreateGoalModal}
-                            style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
-                            onMouseEnter={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} 
-                            onMouseLeave={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
+                            style={{ flex: 1, padding: '8px 16px', background: (creatingGoal || loadingCreateGoalSubjects || !createGoalSubjectId) ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: (creatingGoal || loadingCreateGoalSubjects || !createGoalSubjectId) ? 'not-allowed' : 'pointer' }}
+                            onMouseEnter={(e) => { if (!creatingGoal && !loadingCreateGoalSubjects && createGoalSubjectId) e.currentTarget.style.background = 'var(--text-strong)' }} 
+                            onMouseLeave={(e) => { if (!creatingGoal && !loadingCreateGoalSubjects && createGoalSubjectId) e.currentTarget.style.background = 'var(--text-primary)' }}
                           >{creatingGoal ? t('plans.savingGoal') : t('plans.saveGoal')}</button>
                         </div>
                       </div>

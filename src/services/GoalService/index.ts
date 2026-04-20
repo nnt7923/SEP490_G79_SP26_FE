@@ -1,5 +1,5 @@
 import api from '../Axios'
-import { listGoalsUrl, createGoalUrl, goalUrl, basePath, myGoalsUrl } from './url'
+import { listGoalsUrl, createGoalUrl, goalUrl, basePath, myGoalsUrl, goalDashboardUrl } from './url'
 
 type GoalCacheEntry = {
   expiresAt: number
@@ -26,6 +26,57 @@ export interface Goal {
   createdAt: string
   durationDays?: number
   [key: string]: any
+}
+
+export type GoalDashboardPathStatus = 'Active' | 'InProgress' | 'Completed' | 'Draft' | 'Cancelled'
+
+export interface GoalDashboardQuery {
+  pageNumber?: number
+  pageSize?: number
+  searchTerm?: string
+  pathStatus?: GoalDashboardPathStatus
+  sortDescending?: boolean
+}
+
+export interface PersonalGoalDashboardItem {
+  goalId: string
+  title: string
+  description: string | null
+  progressPercent: number
+  status: 'NotStarted' | 'InProgress' | 'Completed' | string
+  lastUpdatedAt?: string | null
+}
+
+export interface PathGoalDashboardItem {
+  learningPathId: string
+  learningPathTitle: string
+  learningPathStatus: string
+  subjectName?: string | null
+  goalId: string
+  goalTitle: string
+  isSystemDefined: boolean
+  weight?: number | null
+  targetPercent?: number | null
+  progressPercent?: number | null
+  completionPercent?: number | null
+  goalStatus?: string | null
+  completedAt?: string | null
+  lastUpdatedAt?: string | null
+}
+
+export interface GoalDashboardPathGoalsPage {
+  items: PathGoalDashboardItem[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export interface GoalDashboardResponse {
+  personalGoals: PersonalGoalDashboardItem[]
+  pathGoals: GoalDashboardPathGoalsPage
 }
 
 function normalizeDurationDays(goal: any): number {
@@ -58,6 +109,55 @@ function normalizeGoal(goal: any): Goal {
     durationDays: normalizeDurationDays(goal),
     isCompleted: goal?.isCompleted,
     completedAt: goal?.completedAt ?? null,
+  }
+}
+
+function normalizePersonalGoalDashboardItem(goal: any): PersonalGoalDashboardItem {
+  return {
+    goalId: String(goal?.goalId ?? goal?.id ?? ''),
+    title: String(goal?.title ?? goal?.name ?? 'Goal'),
+    description: goal?.description ?? null,
+    progressPercent: Number(goal?.progressPercent ?? 0),
+    status: String(goal?.status ?? 'NotStarted'),
+    lastUpdatedAt: goal?.lastUpdatedAt ?? null,
+  }
+}
+
+function normalizePathGoalDashboardItem(item: any): PathGoalDashboardItem {
+  return {
+    learningPathId: String(item?.learningPathId ?? ''),
+    learningPathTitle: String(item?.learningPathTitle ?? ''),
+    learningPathStatus: String(item?.learningPathStatus ?? ''),
+    subjectName: item?.subjectName ?? null,
+    goalId: String(item?.goalId ?? item?.id ?? ''),
+    goalTitle: String(item?.goalTitle ?? item?.title ?? 'Goal'),
+    isSystemDefined: Boolean(item?.isSystemDefined),
+    weight: item?.weight == null ? null : Number(item.weight),
+    targetPercent: item?.targetPercent == null ? null : Number(item.targetPercent),
+    progressPercent: item?.progressPercent == null ? null : Number(item.progressPercent),
+    completionPercent: item?.completionPercent == null ? null : Number(item.completionPercent),
+    goalStatus: item?.goalStatus ?? null,
+    completedAt: item?.completedAt ?? null,
+    lastUpdatedAt: item?.lastUpdatedAt ?? null,
+  }
+}
+
+function normalizeGoalDashboardResponse(root: any, fallbackPageNumber: number, fallbackPageSize: number): GoalDashboardResponse {
+  const personalGoalsRaw = Array.isArray(root?.personalGoals) ? root.personalGoals : []
+  const pathGoalsRoot = root?.pathGoals ?? {}
+  const pathGoalItemsRaw = Array.isArray(pathGoalsRoot?.items) ? pathGoalsRoot.items : []
+
+  return {
+    personalGoals: personalGoalsRaw.map(normalizePersonalGoalDashboardItem),
+    pathGoals: {
+      items: pathGoalItemsRaw.map(normalizePathGoalDashboardItem),
+      pageNumber: Number(pathGoalsRoot?.pageNumber ?? fallbackPageNumber),
+      pageSize: Number(pathGoalsRoot?.pageSize ?? fallbackPageSize),
+      totalCount: Number(pathGoalsRoot?.totalCount ?? pathGoalItemsRaw.length),
+      totalPages: Number(pathGoalsRoot?.totalPages ?? 1),
+      hasPreviousPage: Boolean(pathGoalsRoot?.hasPreviousPage),
+      hasNextPage: Boolean(pathGoalsRoot?.hasNextPage),
+    },
   }
 }
 
@@ -185,6 +285,26 @@ export async function getMyGoals(): Promise<Goal[]> {
   return normalizedGoals
 }
 
+export async function getGoalsDashboard(query: GoalDashboardQuery = {}): Promise<GoalDashboardResponse> {
+  const params: Record<string, any> = {
+    pageNumber: query.pageNumber ?? 1,
+    pageSize: query.pageSize ?? 20,
+    sortDescending: query.sortDescending ?? true,
+  }
+
+  if (query.searchTerm && query.searchTerm.trim().length > 0) {
+    params.searchTerm = query.searchTerm.trim()
+  }
+
+  if (query.pathStatus) {
+    params.pathStatus = query.pathStatus
+  }
+
+  const res: any = await api.get(goalDashboardUrl, { params })
+  const root: any = res?.data ?? res
+  return normalizeGoalDashboardResponse(root, params.pageNumber, params.pageSize)
+}
+
 export async function createGoal(payload: { 
   subjectId: string; 
   title: string; 
@@ -250,4 +370,4 @@ export async function deleteGoal(id: string | number): Promise<any> {
   return res?.data ?? res
 }
 
-export default { listGoals, getUserGoals, getMyGoals, createGoal, updateGoal, deleteGoal, clearMyGoalsCache }
+export default { listGoals, getUserGoals, getMyGoals, getGoalsDashboard, createGoal, updateGoal, deleteGoal, clearMyGoalsCache }
