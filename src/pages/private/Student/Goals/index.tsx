@@ -2,12 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
-import { GoalService } from '../../../../services'
+import { GoalService, SubjectService } from '../../../../services'
 import ROUTER from '../../../../router/ROUTER.js'
 import { useTranslation } from 'react-i18next'
 import useNotificationStore from '../../../../store/useNotificationStore'
 
 type DashboardStatusFilter = 'learning' | 'completed' | 'all'
+type GoalDuration = 'OneWeek' | 'TwoWeeks' | 'OneMonth' | 'TwoMonths' | 'ThreeMonths' | 'SixMonths'
+
+const GOAL_DURATION_OPTIONS: Array<{ value: GoalDuration; days: number }> = [
+  { value: 'OneWeek', days: 7 },
+  { value: 'TwoWeeks', days: 14 },
+  { value: 'OneMonth', days: 30 },
+  { value: 'TwoMonths', days: 60 },
+  { value: 'ThreeMonths', days: 90 },
+  { value: 'SixMonths', days: 180 },
+]
 
 type PersonalGoalItem = {
   goalId: string
@@ -90,6 +100,16 @@ const GoalsPage: React.FC = () => {
   const [personalGoals, setPersonalGoals] = useState<PersonalGoalItem[]>([])
   const [pathGoalsPage, setPathGoalsPage] = useState<PathGoalPage>(DEFAULT_PATH_GOAL_PAGE)
 
+  const [showAddGoalModal, setShowAddGoalModal] = useState<boolean>(false)
+  const [subjectOptions, setSubjectOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingSubjects, setLoadingSubjects] = useState<boolean>(false)
+  const [createGoalSubjectId, setCreateGoalSubjectId] = useState<string>('')
+  const [createGoalTitle, setCreateGoalTitle] = useState<string>('')
+  const [createGoalDescription, setCreateGoalDescription] = useState<string>('')
+  const [createGoalDuration, setCreateGoalDuration] = useState<GoalDuration>('OneMonth')
+  const [creatingGoal, setCreatingGoal] = useState<boolean>(false)
+  const [createGoalError, setCreateGoalError] = useState<string | null>(null)
+
   const [pageNumber, setPageNumber] = useState<number>(1)
   const pageSize = 20
 
@@ -148,6 +168,110 @@ const GoalsPage: React.FC = () => {
     if (normalized === 'inprogress' || normalized === 'active') return t('goals.statusInProgress')
     if (normalized === 'completed') return t('goals.statusCompleted')
     return status || t('goals.statusUnknown')
+  }
+
+  const loadSubjects = async (): Promise<void> => {
+    if (subjectOptions.length > 0) return
+
+    setLoadingSubjects(true)
+    try {
+      const data = await SubjectService.listSubjects()
+      const normalized = (Array.isArray(data) ? data : [])
+        .map((subject: any) => ({
+          id: String(subject?.id ?? subject?.subjectId ?? '').trim(),
+          name: String(subject?.name ?? '').trim(),
+        }))
+        .filter((subject) => Boolean(subject.id) && Boolean(subject.name))
+
+      setSubjectOptions(normalized)
+    } catch (err: any) {
+      const d = err?.response?.data
+      const msg = d?.errorMessage || d?.message || err?.message || t('goals.loadSubjectsFailed')
+      setCreateGoalError(msg)
+    } finally {
+      setLoadingSubjects(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!showAddGoalModal) return
+    void loadSubjects()
+  }, [showAddGoalModal])
+
+  const resetCreateGoalForm = () => {
+    setCreateGoalSubjectId('')
+    setCreateGoalTitle('')
+    setCreateGoalDescription('')
+    setCreateGoalDuration('OneMonth')
+    setCreateGoalError(null)
+  }
+
+  const handleOpenAddGoalModal = () => {
+    setCreateGoalError(null)
+    setShowAddGoalModal(true)
+  }
+
+  const handleCloseAddGoalModal = () => {
+    setShowAddGoalModal(false)
+    resetCreateGoalForm()
+  }
+
+  const refreshDashboard = async () => {
+    const pathStatus = statusFilter === 'completed' ? 'Completed' : undefined
+    const response = await GoalService.getGoalsDashboard({
+      pageNumber,
+      pageSize,
+      searchTerm: debouncedSearchTerm || undefined,
+      pathStatus,
+      sortDescending: true,
+    })
+
+    setPersonalGoals(Array.isArray(response?.personalGoals) ? response.personalGoals : [])
+    setPathGoalsPage(response?.pathGoals || DEFAULT_PATH_GOAL_PAGE)
+  }
+
+  const handleCreateGoal = async () => {
+    const title = createGoalTitle.trim()
+    const description = createGoalDescription.trim()
+
+    if (!createGoalSubjectId) {
+      setCreateGoalError(t('goals.subjectRequired'))
+      return
+    }
+
+    if (!title) {
+      setCreateGoalError(t('goals.titleRequired'))
+      return
+    }
+
+    setCreatingGoal(true)
+    setCreateGoalError(null)
+
+    try {
+      await GoalService.createGoal({
+        subjectId: createGoalSubjectId,
+        title,
+        description,
+        duration: createGoalDuration,
+      })
+
+      showToast(t('goals.goalCreatedSuccess'), 'success')
+      handleCloseAddGoalModal()
+      await refreshDashboard()
+    } catch (err: any) {
+      const statusCode = Number(err?.response?.status)
+      const d = err?.response?.data
+      const msg = d?.errorMessage || d?.message || err?.message || t('goals.goalCreateFailed')
+
+      if (statusCode === 401) {
+        navigate(ROUTER.LOGIN)
+        return
+      }
+
+      setCreateGoalError(msg)
+    } finally {
+      setCreatingGoal(false)
+    }
   }
 
   useEffect(() => {
@@ -213,9 +337,18 @@ const GoalsPage: React.FC = () => {
   return (
     <Layout sidebar={sidebarConfig}>
       <div style={{ padding: 24, background: 'var(--bg-surface)', minHeight: '100vh' }}>
-        <div style={{ marginBottom: 18 }}>
-          <h1 style={{ margin: '0 0 8px', fontSize: 22, color: 'var(--text-primary)', fontWeight: 700 }}>{t('goals.dashboardTitle')}</h1>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>{t('goals.dashboardSubtitle')}</p>
+        <div style={{ marginBottom: 18, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <h1 style={{ margin: '0 0 8px', fontSize: 22, color: 'var(--text-primary)', fontWeight: 700 }}>{t('goals.dashboardTitle')}</h1>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>{t('goals.dashboardSubtitle')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenAddGoalModal}
+            style={{ padding: '8px 14px', border: '1px solid var(--text-primary)', borderRadius: 2, background: 'var(--text-primary)', color: 'var(--bg-surface-short)', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            + {t('goals.addGoalButton')}
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 220px', gap: 12, marginBottom: 20 }}>
@@ -373,6 +506,114 @@ const GoalsPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {showAddGoalModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 90, padding: 16 }}>
+            <div style={{ width: '100%', maxWidth: 560, background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-base)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary)', fontWeight: 700 }}>{t('goals.addGoalModalTitle')}</h3>
+                <button
+                  type="button"
+                  onClick={handleCloseAddGoalModal}
+                  disabled={creatingGoal}
+                  style={{ border: '1px solid var(--border-base)', background: 'transparent', color: 'var(--text-secondary)', borderRadius: 2, padding: '4px 8px', cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
+                >
+                  X
+                </button>
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {createGoalError && (
+                  <div style={{ border: '1px solid var(--danger-primary)', borderRadius: 2, padding: '8px 10px', background: 'var(--bg-red-tint)', color: 'var(--danger-primary)', fontSize: 12 }}>
+                    {createGoalError}
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    $ {t('goals.subjectLabel')}
+                  </label>
+                  <select
+                    value={createGoalSubjectId}
+                    onChange={(event) => setCreateGoalSubjectId(event.target.value)}
+                    disabled={loadingSubjects || creatingGoal}
+                    style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}
+                  >
+                    <option value="">{loadingSubjects ? t('goals.loadingSubjects') : t('goals.subjectPlaceholder')}</option>
+                    {subjectOptions.map((subject) => (
+                      <option key={subject.id} value={subject.id}>{subject.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    $ {t('goals.titleLabel')} *
+                  </label>
+                  <input
+                    type="text"
+                    value={createGoalTitle}
+                    onChange={(event) => setCreateGoalTitle(event.target.value)}
+                    placeholder={t('goals.titlePlaceholder')}
+                    disabled={creatingGoal}
+                    style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    $ {t('goals.descriptionLabel')}
+                  </label>
+                  <textarea
+                    value={createGoalDescription}
+                    onChange={(event) => setCreateGoalDescription(event.target.value)}
+                    placeholder={t('goals.descriptionPlaceholder')}
+                    rows={3}
+                    disabled={creatingGoal}
+                    style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    $ {t('goals.durationLabel')}
+                  </label>
+                  <select
+                    value={createGoalDuration}
+                    onChange={(event) => setCreateGoalDuration(event.target.value as GoalDuration)}
+                    disabled={creatingGoal}
+                    style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}
+                  >
+                    {GOAL_DURATION_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t(`goals.durationOptions.${option.value}`)} ({option.days} {t('goals.dayUnit')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border-base)', display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={handleCloseAddGoalModal}
+                  disabled={creatingGoal}
+                  style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
+                >
+                  {t('goals.cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateGoal}
+                  disabled={creatingGoal || loadingSubjects || subjectOptions.length === 0}
+                  style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--text-primary)', borderRadius: 2, background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', fontSize: 12, fontWeight: 700, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
+                >
+                  {creatingGoal ? t('goals.creatingGoal') : t('goals.createGoalButton')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )
