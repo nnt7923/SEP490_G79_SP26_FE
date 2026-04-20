@@ -119,6 +119,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
+  const authUser = useAuthStore((state) => state.user)
   const refreshProfile = useAuthStore((state) => state.fetchProfile)
 
   // Chapter skeleton generation states
@@ -546,6 +547,50 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     }
   }
 
+  const waitForAdoptedPathReady = async (adoptedPathId: string): Promise<any | null> => {
+    const userId = authUser?.id
+    if (!userId || !adoptedPathId) return null
+
+    const maxAttempts = 8
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await LearningPathService.getUserLearningPaths(userId, {
+          pageNumber: 1,
+          pageSize: 100,
+          includeDetails: true,
+          sortDescending: true,
+        })
+
+        const foundPath = (response?.items || []).find(
+          (item: any) => String(item?.pathId ?? item?.id ?? '') === String(adoptedPathId)
+        )
+
+        if (foundPath) {
+          const chapters = Array.isArray(foundPath?.chapters)
+            ? foundPath.chapters
+            : Array.isArray(foundPath?.chapterDtos)
+              ? foundPath.chapterDtos
+              : []
+
+          const lessonCount = chapters.reduce((sum: number, chapter: any) => {
+            const lessons = Array.isArray(chapter?.lessons) ? chapter.lessons : []
+            return sum + lessons.length
+          }, 0)
+
+          if (chapters.length > 0 && lessonCount > 0) {
+            return foundPath
+          }
+        }
+      } catch {
+        // Keep retrying until attempts are exhausted.
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 1000))
+    }
+
+    return null
+  }
+
   const handleGenerateStudentPlan = async () => {
     if (!validateGenerationInput()) return
 
@@ -702,8 +747,14 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
       // Navigate to the adopted learning path
       if (result?.pathId) {
+        const readyPath = await waitForAdoptedPathReady(result.pathId)
         void syncWalletAfterGeneration()
-        navigate('/my-plans/detail', { state: { pathId: result.pathId } })
+        navigate('/my-plans/detail', {
+          state: {
+            pathId: result.pathId,
+            skeleton: readyPath || undefined,
+          },
+        })
         setToast({ message: t('plans.suggestionAdoptedSuccess'), type: 'success' })
       } else {
         setToast({ message: t('plans.suggestionAdoptedButNoPath'), type: 'warning' })
