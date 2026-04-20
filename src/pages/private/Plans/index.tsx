@@ -718,6 +718,20 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     }
   }
 
+  const formatSuggestionGoalCoverage = (rawWeight: any): string => {
+    const numeric = Number(rawWeight ?? 0)
+    const normalized = Number.isFinite(numeric)
+      ? (numeric <= 1 ? numeric * 100 : numeric)
+      : 0
+    const clamped = Math.min(100, Math.max(0, normalized))
+
+    if (Math.abs(clamped - Math.round(clamped)) < 0.01) {
+      return String(Math.round(clamped))
+    }
+
+    return String(Math.round(clamped * 100) / 100)
+  }
+
   // Handle chapter skeleton generation
   const handleChapterClick = async (pathId: string, chapterIndex: number, _chapterId: string) => {
     const chapterKey = `${pathId}-${chapterIndex}`
@@ -3024,7 +3038,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                           cursor: 'pointer' 
                         }}
                       >
-                        ✕ Close
+                        ✕ {t('plans.close')}
                       </button>
                     </div>
                     
@@ -3088,16 +3102,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                               </div>
                               
                               <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 12, color: 'var(--text-secondary)' }}>
-                                <span>📚 {suggestion.chapterCount} chapters</span>
                                 {suggestion.goals && suggestion.goals.length > 0 && (
-                                  <span>🎯 {suggestion.goals.length} goals</span>
+                                  <span>🧩 {suggestion.goals.length} {t('plans.goalsLabel')}</span>
                                 )}
                               </div>
                               
                               {suggestion.goals && suggestion.goals.length > 0 && (
                                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-base)' }}>
                                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>
-                                    Goals Coverage:
+                                    {t('plans.goalsCoverage')}:
                                   </div>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                     {suggestion.goals.map((goal: any, goalIndex: number) => (
@@ -3112,7 +3125,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                           color: 'var(--text-primary)'
                                         }}
                                       >
-                                        {getGoalTitle(t, goal.goalId || goal.id, goal.title)} ({goal.weight}% • {goal.durationInDays} days)
+                                        {getGoalTitle(t, goal.goalId || goal.id, goal.title)} ({formatSuggestionGoalCoverage(goal.weight)}% • {goal.durationInDays} {t('plans.daysLabel')})
                                       </div>
                                     ))}
                                   </div>
@@ -3127,7 +3140,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                 color: 'var(--accent-primary)', 
                                 fontWeight: 600 
                               }}>
-                                → Click to select this learning path
+                                → {t('plans.clickToSelectLearningPath')}
                               </div>
                             </div>
                           ))}
