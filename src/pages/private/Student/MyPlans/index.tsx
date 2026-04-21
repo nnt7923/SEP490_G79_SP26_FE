@@ -77,7 +77,12 @@ const MyPlansPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await LearningPathService.getUserLearningPaths(user.id, { pageNumber, pageSize, searchTerm: searchTerm || undefined })
+      const response = await LearningPathService.getUserLearningPaths(user.id, {
+        pageNumber,
+        pageSize,
+        searchTerm: searchTerm || undefined,
+        useCache: false,
+      })
       setPlans(response.items)
       setTotalCount(response.totalCount)
     } catch (err: any) {

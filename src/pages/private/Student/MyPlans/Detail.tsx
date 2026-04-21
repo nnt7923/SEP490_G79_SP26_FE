@@ -260,6 +260,7 @@ const MyPlansDetailPage: React.FC = () => {
           pageNumber: 1,
           pageSize: 100,
           includeDetails: true,
+          useCache: false,
         })
 
         const candidate = plansResult.items.find((p) => (p.pathId || p.id) === pathId)

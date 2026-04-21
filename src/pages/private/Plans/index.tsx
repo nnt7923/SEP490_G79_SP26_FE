@@ -559,6 +559,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           pageSize: 100,
           includeDetails: true,
           sortDescending: true,
+          useCache: false,
         })
 
         const foundPath = (response?.items || []).find(
@@ -747,6 +748,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
       // Navigate to the adopted learning path
       if (result?.pathId) {
+        LearningPathService.clearUserLearningPathsCache(authUser?.id)
         const readyPath = await waitForAdoptedPathReady(result.pathId)
         void syncWalletAfterGeneration()
         navigate('/my-plans/detail', {
