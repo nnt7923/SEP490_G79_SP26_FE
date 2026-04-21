@@ -18,6 +18,7 @@ import { getGoalTitle } from '../../../utils/goalTranslation'
 import useAuthStore from '../../../store/useAuthStore'
 import type { AskMentorContextPayload } from '../../../types/chat'
 import { buildAskMentorContextPayload } from '../../../utils/askMentorContext'
+import SelectMentorModal from '../../../components/SelectMentorModal'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -160,6 +161,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [updatingGoal, setUpdatingGoal] = useState<boolean>(false)
   const [updateGoalError, setUpdateGoalError] = useState<string | null>(null)
   const [showEditGoal, setShowEditGoal] = useState<boolean>(false)
+
+  // Select mentor modal state
+  const [showSelectMentorModal, setShowSelectMentorModal] = useState<boolean>(false)
 
   // IMPORTANT: initialize navigate for routing
   const navigate = useNavigate()
@@ -1407,28 +1411,8 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   ), [selectedSubjectName, selectedGoals, goalPriorities, goalItems, level, languageSelection])
 
   const handleAskMentorClick = () => {
-    try {
-      if (askMentorContextPayload) {
-        sessionStorage.setItem('plans.askMentorContext', JSON.stringify(askMentorContextPayload))
-      } else {
-        sessionStorage.removeItem('plans.askMentorContext')
-      }
-    } catch { }
-
-    navigate(ROUTER.CHAT, {
-      state: {
-        activeTab: 'contacts',
-        askMentorContext: askMentorContextPayload ?? undefined,
-        toast: askMentorContextPayload
-          ? undefined
-          : {
-            type: 'warning' as const,
-            message: t('plans.askMentorContextIncomplete', {
-              defaultValue: 'Some plan details are missing, so context could not be attached automatically.',
-            }),
-          },
-      },
-    })
+    // Open mentor selection modal instead of navigating to chat
+    setShowSelectMentorModal(true)
   }
 
   // Pagination calculations for system goals
@@ -3291,6 +3275,13 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           onClose={() => setToast(null)}
         />
       )}
+
+      {/* Select Mentor Modal */}
+      <SelectMentorModal
+        isOpen={showSelectMentorModal}
+        onClose={() => setShowSelectMentorModal(false)}
+        askMentorContext={askMentorContextPayload ?? undefined}
+      />
     </div>
   )
 }

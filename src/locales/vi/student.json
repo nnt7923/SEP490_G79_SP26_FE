@@ -213,6 +213,7 @@
     "goalDeletedSuccess": "Xóa mục tiêu thành công",
     "goalDeleteFailed": "Không thể xóa mục tiêu",
     "errorCodes": {
+      "GOAL_IN_USE": "Mục tiêu đang được dùng trong lộ trình, không thể sửa hoặc xóa.",
       "GOAL_SUBJECT_MISMATCH": "Mục tiêu không phù hợp với môn học đã chọn.",
       "INVALID_GOAL": "Mục tiêu phải liên quan đến lập trình hoặc phát triển phần mềm."
     },
@@ -445,7 +446,25 @@
     "xor": "XOR",
     "allocateLeft": "PHÂN_BỔ_TRỤC_TRÁI",
     "allocateRight": "PHÂN_BỔ_TRỤC_PHẢI",
-    "equilibrium": "CÂN_BẰNG"
+    "equilibrium": "CÂN_BẰNG",
+    "selectMentor": "Chọn Mentor",
+    "selectMentorDesc": "Chọn một mentor để giúp bạn với lộ trình học tập",
+    "searchMentors": "Tìm mentor theo tên...",
+    "filters": "Bộ lọc",
+    "specialization": "Chuyên ngành",
+    "allSpecializations": "Tất cả chuyên ngành",
+    "subject": "Môn học",
+    "allSubjects": "Tất cả môn học",
+    "minRating": "Đánh giá tối thiểu",
+    "anyRating": "Bất kỳ",
+    "clearFilters": "Xóa bộ lọc",
+    "failedLoadMentors": "Không thể tải danh sách mentor",
+    "noMentorsFound": "Không tìm thấy mentor phù hợp với tiêu chí của bạn",
+    "reviews": "đánh giá",
+    "chatWithMentor": "Chat với Mentor",
+    "previous": "Trước",
+    "next": "Tiếp",
+    "pageOf": "Trang {{current}} / {{total}}"
   },
   "subscription": {
     "title": "Nạp token",

@@ -194,6 +194,9 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   const [requestedConversationId, setRequestedConversationId] = useState<
     string | null
   >(location.state?.conversationId ?? null);
+  const [requestedMentorId, setRequestedMentorId] = useState<string | null>(
+    location.state?.selectedMentorId ?? null,
+  );
   const [askMentorContext, setAskMentorContext] =
     useState<AskMentorContextPayload | null>(
       location.state?.askMentorContext ?? readAskMentorContextFromStorage(),
@@ -391,6 +394,8 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     if (location.state.activeTab) setActiveTab(location.state.activeTab);
     if (location.state.conversationId)
       setRequestedConversationId(location.state.conversationId);
+    if (location.state.selectedMentorId)
+      setRequestedMentorId(location.state.selectedMentorId);
     if (location.state.askMentorContext)
       setAskMentorContext(location.state.askMentorContext);
     if (!location.state.askMentorContext) {
@@ -401,6 +406,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
       location.state.toast ||
       location.state.activeTab ||
       location.state.conversationId ||
+      location.state.selectedMentorId ||
       location.state.askMentorContext
     ) {
       navigate(location.pathname, { replace: true, state: {} });
@@ -423,6 +429,14 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     requestedConversationId,
     setActiveConversation,
   ]);
+
+  // Auto-start conversation with requested mentor (from SelectMentorModal)
+  useEffect(() => {
+    if (!requestedMentorId) return;
+    handleStartConversation(requestedMentorId);
+    setRequestedMentorId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedMentorId]);
 
   useEffect(() => {
     if (!activeConversationId) return;
