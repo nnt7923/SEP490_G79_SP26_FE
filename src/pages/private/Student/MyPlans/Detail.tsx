@@ -248,24 +248,41 @@ const MyPlansDetailPage: React.FC = () => {
     setError(null)
     setProgress(null)
     try {
-      const [plansResult, progressResult] = await Promise.allSettled([
-        LearningPathService.getUserLearningPaths(user.id, {
+      void LearningPathService.getLearningPathProgress(pathId)
+        .then((progressData) => setProgress(progressData))
+        .catch(() => undefined)
+
+      const maxAttempts = 6
+      let foundPlan: SkeletonResponse | null = null
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const plansResult = await LearningPathService.getUserLearningPaths(user.id, {
           pageNumber: 1,
           pageSize: 100,
           includeDetails: true,
-        }),
-        LearningPathService.getLearningPathProgress(pathId),
-      ])
+          useCache: false,
+        })
 
-      if (progressResult.status === 'fulfilled') {
-        setProgress(progressResult.value)
+        const candidate = plansResult.items.find((p) => (p.pathId || p.id) === pathId)
+        if (candidate) {
+          foundPlan = candidate
+
+          const chapters = Array.isArray(candidate.chapters) ? candidate.chapters : []
+          const lessonCount = chapters.reduce((sum, chapter) => {
+            const lessons = Array.isArray(chapter.lessons) ? chapter.lessons : []
+            return sum + lessons.length
+          }, 0)
+
+          if (chapters.length > 0 && lessonCount > 0) {
+            break
+          }
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1000))
+        }
       }
 
-      if (plansResult.status !== 'fulfilled') {
-        throw plansResult.reason
-      }
-
-      const foundPlan = plansResult.value.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         const merged = mergeSkeletonWithCachedQuizzes(foundPlan)
         setPlan(merged)
