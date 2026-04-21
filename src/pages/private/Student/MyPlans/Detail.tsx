@@ -789,7 +789,13 @@ const MyPlansDetailPage: React.FC = () => {
                                                   return
                                                 }
                                                 navigate(`/quiz/${quizId}`, {
-                                                  state: { quizTitle: quiz.title, skeleton: plan }
+                                                  state: {
+                                                    quizTitle: quiz.title,
+                                                    timeLimit: quiz.timeLimit ?? quiz.timeLimitMinutes ?? null,
+                                                    passingScore: quiz.passingScore ?? null,
+                                                    totalQuestions: quiz.totalQuestions ?? quiz.questions?.length ?? null,
+                                                    skeleton: plan,
+                                                  }
                                                 })
                                               }}
                                               style={{

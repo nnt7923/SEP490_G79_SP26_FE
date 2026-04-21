@@ -316,7 +316,7 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
           lessonDay: lesson?.lessonDay ?? lesson?.LessonDay ?? null,
           quizzes: quizItems?.map((quiz: any) => ({
             ...quiz,
-            id: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
+            id: quiz?.quizId ?? quiz?.quizzId ?? quiz?.id,
             quizId: quiz?.quizId ?? quiz?.quizzId ?? quiz?.id,
             quizzId: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
             title: quiz?.title ?? quiz?.Title,
