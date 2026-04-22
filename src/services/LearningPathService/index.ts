@@ -8,9 +8,13 @@ import {
   aiDraftUrl,
   manualDraftUrl,
   manualDraftDetailUrl,
+  publishManualDraftUrl,
   myDraftsUrl,
   myDraftDetailUrl,
   learningPathProgressUrl,
+  publishedPathsUrl,
+  publishedPathPreviewUrl,
+  enrollPathUrl,
 } from './url'
 import {
   requestLearningPathGeneration,
@@ -174,6 +178,102 @@ export type ManualDraftPayload = {
   [key: string]: any
 }
 
+export type PublishedLearningPathItem = {
+  pathId: string
+  title: string
+  description?: string | null
+  subjectId: string
+  subjectName: string
+  complexityLevel: number
+  language: number
+  versionNumber: number
+  mentorId: string
+  mentorName: string
+  chapterCount: number
+  lessonCount: number
+  startDate?: string | null
+  endDate?: string | null
+  isEnrolled: boolean
+}
+
+export type PublishedPathsResponse = {
+  items: PublishedLearningPathItem[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+}
+
+export type PublishedPathGoal = {
+  goalId: string
+  title: string
+  weight: number
+  durationInDays: number
+  status: string
+  completedAt: string | null
+  progressPercent: number
+  targetPercent: number
+}
+
+export type PublishedPathLesson = {
+  lessonId: string
+  title: string
+  lessonDay?: string | null
+  quizCount: number
+}
+
+export type PublishedPathTask = {
+  taskId: string
+  title: string
+  taskType: number
+  priority: number
+  dueDate?: string | null
+}
+
+export type PublishedPathChapter = {
+  chapterId: string
+  title: string
+  content?: string | null
+  orderIndex: number
+  lessons: PublishedPathLesson[]
+  tasks: PublishedPathTask[]
+}
+
+export type PublishedPathPreviewDto = {
+  pathId: string
+  title: string
+  description?: string | null
+  subjectId: string
+  subjectName: string
+  complexityLevel: number
+  language: number
+  versionNumber: number
+  mentorId: string
+  mentorName: string
+  startDate?: string | null
+  endDate?: string | null
+  goals: PublishedPathGoal[]
+  chapters: PublishedPathChapter[]
+  totalChapters: number
+  totalLessons: number
+  isEnrolled: boolean
+}
+
+export type EnrollResponse = {
+  shareId: string
+  enrolledPathId: string
+  versionNumber: number
+}
+
+export type PublishedPathsParams = {
+  pageNumber?: number
+  pageSize?: number
+  searchTerm?: string
+  subjectId?: string
+  complexityLevel?: number | string
+  sortDescending?: boolean
+}
+
 export type SkeletonResponse = {
   pathId?: string
   title?: string
@@ -181,6 +281,7 @@ export type SkeletonResponse = {
   version?: number | null
   previousVersion?: number | null
   hasMeaningfulChange?: boolean
+  shareId?: string | null
   sharedByUserId?: string | null
   sharedByUserName?: string | null
   sourceLearningPathId?: string | null
@@ -513,6 +614,43 @@ export async function updateManualDraft(pathId: string, payload: ManualDraftPayl
   const raw = unwrap<SkeletonResponse>(res)
   clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
+}
+
+export async function publishLearningPath(pathId: string, payload: ManualDraftPayload): Promise<SkeletonResponse> {
+  const res: any = await api.post(publishManualDraftUrl(pathId), payload)
+  const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
+  return normalizeSkeleton(raw)
+}
+
+export async function getPublishedPaths(params?: PublishedPathsParams): Promise<PublishedPathsResponse> {
+  const queryParams = new URLSearchParams()
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+  if (params?.complexityLevel !== undefined) queryParams.append('ComplexityLevel', String(params.complexityLevel))
+  if (params?.sortDescending !== undefined) queryParams.append('SortDescending', String(params.sortDescending))
+  const url = `${publishedPathsUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<PublishedPathsResponse>(res)
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+    totalPages: data?.totalPages ?? 1,
+  }
+}
+
+export async function getPublishedPathPreview(pathId: string): Promise<PublishedPathPreviewDto> {
+  const res: any = await api.get(publishedPathPreviewUrl(pathId))
+  return unwrap<PublishedPathPreviewDto>(res)
+}
+
+export async function enrollInPath(pathId: string): Promise<EnrollResponse> {
+  const res: any = await api.post(enrollPathUrl(pathId))
+  return unwrap<EnrollResponse>(res)
 }
 
 export async function generateLessonContent(
@@ -1103,6 +1241,7 @@ export function normalizeSkeletonListItem(payload: any): SkeletonResponse {
     sourceVersion: payload?.sourceVersion ?? payload?.SourceVersion ?? null,
     sourceLatestVersion: payload?.sourceLatestVersion ?? payload?.SourceLatestVersion ?? null,
     hasSourceUpdate: Boolean(payload?.hasSourceUpdate ?? payload?.HasSourceUpdate),
+    shareId: payload?.shareId ?? payload?.ShareId ?? null,
     chapters: undefined,
     lessons: undefined,
     chapterCount: payload?.chapterCount ?? chapterItems.length ?? 0,
@@ -1115,6 +1254,10 @@ export default {
   generateAiDraft,
   createManualDraft,
   updateManualDraft,
+  publishLearningPath,
+  getPublishedPaths,
+  getPublishedPathPreview,
+  enrollInPath,
   generateLessonContent,
   generateMentorLessonContent,
   generateLessonQuizSkeleton,

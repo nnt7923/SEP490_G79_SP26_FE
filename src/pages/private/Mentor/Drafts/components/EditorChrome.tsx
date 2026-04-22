@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, BookMarked, ChevronDown, ClipboardList, FolderTree, Plus, Save, Share2, Sparkles } from 'lucide-react'
+import { ArrowLeft, BookMarked, ChevronDown, ClipboardList, FolderTree, Globe, Plus, Save, Share2, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { EditableChapter, EditorStep } from '../editorTypes'
 import { cardStyle, getButtonStyle, pillStyle, subtleTextStyle } from './editorUi'
@@ -14,9 +14,11 @@ type HeaderProps = {
   canShare: boolean
   saving: boolean
   sharing: boolean
+  publishing: boolean
   onBack: () => void
   onSave: () => void
   onShare: () => void
+  onPublish: () => void
   onStepChange: (step: EditorStep) => void
 }
 
@@ -37,9 +39,11 @@ export const DraftEditorHeader: React.FC<HeaderProps> = ({
   canShare,
   saving,
   sharing,
+  publishing,
   onBack,
   onSave,
   onShare,
+  onPublish,
   onStepChange,
 }) => {
   const { t } = useTranslation('mentor')
@@ -91,6 +95,14 @@ export const DraftEditorHeader: React.FC<HeaderProps> = ({
             disabled={saving}
           >
             <Save size={14} /> {saving ? t('drafts.saving') : t('drafts.save')}
+          </button>
+          <button
+            type="button"
+            style={getButtonStyle({ accent: true, disabled: !canShare || publishing })}
+            onClick={onPublish}
+            disabled={!canShare || publishing}
+          >
+            <Globe size={14} /> {publishing ? t('drafts.publishing') : t('drafts.publish')}
           </button>
         </div>
       </div>

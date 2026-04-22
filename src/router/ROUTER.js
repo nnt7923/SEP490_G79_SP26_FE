@@ -16,6 +16,8 @@ const ROUTER = {
   STUDENT_OVERVIEW: "/overview",
   STUDENT_ACHIEVEMENTS: "/achievements",
   MY_PLANS: "/my-plans",
+  EXPLORE_PATHS: "/explore-paths",
+  EXPLORE_PATH_PREVIEW: "/explore-paths/:pathId/preview",
   GOALS: "/goals",
   PROFILE: "/profile", // Student profile
   CHANGE_PASSWORD: "/change-password",

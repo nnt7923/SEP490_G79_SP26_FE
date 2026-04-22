@@ -461,6 +461,18 @@
     "accessDenied": "You do not have access to this draft",
     "invalidStatus": "This learning path is no longer editable as a draft",
     "notFound": "Draft not found",
-    "detailRedirect": "Redirected to drafts list"
+    "detailRedirect": "Redirected to drafts list",
+    "publish": "Publish",
+    "publishing": "Publishing...",
+    "publishConfirm": "Publish now",
+    "publishModalBadge": "Publish",
+    "publishModalTitle": "Publish learning path",
+    "publishModalDescription": "Publish this draft so students can discover and enroll. All lessons must have content.",
+    "publishWarning": "All lessons must have content before publishing. After publishing, students can find and enroll in this path.",
+    "publishSuccess": "Learning path published successfully!",
+    "publishFailed": "Failed to publish learning path.",
+    "publishErrorContentIncomplete": "Some lessons are missing content. Please complete all lesson content before publishing.",
+    "publishErrorNotDraft": "This learning path cannot be published — it is not in Draft status.",
+    "publishErrorChaptersRequired": "At least one chapter is required to publish."
   }
 }

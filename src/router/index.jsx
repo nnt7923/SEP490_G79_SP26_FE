@@ -48,6 +48,8 @@ const MentorAIPlanDetail = React.lazy(() => import('../pages/private/Mentor/AIPl
 const MentorDrafts = React.lazy(() => import('../pages/private/Mentor/Drafts'))
 const MentorDraftCreate = React.lazy(() => import('../pages/private/Mentor/Drafts/Create'))
 const MentorDraftDetail = React.lazy(() => import('../pages/private/Mentor/Drafts/Detail'))
+const ExplorePathsPage = React.lazy(() => import('../pages/private/Student/ExplorePaths'))
+const ExplorePathPreviewPage = React.lazy(() => import('../pages/private/Student/ExplorePaths/Preview'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
 const TaskPage = React.lazy(() => import('../pages/private/Task'))
@@ -106,6 +108,8 @@ const router = createBrowserRouter([
           { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/detail', element: <MyPlansDetail /> },
+          { path: ROUTER.EXPLORE_PATHS, element: <ExplorePathsPage /> },
+          { path: ROUTER.EXPLORE_PATH_PREVIEW, element: <ExplorePathPreviewPage /> },
           { path: ROUTER.GOALS, element: <Goals /> },
           { path: ROUTER.STUDENT_ACHIEVEMENTS, element: <StudentAchievements /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },

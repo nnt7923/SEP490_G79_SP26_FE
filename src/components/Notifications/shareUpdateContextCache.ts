@@ -25,7 +25,7 @@ export function clearCachedShareUpdateContext(shareId?: string): void {
 
 export function isShareVersionUpdatedNotification(type?: string | null): boolean {
   const normalized = String(type || '').trim().toLowerCase()
-  return normalized === 'shareversionupdated' || normalized === '9'
+  return normalized === 'shareversionupdated' || normalized === '9' || normalized === 'learningpathupdated'
 }
 
 export function extractShareIdFromNotification(notification: Pick<NotificationDto, 'action'>): string | null {

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
-import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown, Trophy, History, Receipt } from 'lucide-react'
+import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown, Trophy, History, Receipt, Compass } from 'lucide-react'
 import useChatUnreadBadge from '../../../../hooks/useChatUnreadBadge'
 import useChatStore from '../../../../store/useChatStore'
 
@@ -17,6 +17,11 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
       label: 'My Plans',
       path: '/my-plans',
       icon: <Map size={18} />,
+    },
+    {
+      label: 'Explore Paths',
+      path: '/explore-paths',
+      icon: <Compass size={18} />,
     },
     {
       label: 'Goals',
@@ -75,6 +80,7 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
   return [
     { label: t('sidebar.overview'), path: '/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: t('sidebar.myPlans'), path: '/my-plans', icon: <Map size={18} /> },
+    { label: t('sidebar.explorePaths', { defaultValue: 'Explore Paths' }), path: '/explore-paths', icon: <Compass size={18} /> },
     { label: t('sidebar.goals'), path: '/goals', icon: <Target size={18} /> },
     { label: t('sidebar.progress'), path: '/plans', icon: <TrendingUp size={18} /> },
     { label: t('sidebar.resources'), path: '/my-resources', icon: <Library size={18} /> },

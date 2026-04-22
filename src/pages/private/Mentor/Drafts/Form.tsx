@@ -19,6 +19,7 @@ import LessonStudioStep from './components/LessonStudioStep'
 import AssessmentsStep from './components/AssessmentsStep'
 import { ContentNavigator, DraftEditorHeader } from './components/EditorChrome'
 import VersionUpdateModal from './components/VersionUpdateModal'
+import PublishModal from './components/PublishModal'
 import { cardStyle, shellStyle } from './components/editorUi'
 import { buildLessonContentFromSections, parseLessonSections, type LessonSectionKey } from './lessonContentContract'
 import {
@@ -674,6 +675,8 @@ const MentorDraftFormPage: React.FC = () => {
   const [sharing, setSharing] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isVersionUpdateModalOpen, setIsVersionUpdateModalOpen] = useState(false)
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(!isSmallScreen)
   const chapterSkeletonPendingByPathRef = useRef<Map<string, string>>(new Map())
   const chapterSkeletonRequestCounterRef = useRef(0)
@@ -1588,6 +1591,50 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
+  const handlePublish = () => {
+    const validationError = validateDraftForm(form)
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
+      return
+    }
+    setIsPublishModalOpen(true)
+  }
+
+  const handleConfirmPublish = async (options: {
+    increaseVersion: boolean
+    versionUpdateType: ManualDraftVersionUpdateType | null
+  }) => {
+    if (!currentPathId) return
+    const validationError = validateDraftForm(form)
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
+      setIsPublishModalOpen(false)
+      return
+    }
+    setPublishing(true)
+    try {
+      const payload = buildPayload(form, options)
+      await LearningPathService.publishLearningPath(currentPathId, payload)
+      setIsPublishModalOpen(false)
+      setToast({ message: t('drafts.publishSuccess'), type: 'success' })
+      navigate(ROUTER.MENTOR_DRAFTS)
+    } catch (err: any) {
+      const code = err?.response?.data?.errorCode || err?.response?.data?.code
+      setIsPublishModalOpen(false)
+      if (code === 'CONTENT_INCOMPLETE') {
+        setToast({ message: t('drafts.publishErrorContentIncomplete'), type: 'error' })
+      } else if (code === 'CHAPTERS_REQUIRED') {
+        setToast({ message: t('drafts.publishErrorChaptersRequired'), type: 'error' })
+      } else if (code === 'PATH_NOT_IN_DRAFT_STATUS') {
+        setToast({ message: t('drafts.publishErrorNotDraft'), type: 'error' })
+      } else {
+        setToast({ message: getApiErrorMessage(err, t('drafts.publishFailed')), type: 'error' })
+      }
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   const contextLabel = useMemo(() => {
     if (currentStep === 'chapters' && activeChapter) return `${t('drafts.contextChapter')}: ${activeChapter.title || t('drafts.untitledChapter')}`
     if (currentStep === 'lesson' && activeChapter && activeLesson) return `${t('drafts.contextChapter')}: ${activeChapter.title || t('drafts.untitledChapter')} · ${t('drafts.contextLesson')}: ${activeLesson.title || t('drafts.untitledLesson')}`
@@ -1615,9 +1662,11 @@ const MentorDraftFormPage: React.FC = () => {
             canShare={canShare}
             saving={saving}
             sharing={sharing}
+            publishing={publishing}
             onBack={() => navigate(ROUTER.MENTOR_DRAFTS)}
             onSave={saveDraft}
             onShare={() => { setShareError(null); setSelectedStudentId(''); setIsShareModalOpen(true) }}
+            onPublish={handlePublish}
             onStepChange={setCurrentStep}
           />
 
@@ -1769,6 +1818,12 @@ const MentorDraftFormPage: React.FC = () => {
           saving={saving}
           onClose={() => setIsVersionUpdateModalOpen(false)}
           onSubmit={handleConfirmVersionUpdate}
+        />
+        <PublishModal
+          isOpen={isPublishModalOpen}
+          publishing={publishing}
+          onClose={() => setIsPublishModalOpen(false)}
+          onSubmit={handleConfirmPublish}
         />
         {toast ? <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div> : null}
       </div>
