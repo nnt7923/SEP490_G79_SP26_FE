@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { X, Star, MessageCircle, User, Search, Loader2, ChevronDown } from 'lucide-react'
+import { X, Star, MessageCircle, User, Search, Loader2, ChevronDown, Eye, ArrowLeft, BookOpen } from 'lucide-react'
 import MentorService from '../../services/MentorService'
-import type { MentorDto } from '../../services/MentorService'
+import type { MentorDto, MentorReviewDto } from '../../services/MentorService'
 import { SubjectService, SubjectCategory } from '../../services'
 import type { Subject, SubjectCategoryType } from '../../services/SubjectService'
 import { useTranslation } from 'react-i18next'
@@ -35,6 +35,11 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
   const [selectedSubject, setSelectedSubject] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [minRating, setMinRating] = useState<number>(0)
+
+  // Profile view
+  const [profileMentor, setProfileMentor] = useState<MentorDto | null>(null)
+  const [profileDetail, setProfileDetail] = useState<MentorDto | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -156,6 +161,19 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
     }
   }, [selectedCategory, selectedSubject, minRating])
 
+  // Load mentor detail when profile opens
+  useEffect(() => {
+    if (!profileMentor) {
+      setProfileDetail(null)
+      return
+    }
+    setProfileLoading(true)
+    MentorService.getMentorById(profileMentor.mentorId)
+      .then((data) => setProfileDetail(data))
+      .catch(() => setProfileDetail(profileMentor))
+      .finally(() => setProfileLoading(false))
+  }, [profileMentor])
+
   // Filter mentors by search query (client-side)
   const displayedMentors = useMemo(() => {
     if (!searchQuery.trim()) return mentors
@@ -217,6 +235,8 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
           display: 'flex',
           flexDirection: 'column',
           border: '1px solid var(--border-base)',
+          position: 'relative',
+          overflow: 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -552,20 +572,16 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
                     background: 'var(--bg-main)',
                     border: '1px solid var(--border-base)',
                     borderRadius: 2,
-                    cursor: 'pointer',
                     transition: 'all 0.2s',
                     display: 'flex',
                     flexDirection: 'column',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = 'var(--accent-primary)'
-                    e.currentTarget.style.transform = 'translateY(-1px)'
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = 'var(--border-base)'
-                    e.currentTarget.style.transform = 'translateY(0)'
                   }}
-                  onClick={() => handleSelectMentor(mentor)}
                 >
                   {/* Avatar and name */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -706,42 +722,79 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
                     </div>
                   )}
 
-                  {/* Action button */}
-                  <button
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      background: 'var(--accent-primary)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 2,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      marginTop: 'auto',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      transition: 'all 0.2s',
-                      fontFamily: 'monospace',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.opacity = '0.9'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.opacity = '1'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleSelectMentor(mentor)
-                    }}
-                  >
-                    <MessageCircle size={12} />
-                    {t('plans.chatWithMentor')}
-                  </button>
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 'auto' }}>
+                    <button
+                      style={{
+                        flex: 1,
+                        padding: '7px 10px',
+                        background: 'var(--bg-surface)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 2,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 5,
+                        transition: 'all 0.15s',
+                        fontFamily: 'monospace',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--text-secondary)'
+                        e.currentTarget.style.color = 'var(--text-primary)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-base)'
+                        e.currentTarget.style.color = 'var(--text-secondary)'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setProfileMentor(mentor)
+                      }}
+                    >
+                      <Eye size={11} />
+                      {t('plans.viewProfile')}
+                    </button>
+                    <button
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        background: 'var(--accent-primary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 2,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        transition: 'all 0.2s',
+                        fontFamily: 'monospace',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '0.9'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '1'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSelectMentor(mentor)
+                      }}
+                    >
+                      <MessageCircle size={12} />
+                      {t('plans.chatWithMentor')}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -806,6 +859,281 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
           </div>
         )}
       </div>
+
+      {/* Profile Detail Panel - overlay inside modal */}
+      {profileMentor && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'var(--bg-surface)',
+            borderRadius: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex: 1,
+          }}
+        >
+          {/* Profile header */}
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border-base)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <button
+              onClick={() => setProfileMentor(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: 6,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                fontFamily: 'monospace',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+            >
+              <ArrowLeft size={14} />
+              {t('plans.backToList')}
+            </button>
+            <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              / {t('plans.mentorProfile')}
+            </span>
+          </div>
+
+          {/* Profile content */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+            {/* Avatar + basic info */}
+            <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
+              {profileMentor.avatarUrl ? (
+                <img
+                  src={profileMentor.avatarUrl}
+                  alt={profileMentor.fullName}
+                  style={{ width: 80, height: 80, borderRadius: 2, objectFit: 'cover', border: '1px solid var(--border-base)', flexShrink: 0 }}
+                />
+              ) : (
+                <div style={{
+                  width: 80, height: 80, borderRadius: 2,
+                  background: 'var(--accent-primary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'white', fontSize: 28, fontWeight: 700, fontFamily: 'monospace', flexShrink: 0,
+                }}>
+                  {profileMentor.fullName?.charAt(0)?.toUpperCase() || 'M'}
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: '0 0 4px 0', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {profileMentor.fullName}
+                </h2>
+                <p style={{ margin: '0 0 12px 0', fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                  @{profileMentor.username}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Star size={13} fill="var(--warning-primary)" color="var(--warning-primary)" />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                      {profileMentor.averageRating > 0 ? profileMentor.averageRating.toFixed(1) : 'N/A'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                    ({profileMentor.totalReviews} {t('plans.reviews')})
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Specializations */}
+            {profileMentor.specializations && profileMentor.specializations.length > 0 && (
+              <div style={{
+                marginBottom: 20,
+                padding: 16,
+                background: 'var(--bg-main)',
+                border: '1px solid var(--border-base)',
+                borderLeft: '3px solid var(--accent-primary)',
+                borderRadius: 3,
+              }}>
+                <div style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  color: 'var(--accent-primary)',
+                  textTransform: 'uppercase',
+                  fontFamily: 'monospace',
+                  marginBottom: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  <BookOpen size={11} />
+                  {t('plans.specializations')}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {profileMentor.specializations.map((spec) => (
+                    <span key={spec} style={{
+                      padding: '4px 10px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--accent-primary)',
+                      borderRadius: 2,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: 'var(--accent-primary)',
+                      fontFamily: 'monospace',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.03em',
+                    }}>
+                      {spec}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bio - modern card */}
+            {profileMentor.bio && (
+              <div style={{ 
+                marginBottom: 24,
+                padding: 16,
+                background: 'var(--bg-main)',
+                border: '1px solid var(--border-base)',
+                borderRadius: 4,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              }}>
+                <div style={{ 
+                  fontSize: 9, 
+                  fontWeight: 700, 
+                  letterSpacing: '0.08em', 
+                  color: 'var(--text-secondary)', 
+                  textTransform: 'uppercase', 
+                  fontFamily: 'monospace', 
+                  marginBottom: 10,
+                }}>
+                  {t('plans.biography')}
+                </div>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: 12, 
+                  color: 'var(--text-primary)', 
+                  lineHeight: 1.7,
+                  fontStyle: 'italic',
+                }}>
+                  "{profileMentor.bio}"
+                </p>
+              </div>
+            )}
+
+            {/* Reviews section */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                color: 'var(--text-secondary)',
+                textTransform: 'uppercase',
+                fontFamily: 'monospace',
+                marginBottom: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}>
+                <Star size={12} />
+                {t('plans.reviews')} ({(profileDetail ?? profileMentor).totalReviews})
+              </div>
+
+              {profileLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}>
+                  <Loader2 size={18} className="animate-spin" style={{ color: 'var(--accent-primary)' }} />
+                </div>
+              ) : (profileDetail?.recentReviews ?? []).length === 0 ? (
+                <div style={{
+                  padding: 16,
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 3,
+                  textAlign: 'center',
+                  fontSize: 11,
+                  color: 'var(--text-secondary)',
+                  fontFamily: 'monospace',
+                }}>
+                  {t('plans.noReviews')}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {(profileDetail?.recentReviews ?? []).slice(0, 5).map((review: MentorReviewDto) => (
+                    <div key={review.ratingId} style={{
+                      padding: 12,
+                      background: 'var(--bg-main)',
+                      border: '1px solid var(--border-base)',
+                      borderRadius: 3,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+                            {review.studentName}
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                            {new Date(review.updatedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              size={10}
+                              fill={i < review.score ? 'var(--warning-primary)' : 'none'}
+                              color={i < review.score ? 'var(--warning-primary)' : 'var(--text-disabled)'}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {review.comment && (
+                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          {review.comment}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Profile footer action */}
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-base)', background: 'var(--bg-main)' }}>
+            <button
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                background: 'var(--accent-primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 2,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                fontFamily: 'monospace',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9' }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+              onClick={() => handleSelectMentor(profileMentor)}
+            >
+              <MessageCircle size={14} />
+              {t('plans.chatWithMentor')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

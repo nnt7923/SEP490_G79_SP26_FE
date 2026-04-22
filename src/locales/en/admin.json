@@ -133,6 +133,24 @@
     "showing": "Showing {{filtered}} of {{total}} users",
     "pageOption": "{{size}} / page"
   },
+  "createMentor": {
+    "title": "Create Mentor Account",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "username": "Username",
+    "email": "Email",
+    "phone": "Phone",
+    "dateOfBirth": "Date of Birth",
+    "address": "Address",
+    "bio": "Bio",
+    "bioPlaceholder": "Brief description about the mentor...",
+    "sendSetupEmail": "Send setup email to mentor",
+    "create": "Create",
+    "creating": "Creating...",
+    "cancel": "Cancel",
+    "success": "Mentor account created successfully.",
+    "failed": "Failed to create mentor account."
+  },
   "subscriptionPlans": {
     "title": "Token Package Management",
     "subtitle": "Manage purchasable token packages for students",

@@ -461,6 +461,13 @@
     "noMentorsFound": "No mentors found matching your criteria",
     "reviews": "reviews",
     "chatWithMentor": "Chat with Mentor",
+    "viewProfile": "View Profile",
+    "backToList": "Back to list",
+    "mentorProfile": "Mentor Profile",
+    "specializations": "Specializations",
+    "specializedSubjects": "Specialized Subjects",
+    "biography": "Biography",
+    "noReviews": "No reviews yet.",
     "previous": "Previous",
     "next": "Next",
     "pageOf": "Page {{current}} of {{total}}"
@@ -1202,5 +1209,19 @@
     "selectChannel": "Select a channel to start chatting",
     "noMessages": "No messages yet",
     "typePlaceholder": "Type a message..."
+  },
+  "review": {
+    "title": "Rate Mentor",
+    "editTitle": "Edit Review",
+    "score": "Rating",
+    "selectScore": "Click a star to rate",
+    "comment": "Comment",
+    "commentPlaceholder": "Share your experience with this mentor (optional)...",
+    "submit": "Submit",
+    "submitting": "Submitting...",
+    "cancel": "Cancel",
+    "success": "Review submitted successfully.",
+    "failed": "Failed to submit review.",
+    "interactionRequired": "You need to have a conversation with this mentor before leaving a review."
   }
 }

@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Reply,
   Smile,
+  Star,
   Users,
 } from "lucide-react";
 import Layout from "../../../../components/Layout";
@@ -79,6 +80,7 @@ import {
   formatAskMentorContextMessage,
   isValidAskMentorContextPayload,
 } from "../../../../utils/askMentorContext";
+import ReviewMentorModal from "../../../../components/ReviewMentorModal";
 
 type ToastState = {
   message: string;
@@ -89,6 +91,7 @@ type ChatRouteState = {
   activeTab?: "conversations" | "invites" | "contacts";
   toast?: ToastState;
   askMentorContext?: AskMentorContextPayload;
+  selectedMentorId?: string;
 };
 interface StudentChatPageProps {
   initialView?: "direct" | "community";
@@ -144,7 +147,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   const { theme } = useTheme();
   const { logout, user } = useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation() as { state?: ChatRouteState };
+  const location = useLocation() as { state?: ChatRouteState; pathname: string };
 
   const {
     conversationsById,
@@ -197,6 +200,8 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   const [requestedMentorId, setRequestedMentorId] = useState<string | null>(
     location.state?.selectedMentorId ?? null,
   );
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [activeMentorDetail, setActiveMentorDetail] = useState<import("../../../../services/MentorService").MentorDto | null>(null);
   const [askMentorContext, setAskMentorContext] =
     useState<AskMentorContextPayload | null>(
       location.state?.askMentorContext ?? readAskMentorContextFromStorage(),
@@ -210,6 +215,13 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   const messageInputRef = useRef<any>(null);
 
   const currentUserId = String(user?.id ?? "");
+
+  // Build avatar lookup from contacts for use in conversation list
+  const contactAvatarMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    contacts.forEach((c) => map.set(c.userId, c.avatarUrl));
+    return map;
+  }, [contacts]);
 
   const conversations = conversationOrder
     .map((id) => conversationsById[id])
@@ -437,6 +449,19 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     setRequestedMentorId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedMentorId]);
+
+  // Load mentor detail (for myReview) when active conversation changes
+  useEffect(() => {
+    if (!activeConv || activeConv.mentorId === currentUserId) {
+      setActiveMentorDetail(null);
+      return;
+    }
+    import("../../../../services/MentorService").then(({ default: MentorService }) => {
+      MentorService.getMentorById(activeConv.mentorId)
+        .then((data) => setActiveMentorDetail(data))
+        .catch(() => setActiveMentorDetail(null));
+    });
+  }, [activeConv?.mentorId]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -972,6 +997,8 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                               ? conv.studentName
                               : conv.mentorName;
                           const initials = getInitials(name);
+                          const otherUserId = conv.mentorId === currentUserId ? conv.studentId : conv.mentorId;
+                          const avatarUrl = contactAvatarMap.get(otherUserId);
                           return (
                             <Conversation
                               key={conv.conversationId}
@@ -997,9 +1024,18 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                               }}
                             >
                               <Avatar>
-                                <span className="chat-kit-avatar">
-                                  {initials}
-                                </span>
+                                {avatarUrl ? (
+                                  <img
+                                    src={avatarUrl}
+                                    alt={name}
+                                    className="chat-kit-avatar"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                                  />
+                                ) : (
+                                  <span className="chat-kit-avatar">
+                                    {initials}
+                                  </span>
+                                )}
                               </Avatar>
                             </Conversation>
                           );
@@ -1025,7 +1061,15 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                           className="chat-kit-contact-item"
                         >
                           <div className="chat-kit-contact-avatar">
-                            {contact.username.substring(0, 2).toUpperCase()}
+                            {contact.avatarUrl ? (
+                              <img
+                                src={contact.avatarUrl}
+                                alt={contact.username}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                              />
+                            ) : (
+                              contact.username.substring(0, 2).toUpperCase()
+                            )}
                           </div>
                           <div style={{ flex: 1 }}>
                             <div className="chat-kit-contact-name">
@@ -1101,15 +1145,61 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
             <ChatContainer className="chat-kit-panel">
               <ConversationHeader>
                 <Avatar>
-                  <span className="chat-kit-avatar chat-kit-avatar--header">
-                    {getInitials(otherName || t("chat.title"))}
-                  </span>
+                  {activeConv && contactAvatarMap.get(activeConv.mentorId === currentUserId ? activeConv.studentId : activeConv.mentorId) ? (
+                    <img
+                      src={contactAvatarMap.get(activeConv.mentorId === currentUserId ? activeConv.studentId : activeConv.mentorId)!}
+                      alt={otherName}
+                      className="chat-kit-avatar chat-kit-avatar--header"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                    />
+                  ) : (
+                    <span className="chat-kit-avatar chat-kit-avatar--header">
+                      {getInitials(otherName || t("chat.title"))}
+                    </span>
+                  )}
                 </Avatar>
                 <ConversationHeader.Content
                   userName={
                     activeConversationId ? otherName || "..." : t("chat.title")
                   }
                 />
+                {activeConversationId && activeConv && activeConv.mentorId !== currentUserId && (
+                  <ConversationHeader.Actions>
+                    <button
+                      onClick={() => setReviewModalOpen(true)}
+                      title={t("review.title")}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 2,
+                        cursor: 'pointer',
+                        padding: '5px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        color: activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--text-secondary)',
+                        borderColor: activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--border-base)',
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--warning-primary)'
+                        e.currentTarget.style.color = 'var(--warning-primary)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--border-base)'
+                        e.currentTarget.style.color = activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--text-secondary)'
+                      }}
+                    >
+                      <Star size={12} fill={activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'none'} />
+                      {activeMentorDetail?.myReview ? t("review.editTitle") : t("review.title")}
+                    </button>
+                  </ConversationHeader.Actions>
+                )}
               </ConversationHeader>
 
               <MessageList
@@ -1317,6 +1407,24 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
             onClose={() => setToast(null)}
           />
         </div>
+      )}
+      {activeConv && activeConv.mentorId !== currentUserId && (
+        <ReviewMentorModal
+          isOpen={reviewModalOpen}
+          onClose={() => setReviewModalOpen(false)}
+          mentorId={activeConv.mentorId}
+          mentorName={otherName}
+          existingReview={activeMentorDetail?.myReview}
+          onSuccess={() => {
+            setToast({ message: t("review.success"), type: "success" })
+            // Reload mentor detail to get updated myReview
+            import("../../../../services/MentorService").then(({ default: MentorService }) => {
+              MentorService.getMentorById(activeConv.mentorId)
+                .then((data) => setActiveMentorDetail(data))
+                .catch(() => {})
+            })
+          }}
+        />
       )}
     </Layout>
   );

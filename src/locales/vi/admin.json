@@ -131,6 +131,24 @@
     "showing": "Hiển thị {{filtered}} trên {{total}} người dùng",
     "pageOption": "{{size}} / trang"
   },
+  "createMentor": {
+    "title": "Tạo tài khoản Mentor",
+    "firstName": "Tên",
+    "lastName": "Họ",
+    "username": "Tên đăng nhập",
+    "email": "Email",
+    "phone": "Số điện thoại",
+    "dateOfBirth": "Ngày sinh",
+    "address": "Địa chỉ",
+    "bio": "Tiểu sử",
+    "bioPlaceholder": "Mô tả ngắn về mentor...",
+    "sendSetupEmail": "Gửi email thiết lập tài khoản cho mentor",
+    "create": "Tạo",
+    "creating": "Đang tạo...",
+    "cancel": "Hủy",
+    "success": "Tạo tài khoản mentor thành công.",
+    "failed": "Không thể tạo tài khoản mentor."
+  },
   "subscriptionPlans": {
     "title": "Quản lý gói token",
     "subtitle": "Quản lý các gói token học viên có thể mua",

@@ -462,6 +462,13 @@
     "noMentorsFound": "Không tìm thấy mentor phù hợp với tiêu chí của bạn",
     "reviews": "đánh giá",
     "chatWithMentor": "Chat với Mentor",
+    "viewProfile": "Xem hồ sơ",
+    "backToList": "Quay lại danh sách",
+    "mentorProfile": "Hồ sơ Mentor",
+    "specializations": "Chuyên môn",
+    "specializedSubjects": "Môn học chuyên sâu",
+    "biography": "Tiểu sử",
+    "noReviews": "Chưa có đánh giá nào.",
     "previous": "Trước",
     "next": "Tiếp",
     "pageOf": "Trang {{current}} / {{total}}"
@@ -1203,5 +1210,19 @@
     "selectChannel": "Chọn kênh để bắt đầu trò chuyện",
     "noMessages": "Chưa có tin nhắn nào",
     "typePlaceholder": "Nhập tin nhắn..."
+  },
+  "review": {
+    "title": "Đánh giá Mentor",
+    "editTitle": "Sửa đánh giá",
+    "score": "Điểm đánh giá",
+    "selectScore": "Nhấn vào sao để đánh giá",
+    "comment": "Nhận xét",
+    "commentPlaceholder": "Chia sẻ trải nghiệm của bạn với mentor này (không bắt buộc)...",
+    "submit": "Gửi đánh giá",
+    "submitting": "Đang gửi...",
+    "cancel": "Hủy",
+    "success": "Đánh giá đã được gửi thành công.",
+    "failed": "Không thể gửi đánh giá.",
+    "interactionRequired": "Bạn cần có hội thoại với mentor này trước khi đánh giá."
   }
 }

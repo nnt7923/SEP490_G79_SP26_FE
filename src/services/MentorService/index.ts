@@ -1,5 +1,16 @@
 import api from '../Axios'
 
+export interface MentorReviewDto {
+  ratingId: string
+  studentId: string
+  studentName: string
+  studentAvatarUrl: string | null
+  score: number
+  comment: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface MentorDto {
   mentorId: string
   username: string
@@ -12,6 +23,8 @@ export interface MentorDto {
   totalReviews: number
   specializations: string[]
   specializedSubjects: string[]
+  myReview?: MentorReviewDto | null
+  recentReviews?: MentorReviewDto[]
 }
 
 export interface MentorListResponse {
@@ -32,22 +45,24 @@ export interface GetMentorsParams {
   // These should be handled client-side if needed
 }
 
+export interface MentorReviewPayload {
+  score: number
+  comment?: string | null
+}
+
 class MentorServiceClass {
-  /**
-   * Get list of mentors with optional filters
-   * GET /api/mentors
-   */
   async getMentors(params?: GetMentorsParams): Promise<MentorListResponse> {
     const response = await api.get('/mentors', { params })
     return response as any
   }
 
-  /**
-   * Get mentor details by ID
-   * GET /api/mentors/{mentorId}
-   */
   async getMentorById(mentorId: string): Promise<MentorDto> {
     const response = await api.get(`/mentors/${mentorId}`)
+    return response as any
+  }
+
+  async reviewMentor(mentorId: string, payload: MentorReviewPayload): Promise<any> {
+    const response = await api.put(`/mentors/${mentorId}/review`, payload)
     return response as any
   }
 }

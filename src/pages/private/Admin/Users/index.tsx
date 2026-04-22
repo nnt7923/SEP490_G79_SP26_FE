@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { UserService } from '../../../../services'
-import { Search, RefreshCw, Ban, CheckCircle, Users as UsersIcon, ChevronDown, ChevronUp, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, RefreshCw, Ban, CheckCircle, Users as UsersIcon, ChevronDown, ChevronUp, X, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
 import { formatDateTimeVN } from '../../../../utils/dateUtils'
 import { useTranslation } from 'react-i18next'
+import CreateMentorModal from '../../../../components/CreateMentorModal'
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -31,6 +32,7 @@ const AdminUsersPage: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(10)
   const [totalCount, setTotalCount] = useState<number>(0)
   const [totalPages, setTotalPages] = useState<number>(1)
+  const [createMentorOpen, setCreateMentorOpen] = useState(false)
 
   const fetchUsers = async (forceRefresh: boolean = false) => {
     setLoading(true)
@@ -120,15 +122,24 @@ const AdminUsersPage: React.FC = () => {
                    {t('users.subtitle')}
                 </p>
               </div>
-              <button
-                onClick={() => { void fetchUsers(true) }}
-                disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
-                title={t('users.reload')}
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                {t('users.reload')}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCreateMentorOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-purple-600 bg-th-card text-purple-600 text-sm font-bold hover:bg-purple-50 transition-colors cursor-pointer rounded-sm"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  {t('createMentor.title')}
+                </button>
+                <button
+                  onClick={() => { void fetchUsers(true) }}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 bg-th-card text-status-blue text-sm font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm"
+                  title={t('users.reload')}
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  {t('users.reload')}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -397,6 +408,16 @@ const AdminUsersPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <CreateMentorModal
+        isOpen={createMentorOpen}
+        onClose={() => setCreateMentorOpen(false)}
+        onSuccess={() => {
+          setToast({ message: t('createMentor.success'), type: 'success' })
+          setTimeout(() => setToast(null), 3000)
+          void fetchUsers(true)
+        }}
+      />
     </Layout>
   )
 }
