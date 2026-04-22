@@ -19,6 +19,7 @@ import useAuthStore from '../../../store/useAuthStore'
 import type { AskMentorContextPayload } from '../../../types/chat'
 import { buildAskMentorContextPayload } from '../../../utils/askMentorContext'
 import SelectMentorModal from '../../../components/SelectMentorModal'
+import SuggestionPreviewModal from '../../../components/SuggestionPreviewModal'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -164,6 +165,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
   // Select mentor modal state
   const [showSelectMentorModal, setShowSelectMentorModal] = useState<boolean>(false)
+  // Confirm dialogs for step 7
+  const [confirmAI, setConfirmAI] = useState(false)
+  const [confirmSuggestion, setConfirmSuggestion] = useState(false)
+  const [confirmSuggestionItem, setConfirmSuggestionItem] = useState<any>(null)
+  // Preview state
+  const [previewData, setPreviewData] = useState<any>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   // IMPORTANT: initialize navigate for routing
   const navigate = useNavigate()
@@ -670,6 +680,34 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       return
     }
     await handleGenerateStudentPlan()
+  }
+
+  const handlePreviewSuggestion = async (suggestion: any) => {
+    if (!suggestion?.pathId || !language) return
+    setPreviewData(null)
+    setPreviewError(null)
+    setPreviewLoading(true)
+    setPreviewOpen(true)
+    try {
+      const { requestLearningPathSuggestionPreview } = await import('../../../services/SignalR')
+      const goalsWithWeights = selectedGoals.map(goalId => ({
+        goalId,
+        weight: goalPriorities[goalId] || (selectedGoals.length === 1 ? 100 : 50),
+      }))
+      const result = await requestLearningPathSuggestionPreview(
+        suggestion.pathId,
+        language,
+        goalsWithWeights,
+        level!,
+        languageSelection!,
+        () => setPreviewLoading(true)
+      )
+      setPreviewData(result)
+    } catch (e: any) {
+      setPreviewError(e?.message || 'Không thể tải xem trước lộ trình.')
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   const handleSelectSuggestion = async (suggestion: any) => {
@@ -2735,7 +2773,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     e.currentTarget.style.transform = 'translateY(0)'
                     e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
-                  onClick={handleGenerateClick}
+                  onClick={() => setConfirmAI(true)}
                 >
                   <div style={{ height: 2, width: 42, background: 'var(--accent-primary)', borderRadius: 999, marginBottom: 12 }} />
 
@@ -3103,7 +3141,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                 border: '1px solid var(--border-base)',
                                 borderRadius: 4,
                                 background: 'var(--bg-surface)',
-                                cursor: 'pointer',
                                 transition: 'all 0.2s'
                               }}
                               onMouseEnter={(e) => {
@@ -3114,7 +3151,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                 e.currentTarget.style.borderColor = 'var(--border-base)'
                                 e.currentTarget.style.background = 'var(--bg-surface)'
                               }}
-                              onClick={() => handleSelectSuggestion(suggestion)}
                             >
                               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                                 <div style={{ flex: 1 }}>
@@ -3172,12 +3208,62 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                               <div style={{ 
                                 marginTop: 16, 
                                 paddingTop: 12, 
-                                borderTop: '1px solid var(--border-base)', 
-                                fontSize: 11, 
-                                color: 'var(--accent-primary)', 
-                                fontWeight: 600 
+                                borderTop: '1px solid var(--border-base)',
+                                display: 'flex',
+                                gap: 8,
                               }}>
-                                → {t('plans.clickToSelectLearningPath')}
+                                <button
+                                  type="button"
+                                  onClick={() => handlePreviewSuggestion(suggestion)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: 'transparent',
+                                    border: '1px solid var(--border-base)',
+                                    borderRadius: 3,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    fontFamily: 'monospace',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    transition: 'all 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--text-secondary)'
+                                    e.currentTarget.style.color = 'var(--text-primary)'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                                    e.currentTarget.style.color = 'var(--text-secondary)'
+                                  }}
+                                >
+                                  {t('plans.previewPath')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setConfirmSuggestionItem(suggestion); setConfirmSuggestion(true) }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: 'var(--accent-primary)',
+                                    border: 'none',
+                                    borderRadius: 3,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontFamily: 'monospace',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    transition: 'opacity 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+                                >
+                                  {t('plans.selectThisPath')}
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -3282,6 +3368,144 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
         onClose={() => setShowSelectMentorModal(false)}
         askMentorContext={askMentorContextPayload ?? undefined}
       />
+
+      {/* Suggestion Preview Modal */}
+      <SuggestionPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        loading={previewLoading}
+        error={previewError}
+        data={previewData}
+        onSelect={() => {
+          setPreviewOpen(false)
+          setConfirmSuggestionItem({ pathId: previewData?.pathId, ...previewData?.learningPath })
+          setConfirmSuggestion(true)
+        }}
+      />
+
+      {/* Confirm AI Generation */}
+      {confirmAI && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
+          onClick={() => setConfirmAI(false)}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 6, maxWidth: 480, width: '100%', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ height: 3, background: 'var(--accent-primary)' }} />
+            <div style={{ padding: '20px 24px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-primary)', fontFamily: 'monospace', marginBottom: 6 }}>
+                {t('plans.aiGeneration')}
+              </div>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {t('plans.confirmAITitle')}
+              </h3>
+            </div>
+            {/* Summary of what will be generated */}
+            <div style={{ margin: '0 24px 16px', padding: 16, background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Môn học</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSubjectName || '—'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Trình độ</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{level || '—'}</div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Ngôn ngữ</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {languageSelection === 1 ? 'Tiếng Việt' : languageSelection === 2 ? 'English' : '—'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Mục tiêu</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {selectedGoals.length === 0 ? <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>—</span> : selectedGoals.map((goalId) => {
+                      const raw = subjectGoals.find((g: any) => String(g?.id ?? g?.goalId) === String(goalId))
+                      const title = raw?.title ?? raw?.name ?? raw?.label ?? goalId
+                      return (
+                        <div key={goalId} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ color: 'var(--accent-primary)', fontFamily: 'monospace' }}>›</span>
+                          {title}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '0 24px 16px', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {t('plans.confirmAIDesc')}
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-base)', background: 'var(--bg-main)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setConfirmAI(false)}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 3, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.cancel')}
+              </button>
+              <button type="button" onClick={() => { setConfirmAI(false); void handleGenerateClick() }}
+                style={{ padding: '8px 20px', background: 'var(--accent-primary)', border: 'none', borderRadius: 3, fontSize: 11, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.confirmGenerate')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Select Suggestion */}
+      {confirmSuggestion && confirmSuggestionItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
+          onClick={() => { setConfirmSuggestion(false); setConfirmSuggestionItem(null) }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 6, maxWidth: 480, width: '100%', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ height: 3, background: 'var(--accent-primary)' }} />
+            <div style={{ padding: '20px 24px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-primary)', fontFamily: 'monospace', marginBottom: 6 }}>
+                {t('plans.similarPaths')}
+              </div>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {t('plans.confirmSuggestionTitle')}
+              </h3>
+            </div>
+            {/* Path preview card */}
+            <div style={{ margin: '0 24px 16px', padding: 16, background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                  {confirmSuggestionItem.title}
+                </h4>
+              </div>
+              {confirmSuggestionItem.description && (
+                <p style={{ margin: '0 0 10px 0', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {confirmSuggestionItem.description}
+                </p>
+              )}
+              {confirmSuggestionItem.goals && confirmSuggestionItem.goals.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {confirmSuggestionItem.goals.slice(0, 3).map((goal: any, i: number) => (
+                    <span key={i} style={{ padding: '3px 8px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                      {getGoalTitle(t, goal.goalId || goal.id, goal.title)} · {goal.durationInDays}d
+                    </span>
+                  ))}
+                  {confirmSuggestionItem.goals.length > 3 && (
+                    <span style={{ padding: '3px 8px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                      +{confirmSuggestionItem.goals.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-base)', background: 'var(--bg-main)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => { setConfirmSuggestion(false); setConfirmSuggestionItem(null) }}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 3, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.cancel')}
+              </button>
+              <button type="button" onClick={() => { setConfirmSuggestion(false); handleSelectSuggestion(confirmSuggestionItem); setConfirmSuggestionItem(null) }}
+                style={{ padding: '8px 20px', background: 'var(--accent-primary)', border: 'none', borderRadius: 3, fontSize: 11, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.confirmSelect')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

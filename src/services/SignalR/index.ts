@@ -1895,7 +1895,90 @@ export async function requestAdoptSuggestedLearningPath(
   return p
 }
 
-// ==== Send tutor message (pure SignalR) ====
+// ==== Request learning path suggestion preview (pure SignalR) ====
+const inflightSuggestionPreview = new Map<string, Promise<any>>()
+
+export async function requestLearningPathSuggestionPreview(
+  suggestedPathId: string,
+  subjectId: string,
+  goals: Array<{ goalId: string; weight: number }>,
+  complexityLevel: string,
+  languageSelection: number,
+  onLoading?: () => void
+): Promise<any> {
+  if (!suggestedPathId || !subjectId || !goals?.length || !complexityLevel || languageSelection === undefined) {
+    return Promise.reject(new Error('Missing required parameters for suggestion preview'))
+  }
+
+  const languageSelectionString = languageSelection === 1 ? 'VietNamese' : 'English'
+  const key = `preview-${suggestedPathId}-${subjectId}`
+  if (inflightSuggestionPreview.has(key)) return inflightSuggestionPreview.get(key)!
+
+  const p = (async () => {
+    const hub = await getLearningPathHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('LearningPathSuggestionPreviewStarted', handleLoading)
+        hub.off('LearningPathSuggestionPreviewLoaded', handleLoaded)
+        hub.off('LearningPathSuggestionPreviewError', handleError)
+        inflightSuggestionPreview.delete(key)
+      }
+
+      const handleLoading = () => { onLoading?.() }
+
+      const handleLoaded = (data: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        resolve(data)
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        const errorCode = err?.errorCode
+        const errorMessage = err?.errorMessage || err?.message || 'Failed to preview learning path'
+        const error: any = new Error(errorMessage)
+        error.errorCode = errorCode
+        reject(error)
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Learning path suggestion preview request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleLoadedWrap = (d: any) => { clearTo(); handleLoaded(d) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('LearningPathSuggestionPreviewStarted', handleLoading)
+      hub.on('LearningPathSuggestionPreviewLoaded', handleLoadedWrap)
+      hub.on('LearningPathSuggestionPreviewError', handleErrorWrap)
+
+      try {
+        hub.invoke(
+          'RequestLearningPathSuggestionPreview',
+          suggestedPathId,
+          subjectId,
+          goals,
+          complexityLevel,
+          languageSelectionString
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightSuggestionPreview.set(key, p)
+  return p
+}
 export type TutorHubErrorCode =
   | 'UNAUTHORIZED'
   | 'EMPTY_MESSAGE'
@@ -2754,6 +2837,7 @@ export async function disconnectHubs(): Promise<void> {
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()
+    inflightSuggestionPreview.clear()
     inflightTutorMessages.clear()
     inflightTutorMessageHistory.clear()
     inflightTutorSummaryHistory.clear()
