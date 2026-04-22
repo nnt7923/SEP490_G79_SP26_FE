@@ -474,5 +474,34 @@
       "FillInTheBlank": "Dien khuyet",
       "Ordering": "Sap xep thu tu"
     }
+  },
+  "publishedPaths": {
+    "brandName": "Lộ trình đã xuất bản",
+    "brandSubtitle": "Mentor",
+    "title": "Lộ trình đã xuất bản",
+    "backToList": "Quay lại danh sách",
+    "publishedBadge": "Đã xuất bản",
+    "searchPlaceholder": "Tìm kiếm lộ trình...",
+    "subjectFilterAll": "Tất cả môn học",
+    "sortNewest": "Mới nhất trước",
+    "sortOldest": "Cũ nhất trước",
+    "loading": "Đang tải lộ trình...",
+    "loadFailed": "Tải lộ trình thất bại",
+    "emptyTitle": "Không tìm thấy lộ trình nào",
+    "emptyDesc": "Xuất bản một draft để hiển thị ở đây.",
+    "chapterCount": "{{count}} chương",
+    "openPath": "Mở lộ trình",
+    "accessDenied": "Bạn không có quyền truy cập lộ trình này",
+    "invalidStatus": "Lộ trình này không ở trạng thái Đã xuất bản",
+    "notFound": "Không tìm thấy lộ trình",
+    "detailRedirect": "Chuyển hướng về danh sách lộ trình",
+    "save": "Lưu",
+    "saving": "Đang lưu...",
+    "saveFailed": "Lưu lộ trình thất bại",
+    "revertedToDraftNotice": "Lộ trình đã được hoàn nguyên về Draft sau khi chỉnh sửa. Xuất bản lại khi sẵn sàng.",
+    "republish": "Xuất bản lại",
+    "republishing": "Đang xuất bản...",
+    "republishSuccess": "Xuất bản lại thành công!",
+    "republishFailed": "Xuất bản lại thất bại."
   }
 }

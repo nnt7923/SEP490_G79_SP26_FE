@@ -14,3 +14,5 @@ export const learningPathProgressUrl = (pathId: string) => `${basePath}/${pathId
 export const publishedPathsUrl = `${basePath}/published`
 export const publishedPathPreviewUrl = (pathId: string) => `${publishedPathsUrl}/${pathId}/preview`
 export const enrollPathUrl = (pathId: string) => `${basePath}/${pathId}/enroll`
+export const myPublishedUrl = `${basePath}/my-published`
+export const myPublishedDetailUrl = (pathId: string) => `${myPublishedUrl}/${pathId}`

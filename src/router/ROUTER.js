@@ -28,6 +28,8 @@ const ROUTER = {
   MENTOR_DRAFTS: "/mentor/drafts",
   MENTOR_DRAFT_CREATE: "/mentor/drafts/new",
   MENTOR_DRAFT_DETAIL: "/mentor/drafts/:pathId",
+  MENTOR_PUBLISHED_PATHS: "/mentor/published",
+  MENTOR_PUBLISHED_PATH_DETAIL: "/mentor/published/:pathId",
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",

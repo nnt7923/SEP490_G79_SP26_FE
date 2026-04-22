@@ -15,6 +15,8 @@ import {
   publishedPathsUrl,
   publishedPathPreviewUrl,
   enrollPathUrl,
+  myPublishedUrl,
+  myPublishedDetailUrl,
 } from './url'
 import {
   requestLearningPathGeneration,
@@ -1140,6 +1142,42 @@ export async function getMyDraftDetail(pathId: string): Promise<SkeletonResponse
   return normalizeSkeleton(raw)
 }
 
+export async function getMyPublishedDetail(pathId: string): Promise<SkeletonResponse> {
+  const res: any = await api.get(myPublishedDetailUrl(pathId))
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function getMyPublished(
+  params?: MyDraftsParams
+): Promise<UserLearningPathsResponse> {
+  const queryParams = new URLSearchParams()
+
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+  if (params?.sortDescending !== undefined) queryParams.append('SortDescending', String(params.sortDescending))
+
+  const url = `${myPublishedUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<UserLearningPathsResponse>(res)
+
+  return {
+    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeletonListItem) : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+  }
+}
+
+export async function updateMyPublished(pathId: string, payload: ManualDraftPayload): Promise<SkeletonResponse> {
+  const res: any = await api.put(myPublishedDetailUrl(pathId), payload)
+  const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
+  return normalizeSkeleton(raw)
+}
+
 export async function getMyDrafts(
   params?: MyDraftsParams
 ): Promise<UserLearningPathsResponse> {
@@ -1280,5 +1318,8 @@ export default {
   markLessonContentRead,
   getMyDrafts,
   getMyDraftDetail,
+  getMyPublished,
+  getMyPublishedDetail,
+  updateMyPublished,
   getSuggestions,
 }

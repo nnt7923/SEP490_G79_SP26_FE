@@ -133,7 +133,6 @@ const ExplorePathPreviewPage: React.FC = () => {
               </div>
               <div className="ep-hero-info">
                 <h1 className="ep-hero-title">{preview.title}</h1>
-                <p className="ep-hero-desc">{preview.description}</p>
                 <div className="ep-hero-stats">
                   <span className="ep-stat-item">
                     {preview.complexityLevel !== undefined && (
@@ -176,6 +175,18 @@ const ExplorePathPreviewPage: React.FC = () => {
         {!loading && !error && preview && (
           <div className="ep-detail-layout">
             <div className="ep-detail-main">
+               {/* Overview */}
+               {preview.description && (
+                <section style={{ marginBottom: 40 }}>
+                  <h2 className="ep-section-title">
+                    {t('explorePaths.previewOverview', { defaultValue: 'Overview' })}
+                  </h2>
+                  <p style={{ fontSize: 15, color: 'var(--text-primary)', lineHeight: 1.6, margin: 0 }}>
+                    {preview.description}
+                  </p>
+                </section>
+               )}
+
                {/* Goals */}
                {preview.goals && preview.goals.length > 0 && (
                 <section style={{ marginBottom: 40 }}>
@@ -232,18 +243,6 @@ const ExplorePathPreviewPage: React.FC = () => {
                                 <span className="ep-lesson-title">
                                   {lesson.title}
                                 </span>
-                                <div className="ep-lesson-meta">
-                                  {lesson.lessonDay && (
-                                    <span>
-                                      {t('explorePaths.previewLessonDay', { day: lesson.lessonDay, defaultValue: `Day ${lesson.lessonDay}` })}
-                                    </span>
-                                  )}
-                                  {lesson.quizCount > 0 && (
-                                    <span>
-                                      {t('explorePaths.previewQuizCount', { count: lesson.quizCount, defaultValue: `${lesson.quizCount} quiz` })}
-                                    </span>
-                                  )}
-                                </div>
                               </div>
                             ))}
                             {chapter.lessons.length === 0 && (
