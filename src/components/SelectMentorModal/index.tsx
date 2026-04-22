@@ -223,7 +223,7 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
         zIndex: 9999,
         padding: 20,
       }}
-      onClick={onClose}
+      onClick={profileMentor ? () => setProfileMentor(null) : onClose}
     >
       <div
         style={{
@@ -231,7 +231,7 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
           borderRadius: 2,
           maxWidth: 1000,
           width: '100%',
-          maxHeight: '90vh',
+          maxHeight: '95vh',
           display: 'flex',
           flexDirection: 'column',
           border: '1px solid var(--border-base)',

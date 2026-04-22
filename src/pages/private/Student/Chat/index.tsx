@@ -14,6 +14,7 @@ import {
   Smile,
   Star,
   Users,
+  UserCircle,
 } from "lucide-react";
 import Layout from "../../../../components/Layout";
 import ChannelChatPage from "../../../../components/ChannelChat/ChannelChatPage";
@@ -81,6 +82,7 @@ import {
   isValidAskMentorContextPayload,
 } from "../../../../utils/askMentorContext";
 import ReviewMentorModal from "../../../../components/ReviewMentorModal";
+import MentorProfileModal from "../../../../components/MentorProfileModal";
 
 type ToastState = {
   message: string;
@@ -202,6 +204,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   );
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [activeMentorDetail, setActiveMentorDetail] = useState<import("../../../../services/MentorService").MentorDto | null>(null);
+  const [profileModalMentorId, setProfileModalMentorId] = useState<string | null>(null);
   const [askMentorContext, setAskMentorContext] =
     useState<AskMentorContextPayload | null>(
       location.state?.askMentorContext ?? readAskMentorContextFromStorage(),
@@ -1059,6 +1062,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                             handleStartConversation(contact.userId)
                           }
                           className="chat-kit-contact-item"
+                          style={{ position: 'relative' }}
                         >
                           <div className="chat-kit-contact-avatar">
                             {contact.avatarUrl ? (
@@ -1079,6 +1083,24 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                               {t("chat.mentor", { defaultValue: "Mentor" })}
                             </div>
                           </div>
+                          {/* Profile icon */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setProfileModalMentorId(contact.userId)
+                            }}
+                            style={{
+                              background: 'transparent', border: 'none',
+                              cursor: 'pointer', padding: 4, flexShrink: 0,
+                              color: 'var(--text-secondary)', display: 'flex',
+                              alignItems: 'center', borderRadius: 2,
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+                            title={t('plans.viewProfile')}
+                          >
+                            <UserCircle size={14} />
+                          </button>
                         </div>
                       ))
                     )}
@@ -1426,6 +1448,16 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
           }}
         />
       )}
+      <MentorProfileModal
+        isOpen={!!profileModalMentorId}
+        onClose={() => setProfileModalMentorId(null)}
+        mentorId={profileModalMentorId ?? ''}
+        backLabel={t('plans.backToList')}
+        onChat={profileModalMentorId ? () => {
+          handleStartConversation(profileModalMentorId)
+          setProfileModalMentorId(null)
+        } : undefined}
+      />
     </Layout>
   );
 };
