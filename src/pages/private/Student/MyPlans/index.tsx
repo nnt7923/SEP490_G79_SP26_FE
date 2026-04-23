@@ -244,7 +244,6 @@ const MyPlansPage: React.FC = () => {
                           </button>
                         )}
                       </div>
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.description || t('myPlans.noDescription')}</p>
                       {sharedByUserName && (
                         <div style={{ marginBottom: 10, fontSize: 11, color: 'var(--text-secondary)' }}>
                           {t('myPlans.sharedBy', { defaultValue: 'Được chia sẻ bởi {{name}}', name: sharedByUserName })}

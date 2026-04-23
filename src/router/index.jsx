@@ -62,6 +62,7 @@ const FocusSessionHistory = React.lazy(() => import('../pages/private/FocusSessi
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
 const StudentShareUpdatesPage = React.lazy(() => import('../pages/private/Student/Chat/ShareUpdates'))
+const StudentPathEditPage = React.lazy(() => import('../pages/private/Student/PathEdit/Form'))
 const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat')) 
 const StudentChannelChatPage = React.lazy(() => import('../pages/private/Student/ChannelChat'))
 const MentorChannelChatPage = React.lazy(() => import('../pages/private/Mentor/ChannelChat'))
@@ -110,6 +111,7 @@ const router = createBrowserRouter([
           { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/detail', element: <MyPlansDetail /> },
+          { path: ROUTER.STUDENT_PATH_EDIT, element: <StudentPathEditPage /> },
           { path: ROUTER.EXPLORE_PATHS, element: <ExplorePathsPage /> },
           { path: ROUTER.EXPLORE_PATH_PREVIEW, element: <ExplorePathPreviewPage /> },
           { path: ROUTER.GOALS, element: <Goals /> },

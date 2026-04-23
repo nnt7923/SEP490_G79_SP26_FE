@@ -4,7 +4,7 @@ import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
-import { ArrowLeft, Loader, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader, AlertCircle, PencilLine } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 import ChapterTasks from '../../Plans/components/ChapterTasks'
@@ -12,6 +12,7 @@ import { motion } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
 import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
 import type { LearningPathProgressResponse } from '../../../../services/LearningPathService'
+import ROUTER from '../../../../router/ROUTER'
 
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)
@@ -401,18 +402,41 @@ const MyPlansDetailPage: React.FC = () => {
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
-          {/* Back Button */}
-          <motion.button
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={() => navigate(-1)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', marginBottom: 24, fontSize: 14, fontWeight: 700 }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-            whileHover={{ x: -2 }}
-          >
-            <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
-          </motion.button>
+          {/* Top action row: Back + Edit */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <motion.button
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              onClick={() => navigate(-1)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+              whileHover={{ x: -2 }}
+            >
+              <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
+            </motion.button>
+
+            {plan?.status === 'Active' && pathId && (
+              <motion.button
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => navigate(ROUTER.STUDENT_PATH_EDIT.replace(':pathId', pathId))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  color: 'var(--accent-primary)',
+                  background: 'color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface) 90%)',
+                  border: '1px solid var(--accent-primary)',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  padding: '8px 14px',
+                }}
+              >
+                <PencilLine size={14} /> Edit path
+              </motion.button>
+            )}
+          </div>
 
           {/* Hero frame */}
           <Tilt tiltMaxAngleX={2} tiltMaxAngleY={2} scale={1.01} transitionSpeed={400}>

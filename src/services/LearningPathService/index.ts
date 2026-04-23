@@ -17,6 +17,7 @@ import {
   enrollPathUrl,
   myPublishedUrl,
   myPublishedDetailUrl,
+  studentLearningPathUrl,
 } from './url'
 import {
   requestLearningPathGeneration,
@@ -1178,6 +1179,36 @@ export async function updateMyPublished(pathId: string, payload: ManualDraftPayl
   return normalizeSkeleton(raw)
 }
 
+export type StudentPathEditPayload = {
+  chapters: Array<{
+    title: string
+    startDate?: string | null
+    endDate?: string | null
+    estimatedDays?: number | null
+    lessons: Array<{
+      title: string
+      lessonDay: string
+      content?: string | null
+    }>
+  }>
+}
+
+export async function getStudentLearningPath(pathId: string): Promise<SkeletonResponse> {
+  const res: any = await api.get(studentLearningPathUrl(pathId))
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function updateStudentLearningPath(
+  pathId: string,
+  payload: StudentPathEditPayload,
+): Promise<SkeletonResponse> {
+  const res: any = await api.put(studentLearningPathUrl(pathId), payload)
+  const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
+  return normalizeSkeleton(raw)
+}
+
 export async function getMyDrafts(
   params?: MyDraftsParams
 ): Promise<UserLearningPathsResponse> {
@@ -1321,5 +1352,7 @@ export default {
   getMyPublished,
   getMyPublishedDetail,
   updateMyPublished,
+  getStudentLearningPath,
+  updateStudentLearningPath,
   getSuggestions,
 }
