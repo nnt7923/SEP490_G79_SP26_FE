@@ -135,6 +135,7 @@
     "shareMissingChapterTask": "Each chapter must have at least 1 task before sharing.",
     "shareMissingLessonQuiz": "Each lesson must have at least 1 quiz before sharing.",
     "shareError": "Failed to share learning path",
+    "shareReceptionLimitReached": "The student has reached their share reception limit for this subscription.",
     "sharePathBtn": "Share with student",
     "pendingInvite": "Pending",
     "inviteAccepted": "Accepted",

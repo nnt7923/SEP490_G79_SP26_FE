@@ -19,7 +19,7 @@ const TransactionHistory: React.FC = () => {
   const sidebarConfig = useMemo(() => ({
     navItems,
     actions: [],
-    brand: { name: 'Token', subtitle: 'Student' },
+    brand: { name: 'Pricing', subtitle: 'Student' },
   }), [navItems])
 
   const [items, setItems] = useState<PaymentTransactionItem[]>([])
@@ -231,6 +231,13 @@ const TransactionHistory: React.FC = () => {
     }
   }
 
+  const transactionTypeLabel = (typeRaw: string | undefined) => {
+    const type = String(typeRaw || '').trim().toLowerCase()
+    if (type === 'mentor_package') return t('subscription.historyTypeMentor', { defaultValue: 'Mentor package' })
+    if (type === 'token_topup') return t('subscription.historyTypeToken', { defaultValue: 'Token top-up' })
+    return t('subscription.historyTypeUnknown', { defaultValue: 'Unknown' })
+  }
+
   return (
     <Layout sidebar={sidebarConfig}>
       <div style={{ padding: 20, background: 'var(--bg-main)', minHeight: '100vh' }}>
@@ -285,7 +292,7 @@ const TransactionHistory: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => navigate(ROUTER.SUBSCRIPTION)}
+              onClick={() => navigate(ROUTER.SHOP)}
               style={{
                 borderRadius: 8,
                 border: '1px solid var(--accent-primary)',
@@ -300,7 +307,7 @@ const TransactionHistory: React.FC = () => {
               }}
             >
               <ArrowLeft size={14} />
-              {t('subscription.backToSubscription')}
+              {t('subscription.backToShop', { defaultValue: t('subscription.backToSubscription') })}
             </button>
           </div>
         </motion.div>
@@ -469,7 +476,8 @@ const TransactionHistory: React.FC = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-main)' }}>
-                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('subscription.historyTokenPackageName')}</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('subscription.historyPackageName', { defaultValue: t('subscription.historyTokenPackageName') })}</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('subscription.historyTransactionType', { defaultValue: 'Type' })}</th>
                     <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('subscription.historyAmount')}</th>
                     <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('subscription.historyCreditedAmountVnd')}</th>
                     <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('subscription.historyStatus')}</th>
@@ -488,7 +496,10 @@ const TransactionHistory: React.FC = () => {
                         style={{ borderTop: '1px solid var(--border-base)' }}
                       >
                         <td style={{ padding: '12px', color: 'var(--text-primary)', fontWeight: 700 }}>
-                          {item.tokenPackageName || '--'}
+                          {item.packageDisplayName || item.mentorPackageName || item.tokenPackageName || '--'}
+                        </td>
+                        <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>
+                          {transactionTypeLabel(item.transactionType)}
                         </td>
                         <td style={{ padding: '12px', color: 'var(--text-primary)' }}>
                           {formatCurrency(item.amount)} VND
@@ -693,7 +704,8 @@ const TransactionHistory: React.FC = () => {
               </h2>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyTokenPackageName')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{selectedItem.tokenPackageName || '--'}</span></div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyPackageName', { defaultValue: t('subscription.historyTokenPackageName') })}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{selectedItem.packageDisplayName || selectedItem.mentorPackageName || selectedItem.tokenPackageName || '--'}</span></div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyTransactionType', { defaultValue: 'Type' })}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{transactionTypeLabel(selectedItem.transactionType)}</span></div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyAmount')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{formatCurrency(selectedItem.amount)} VND</span></div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyCreditedAmountVnd')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{formatCurrency(selectedItem.creditedTokens)} token</span></div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{t('subscription.historyStatus')}: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{statusLabel(String(selectedItem.status || ''))}</span></div>

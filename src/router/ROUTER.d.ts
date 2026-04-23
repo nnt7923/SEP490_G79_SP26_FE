@@ -25,6 +25,7 @@ declare const ROUTER: {
   MENTOR_DRAFT_CREATE: string
   MENTOR_DRAFT_DETAIL: string
   ADMIN_API_KEY: string
+  ADMIN_SHOP: string
   ADMIN_SUBSCRIPTION_PLANS: string
   ADMIN_BILLING_TRANSACTIONS: string
   ADMIN_AI_SPENDING: string
@@ -42,6 +43,7 @@ declare const ROUTER: {
   MENTOR_CHAT: string
   CHANNEL_CHAT: string
   MENTOR_CHANNEL_CHAT: string
+  SHOP: string
   SUBSCRIPTION: string
   SUBSCRIPTION_CURRENT: string
   BILLING_RESULT: string

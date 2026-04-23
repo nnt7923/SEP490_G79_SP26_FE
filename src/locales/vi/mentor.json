@@ -135,6 +135,7 @@
     "shareMissingChapterTask": "Mỗi chapter phải có ít nhất 1 task trước khi chia sẻ.",
     "shareMissingLessonQuiz": "Mỗi lesson phải có ít nhất 1 quiz trước khi chia sẻ.",
     "shareError": "Không thể chia sẻ lộ trình",
+    "shareReceptionLimitReached": "Học viên đã hết số lượt nhận hỗ trợ tạo lộ trình learning path trong gói hiện tại.",
     "sharePathBtn": "Chia sẻ cho học viên",
     "pendingInvite": "Đang chờ",
     "inviteAccepted": "Đã chấp nhận",

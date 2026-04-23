@@ -5,9 +5,16 @@ type AdminTokenPackagesCacheEntry = {
   data: AdminTokenPackage[]
 }
 
+type AdminMentorPackagesCacheEntry = {
+  expiresAt: number
+  data: AdminMentorPackage[]
+}
+
 const ADMIN_TOKEN_PACKAGES_CACHE_KEY = 'admin:token-packages:list'
+const ADMIN_MENTOR_PACKAGES_CACHE_KEY = 'admin:mentor-packages:list'
 const ADMIN_TOKEN_PACKAGES_CACHE_TTL_MS = 2 * 60 * 1000
 let adminTokenPackagesMemoryCache: AdminTokenPackagesCacheEntry | null = null
+let adminMentorPackagesMemoryCache: AdminMentorPackagesCacheEntry | null = null
 
 export interface AdminTokenPackage {
   tokenPackageId: string
@@ -29,7 +36,32 @@ export interface UpsertAdminTokenPackagePayload {
   displayOrder: number
 }
 
-const baseUrl = '/admin/token-packages'
+export interface AdminMentorPackage {
+  mentorPackageId: string
+  name: string
+  description: string
+  priceVnd: number
+  sharesFromMentorLimit: number
+  validationRequestLimit: number
+  taskReviewLimit: number
+  isActive: boolean
+  displayOrder: number
+  [key: string]: unknown
+}
+
+export interface UpsertAdminMentorPackagePayload {
+  name: string
+  description: string
+  priceVnd: number
+  sharesFromMentorLimit: number
+  validationRequestLimit: number
+  taskReviewLimit: number
+  isActive: boolean
+  displayOrder: number
+}
+
+const tokenBaseUrl = '/admin/token-packages'
+const mentorBaseUrl = '/admin/mentor-packages'
 
 function readAdminTokenPackagesStorageCache(): AdminTokenPackagesCacheEntry | null {
   try {
@@ -58,11 +90,40 @@ function writeAdminTokenPackagesStorageCache(entry: AdminTokenPackagesCacheEntry
   }
 }
 
+function readAdminMentorPackagesStorageCache(): AdminMentorPackagesCacheEntry | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = window.sessionStorage.getItem(ADMIN_MENTOR_PACKAGES_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as AdminMentorPackagesCacheEntry
+    if (!parsed?.expiresAt || parsed.expiresAt <= Date.now() || !Array.isArray(parsed?.data)) {
+      window.sessionStorage.removeItem(ADMIN_MENTOR_PACKAGES_CACHE_KEY)
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeAdminMentorPackagesStorageCache(entry: AdminMentorPackagesCacheEntry): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(ADMIN_MENTOR_PACKAGES_CACHE_KEY, JSON.stringify(entry))
+  } catch {
+    // ignore cache write errors
+  }
+}
+
 export function clearAdminSubscriptionPlansCache(): void {
   adminTokenPackagesMemoryCache = null
+  adminMentorPackagesMemoryCache = null
   try {
     if (typeof window === 'undefined') return
     window.sessionStorage.removeItem(ADMIN_TOKEN_PACKAGES_CACHE_KEY)
+    window.sessionStorage.removeItem(ADMIN_MENTOR_PACKAGES_CACHE_KEY)
   } catch {
     // ignore cache clear errors
   }
@@ -117,6 +178,27 @@ function normalizeTokenPackage(raw: any): AdminTokenPackage {
   }
 }
 
+function normalizeMentorPackage(raw: any): AdminMentorPackage {
+  return {
+    mentorPackageId: String(raw?.mentorPackageId ?? raw?.id ?? ''),
+    name: String(raw?.name ?? ''),
+    description: String(raw?.description ?? ''),
+    priceVnd: Number.isFinite(Number(raw?.priceVnd ?? raw?.PriceVnd)) ? Number(raw?.priceVnd ?? raw?.PriceVnd) : 0,
+    sharesFromMentorLimit: Number.isFinite(Number(raw?.sharesFromMentorLimit ?? raw?.SharesFromMentorLimit))
+      ? Number(raw?.sharesFromMentorLimit ?? raw?.SharesFromMentorLimit)
+      : 0,
+    validationRequestLimit: Number.isFinite(Number(raw?.validationRequestLimit ?? raw?.ValidationRequestLimit))
+      ? Number(raw?.validationRequestLimit ?? raw?.ValidationRequestLimit)
+      : 0,
+    taskReviewLimit: Number.isFinite(Number(raw?.taskReviewLimit ?? raw?.TaskReviewLimit))
+      ? Number(raw?.taskReviewLimit ?? raw?.TaskReviewLimit)
+      : 0,
+    isActive: Boolean(raw?.isActive),
+    displayOrder: Number.isFinite(Number(raw?.displayOrder)) ? Number(raw.displayOrder) : 0,
+    ...raw,
+  }
+}
+
 class AdminSubscriptionService {
   async getTokenPackages(): Promise<AdminTokenPackage[]> {
     if (adminTokenPackagesMemoryCache && adminTokenPackagesMemoryCache.expiresAt > Date.now()) {
@@ -129,7 +211,7 @@ class AdminSubscriptionService {
       return storageEntry.data
     }
 
-    const response = await api.get(baseUrl)
+    const response = await api.get(tokenBaseUrl)
     const tokenPackages = unwrapCollection<any>(response).map(normalizeTokenPackage)
     const cacheEntry: AdminTokenPackagesCacheEntry = {
       data: tokenPackages,
@@ -142,19 +224,59 @@ class AdminSubscriptionService {
   }
 
   async createTokenPackage(payload: UpsertAdminTokenPackagePayload): Promise<AdminTokenPackage> {
-    const response = await api.post(baseUrl, payload)
+    const response = await api.post(tokenBaseUrl, payload)
     clearAdminSubscriptionPlansCache()
     return normalizeTokenPackage(unwrapObject<any>(response))
   }
 
   async updateTokenPackage(tokenPackageId: string, payload: UpsertAdminTokenPackagePayload): Promise<AdminTokenPackage> {
-    const response = await api.put(`${baseUrl}/${tokenPackageId}`, payload)
+    const response = await api.put(`${tokenBaseUrl}/${tokenPackageId}`, payload)
     clearAdminSubscriptionPlansCache()
     return normalizeTokenPackage(unwrapObject<any>(response))
   }
 
   async deleteTokenPackage(tokenPackageId: string): Promise<void> {
-    await api.delete(`${baseUrl}/${tokenPackageId}`)
+    await api.delete(`${tokenBaseUrl}/${tokenPackageId}`)
+    clearAdminSubscriptionPlansCache()
+  }
+
+  async getMentorPackages(): Promise<AdminMentorPackage[]> {
+    if (adminMentorPackagesMemoryCache && adminMentorPackagesMemoryCache.expiresAt > Date.now()) {
+      return adminMentorPackagesMemoryCache.data
+    }
+
+    const storageEntry = readAdminMentorPackagesStorageCache()
+    if (storageEntry) {
+      adminMentorPackagesMemoryCache = storageEntry
+      return storageEntry.data
+    }
+
+    const response = await api.get(mentorBaseUrl)
+    const mentorPackages = unwrapCollection<any>(response).map(normalizeMentorPackage)
+    const cacheEntry: AdminMentorPackagesCacheEntry = {
+      data: mentorPackages,
+      expiresAt: Date.now() + ADMIN_TOKEN_PACKAGES_CACHE_TTL_MS,
+    }
+    adminMentorPackagesMemoryCache = cacheEntry
+    writeAdminMentorPackagesStorageCache(cacheEntry)
+
+    return mentorPackages
+  }
+
+  async createMentorPackage(payload: UpsertAdminMentorPackagePayload): Promise<AdminMentorPackage> {
+    const response = await api.post(mentorBaseUrl, payload)
+    clearAdminSubscriptionPlansCache()
+    return normalizeMentorPackage(unwrapObject<any>(response))
+  }
+
+  async updateMentorPackage(mentorPackageId: string, payload: UpsertAdminMentorPackagePayload): Promise<AdminMentorPackage> {
+    const response = await api.put(`${mentorBaseUrl}/${mentorPackageId}`, payload)
+    clearAdminSubscriptionPlansCache()
+    return normalizeMentorPackage(unwrapObject<any>(response))
+  }
+
+  async deleteMentorPackage(mentorPackageId: string): Promise<void> {
+    await api.delete(`${mentorBaseUrl}/${mentorPackageId}`)
     clearAdminSubscriptionPlansCache()
   }
 

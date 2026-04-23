@@ -129,6 +129,7 @@ const router = createBrowserRouter([
           { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
           { path: ROUTER.LEARNING_PATH_SHARE_UPDATES, element: <StudentShareUpdatesPage /> },
           { path: ROUTER.CHANNEL_CHAT, element: <StudentChannelChatPage /> },
+          { path: ROUTER.SHOP, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },
           { path: ROUTER.BILLING_RESULT, element: <SubscriptionPaymentSuccessPage /> },
@@ -152,6 +153,7 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
+      { path: ROUTER.ADMIN_SHOP, element: <AdminSubscriptionPlans /> },
       { path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, element: <AdminSubscriptionPlans /> },
       { path: ROUTER.ADMIN_BILLING_TRANSACTIONS, element: <AdminBillingTransactions /> },
       { path: ROUTER.ADMIN_AI_SPENDING, element: <AdminAIUsageSpending /> },

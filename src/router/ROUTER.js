@@ -33,6 +33,7 @@ const ROUTER = {
   MENTOR_PUBLISHED_PATH_DETAIL: "/mentor/published/:pathId",
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
+  ADMIN_SHOP: "/admin/shop",
   ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",
   ADMIN_BILLING_TRANSACTIONS: "/admin/billing/transactions",
   ADMIN_AI_SPENDING: "/admin/ai-spending",
@@ -62,6 +63,7 @@ const ROUTER = {
   CHANNEL_CHAT: "/community",
   MENTOR_CHANNEL_CHAT: "/mentor/community",
   // Subscription
+  SHOP: "/shop",
   SUBSCRIPTION: "/subscription",
   SUBSCRIPTION_CURRENT: "/subscription/current",
   BILLING_RESULT: "/billing/result",

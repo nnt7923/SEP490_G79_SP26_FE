@@ -4,6 +4,7 @@ import MentorService from '../../services/MentorService'
 import type { MentorDto, MentorReviewDto } from '../../services/MentorService'
 import { SubjectService, SubjectCategory } from '../../services'
 import type { Subject, SubjectCategoryType } from '../../services/SubjectService'
+import SubscriptionService from '../../services/SubscriptionService'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../router/ROUTER'
@@ -25,6 +26,9 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
   const [mentors, setMentors] = useState<MentorDto[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const [checkingShareQuota, setCheckingShareQuota] = useState<boolean>(false)
+  const [hasCheckedShareQuota, setHasCheckedShareQuota] = useState<boolean>(false)
+  const [shareQuotaRemaining, setShareQuotaRemaining] = useState<number | null>(null)
 
   // Subject data from API
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -46,6 +50,7 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
   const [totalPages, setTotalPages] = useState<number>(1)
   const [totalCount, setTotalCount] = useState<number>(0)
   const pageSize = 6
+  const isShareQuotaExceeded = shareQuotaRemaining === 0
 
   // Get category name helper
   const getCategoryName = (categoryValue: SubjectCategoryType): string => {
@@ -70,6 +75,40 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
     }
 
     loadSubjects()
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShareQuotaRemaining(null)
+      setCheckingShareQuota(false)
+      setHasCheckedShareQuota(false)
+      return
+    }
+
+    let active = true
+    const loadMentorQuota = async () => {
+      setHasCheckedShareQuota(false)
+      setCheckingShareQuota(true)
+      try {
+        const quota = await SubscriptionService.getMentorQuota()
+        const limit = Number(quota?.sharesFromMentorLimit ?? 0)
+        const used = Number(quota?.sharesFromMentorUsed ?? 0)
+        const remaining = limit === -1 ? -1 : Math.max(0, limit - Math.max(0, used))
+        if (active) setShareQuotaRemaining(remaining)
+      } catch {
+        if (active) setShareQuotaRemaining(null)
+      } finally {
+        if (active) {
+          setCheckingShareQuota(false)
+          setHasCheckedShareQuota(true)
+        }
+      }
+    }
+
+    void loadMentorQuota()
+    return () => {
+      active = false
+    }
   }, [isOpen])
 
   // Get unique categories from subjects
@@ -149,10 +188,10 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
 
   // Load mentors when modal opens or filters change
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && hasCheckedShareQuota && !checkingShareQuota && !isShareQuotaExceeded) {
       loadMentors()
     }
-  }, [isOpen, currentPage, selectedCategory, selectedSubject, minRating])
+  }, [isOpen, currentPage, selectedCategory, selectedSubject, minRating, hasCheckedShareQuota, checkingShareQuota, isShareQuotaExceeded])
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -525,13 +564,66 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-          {loading && (
+          {(!hasCheckedShareQuota || checkingShareQuota) && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 40, gap: 10 }}>
+              <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-primary)' }} />
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                {t('plans.checkingMentorQuota', { defaultValue: 'Checking mentor quota...' })}
+              </span>
+            </div>
+          )}
+
+          {hasCheckedShareQuota && !checkingShareQuota && isShareQuotaExceeded && (
+            <div
+              style={{
+                padding: 16,
+                background: 'var(--bg-main)',
+                border: '1px solid var(--danger-primary)',
+                borderRadius: 2,
+                color: 'var(--text-primary)',
+                display: 'grid',
+                gap: 12,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 700 }}>
+                {t('plans.askMentorShareQuotaExceeded', {
+                  defaultValue: 'Số lượt nhận trợ giúp tạo lộ trình learning path đã hết.',
+                })}
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    navigate(ROUTER.SHOP)
+                  }}
+                  style={{
+                    borderRadius: 2,
+                    border: '1px solid var(--accent-primary)',
+                    background: 'var(--accent-primary)',
+                    color: 'var(--bg-surface)',
+                    padding: '8px 12px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {t('plans.goToShop', { defaultValue: 'Go to Pricing' })}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hasCheckedShareQuota && !checkingShareQuota && !isShareQuotaExceeded && loading && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
               <Loader2 size={24} className="animate-spin" style={{ color: 'var(--accent-primary)' }} />
             </div>
           )}
 
-          {error && (
+          {hasCheckedShareQuota && !checkingShareQuota && !isShareQuotaExceeded && error && (
             <div
               style={{
                 padding: 12,
@@ -547,7 +639,7 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
             </div>
           )}
 
-          {!loading && !error && displayedMentors.length === 0 && (
+          {hasCheckedShareQuota && !checkingShareQuota && !isShareQuotaExceeded && !loading && !error && displayedMentors.length === 0 && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
               <User size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
               <p style={{ margin: 0, fontSize: 12, fontFamily: 'monospace' }}>
@@ -556,7 +648,7 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
             </div>
           )}
 
-          {!loading && !error && displayedMentors.length > 0 && (
+          {hasCheckedShareQuota && !checkingShareQuota && !isShareQuotaExceeded && !loading && !error && displayedMentors.length > 0 && (
             <div
               style={{
                 display: 'grid',
@@ -802,7 +894,7 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
         </div>
 
         {/* Pagination */}
-        {!loading && !error && totalPages > 1 && (
+        {hasCheckedShareQuota && !checkingShareQuota && !isShareQuotaExceeded && !loading && !error && totalPages > 1 && (
           <div
             style={{
               padding: '12px 20px',
