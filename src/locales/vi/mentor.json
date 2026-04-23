@@ -502,6 +502,12 @@
     "republish": "Xuất bản lại",
     "republishing": "Đang xuất bản...",
     "republishSuccess": "Xuất bản lại thành công!",
-    "republishFailed": "Xuất bản lại thất bại."
+    "republishFailed": "Xuất bản lại thất bại.",
+    "unpublish": "Hủy xuất bản",
+    "unpublishing": "Đang hủy xuất bản...",
+    "unpublishSuccess": "Hủy xuất bản lộ trình học tập thành công!",
+    "unpublishFailed": "Hủy xuất bản lộ trình học tập thất bại.",
+    "unpublishConfirmTitle": "Hủy Xuất Bản",
+    "unpublishConfirmDescription": "Bạn có chắc chắn muốn hủy xuất bản lộ trình học tập này? Nó sẽ không còn hiển thị cho sinh viên."
   }
 }

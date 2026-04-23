@@ -502,6 +502,12 @@
     "republish": "Re-publish",
     "republishing": "Re-publishing...",
     "republishSuccess": "Learning path re-published successfully!",
-    "republishFailed": "Failed to re-publish learning path."
+    "republishFailed": "Failed to re-publish learning path.",
+    "unpublish": "Unpublish",
+    "unpublishing": "Unpublishing...",
+    "unpublishSuccess": "Learning path unpublished successfully!",
+    "unpublishFailed": "Failed to unpublish learning path.",
+    "unpublishConfirmTitle": "Unpublish Path",
+    "unpublishConfirmDescription": "Are you sure you want to unpublish this learning path? It will no longer be visible to students."
   }
 }

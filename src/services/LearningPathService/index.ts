@@ -17,6 +17,8 @@ import {
   enrollPathUrl,
   myPublishedUrl,
   myPublishedDetailUrl,
+  unpublishLearningPathUrl,
+  republishLearningPathUrl,
   studentLearningPathUrl,
 } from './url'
 import {
@@ -624,6 +626,23 @@ export async function publishLearningPath(pathId: string, payload: ManualDraftPa
   const raw = unwrap<SkeletonResponse>(res)
   clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
+}
+
+export async function unpublishLearningPath(pathId: string): Promise<boolean> {
+  const res: any = await api.put(unpublishLearningPathUrl(pathId))
+  clearUserLearningPathsCache()
+  return unwrap<boolean>(res)
+}
+
+export type RepublishPayload = {
+  increaseVersion: boolean
+  versionUpdateType?: number | null
+}
+
+export async function republishLearningPath(pathId: string, payload: RepublishPayload): Promise<boolean> {
+  const res: any = await api.put(republishLearningPathUrl(pathId), payload)
+  clearUserLearningPathsCache()
+  return unwrap<boolean>(res)
 }
 
 export async function getPublishedPaths(params?: PublishedPathsParams): Promise<PublishedPathsResponse> {
@@ -1324,6 +1343,8 @@ export default {
   createManualDraft,
   updateManualDraft,
   publishLearningPath,
+  unpublishLearningPath,
+  republishLearningPath,
   getPublishedPaths,
   getPublishedPathPreview,
   enrollInPath,

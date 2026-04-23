@@ -11,8 +11,10 @@ type PublishedHeaderProps = {
   currentStep: EditorStep
   contextLabel: string | null
   republishing: boolean
+  unpublishing?: boolean
   onBack: () => void
   onRepublish: () => void
+  onUnpublish?: () => void
   onStepChange: (step: EditorStep) => void
 }
 
@@ -30,8 +32,10 @@ export const PublishedEditorHeader: React.FC<PublishedHeaderProps> = ({
   currentStep,
   contextLabel,
   republishing,
+  unpublishing,
   onBack,
   onRepublish,
+  onUnpublish,
   onStepChange,
 }) => {
   const { t } = useTranslation('mentor')
@@ -70,11 +74,21 @@ export const PublishedEditorHeader: React.FC<PublishedHeaderProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {onUnpublish ? (
+            <button
+              type="button"
+              style={getButtonStyle({ disabled: unpublishing || republishing })}
+              onClick={onUnpublish}
+              disabled={unpublishing || republishing}
+            >
+              {unpublishing ? t('publishedPaths.unpublishing') : t('publishedPaths.unpublish')}
+            </button>
+          ) : null}
           <button
             type="button"
-            style={getButtonStyle({ accent: true, disabled: republishing })}
+            style={getButtonStyle({ accent: true, disabled: republishing || unpublishing })}
             onClick={onRepublish}
-            disabled={republishing}
+            disabled={republishing || unpublishing}
           >
             <Globe size={14} /> {republishing ? t('publishedPaths.republishing') : t('publishedPaths.republish')}
           </button>

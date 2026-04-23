@@ -444,6 +444,7 @@ const MentorPublishedFormPage: React.FC = () => {
   const [activeLessonId, setActiveLessonId] = useState<string | null>(form.chapters[0]?.lessons[0]?.id ?? null)
   const [isRepublishModalOpen, setIsRepublishModalOpen] = useState(false)
   const [republishing, setRepublishing] = useState(false)
+  const [unpublishing, setUnpublishing] = useState(false)
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(!isSmallScreen)
   const chapterSkeletonPendingByPathRef = useRef<Map<string, string>>(new Map())
   const chapterSkeletonRequestCounterRef = useRef(0)
@@ -744,8 +745,14 @@ const MentorPublishedFormPage: React.FC = () => {
     }
     setRepublishing(true)
     try {
-      const payload = buildPayload(form, options)
-      await LearningPathService.publishLearningPath(pathId, payload)
+      await persistPublished({ increaseVersion: false, versionUpdateType: null })
+      const payload = {
+        increaseVersion: options.increaseVersion,
+        versionUpdateType: options.increaseVersion
+          ? (options.versionUpdateType === 'Major' ? 1 : options.versionUpdateType === 'Minor' ? 0 : null)
+          : null
+      }
+      await LearningPathService.republishLearningPath(pathId, payload)
       setIsRepublishModalOpen(false)
       navigate(ROUTER.MENTOR_PUBLISHED_PATHS, {
         state: { toast: { message: t('publishedPaths.republishSuccess'), type: 'success' } satisfies ToastState },
@@ -764,6 +771,22 @@ const MentorPublishedFormPage: React.FC = () => {
       setIsRepublishModalOpen(false)
     } finally {
       setRepublishing(false)
+    }
+  }
+
+  const handleUnpublish = async () => {
+    if (!pathId) return
+    if (!window.confirm(t('publishedPaths.unpublishConfirmDescription'))) return
+    setUnpublishing(true)
+    try {
+      await LearningPathService.unpublishLearningPath(pathId)
+      navigate(ROUTER.MENTOR_PUBLISHED_PATHS, {
+        state: { toast: { message: t('publishedPaths.unpublishSuccess'), type: 'success' } satisfies ToastState },
+      })
+    } catch (err: any) {
+      setToast({ message: getApiErrorMessage(err, t('publishedPaths.unpublishFailed')), type: 'error' })
+    } finally {
+      setUnpublishing(false)
     }
   }
 
@@ -1191,8 +1214,10 @@ const MentorPublishedFormPage: React.FC = () => {
             currentStep={currentStep}
             contextLabel={contextLabel}
             republishing={republishing}
+            unpublishing={unpublishing}
             onBack={() => navigate(ROUTER.MENTOR_PUBLISHED_PATHS)}
             onRepublish={handleRepublish}
+            onUnpublish={handleUnpublish}
             onStepChange={setCurrentStep}
           />
 
