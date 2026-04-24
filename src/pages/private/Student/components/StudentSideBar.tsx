@@ -89,7 +89,7 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.profile'), path: '/profile', icon: <User size={18} /> },
     { label: t('sidebar.focusSessionHistory', { defaultValue: 'Focus Session History' }), path: '/focus-session/history', icon: <History size={18} /> },
     { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} />, badge: globalUnreadCount },
-    { label: t('mentorReviews.title', 'Góp ý lộ trình'), path: '/my-plans/mentor-reviews', icon: <Star size={18} /> },
+    { label: t('mentorReviews.title'), path: '/my-plans/mentor-reviews', icon: <Star size={18} /> },
     { label: t('sidebar.upgrade'), path: '/subscription', icon: <Crown size={18} className="text-yellow-500" /> },
     { label: t('sidebar.transactionHistory', { defaultValue: 'Transaction History' }), path: '/billing/history', icon: <Receipt size={18} /> },
   ]
