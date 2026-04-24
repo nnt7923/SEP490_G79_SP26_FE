@@ -84,6 +84,7 @@ const TaskReviewMessageCard: React.FC<TaskReviewMessageCardProps> = ({
   return (
     <div
       style={{
+        width: '100%',
         maxWidth: 340,
         borderRadius: 12,
         border: `1px solid ${isMine ? 'rgba(59, 130, 246, 0.28)' : 'var(--border-base)'}`,
@@ -94,8 +95,18 @@ const TaskReviewMessageCard: React.FC<TaskReviewMessageCardProps> = ({
         gap: 10,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 10, minWidth: 0 }}>
+        <div style={{ 
+          fontSize: 13, 
+          fontWeight: 700, 
+          color: 'var(--text-primary)', 
+          lineHeight: 1.4,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          wordBreak: 'break-word'
+        }}>
           {title}
         </div>
         <TaskReviewStatusBadge
