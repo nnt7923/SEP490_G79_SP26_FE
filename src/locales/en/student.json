@@ -490,6 +490,7 @@
     "contentLanguage": "content language",
     "notSelected": "not selected",
     "generatingPath": "generating path...",
+    "generationTimeHint": "This usually takes around 1-2 minutes. Please keep this tab open.",
     "generateLearningPath": "generate learning path",
     "selectLanguage": "Please select a language",
     "selectAtLeastOneGoal": "Please select at least one goal",

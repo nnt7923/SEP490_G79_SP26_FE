@@ -121,6 +121,8 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
+  const generationProgressTimerRef = useRef<number | null>(null)
+  const generationProgressStartRef = useRef<number | null>(null)
   const authUser = useAuthStore((state) => state.user)
   const refreshProfile = useAuthStore((state) => state.fetchProfile)
 
@@ -616,26 +618,70 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     return null
   }
 
+  const stopGenerationProgressSimulation = React.useCallback(() => {
+    if (generationProgressTimerRef.current !== null) {
+      window.clearInterval(generationProgressTimerRef.current)
+      generationProgressTimerRef.current = null
+    }
+    generationProgressStartRef.current = null
+  }, [])
+
+  const startGenerationProgressSimulation = React.useCallback((initialProgress = 8) => {
+    stopGenerationProgressSimulation()
+    generationProgressStartRef.current = Date.now()
+    setGenerationProgress((prev) => Math.max(prev, initialProgress))
+
+    generationProgressTimerRef.current = window.setInterval(() => {
+      if (!generationProgressStartRef.current) return
+
+      const elapsedMs = Date.now() - generationProgressStartRef.current
+      let target = initialProgress
+
+      // Simulate a long-running generation (~2 minutes): fast start, then slower.
+      if (elapsedMs <= 20_000) {
+        target = initialProgress + ((35 - initialProgress) * elapsedMs) / 20_000
+      } else if (elapsedMs <= 70_000) {
+        target = 35 + ((70 - 35) * (elapsedMs - 20_000)) / 50_000
+      } else if (elapsedMs <= 110_000) {
+        target = 70 + ((88 - 70) * (elapsedMs - 70_000)) / 40_000
+      } else {
+        target = 88 + Math.min(5, (elapsedMs - 110_000) / 10_000)
+      }
+
+      const nextProgress = Math.min(93, Math.round(target))
+      setGenerationProgress((prev) => (prev >= 100 ? prev : Math.max(prev, nextProgress)))
+    }, 1000)
+  }, [stopGenerationProgressSimulation])
+
+  useEffect(() => {
+    return () => {
+      stopGenerationProgressSimulation()
+    }
+  }, [stopGenerationProgressSimulation])
+
   const handleGenerateStudentPlan = async () => {
     if (!validateGenerationInput()) return
 
     setPlanError(null)
     setGenerating(true)
     setGenerationProgress(0)
+    startGenerationProgressSimulation(8)
 
     try {
       const payload = buildGenerationPayload()
       const sk = await LearningPathService.generateSkeleton(payload, {
         useSignalR: true,
         onLoading: () => {
-          setGenerationProgress(10)
+          setGenerationProgress((prev) => Math.max(prev, 12))
         },
         onProgress: (progress: number) => {
-          setGenerationProgress(progress)
+          const normalized = Math.max(0, Math.min(99, Math.round(Number(progress) || 0)))
+          setGenerationProgress((prev) => Math.max(prev, normalized))
         }
       })
 
       setSkeleton(sk)
+      stopGenerationProgressSimulation()
       setGenerationProgress(100)
       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
 
@@ -649,6 +695,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     } catch (e: any) {
       setPlanError(getGenerationErrorMessage(e))
     } finally {
+      stopGenerationProgressSimulation()
       setGenerating(false)
       setGenerationProgress(0)
     }
@@ -659,13 +706,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
     setPlanError(null)
     setGenerating(true)
-    setGenerationProgress(15)
+    setGenerationProgress(0)
+    startGenerationProgressSimulation(12)
 
     try {
       const payload = buildGenerationPayload()
       const sk = await LearningPathService.generateAiDraft(payload)
 
       setSkeleton(sk)
+      stopGenerationProgressSimulation()
       setGenerationProgress(100)
 
       if (!sk?.pathId) {
@@ -679,6 +728,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     } catch (e: any) {
       setPlanError(getGenerationErrorMessage(e))
     } finally {
+      stopGenerationProgressSimulation()
       setGenerating(false)
       setGenerationProgress(0)
     }
@@ -746,6 +796,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
     setGenerating(true)
     setGenerationProgress(0)
+    startGenerationProgressSimulation(8)
     setPlanError(null)
     setShowSuggestions(false) // Close suggestions modal
 
@@ -787,14 +838,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
         languageSelection, // languageSelection (0 = English, 1 = Vietnamese)
         () => {
           // onLoading
-          setGenerationProgress(20)
+          setGenerationProgress((prev) => Math.max(prev, 20))
         },
         (data: any) => {
           // onAdopted
-          setGenerationProgress(90)
+          setGenerationProgress((prev) => Math.max(prev, 90))
         }
       )
 
+      stopGenerationProgressSimulation()
       setGenerationProgress(100)
       setGenerating(false)
 
@@ -820,6 +872,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       const errorMessage = e?.message || t('plans.errorAdoptingSuggestion')
       setPlanError(errorMessage)
       setToast({ message: errorMessage, type: 'error' })
+      stopGenerationProgressSimulation()
     }
   }
 
@@ -3106,7 +3159,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               {generating && (
                 <div style={{ 
                   display: 'flex', 
-                  alignItems: 'center', 
+                  alignItems: 'flex-start', 
                   justifyContent: 'center', 
                   marginTop: 40, 
                   padding: 24, 
@@ -3124,9 +3177,16 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     borderRadius: '50%', 
                     marginRight: 16 
                   }} />
-                  <span style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
-                  </span>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <span style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
+                    </span>
+                    {!isMentorVariant && (
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        {t('plans.generationTimeHint', { defaultValue: 'This usually takes around 1-2 minutes. Please keep this tab open.' })}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 

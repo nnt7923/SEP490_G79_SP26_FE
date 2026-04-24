@@ -491,6 +491,7 @@
     "contentLanguage": "ngôn ngữ nội dung",
     "notSelected": "chưa chọn",
     "generatingPath": "đang tạo lộ trình...",
+    "generationTimeHint": "Quá trình này thường mất khoảng 1-2 phút. Vui lòng giữ nguyên tab này.",
     "generateLearningPath": "tạo lộ trình học tập",
     "selectLanguage": "Vui lòng chọn ngôn ngữ",
     "selectAtLeastOneGoal": "Vui lòng chọn ít nhất một mục tiêu",
