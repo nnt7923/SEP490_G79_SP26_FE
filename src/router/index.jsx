@@ -23,6 +23,8 @@ const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
 const MyPlans = React.lazy(() => import('../pages/private/Student/MyPlans'))
 const MyPlansDetail = React.lazy(() => import('../pages/private/Student/MyPlans/Detail'))
+const MentorReviewStatus = React.lazy(() => import('../pages/private/Student/MentorReviewStatus'))
+const StudentMentorReviews = React.lazy(() => import('../pages/private/Student/MentorReviews'))
 const Goals = React.lazy(() => import('../pages/private/Student/Goals'))
 const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
 const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
@@ -66,6 +68,7 @@ const StudentPathEditPage = React.lazy(() => import('../pages/private/Student/Pa
 const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat')) 
 const StudentChannelChatPage = React.lazy(() => import('../pages/private/Student/ChannelChat'))
 const MentorChannelChatPage = React.lazy(() => import('../pages/private/Mentor/ChannelChat'))
+const MentorReviewEditorPage = React.lazy(() => import('../pages/private/Mentor/ReviewEditor'))
 const SubscriptionPage = React.lazy(() => import('../pages/private/Subscription'))
 const CurrentSubscriptionPage = React.lazy(() => import('../pages/private/Subscription/CurrentSubscription'))
 const SubscriptionPaymentSuccessPage = React.lazy(() => import('../pages/private/Subscription/PaymentSuccess'))
@@ -111,9 +114,14 @@ const router = createBrowserRouter([
           { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/detail', element: <MyPlansDetail /> },
+<<<<<<< HEAD
           { path: ROUTER.STUDENT_PATH_EDIT, element: <StudentPathEditPage /> },
           { path: ROUTER.EXPLORE_PATHS, element: <ExplorePathsPage /> },
           { path: ROUTER.EXPLORE_PATH_PREVIEW, element: <ExplorePathPreviewPage /> },
+=======
+          { path: '/learning-paths/:pathId/mentor-review', element: <MentorReviewStatus /> },
+          { path: '/my-plans/mentor-reviews', element: <StudentMentorReviews /> },
+>>>>>>> 5273671 (add mentor review learningoath page)
           { path: ROUTER.GOALS, element: <Goals /> },
           { path: ROUTER.STUDENT_ACHIEVEMENTS, element: <StudentAchievements /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
@@ -182,6 +190,7 @@ const router = createBrowserRouter([
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
       { path: ROUTER.MENTOR_CHAT, element: <MentorChatPage /> },
       { path: ROUTER.MENTOR_CHANNEL_CHAT, element: <MentorChannelChatPage /> },
+      { path: '/mentor/review-editor/:revisedPathId', element: <MentorReviewEditorPage /> },
     ],
   },
 ])

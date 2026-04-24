@@ -3,8 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../../Student/components/StudentSideBar'
 import ROUTER from '../../../../router/ROUTER'
-import { requestLessonContent } from '../../../../services/SignalR'
-import { generateAllContent } from '../../../../services/ContentGenerator'
 import LessonContent from '../components/LessonContent'
 import ChapterTasks from '../components/ChapterTasks'
 import { useTranslation } from 'react-i18next'
@@ -48,20 +46,83 @@ const ResultPage: React.FC = () => {
     setSkeleton(mergeSkeletonWithCachedQuizzes(base))
   }, [location?.key])
 
-  // Dev-only: initialize hubs and generate content in background
+  // Auto-trigger bulk generation for all pending lessons/quizzes when page loads
+  const bulkGenTriggeredRef = useRef(false)
   useEffect(() => {
+    if (bulkGenTriggeredRef.current) return
+    const pathId = skeleton?.pathId || skeleton?.id
+    if (!pathId) return
+    bulkGenTriggeredRef.current = true
+
     const run = async () => {
-      if (!import.meta.env.DEV || !skeleton) return
-      const lessonCount = Array.isArray(skeleton?.lessons) ? skeleton.lessons.length : 0
-      if (lessonCount === 0) {
-        return
-      }
       try {
-        await generateAllContent(skeleton, { concurrency: 2 })
-      } catch (err: any) { } // eslint-disable-line no-empty
+        const { generateBulkLearningPathContent } = await import('../../../../services/LearningPathService')
+        await generateBulkLearningPathContent(pathId, {
+          lessonConcurrency: 4,
+          quizConcurrency: 6,
+          onLessonSuccess: (lesson: any) => {
+            const lessonId = lesson.lessonId || lesson.LessonId || lesson.id
+            if (!lessonId) return
+            setSkeleton((prev: any) => {
+              if (!prev) return prev
+              const arr = prev.chapters || prev.chapterDtos || []
+              const updated = arr.map((ch: any) => {
+                if (!Array.isArray(ch.lessons)) return ch
+                return {
+                  ...ch,
+                  lessons: ch.lessons.map((ls: any) => {
+                    if ((ls.lessonId || ls.id) !== lessonId) return ls
+                    return { ...ls, content: lesson.content || lesson.Content, hasContent: true }
+                  }),
+                }
+              })
+              const next = {
+                ...prev,
+                chapters: prev.chapters ? updated : undefined,
+                chapterDtos: prev.chapterDtos ? updated : undefined,
+              }
+              try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(next)) } catch { }
+              return next
+            })
+          },
+          onQuizSuccess: (data: any) => {
+            const quiz = data.Questions
+            if (!quiz) return
+            const quizId = quiz.QuizId || quiz.quizId
+            setSkeleton((prev: any) => {
+              if (!prev) return prev
+              const arr = prev.chapters || prev.chapterDtos || []
+              const updated = arr.map((ch: any) => ({
+                ...ch,
+                lessons: (ch.lessons || []).map((ls: any) => {
+                  const quizzes = ls.quizzes || []
+                  if (!quizzes.some((q: any) => (q.quizzId || q.quizId) === quizId)) return ls
+                  return {
+                    ...ls,
+                    quizzes: quizzes.map((q: any) =>
+                      (q.quizzId || q.quizId) === quizId
+                        ? { ...q, questions: quiz.Questions, status: 'Completed' }
+                        : q
+                    ),
+                  }
+                }),
+              }))
+              const next = {
+                ...prev,
+                chapters: prev.chapters ? updated : undefined,
+                chapterDtos: prev.chapterDtos ? updated : undefined,
+              }
+              try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(next)) } catch { }
+              return next
+            })
+          },
+        })
+      } catch {
+        // silent - bulk gen errors are non-fatal on this page
+      }
     }
     run()
-  }, [skeleton])
+  }, [skeleton?.pathId, skeleton?.id])
 
   // Lessons list from skeleton (normalize id/title)
   const lessons = useMemo(() => {
@@ -125,6 +186,7 @@ const ResultPage: React.FC = () => {
 
       // 2) Fallback to SignalR request
       try {
+        const { requestLessonContent } = await import('../../../../services/SignalR')
         const content = await requestLessonContent(selectedLessonId, () => {
           if (!disposed) setLoading(true)
         })

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { X, Star, MessageCircle, User, Search, Loader2, ChevronDown, Eye, ArrowLeft, BookOpen } from 'lucide-react'
+import { X, Star, MessageCircle, User, Search, Loader2, ChevronDown, Eye, ArrowLeft, Send, BookOpen } from 'lucide-react'
 import MentorService from '../../services/MentorService'
 import type { MentorDto, MentorReviewDto } from '../../services/MentorService'
 import { SubjectService, SubjectCategory } from '../../services'
@@ -8,6 +8,7 @@ import SubscriptionService from '../../services/SubscriptionService'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import ROUTER from '../../router/ROUTER'
+import LearningPathService from '../../services/LearningPathService'
 
 interface SelectMentorModalProps {
   isOpen: boolean
@@ -22,6 +23,14 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
 }) => {
   const { t } = useTranslation('student')
   const navigate = useNavigate()
+
+  // Review request state (when reviewPathId is present)
+  const reviewPathId: string | undefined = (askMentorContext as any)?.reviewPathId
+  const reviewPathTitle: string | undefined = (askMentorContext as any)?.reviewPathTitle
+  const [confirmMentor, setConfirmMentor] = useState<MentorDto | null>(null)
+  const [requestNote, setRequestNote] = useState('')
+  const [requesting, setRequesting] = useState(false)
+  const [requestError, setRequestError] = useState<string | null>(null)
 
   const [mentors, setMentors] = useState<MentorDto[]>([])
   const [loading, setLoading] = useState<boolean>(false)
@@ -226,15 +235,72 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
   }, [mentors, searchQuery])
 
   const handleSelectMentor = (mentor: MentorDto) => {
-    // Navigate to chat with selected mentor
+    if (reviewPathId) {
+      setConfirmMentor(mentor)
+      setRequestNote('')
+      setRequestError(null)
+      return
+    }
+    // Default: navigate to chat
+    const ctx = askMentorContext as any
     navigate(ROUTER.CHAT, {
       state: {
         activeTab: 'contacts',
         selectedMentorId: mentor.mentorId,
-        askMentorContext: askMentorContext ?? undefined,
+        askMentorContext: (ctx?.subject || ctx?.goals) ? askMentorContext : undefined,
+        reviewPathId: ctx?.reviewPathId ?? undefined,
+        reviewPathTitle: ctx?.reviewPathTitle ?? undefined,
       },
     })
     onClose()
+  }
+
+  const handleSendReviewRequest = async () => {
+    if (!confirmMentor || !reviewPathId) return
+    setRequesting(true)
+    setRequestError(null)
+    try {
+      const result = await LearningPathService.requestMentorReview(reviewPathId, {
+        mentorId: confirmMentor.mentorId,
+        studentRequestNote: requestNote.trim() || null,
+      })
+
+      // Gửi chat message cho mentor để thông báo
+      try {
+        const { createOrGetConversation } = await import('../../services/DirectChatService')
+        const { sendMessageRest } = await import('../../services/DirectChatService')
+        const conv = await createOrGetConversation(confirmMentor.mentorId)
+        if (conv?.conversationId) {
+          const note = requestNote.trim()
+          const revisedPathId = (result as any)?.revisedPathId || ''
+          const msg = `[REVIEW_REQUEST] pathId=${reviewPathId} revisedPathId=${revisedPathId} studentId=${result.studentId || ''} title=${reviewPathTitle || reviewPathId} note=${note || 'Nhờ bạn review lộ trình học của tôi.'}`
+          await sendMessageRest(conv.conversationId, msg, 'Text', null)
+        }
+      } catch {
+        // chat message thất bại không block flow chính
+      }
+
+      onClose()
+      setConfirmMentor(null)
+      navigate(`/learning-paths/${reviewPathId}/mentor-review`, {
+        state: { review: result },
+      })
+    } catch (e: any) {
+      const status = e?.response?.status
+      const data = e?.response?.data
+      const code = data?.errorCode || data?.ErrorCode
+      const msgs: Record<string, string> = {
+        SELF_REVIEW_NOT_ALLOWED: 'Không thể nhờ chính mình review.',
+        LEARNING_PATH_NOT_FOUND: 'Không tìm thấy lộ trình.',
+        ACCESS_DENIED: 'Bạn không có quyền thực hiện thao tác này.',
+        LEARNING_PATH_NOT_AI_GENERATED: 'Chỉ có thể nhờ review lộ trình AI.',
+        REVIEW_ALREADY_EXISTS: 'Bạn đã gửi yêu cầu review cho mentor này rồi.',
+      }
+      const serverMsg = data?.message || data?.title || data?.detail || e?.message
+      setRequestError(msgs[code] || serverMsg || `Gửi yêu cầu thất bại (${status || 'unknown'}).`)
+    } finally {
+      setRequesting(false)
+    }
   }
 
   const handleClearFilters = () => {
@@ -246,6 +312,56 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
   }
 
   if (!isOpen) return null
+
+  // ── Confirm review request form ──────────────────────────────────────────
+  if (confirmMentor && reviewPathId) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }} onClick={() => setConfirmMentor(null)}>
+        <div style={{ background: 'var(--bg-surface)', borderRadius: 2, maxWidth: 460, width: '100%', border: '1px solid var(--border-base)', fontFamily: 'monospace' }} onClick={e => e.stopPropagation()}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Gửi yêu cầu review</div>
+              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{reviewPathTitle || reviewPathId}</div>
+            </div>
+            <button onClick={() => setConfirmMentor(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4 }}><X size={14} /></button>
+          </div>
+          <div style={{ padding: 18 }}>
+            {/* Mentor info */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 2, marginBottom: 16 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 2, background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                {confirmMentor.fullName?.charAt(0)?.toUpperCase() || 'M'}
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{confirmMentor.fullName}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>@{confirmMentor.username}</div>
+              </div>
+            </div>
+            {/* Note */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Lời nhắn cho mentor</label>
+              <textarea
+                value={requestNote}
+                onChange={e => setRequestNote(e.target.value)}
+                rows={3}
+                placeholder="Nhờ mentor tối ưu roadmap theo backend thực tế..."
+                style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 2, color: 'var(--text-primary)', fontSize: 12, fontFamily: 'monospace', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'}
+              />
+            </div>
+            {requestError && <div style={{ fontSize: 11, color: 'var(--danger-primary)', marginBottom: 12, padding: '6px 10px', background: 'rgba(220,38,38,0.06)', borderRadius: 2 }}>{requestError}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmMentor(null)} style={{ padding: '7px 16px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase' }}>Huỷ</button>
+              <button onClick={handleSendReviewRequest} disabled={requesting}
+                style={{ padding: '7px 16px', background: 'var(--accent-primary)', border: 'none', borderRadius: 2, fontSize: 11, fontWeight: 700, color: 'white', cursor: requesting ? 'not-allowed' : 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6, opacity: requesting ? 0.7 : 1 }}>
+                <Send size={11} />{requesting ? 'Đang gửi...' : 'Gửi yêu cầu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

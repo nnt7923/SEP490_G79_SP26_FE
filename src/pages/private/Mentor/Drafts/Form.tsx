@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Layout from '../../../../components/Layout'
 import Toast from '../../../../components/Toast'
 import ROUTER from '../../../../router/ROUTER'
 import { SubjectService } from '../../../../services'
-import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
+import LearningPathService, { type SkeletonResponse, resolveMentorReviewError } from '../../../../services/LearningPathService'
 import { useMentorSidebarConfig } from '../components/MentorSideBar'
 import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
 import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
@@ -643,6 +643,8 @@ const MentorDraftFormPage: React.FC = () => {
   const isCreateMode = !pathId
   const navigate = useNavigate()
   const location = useLocation() as { state?: { draft?: SkeletonResponse; toast?: ToastState } }
+  const [searchParams] = useSearchParams()
+  const reviewPathId = searchParams.get('reviewPathId') || null // original student pathId
   const { t } = useTranslation('mentor')
   const { isSmallScreen } = useResponsive()
   const sidebarConfig = { navItems: useMentorSidebarConfig(), actions: [], brand: { name: t('drafts.brandName'), subtitle: t('drafts.brandSubtitle') } }
@@ -678,6 +680,7 @@ const MentorDraftFormPage: React.FC = () => {
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(!isSmallScreen)
+  const [showReviewModal, setShowReviewModal] = useState(false)
   const chapterSkeletonPendingByPathRef = useRef<Map<string, string>>(new Map())
   const chapterSkeletonRequestCounterRef = useRef(0)
   const subjectPickerRef = useRef<HTMLDivElement | null>(null)
@@ -1826,8 +1829,132 @@ const MentorDraftFormPage: React.FC = () => {
           onSubmit={handleConfirmPublish}
         />
         {toast ? <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div> : null}
+
+        {/* Floating review button when opened from chat review request */}
+        {reviewPathId && (
+          <button
+            onClick={() => setShowReviewModal(true)}
+            style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 100, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >
+            ✉️ Gửi review cho student
+          </button>
+        )}
+
+        {/* Review submit modal */}
+        {showReviewModal && reviewPathId && (
+          <ReviewSubmitModal
+            originalPathId={reviewPathId}
+            onClose={() => setShowReviewModal(false)}
+            onSuccess={() => { setShowReviewModal(false); navigate(-1) }}
+          />
+        )}
       </div>
     </Layout>
+  )
+}
+
+// ── Review Submit Modal ───────────────────────────────────────────────────────
+const REVIEW_DRAFT_KEY = (pathId: string) => `review_draft:${pathId}`
+
+function ReviewSubmitModal({ originalPathId, onClose, onSuccess }: {
+  originalPathId: string
+  onClose: () => void; onSuccess: () => void
+}) {
+  // Persist draft to sessionStorage so data survives close/reopen
+  const draftKey = REVIEW_DRAFT_KEY(originalPathId)
+  const loadDraft = () => {
+    try { return JSON.parse(sessionStorage.getItem(draftKey) || '{}') } catch { return {} }
+  }
+  const saved = loadDraft()
+
+  const [changeSummary, setChangeSummary] = useState<string>(saved.changeSummary || '')
+  const [changeReason, setChangeReason] = useState<string>(saved.changeReason || '')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  // Save to sessionStorage on every change
+  const persist = (summary: string, reason: string) => {
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ changeSummary: summary, changeReason: reason })) } catch { }
+  }
+
+  const handleClose = () => {
+    persist(changeSummary, changeReason)
+    onClose()
+  }
+
+  const ta: React.CSSProperties = {
+    width: '100%', padding: '10px 14px', background: 'var(--bg-main)',
+    border: '1px solid var(--border-base)', borderRadius: 8, color: 'var(--text-primary)',
+    fontSize: 14, resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.6,
+    fontFamily: 'inherit',
+  }
+  const lbl: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 8 }
+
+  const handleSubmit = async () => {
+    if (!changeSummary.trim()) { setError('Vui lòng nhập tóm tắt thay đổi.'); return }
+    setSubmitting(true); setError(null)
+    try {
+      await LearningPathService.submitMentorReview(originalPathId, {
+        score: 5,
+        feedback: changeSummary.trim(),
+        changeSummary: changeSummary.trim() || null,
+        changeReason: changeReason.trim() || null,
+      })
+      // Clear draft on success
+      try { sessionStorage.removeItem(draftKey) } catch { }
+      setSuccess(true)
+      setTimeout(onSuccess, 1200)
+    } catch (e: any) {
+      setError(resolveMentorReviewError(e))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
+      onClick={handleClose}>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, maxWidth: 500, width: '100%', border: '1px solid var(--border-base)', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Gửi review cho student</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Nội dung được lưu tự động khi đóng</div>
+          </div>
+          <button onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 6, display: 'flex', borderRadius: 6, fontSize: 18, lineHeight: 1 }}>✕</button>
+        </div>
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={lbl}>Tóm tắt thay đổi *</label>
+            <textarea value={changeSummary}
+              onChange={e => { setChangeSummary(e.target.value); persist(e.target.value, changeReason) }}
+              rows={4} placeholder="Đổi thứ tự chapter, thêm task thực chiến..." style={ta}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'} />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={lbl}>Lý do thay đổi</label>
+            <textarea value={changeReason}
+              onChange={e => { setChangeReason(e.target.value); persist(changeSummary, e.target.value) }}
+              rows={3} placeholder="Để student có output sớm, bám mục tiêu tuyển dụng..." style={ta}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'} />
+          </div>
+          {error && <div style={{ fontSize: 13, color: 'var(--danger-primary)', marginBottom: 14, padding: '10px 14px', background: 'rgba(220,38,38,0.06)', borderRadius: 8 }}>{error}</div>}
+          {success && <div style={{ fontSize: 13, color: 'var(--success-primary)', marginBottom: 14, padding: '10px 14px', background: 'rgba(34,197,94,0.08)', borderRadius: 8 }}>✓ Đã gửi review thành công!</div>}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={handleClose} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 8, fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>Đóng</button>
+            <button onClick={handleSubmit} disabled={submitting || success}
+              style={{ padding: '10px 24px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: (submitting || success) ? 'not-allowed' : 'pointer', opacity: (submitting || success) ? 0.7 : 1, fontFamily: 'inherit' }}>
+              {submitting ? 'Đang gửi...' : 'Gửi review'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
