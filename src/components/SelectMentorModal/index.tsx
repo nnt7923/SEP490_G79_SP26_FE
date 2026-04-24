@@ -711,7 +711,7 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
                   type="button"
                   onClick={() => {
                     onClose()
-                    navigate(ROUTER.SHOP)
+                    navigate(`${ROUTER.SHOP}?tab=mentor`)
                   }}
                   style={{
                     borderRadius: 2,

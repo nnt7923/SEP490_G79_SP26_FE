@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Coins, Crown, Loader2, Wallet } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import SubscriptionService, {
@@ -37,6 +37,7 @@ const defaultMentorQuota: StudentMentorQuota = {
 const Subscription: React.FC = () => {
   const { t, i18n } = useTranslation('student')
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, setUser } = useAuthStore()
   const navItems = useStudentSidebarConfig()
   const sidebarConfig = useMemo(() => ({
@@ -57,6 +58,13 @@ const Subscription: React.FC = () => {
   const [processingKey, setProcessingKey] = useState<string | null>(null)
   const [customTopUpAmount, setCustomTopUpAmount] = useState<string>('')
   const [errorMessage, setErrorMessage] = useState<string>('')
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(location.search).get('tab')
+    if (requestedTab === 'mentor' || requestedTab === 'token') {
+      setActiveTab(requestedTab)
+    }
+  }, [location.search])
 
   useEffect(() => {
     const fetchShopData = async () => {
