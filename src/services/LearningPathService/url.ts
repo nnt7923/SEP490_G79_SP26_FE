@@ -10,3 +10,7 @@ export const lessonReadUrl = (lessonId: string) => `${basePath}/lessons/${lesson
 export const lessonReadStatusUrl = (lessonId: string) => `${basePath}/lessons/${lessonId}/read-status`
 export const userLearningPathsUrl = (userId: string | number) => `${basePath}/user/${userId}`
 export const learningPathProgressUrl = (pathId: string) => `${basePath}/${pathId}/progress`
+export const mentorReviewUrl = (pathId: string) => `${basePath}/${pathId}/mentor-review`
+export const mentorReviewsUrl = (pathId: string) => `${basePath}/${pathId}/mentor-reviews`
+export const mentorReviewRequestUrl = (pathId: string) => `${basePath}/${pathId}/mentor-reviews/request`
+export const mentorReviewDecisionUrl = (pathId: string, reviewId: string) => `${basePath}/${pathId}/mentor-reviews/${reviewId}/decision`

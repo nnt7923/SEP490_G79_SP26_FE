@@ -68,6 +68,9 @@ import {
   buildLearningPathShareCardData,
   isLearningPathShareMessage,
   normalizeShareId,
+  isReviewRequestMessage,
+  parseReviewRequestMessage,
+  normalizeConversationPreview,
 } from "../../../../components/Chat/learningPathShare";
 import {
   buildReplyDraft,
@@ -94,9 +97,64 @@ type ChatRouteState = {
   toast?: ToastState;
   askMentorContext?: AskMentorContextPayload;
   selectedMentorId?: string;
+  reviewPathId?: string;
+  reviewPathTitle?: string;
 };
 interface StudentChatPageProps {
   initialView?: "direct" | "community";
+}
+
+// ── ReviewRequestCard ─────────────────────────────────────────────────────────
+import type { ReviewRequestData } from "../../../../components/Chat/learningPathShare";
+
+function ReviewRequestCard({ data, isMine, onNavigate }: {
+  data: ReviewRequestData; isMine: boolean; onNavigate?: () => void
+}) {
+  const [decisionStatus, setDecisionStatus] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!data.pathId) return
+    import('../../../../services/LearningPathService').then(({ getMentorReviews }) => {
+      getMentorReviews(data.pathId)
+        .then(reviews => {
+          const latest = [...reviews].sort((a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          )[0]
+          // Always set status - default to Pending if review exists but no decision yet
+          setDecisionStatus(latest?.decisionStatus || (reviews.length > 0 ? 'Pending' : null))
+        })
+        .catch(() => {})
+    })
+  }, [data.pathId])
+
+  const statusMap: Record<string, { label: string; color: string; bg: string }> = {
+    Pending: { label: '⏳ Đang chờ', color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.12)' },
+    Accepted: { label: '✓ Đã chấp nhận', color: 'var(--success-primary)', bg: 'rgba(34,197,94,0.12)' },
+    Rejected: { label: '✕ Đã từ chối', color: 'var(--danger-primary)', bg: 'rgba(220,38,38,0.12)' },
+  }
+  // Default to Pending since we just sent the request
+  const status = statusMap[decisionStatus || 'Pending']
+
+  return (
+    <div style={{ maxWidth: 300, background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', borderRadius: 10, padding: '12px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Review Request</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: status.color, background: status.bg, padding: '2px 8px', borderRadius: 999 }}>
+          {status.label}
+        </span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: data.note ? 6 : 10, lineHeight: 1.4 }}>{data.title}</div>
+      {data.note && (
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.5, fontStyle: 'italic' }}>"{data.note}"</div>
+      )}
+      {isMine && onNavigate && (
+        <button onClick={onNavigate}
+          style={{ width: '100%', padding: '7px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          Xem trạng thái review
+        </button>
+      )}
+    </div>
+  )
 }
 
 function formatConversationTime(iso: string | null): string {
@@ -201,6 +259,12 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   >(location.state?.conversationId ?? null);
   const [requestedMentorId, setRequestedMentorId] = useState<string | null>(
     location.state?.selectedMentorId ?? null,
+  );
+  const [reviewPathId, setReviewPathId] = useState<string | null>(
+    location.state?.reviewPathId ?? null,
+  );
+  const [reviewPathTitle, setReviewPathTitle] = useState<string | null>(
+    location.state?.reviewPathTitle ?? null,
   );
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [activeMentorDetail, setActiveMentorDetail] = useState<import("../../../../services/MentorService").MentorDto | null>(null);
@@ -411,6 +475,10 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
       setRequestedConversationId(location.state.conversationId);
     if (location.state.selectedMentorId)
       setRequestedMentorId(location.state.selectedMentorId);
+    if (location.state.reviewPathId)
+      setReviewPathId(location.state.reviewPathId);
+    if (location.state.reviewPathTitle)
+      setReviewPathTitle(location.state.reviewPathTitle);
     if (location.state.askMentorContext)
       setAskMentorContext(location.state.askMentorContext);
     if (!location.state.askMentorContext) {
@@ -452,6 +520,23 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     setRequestedMentorId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedMentorId]);
+
+  // Auto-send review request message when reviewPathId is set and conversation is active
+  useEffect(() => {
+    if (!reviewPathId || !activeConversationId) return;
+    const pathId = reviewPathId;
+    const pathTitle = reviewPathTitle;
+    const studentId = currentUserId;
+    setReviewPathId(null);
+    setReviewPathTitle(null);
+    const message = `[REVIEW_REQUEST] pathId=${pathId} studentId=${studentId} title=${pathTitle || pathId} note=Tôi muốn nhờ bạn review learning path này.`;
+    hub.joinConversation(activeConversationId).catch(() => {}).finally(() => {
+      hub.sendMessage(activeConversationId, message, 'Text', null).catch(() => {
+        sendMessageRest(activeConversationId, message, 'Text', null).catch(() => {});
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewPathId, activeConversationId]);
 
   // Load mentor detail (for myReview) when active conversation changes
   useEffect(() => {
@@ -1006,7 +1091,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                             <Conversation
                               key={conv.conversationId}
                               name={name}
-                              info={conv.lastMessagePreview ?? ""}
+                              info={normalizeConversationPreview(conv.lastMessagePreview)}
                               lastActivityTime={formatConversationTime(
                                 conv.lastMessageAt,
                               )}
@@ -1255,11 +1340,25 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                     const shareCardData = isLearningPathShareMessage(msg)
                       ? resolveStudentShareCardData(msg)
                       : null;
+                    const reviewRequestData = !shareCardData && isReviewRequestMessage(msg.content)
+                      ? parseReviewRequestMessage(msg.content || '')
+                      : null;
                     const replyPreview = buildReplyPreviewForMessage(
                       msg,
                       activeMessages,
                       replyContext,
                     );
+                    if (reviewRequestData) {
+                      return (
+                        <div key={msg.messageId} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8, padding: '0 16px' }}>
+                          <ReviewRequestCard
+                            data={reviewRequestData}
+                            isMine={isMine}
+                            onNavigate={() => navigate(`/learning-paths/${reviewRequestData.pathId}/mentor-review`)}
+                          />
+                        </div>
+                      )
+                    }
                     if (shareCardData) {
                       return (
                         <div

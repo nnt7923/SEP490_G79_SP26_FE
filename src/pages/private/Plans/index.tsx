@@ -134,6 +134,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   // Batch generation states
   const [generatingAllLessons, setGeneratingAllLessons] = useState<boolean>(false)
   const [generatingAllTasks, setGeneratingAllTasks] = useState<boolean>(false)
+  const [bulkGenerationStatus, setBulkGenerationStatus] = useState<'idle' | 'running' | 'completed' | 'error' | 'cancelled'>('idle')
+  const [bulkGenerationError, setBulkGenerationError] = useState<string | null>(null)
+  const [bulkGenerationStartData, setBulkGenerationStartData] = useState<any>(null)
   
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
@@ -543,8 +546,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     const d = e?.response?.data
     const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
     const code = d?.errorCode || d?.code
-    let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || t('plans.unableToGenerate'))
-    const lower = String(serverMsg || e?.message || '').toLowerCase()
+    const rawMsg = serverMsg || e?.message || ''
+    const lower = String(rawMsg).toLowerCase()
+
+    // Timeout
+    if (lower.includes('timeout')) {
+      return t('plans.generationTimeout')
+    }
+
+    let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (rawMsg || t('plans.unableToGenerate'))
     if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
       msg = t('plans.aiKeyError')
     }
@@ -1005,26 +1015,25 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     }
   }
 
-  // ── Batch: generate ALL lesson contents concurrently ──────────────────────
+  // ── Batch: generate ALL lesson contents via bulk SignalR ──────────────────
   const handleGenerateAllLessons = async () => {
     if (!skeleton || generatingAllLessons) return
+    const pathId = skeleton.pathId || skeleton.id
+    if (!pathId) return
 
-    // Collect every lessonId from all chapters
+    setGeneratingAllLessons(true)
+    setLessonErrors(new Map())
+
+    // Mark all lessons as loading
     const chaptersArray = skeleton.chapters || skeleton.chapterDtos || []
     const allLessonIds: string[] = []
     chaptersArray.forEach((ch: any) => {
-      (ch.lessons || []).forEach((ls: any) => {
+      ;(ch.lessons || []).forEach((ls: any) => {
         const id = ls.lessonId || ls.id
-        if (id && !generatingLessons.has(id)) allLessonIds.push(id)
+        if (id) allLessonIds.push(id)
       })
     })
-
-    if (allLessonIds.length === 0) return
-
-    setGeneratingAllLessons(true)
-    // Mark all as loading immediately
     setGeneratingLessons(new Set(allLessonIds))
-    setLessonErrors(new Map())
 
     const updateLessonInSkeleton = (lessonId: string, patch: Record<string, any>) => {
       setSkeleton((prev: any) => {
@@ -1049,46 +1058,97 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       })
     }
 
-    await LearningPathService.generateMultipleLessonContents(allLessonIds, {
-      onItemLoading: (lessonId) => {
-        setGeneratingLessons(prev => new Set(prev).add(lessonId))
-      },
-      onItemSuccess: (lessonId, result) => {
-        updateLessonInSkeleton(lessonId, {
-          content: result.content,
-          hasContent: true,
-          quizzes: result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || [],
-          quizCount: (result.quizSkeleton?.Quizzes || result.quizSkeleton?.quizzes || []).length,
-        })
-        setGeneratingLessons(prev => {
-          const next = new Set(prev)
-          next.delete(lessonId)
-          return next
-        })
-      },
-      onItemError: (lessonId, err) => {
-        setLessonErrors(prev => {
-          const next = new Map(prev)
-          next.set(lessonId, err.message || 'Failed to generate lesson content')
-          return next
-        })
-        setGeneratingLessons(prev => {
-          const next = new Set(prev)
-          next.delete(lessonId)
-          return next
-        })
-      },
-      onQuizEvent: {
-        onSuccess: (lessonId, quizData) => {
+    try {
+      await LearningPathService.generateBulkLearningPathContent(pathId, {
+        lessonConcurrency: 4,
+        quizConcurrency: 6,
+        onStarted: (data) => {
+          setBulkGenerationStatus('running')
+          setBulkGenerationStartData(data)
+          setBulkGenerationError(null)
+        },
+        onProgress: (data) => {
+          // Update progress bar if available
+          const total = data.TotalLessons || 1
+          const done = (data.CompletedLessons || 0) + (data.FailedLessons || 0)
+          setGenerationProgress(Math.round((done / total) * 100))
+        },
+        onCompleted: (data) => {
+          setBulkGenerationStatus('completed')
+          // Optionally refetch learning path detail to sync state
+        },
+        onError: (data) => {
+          setBulkGenerationStatus('error')
+          setBulkGenerationError(data?.ErrorMessage || 'Bulk generation failed')
+        },
+        onCancelled: (data) => {
+          setBulkGenerationStatus('cancelled')
+          setBulkGenerationError(data?.ErrorMessage || 'Bulk generation was cancelled')
+        },
+        onLessonSuccess: (lesson) => {
+          const lessonId = lesson.lessonId || lesson.LessonId
+          if (!lessonId) return
           updateLessonInSkeleton(lessonId, {
-            quizzes: quizData?.Quizzes || quizData?.quizzes || [],
-            quizCount: (quizData?.Quizzes || quizData?.quizzes || []).length,
+            content: lesson.content || lesson.Content,
+            hasContent: true,
+          })
+          setGeneratingLessons(prev => {
+            const next = new Set(prev)
+            next.delete(lessonId)
+            return next
           })
         },
-      },
-    })
-
-    setGeneratingAllLessons(false)
+        onLessonError: (data) => {
+          const lessonId = data.LessonId
+          if (!lessonId) return
+          setLessonErrors(prev => {
+            const next = new Map(prev)
+            next.set(lessonId, data.ErrorMessage || 'Failed to generate lesson content')
+            return next
+          })
+          setGeneratingLessons(prev => {
+            const next = new Set(prev)
+            next.delete(lessonId)
+            return next
+          })
+        },
+        onQuizSuccess: (data) => {
+          // data.Questions contains quiz with questions
+          const quiz = data.Questions
+          if (!quiz) return
+          const quizId = quiz.QuizId || quiz.quizId
+          // Find which lesson owns this quiz and update
+          setSkeleton((prev: any) => {
+            if (!prev) return prev
+            const arr = prev.chapters || prev.chapterDtos || []
+            const updated = arr.map((ch: any) => ({
+              ...ch,
+              lessons: (ch.lessons || []).map((ls: any) => {
+                const quizzes = ls.quizzes || []
+                if (!quizzes.some((q: any) => (q.quizzId || q.quizId) === quizId)) return ls
+                return {
+                  ...ls,
+                  quizzes: quizzes.map((q: any) =>
+                    (q.quizzId || q.quizId) === quizId ? { ...q, questions: quiz.Questions, status: 'Completed' } : q
+                  ),
+                }
+              }),
+            }))
+            return {
+              ...prev,
+              chapters: prev.chapters ? updated : undefined,
+              chapterDtos: prev.chapterDtos ? updated : undefined,
+            }
+          })
+        },
+      })
+    } catch (e: any) {
+      setPlanError(getGenerationErrorMessage(e))
+    } finally {
+      setGeneratingAllLessons(false)
+      setGeneratingLessons(new Set())
+      setGenerationProgress(0)
+    }
   }
 
   // ── Batch: generate ALL chapter tasks concurrently ─────────────────────────

@@ -170,3 +170,45 @@ export function buildLearningPathShareCardData(
       asString(nested?.RespondedAt),
   };
 }
+
+// ── Review Request message parsing ─────────────────────────────────────────
+
+export interface ReviewRequestData {
+  pathId: string
+  revisedPathId: string
+  studentId: string
+  title: string
+  note: string
+}
+
+export function isReviewRequestMessage(content: string | null | undefined): boolean {
+  return typeof content === 'string' && content.trimStart().startsWith('[REVIEW_REQUEST]')
+}
+
+export function parseReviewRequestMessage(content: string): ReviewRequestData | null {
+  if (!isReviewRequestMessage(content)) return null
+  const extract = (key: string): string => {
+    const match = content.match(new RegExp(`${key}=([^\\s]+)`))
+    return match?.[1]?.trim() || ''
+  }
+  const pathId = extract('pathId')
+  if (!pathId) return null
+  return {
+    pathId,
+    revisedPathId: extract('revisedPathId'),
+    studentId: extract('studentId'),
+    title: content.match(/title=(.+?)(?:\s+\w+=|$)/)?.[1]?.trim() || pathId,
+    note: content.match(/note=(.+?)$/)?.[1]?.trim() || '',
+  }
+}
+
+/** Normalize a raw message content for display in conversation list preview */
+export function normalizeConversationPreview(content: string | null | undefined): string {
+  if (!content) return ''
+  const raw = content.trim()
+  if (raw.startsWith('[REVIEW_REQUEST]')) {
+    const title = raw.match(/title=(.+?)(?:\s+\w+=|$)/)?.[1]?.trim()
+    return title ? `📋 Review: ${title}` : '📋 Yêu cầu review lộ trình'
+  }
+  return raw
+}

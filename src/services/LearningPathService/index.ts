@@ -11,6 +11,10 @@ import {
   myDraftsUrl,
   myDraftDetailUrl,
   learningPathProgressUrl,
+  mentorReviewUrl,
+  mentorReviewsUrl,
+  mentorReviewRequestUrl,
+  mentorReviewDecisionUrl,
 } from './url'
 import {
   requestLearningPathGeneration,
@@ -1110,6 +1114,171 @@ export function normalizeSkeletonListItem(payload: any): SkeletonResponse {
   } as SkeletonResponse
 }
 
+export async function generateBulkLearningPathContent(
+  pathId: string,
+  options?: {
+    lessonConcurrency?: number
+    quizConcurrency?: number
+    onStarted?: (data: any) => void
+    onProgress?: (data: any) => void
+    onCompleted?: (data: any) => void
+    onError?: (data: any) => void
+    onCancelled?: (data: any) => void
+    onLessonSuccess?: (lesson: any) => void
+    onLessonError?: (data: any) => void
+    onQuizSuccess?: (data: any) => void
+    onQuizError?: (data: any) => void
+  }
+): Promise<any> {
+  const { requestBulkLearningPathContent } = await import('../SignalR')
+  return requestBulkLearningPathContent(
+    pathId,
+    options?.lessonConcurrency ?? 4,
+    options?.quizConcurrency ?? 6,
+    {
+      onStarted: options?.onStarted,
+      onProgress: options?.onProgress,
+      onCompleted: options?.onCompleted,
+      onError: options?.onError,
+      onCancelled: options?.onCancelled,
+      onLessonSuccess: options?.onLessonSuccess,
+      onLessonError: options?.onLessonError,
+      onQuizSuccess: options?.onQuizSuccess,
+      onQuizError: options?.onQuizError,
+    },
+  )
+}
+
+// ===========================================================================
+// === MENTOR REVIEW =========================================================
+// ===========================================================================
+
+export type MentorReviewDecisionStatus = 'Pending' | 'Accepted' | 'Rejected'
+
+export interface MentorReviewDto {
+  reviewId: string
+  pathId: string
+  mentorId: string
+  studentId: string
+  revisedPathId?: string | null
+  studentRequestNote?: string | null
+  score?: number | null
+  feedback?: string | null
+  suggestions?: string | null
+  changeSummary?: string | null
+  changeReason?: string | null
+  decisionStatus: MentorReviewDecisionStatus
+  studentDecisionNote?: string | null
+  studentDecidedAt?: string | null
+  rejectionCount?: number
+  maxRejections?: number
+  canRequestRevision?: boolean
+  averageScore?: number | null
+  totalReviews?: number | null
+  mentorName?: string | null
+  mentorAvatarUrl?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface RequestMentorReviewPayload {
+  mentorId: string
+  studentRequestNote?: string | null
+}
+
+export interface SubmitMentorReviewPayload {
+  score: number
+  feedback: string
+  suggestions?: string | null
+  changeSummary?: string | null
+  changeReason?: string | null
+}
+
+export interface MentorReviewDecisionPayload {
+  decisionStatus: 'Accepted' | 'Rejected'
+  studentDecisionNote?: string | null
+}
+
+const MENTOR_REVIEW_ERROR_CODES: Record<string, string> = {
+  REVIEW_REQUEST_NOT_FOUND: 'Mentor chưa nhận được yêu cầu review từ student.',
+  REVISED_PATH_NOT_FOUND: 'Workspace chỉnh sửa của mentor không tồn tại.',
+  MENTOR_REVIEW_REJECT_LIMIT_REACHED: 'Đã hết lượt từ chối. Không thể từ chối thêm.',
+  LEARNING_PATH_NOT_FOUND: 'Không tìm thấy lộ trình học.',
+  LEARNING_PATH_NOT_AI_GENERATED: 'Chỉ có thể review lộ trình được tạo bởi AI.',
+  SELF_REVIEW_NOT_ALLOWED: 'Không thể review lộ trình của chính mình.',
+  INVALID_FEEDBACK: 'Nội dung feedback không hợp lệ.',
+  ACCESS_DENIED: 'Bạn không có quyền thực hiện thao tác này.',
+  REVIEW_NOT_FOUND: 'Không tìm thấy review.',
+  UNAUTHORIZED: 'Vui lòng đăng nhập lại.',
+}
+
+export function resolveMentorReviewError(err: any): string {
+  const code = err?.response?.data?.errorCode || err?.response?.data?.ErrorCode || err?.errorCode
+  if (code && MENTOR_REVIEW_ERROR_CODES[code]) return MENTOR_REVIEW_ERROR_CODES[code]
+  if (err?.response?.status === 429) return MENTOR_REVIEW_ERROR_CODES.MENTOR_REVIEW_REJECT_LIMIT_REACHED
+  return err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi.'
+}
+
+function unwrapReview(res: any): any {
+  const data = res?.data ?? res
+  if (data && typeof data === 'object' && 'value' in data) return data.value
+  return data
+}
+
+export async function requestMentorReview(
+  pathId: string,
+  payload: RequestMentorReviewPayload
+): Promise<MentorReviewDto> {
+  const res = await api.post(mentorReviewRequestUrl(pathId), payload)
+  return unwrapReview(res) as MentorReviewDto
+}
+
+export async function submitMentorReview(
+  pathId: string,
+  payload: SubmitMentorReviewPayload
+): Promise<MentorReviewDto> {
+  const res = await api.put(mentorReviewUrl(pathId), payload)
+  return unwrapReview(res) as MentorReviewDto
+}
+
+export async function getMentorReviews(pathId: string): Promise<MentorReviewDto[]> {
+  const res: any = await api.get(mentorReviewsUrl(pathId))
+  const data = res?.data ?? res
+  let arr: any[] = []
+  if (Array.isArray(data)) arr = data
+  else if (Array.isArray(data?.value)) arr = data.value
+  else if (Array.isArray(data?.value?.reviews)) arr = data.value.reviews
+  else if (Array.isArray(data?.reviews)) arr = data.reviews
+  else if (Array.isArray(data?.items)) arr = data.items
+  // Normalize PascalCase → camelCase for key fields
+  return arr.map((r: any) => ({
+    ...r,
+    reviewId: r.reviewId || r.ReviewId,
+    pathId: r.pathId || r.PathId,
+    mentorId: r.mentorId || r.MentorId,
+    studentId: r.studentId || r.StudentId,
+    revisedPathId: r.revisedPathId || r.RevisedPathId || null,
+    decisionStatus: r.decisionStatus || r.DecisionStatus || 'Pending',
+    studentRequestNote: r.studentRequestNote || r.StudentRequestNote || null,
+    score: r.score ?? r.Score ?? null,
+    feedback: r.feedback || r.Feedback || null,
+    suggestions: r.suggestions || r.Suggestions || null,
+    changeSummary: r.changeSummary || r.ChangeSummary || null,
+    changeReason: r.changeReason || r.ChangeReason || null,
+    mentorName: r.mentorName || r.MentorName || null,
+    createdAt: r.createdAt || r.CreatedAt || null,
+  }))
+}
+
+export async function decideMentorReview(
+  pathId: string,
+  reviewId: string,
+  payload: MentorReviewDecisionPayload
+): Promise<MentorReviewDto> {
+  const res = await api.put(mentorReviewDecisionUrl(pathId, reviewId), payload)
+  return unwrapReview(res) as MentorReviewDto
+}
+
 export default {
   generateSkeleton,
   generateAiDraft,
@@ -1130,6 +1299,7 @@ export default {
   generateMultipleQuizSkeletons,
   generateMultipleQuizQuestions,
   generateMultipleQuizQuestionsForQuiz,
+  generateBulkLearningPathContent,
   getUserLearningPaths,
   clearUserLearningPathsCache,
   getLearningPathProgress,
@@ -1138,4 +1308,8 @@ export default {
   getMyDrafts,
   getMyDraftDetail,
   getSuggestions,
+  submitMentorReview,
+  getMentorReviews,
+  decideMentorReview,
+  requestMentorReview,
 }

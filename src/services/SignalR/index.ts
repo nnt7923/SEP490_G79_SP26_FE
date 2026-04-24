@@ -22,7 +22,7 @@ const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
 const NOTIFICATION_HUB_URL = `${HUB_BASE}/hubs/notification`
-const REQUEST_TIMEOUT = 120000 // 2m timeout
+const REQUEST_TIMEOUT = 180000 // 3m timeout
 const SIGNALR_DEBUG_STORAGE_KEY = 'signalr:debug'
 const SIGNALR_DEBUG_QUERY_KEY = 'debugSignalR'
 
@@ -2783,6 +2783,177 @@ export async function requestChapterMentorSkeleton(
   return p
 }
 
+// ==== Bulk learning path content generation (LessonHub) ====
+
+export interface BulkGenerationStarted {
+  PathId: string
+  TotalLessons: number
+  TotalQuizzes: number
+  LessonConcurrency: number
+  QuizConcurrency: number
+}
+
+export interface BulkGenerationProgress {
+  PathId: string
+  TotalLessons: number
+  CompletedLessons: number
+  FailedLessons: number
+  TotalQuizzes: number
+  CompletedQuizzes: number
+  FailedQuizzes: number
+}
+
+export interface BulkGenerationCompleted extends BulkGenerationProgress {}
+
+export interface BulkGenerationError {
+  PathId: string
+  ErrorCode: string
+  ErrorMessage: string
+}
+
+export interface BulkGenerationCancelled {
+  PathId: string
+  ErrorCode: string
+  ErrorMessage: string
+}
+
+export interface BulkGenerationCallbacks {
+  onStarted?: (data: BulkGenerationStarted) => void
+  onProgress?: (data: BulkGenerationProgress) => void
+  onCompleted?: (data: BulkGenerationCompleted) => void
+  onError?: (data: BulkGenerationError) => void
+  onCancelled?: (data: BulkGenerationCancelled) => void
+  onLessonSuccess?: (lesson: any) => void
+  onLessonError?: (data: { LessonId: string; ErrorCode: string; ErrorMessage: string }) => void
+  onQuizSuccess?: (data: { QuizId: string; Questions: any }) => void
+  onQuizError?: (data: { QuizId: string; ErrorCode: string; ErrorMessage: string }) => void
+}
+
+const inflightBulkGeneration = new Map<string, Promise<BulkGenerationCompleted>>()
+
+export async function requestBulkLearningPathContent(
+  pathId: string,
+  lessonConcurrency = 4,
+  quizConcurrency = 6,
+  callbacks?: BulkGenerationCallbacks,
+): Promise<BulkGenerationCompleted> {
+  if (!pathId) return Promise.reject(new Error('pathId is required'))
+
+  if (inflightBulkGeneration.has(pathId)) return inflightBulkGeneration.get(pathId)!
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<BulkGenerationCompleted>((resolve, reject) => {
+      let done = false
+
+      const cleanup = () => {
+        hub.off('BulkLearningPathGenerationStarted', handleStarted)
+        hub.off('BulkLearningPathGenerationProgress', handleProgress)
+        hub.off('BulkLearningPathGenerationCompleted', handleCompleted)
+        hub.off('BulkLearningPathGenerationError', handleError)
+        hub.off('BulkLearningPathGenerationCancelled', handleCancelled)
+        hub.off('ReceiveLessonContent', handleLessonSuccess)
+        hub.off('LessonContentError', handleLessonError)
+        hub.off('ReceiveQuizQuestions', handleQuizSuccess)
+        hub.off('QuizQuestionsError', handleQuizError)
+        inflightBulkGeneration.delete(pathId)
+      }
+
+      const handleStarted = (data: any) => {
+        debugSignalR('bulk', 'BulkLearningPathGenerationStarted', data)
+        callbacks?.onStarted?.(data)
+      }
+
+      const handleProgress = (data: any) => {
+        debugSignalR('bulk', 'BulkLearningPathGenerationProgress', data)
+        callbacks?.onProgress?.(data)
+      }
+
+      const handleCompleted = (data: any) => {
+        if (done) return
+        done = true
+        debugSignalR('bulk', 'BulkLearningPathGenerationCompleted', data)
+        callbacks?.onCompleted?.(data)
+        cleanup()
+        resolve(data)
+      }
+
+      const handleError = (data: any) => {
+        if (done) return
+        done = true
+        debugSignalR('bulk', 'BulkLearningPathGenerationError', data)
+        callbacks?.onError?.(data)
+        cleanup()
+        const err: any = new Error(data?.ErrorMessage || 'Bulk generation failed')
+        err.errorCode = data?.ErrorCode
+        reject(err)
+      }
+
+      const handleCancelled = (data: any) => {
+        if (done) return
+        done = true
+        debugSignalR('bulk', 'BulkLearningPathGenerationCancelled', data)
+        callbacks?.onCancelled?.(data)
+        cleanup()
+        const err: any = new Error(data?.ErrorMessage || 'Bulk generation cancelled')
+        err.errorCode = data?.ErrorCode || 'CONNECTION_ABORTED'
+        reject(err)
+      }
+
+      const handleLessonSuccess = (data: any) => {
+        callbacks?.onLessonSuccess?.(data)
+      }
+
+      const handleLessonError = (data: any) => {
+        callbacks?.onLessonError?.(data)
+      }
+
+      const handleQuizSuccess = (data: any) => {
+        callbacks?.onQuizSuccess?.(data)
+      }
+
+      const handleQuizError = (data: any) => {
+        callbacks?.onQuizError?.(data)
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Bulk learning path generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleCompletedWrap = (d: any) => { clearTo(); handleCompleted(d) }
+      const handleErrorWrap = (d: any) => { clearTo(); handleError(d) }
+      const handleCancelledWrap = (d: any) => { clearTo(); handleCancelled(d) }
+
+      // Register all listeners BEFORE invoke
+      hub.on('BulkLearningPathGenerationStarted', handleStarted)
+      hub.on('BulkLearningPathGenerationProgress', handleProgress)
+      hub.on('BulkLearningPathGenerationCompleted', handleCompletedWrap)
+      hub.on('BulkLearningPathGenerationError', handleErrorWrap)
+      hub.on('BulkLearningPathGenerationCancelled', handleCancelledWrap)
+      hub.on('ReceiveLessonContent', handleLessonSuccess)
+      hub.on('LessonContentError', handleLessonError)
+      hub.on('ReceiveQuizQuestions', handleQuizSuccess)
+      hub.on('QuizQuestionsError', handleQuizError)
+
+      try {
+        debugSignalR('bulk', 'invoking RequestBulkLearningPathContent', { pathId, lessonConcurrency, quizConcurrency })
+        hub.invoke('RequestBulkLearningPathContent', pathId, lessonConcurrency, quizConcurrency)
+          .catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightBulkGeneration.set(pathId, p)
+  return p
+}
+
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
@@ -2838,6 +3009,7 @@ export async function disconnectHubs(): Promise<void> {
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()
     inflightSuggestionPreview.clear()
+    inflightBulkGeneration.clear()
     inflightTutorMessages.clear()
     inflightTutorMessageHistory.clear()
     inflightTutorSummaryHistory.clear()
