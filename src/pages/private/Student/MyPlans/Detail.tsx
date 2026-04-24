@@ -12,12 +12,9 @@ import { motion } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
 import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
 import type { LearningPathProgressResponse } from '../../../../services/LearningPathService'
-<<<<<<< HEAD
 import ROUTER from '../../../../router/ROUTER'
-=======
 import SelectMentorModal from '../../../../components/SelectMentorModal'
 import MentorReviewSection from '../../../../components/MentorReviewSection'
->>>>>>> 5273671 (add mentor review learningoath page)
 
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)

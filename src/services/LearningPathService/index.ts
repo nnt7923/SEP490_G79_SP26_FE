@@ -12,7 +12,6 @@ import {
   myDraftsUrl,
   myDraftDetailUrl,
   learningPathProgressUrl,
-<<<<<<< HEAD
   publishedPathsUrl,
   publishedPathPreviewUrl,
   enrollPathUrl,
@@ -21,12 +20,10 @@ import {
   unpublishLearningPathUrl,
   republishLearningPathUrl,
   studentLearningPathUrl,
-=======
   mentorReviewUrl,
   mentorReviewsUrl,
   mentorReviewRequestUrl,
   mentorReviewDecisionUrl,
->>>>>>> 5273671 (add mentor review learningoath page)
 } from './url'
 import {
   requestLearningPathGeneration,

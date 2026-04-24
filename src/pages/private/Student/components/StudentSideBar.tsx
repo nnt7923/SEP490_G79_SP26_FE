@@ -1,10 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { SidebarNavItem } from '../../../../components/Sidebar'
-<<<<<<< HEAD
-import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown, Trophy, History, Receipt, Compass } from 'lucide-react'
-=======
-import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown, Trophy, History, Receipt, Star } from 'lucide-react'
->>>>>>> 5273671 (add mentor review learningoath page)
+import { LayoutDashboard, Map, Target, TrendingUp, Library, User, MessageSquare, Crown, Trophy, History, Receipt, Compass, Star } from 'lucide-react'
 import useChatUnreadBadge from '../../../../hooks/useChatUnreadBadge'
 import useChatStore from '../../../../store/useChatStore'
 import ROUTER from '../../../../router/ROUTER'
@@ -93,12 +89,8 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.profile'), path: '/profile', icon: <User size={18} /> },
     { label: t('sidebar.focusSessionHistory', { defaultValue: 'Focus Session History' }), path: '/focus-session/history', icon: <History size={18} /> },
     { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} />, badge: globalUnreadCount },
-<<<<<<< HEAD
+    { label: t('mentorReviews.title', 'Góp ý lộ trình'), path: '/my-plans/mentor-reviews', icon: <Star size={18} /> },
     { label: t('sidebar.shop', { defaultValue: t('sidebar.upgrade', { defaultValue: 'Pricing' }) }), path: ROUTER.SHOP, icon: <Crown size={18} className="text-yellow-500" /> },
-=======
-    { label: t('mentorReviews.title', 'Mentor Reviews'), path: '/my-plans/mentor-reviews', icon: <Star size={18} /> },
-    { label: t('sidebar.upgrade'), path: '/subscription', icon: <Crown size={18} className="text-yellow-500" /> },
->>>>>>> 5273671 (add mentor review learningoath page)
     { label: t('sidebar.transactionHistory', { defaultValue: 'Transaction History' }), path: '/billing/history', icon: <Receipt size={18} /> },
   ]
 }

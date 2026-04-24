@@ -114,14 +114,11 @@ const router = createBrowserRouter([
           { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/detail', element: <MyPlansDetail /> },
-<<<<<<< HEAD
           { path: ROUTER.STUDENT_PATH_EDIT, element: <StudentPathEditPage /> },
           { path: ROUTER.EXPLORE_PATHS, element: <ExplorePathsPage /> },
           { path: ROUTER.EXPLORE_PATH_PREVIEW, element: <ExplorePathPreviewPage /> },
-=======
           { path: '/learning-paths/:pathId/mentor-review', element: <MentorReviewStatus /> },
           { path: '/my-plans/mentor-reviews', element: <StudentMentorReviews /> },
->>>>>>> 5273671 (add mentor review learningoath page)
           { path: ROUTER.GOALS, element: <Goals /> },
           { path: ROUTER.STUDENT_ACHIEVEMENTS, element: <StudentAchievements /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
