@@ -10,6 +10,7 @@ export type NotificationTypeKey =
   | 'PlanExpiringSoon'
   | 'PlanExpired'
   | 'ShareVersionUpdated'
+  | 'LearningPathUpdated'
 
 export const NOTIFICATION_TYPE_KEYS: NotificationTypeKey[] = [
   'Alert',
@@ -22,6 +23,7 @@ export const NOTIFICATION_TYPE_KEYS: NotificationTypeKey[] = [
   'PlanExpiringSoon',
   'PlanExpired',
   'ShareVersionUpdated',
+  'LearningPathUpdated',
 ]
 
 export type NotificationTargetType =

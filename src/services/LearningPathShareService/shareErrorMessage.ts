@@ -20,13 +20,26 @@ export function resolveShareToStudentErrorMessage(
 
   if (code === 'CHAPTER_TASK_REQUIRED') {
     return t('chat.shareMissingChapterTask', {
-      defaultValue: 'Mỗi chapter phải có ít nhất 1 task trước khi chia sẻ.',
+      defaultValue: 'Each chapter must have at least 1 task before sharing.',
     })
   }
 
   if (code === 'LESSON_QUIZ_REQUIRED') {
     return t('chat.shareMissingLessonQuiz', {
-      defaultValue: 'Mỗi lesson phải có ít nhất 1 quiz trước khi chia sẻ.',
+      defaultValue: 'Each lesson must have at least 1 quiz before sharing.',
+    })
+  }
+
+  const normalizedCode = code.toUpperCase()
+  const normalizedMessage = apiMessage.toLowerCase()
+  if (
+    normalizedCode === 'STUDENT_SHARE_RECEPTION_LIMIT_REACHED'
+    || normalizedCode === 'SHARE_RECEPTION_LIMIT_REACHED'
+    || normalizedCode === 'STUDENT_SHARE_LIMIT_REACHED'
+    || normalizedMessage.includes('share reception limit')
+  ) {
+    return t('chat.shareReceptionLimitReached', {
+      defaultValue: 'The student has reached their share reception limit for this subscription.',
     })
   }
 

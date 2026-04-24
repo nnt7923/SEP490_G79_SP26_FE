@@ -8,6 +8,7 @@ import useAuthStore from '../../../../store/useAuthStore'
 import useChatStore from '../../../../store/useChatStore'
 import { useTranslation } from 'react-i18next'
 import { shouldShowSourceUpdateBadge } from '../shareVersionBadge'
+import ROUTER from '../../../../router/ROUTER'
 
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)
@@ -218,7 +219,15 @@ const MyPlansPage: React.FC = () => {
                           {plan.title || t('myPlans.untitled')}
                         </h3>
                         {hasSourceUpdate && (
-                          <span
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const resolvedShareId = String(plan.shareId ?? '').trim()
+                              if (resolvedShareId) {
+                                navigate(ROUTER.LEARNING_PATH_SHARE_UPDATES.replace(':shareId', resolvedShareId))
+                              }
+                            }}
                             style={{
                               flexShrink: 0,
                               fontSize: 11,
@@ -228,13 +237,13 @@ const MyPlansPage: React.FC = () => {
                               borderRadius: 999,
                               padding: '2px 8px',
                               background: 'rgba(245, 158, 11, 0.12)',
+                              cursor: 'pointer',
                             }}
                           >
                             {t('myPlans.newVersionBadge', { defaultValue: 'Có phiên bản mới' })}
-                          </span>
+                          </button>
                         )}
                       </div>
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.description || t('myPlans.noDescription')}</p>
                       {sharedByUserName && (
                         <div style={{ marginBottom: 10, fontSize: 11, color: 'var(--text-secondary)' }}>
                           {t('myPlans.sharedBy', { defaultValue: 'Được chia sẻ bởi {{name}}', name: sharedByUserName })}

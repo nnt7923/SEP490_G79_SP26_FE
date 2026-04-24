@@ -93,7 +93,7 @@ describe('notification navigation resolver', () => {
       },
     })
 
-    expect(target).toEqual({ path: '/subscription' })
+    expect(target).toEqual({ path: '/shop' })
   })
 
   it('routes expiring-soon plan notifications to the subscription update screen', () => {
@@ -123,7 +123,7 @@ describe('notification navigation resolver', () => {
       },
     })
 
-    expect(target).toEqual({ path: '/subscription' })
+    expect(target).toEqual({ path: '/shop' })
   })
 
   it('routes learningPathShareUpdate notifications to the share update review page', () => {

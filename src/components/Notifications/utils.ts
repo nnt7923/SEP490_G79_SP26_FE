@@ -202,6 +202,7 @@ function isSupportedNotificationPath(path: string): boolean {
   if (!path.startsWith('/')) return false
 
   return (
+    path === ROUTER.SHOP ||
     path === ROUTER.SUBSCRIPTION ||
     path === ROUTER.SUBSCRIPTION_CURRENT ||
     path === ROUTER.MY_PLANS ||
@@ -333,7 +334,7 @@ export function resolveNotificationNavigationTarget(notification: NotificationDt
 
   if (action?.targetType === 'subscription') {
     if (notificationType === 'PlanExpired' || notificationType === 'PlanExpiringSoon') {
-      return { path: ROUTER.SUBSCRIPTION }
+      return { path: ROUTER.SHOP }
     }
     return { path: ROUTER.SUBSCRIPTION_CURRENT }
   }

@@ -1,140 +1,98 @@
 import React from 'react'
-import { ArrowLeft, BookMarked, ChevronDown, ClipboardList, FolderTree, Globe, Plus, Save, Share2, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { EditableChapter, EditorStep } from '../editorTypes'
-import { cardStyle, getButtonStyle, pillStyle, subtleTextStyle } from './editorUi'
+import { ArrowLeft, BookMarked, ChevronDown, FolderTree, Plus, Save } from 'lucide-react'
+import type { EditorStep, StudentEditableChapter } from '../pathEditTypes'
+import { cardStyle, getButtonStyle, pillStyle, subtleTextStyle } from '../../../Mentor/Drafts/components/editorUi'
+
+// ── Editor Header ────────────────────────────────────────────────────────────
 
 type HeaderProps = {
-  isCreateMode: boolean
   title: string
   chapterCount: number
-  version: number | null
   currentStep: EditorStep
   contextLabel: string | null
-  canShare: boolean
   saving: boolean
-  sharing: boolean
-  publishing: boolean
   onBack: () => void
   onSave: () => void
-  onShare: () => void
-  onPublish: () => void
   onStepChange: (step: EditorStep) => void
 }
 
-const STEP_META: Array<{ id: EditorStep; icon: React.ReactNode }> = [
-  { id: 'overview', icon: <Sparkles size={14} /> },
-  { id: 'chapters', icon: <FolderTree size={14} /> },
-  { id: 'lesson', icon: <BookMarked size={14} /> },
-  { id: 'assessments', icon: <ClipboardList size={14} /> },
-]
-
-export const DraftEditorHeader: React.FC<HeaderProps> = ({
-  isCreateMode,
+export const StudentEditorHeader: React.FC<HeaderProps> = ({
   title,
   chapterCount,
-  version,
   currentStep,
   contextLabel,
-  canShare,
   saving,
-  sharing,
-  publishing,
   onBack,
   onSave,
-  onShare,
-  onPublish,
   onStepChange,
 }) => {
-  const { t } = useTranslation('mentor')
-
+  const { t } = useTranslation('student')
+  const STEP_META: Array<{ id: EditorStep; icon: React.ReactNode; label: string }> = [
+    { id: 'chapters', icon: <FolderTree size={14} />, label: t('pathEdit.stepChapters') },
+    { id: 'lesson', icon: <BookMarked size={14} />, label: t('pathEdit.stepLessonStudio') },
+  ]
   return (
-    <div
-      style={{
-        ...cardStyle,
-        padding: 18,
-        position: 'sticky',
-        top: 16,
-        zIndex: 8,
-        background: 'var(--bg-surface)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="button" style={getButtonStyle()} onClick={onBack}>
-              <ArrowLeft size={14} /> {t('drafts.backToList')}
-            </button>
-            <span style={pillStyle({ warning: true })}>{t('drafts.draftBadge')}</span>
-            <span style={pillStyle()}>{t('drafts.chapterCount', { count: chapterCount })}</span>
-            {!isCreateMode && version != null ? <span style={pillStyle({ accent: true })}>{t('drafts.versionBadge', { version })}</span> : null}
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 28, color: 'var(--text-primary)' }}>
-              {isCreateMode ? t('drafts.createManualTitle') : title || t('drafts.title')}
-            </h1>
-            <p style={{ ...subtleTextStyle, margin: '8px 0 0', maxWidth: 860 }}>
-              {contextLabel ?? t('drafts.manualEditorHint')}
-            </p>
-          </div>
+  <div style={{ ...cardStyle, padding: 18, position: 'sticky', top: 16, zIndex: 8, background: 'var(--bg-surface)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" style={getButtonStyle()} onClick={onBack}>
+            <ArrowLeft size={14} /> {t('pathEdit.back')}
+          </button>
+          <span style={pillStyle()}>{t('pathEdit.chapterCount', { count: chapterCount })}</span>
         </div>
-
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            style={getButtonStyle({ disabled: !canShare })}
-            onClick={onShare}
-            disabled={sharing || !canShare}
-          >
-            <Share2 size={14} /> {t('chat.sharePathBtn')}
-          </button>
-          <button
-            type="button"
-            style={getButtonStyle({ accent: true, disabled: saving })}
-            onClick={onSave}
-            disabled={saving}
-          >
-            <Save size={14} /> {saving ? t('drafts.saving') : t('drafts.save')}
-          </button>
-          <button
-            type="button"
-            style={getButtonStyle({ accent: true, disabled: !canShare || publishing })}
-            onClick={onPublish}
-            disabled={!canShare || publishing}
-          >
-            <Globe size={14} /> {publishing ? t('drafts.publishing') : t('drafts.publish')}
-          </button>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 28, color: 'var(--text-primary)' }}>
+            {title || t('pathEdit.untitledPath')}
+          </h1>
+          {contextLabel ? (
+            <p style={{ ...subtleTextStyle, margin: '8px 0 0', maxWidth: 860 }}>{contextLabel}</p>
+          ) : null}
         </div>
       </div>
-
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
-        {STEP_META.map((step, index) => (
-          <button
-            key={step.id}
-            type="button"
-            style={getButtonStyle({ active: step.id === currentStep })}
-            onClick={() => onStepChange(step.id)}
-          >
-            <span style={{ ...pillStyle({ accent: step.id === currentStep }), minWidth: 22, justifyContent: 'center', padding: '2px 6px' }}>{index + 1}</span>
-            {step.icon}
-            {t(`drafts.steps.${step.id}`)}
-          </button>
-        ))}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button
+          type="button"
+          style={getButtonStyle({ accent: true, disabled: saving })}
+          onClick={onSave}
+          disabled={saving}
+        >
+          <Save size={14} /> {saving ? t('pathEdit.saving') : t('pathEdit.saveChanges')}
+        </button>
       </div>
     </div>
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
+      {STEP_META.map((step, index) => (
+        <button
+          key={step.id}
+          type="button"
+          style={getButtonStyle({ active: step.id === currentStep })}
+          onClick={() => onStepChange(step.id)}
+        >
+          <span style={{ ...pillStyle({ accent: step.id === currentStep }), minWidth: 22, justifyContent: 'center', padding: '2px 6px' }}>
+            {index + 1}
+          </span>
+          {step.icon}
+          {step.label}
+        </button>
+      ))}
+    </div>
+  </div>
   )
 }
 
+// ── Content Navigator ────────────────────────────────────────────────────────
+
 type NavigatorProps = {
-  chapters: EditableChapter[]
+  chapters: StudentEditableChapter[]
   activeChapterId: string | null
   activeLessonId: string | null
   isCompact: boolean
   isOpen: boolean
-  currentStep: EditorStep
   onToggleOpen: () => void
   onSelectChapter: (chapterId: string) => void
-  onSelectLesson: (chapterId: string, lessonId: string, step?: EditorStep) => void
+  onSelectLesson: (chapterId: string, lessonId: string) => void
   onAddChapter: () => void
   onAddLesson: (chapterId: string) => void
   onMoveChapter: (chapterId: string, direction: -1 | 1) => void
@@ -143,13 +101,12 @@ type NavigatorProps = {
   onRemoveLesson: (chapterId: string, lessonId: string) => void
 }
 
-export const ContentNavigator: React.FC<NavigatorProps> = ({
+export const StudentContentNavigator: React.FC<NavigatorProps> = ({
   chapters,
   activeChapterId,
   activeLessonId,
   isCompact,
   isOpen,
-  currentStep,
   onToggleOpen,
   onSelectChapter,
   onSelectLesson,
@@ -160,8 +117,7 @@ export const ContentNavigator: React.FC<NavigatorProps> = ({
   onRemoveChapter,
   onRemoveLesson,
 }) => {
-  const { t } = useTranslation('mentor')
-
+  const { t } = useTranslation('student')
   const content = (
     <div style={{ display: 'grid', gap: 12 }}>
       {chapters.map((chapter, chapterIndex) => (
@@ -181,13 +137,13 @@ export const ContentNavigator: React.FC<NavigatorProps> = ({
               style={{ flex: 1, background: 'transparent', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
             >
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.7 }}>
-                {t('drafts.chapterLabel', { index: chapterIndex + 1 })}
+                {t('pathEdit.chapterLabel', { index: chapterIndex + 1 })}
               </div>
               <div style={{ color: 'var(--text-primary)', fontWeight: 700, marginTop: 5 }}>
-                {chapter.title || t('drafts.untitledChapter')}
+                {chapter.title || t('pathEdit.untitledChapter')}
               </div>
               <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                {t('drafts.lessonCount', { count: chapter.lessons.length })}
+                {t('pathEdit.lessonCount', { count: chapter.lessons.length })}
               </div>
             </button>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -202,7 +158,7 @@ export const ContentNavigator: React.FC<NavigatorProps> = ({
               <div key={lesson.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <button
                   type="button"
-                  onClick={() => onSelectLesson(chapter.id, lesson.id, currentStep === 'assessments' ? 'assessments' : 'lesson')}
+                  onClick={() => onSelectLesson(chapter.id, lesson.id)}
                   style={{
                     flex: 1,
                     background: lesson.id === activeLessonId ? 'color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface) 88%)' : 'var(--bg-main)',
@@ -215,10 +171,8 @@ export const ContentNavigator: React.FC<NavigatorProps> = ({
                     fontFamily: 'inherit',
                   }}
                 >
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                    {t('drafts.lessonLabel', { index: lessonIndex + 1 })}
-                  </div>
-                  <div style={{ marginTop: 2 }}>{lesson.title || t('drafts.untitledLesson')}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t('pathEdit.lessonLabel', { index: lessonIndex + 1 })}</div>
+                  <div style={{ marginTop: 2 }}>{lesson.title || t('pathEdit.untitledLesson')}</div>
                 </button>
                 <button type="button" style={getButtonStyle({ compact: true })} onClick={() => onMoveLesson(chapter.id, lesson.id, -1)}>↑</button>
                 <button type="button" style={getButtonStyle({ compact: true })} onClick={() => onMoveLesson(chapter.id, lesson.id, 1)}>↓</button>
@@ -229,7 +183,7 @@ export const ContentNavigator: React.FC<NavigatorProps> = ({
 
           <div style={{ marginTop: 10 }}>
             <button type="button" style={getButtonStyle()} onClick={() => onAddLesson(chapter.id)}>
-              <Plus size={14} /> {t('drafts.addLesson')}
+              <Plus size={14} /> {t('pathEdit.addLesson')}
             </button>
           </div>
         </div>
@@ -242,19 +196,19 @@ export const ContentNavigator: React.FC<NavigatorProps> = ({
       <section style={{ ...cardStyle, padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: isOpen ? 14 : 0 }}>
           <div>
-            <strong style={{ color: 'var(--text-primary)' }}>{t('drafts.contentTree')}</strong>
-            <div style={{ ...subtleTextStyle, marginTop: 4 }}>{t('drafts.mobileNavigatorHint')}</div>
+            <strong style={{ color: 'var(--text-primary)' }}>{t('pathEdit.navigatorTitle')}</strong>
+            <div style={{ ...subtleTextStyle, marginTop: 4 }}>{t('pathEdit.navigatorSubtitle')}</div>
           </div>
           <button type="button" style={getButtonStyle()} onClick={onToggleOpen}>
             <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-            {isOpen ? t('drafts.hideNavigator') : t('drafts.showNavigator')}
+            {isOpen ? 'Hide' : 'Show'}
           </button>
         </div>
         {isOpen ? (
           <>
             <div style={{ marginBottom: 14 }}>
               <button type="button" style={getButtonStyle()} onClick={onAddChapter}>
-                <Plus size={14} /> {t('drafts.addChapter')}
+                <Plus size={14} /> {t('pathEdit.addChapter')}
               </button>
             </div>
             {content}
@@ -268,11 +222,11 @@ export const ContentNavigator: React.FC<NavigatorProps> = ({
     <aside style={{ ...cardStyle, padding: 16, position: 'sticky', top: 180, alignSelf: 'flex-start', maxHeight: 'calc(100vh - 220px)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 14 }}>
         <div>
-          <strong style={{ color: 'var(--text-primary)' }}>{t('drafts.contentTree')}</strong>
-          <div style={{ ...subtleTextStyle, marginTop: 4 }}>{t('drafts.navigatorHint')}</div>
+          <strong style={{ color: 'var(--text-primary)' }}>{t('pathEdit.navigatorTitle')}</strong>
+          <div style={{ ...subtleTextStyle, marginTop: 4 }}>{t('pathEdit.navigatorSubtitle')}</div>
         </div>
         <button type="button" style={getButtonStyle()} onClick={onAddChapter}>
-          <Plus size={14} /> {t('drafts.addChapter')}
+          <Plus size={14} /> {t('pathEdit.addChapter')}
         </button>
       </div>
       <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 320px)', paddingRight: 4 }}>

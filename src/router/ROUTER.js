@@ -16,6 +16,9 @@ const ROUTER = {
   STUDENT_OVERVIEW: "/overview",
   STUDENT_ACHIEVEMENTS: "/achievements",
   MY_PLANS: "/my-plans",
+  STUDENT_PATH_EDIT: "/my-plans/:pathId/edit",
+  EXPLORE_PATHS: "/explore-paths",
+  EXPLORE_PATH_PREVIEW: "/explore-paths/:pathId/preview",
   GOALS: "/goals",
   PROFILE: "/profile", // Student profile
   CHANGE_PASSWORD: "/change-password",
@@ -26,8 +29,11 @@ const ROUTER = {
   MENTOR_DRAFTS: "/mentor/drafts",
   MENTOR_DRAFT_CREATE: "/mentor/drafts/new",
   MENTOR_DRAFT_DETAIL: "/mentor/drafts/:pathId",
+  MENTOR_PUBLISHED_PATHS: "/mentor/published",
+  MENTOR_PUBLISHED_PATH_DETAIL: "/mentor/published/:pathId",
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
+  ADMIN_SHOP: "/admin/shop",
   ADMIN_SUBSCRIPTION_PLANS: "/admin/subscription-plans",
   ADMIN_BILLING_TRANSACTIONS: "/admin/billing/transactions",
   ADMIN_AI_SPENDING: "/admin/ai-spending",
@@ -57,6 +63,7 @@ const ROUTER = {
   CHANNEL_CHAT: "/community",
   MENTOR_CHANNEL_CHAT: "/mentor/community",
   // Subscription
+  SHOP: "/shop",
   SUBSCRIPTION: "/subscription",
   SUBSCRIPTION_CURRENT: "/subscription/current",
   BILLING_RESULT: "/billing/result",

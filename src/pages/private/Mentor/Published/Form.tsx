@@ -1,27 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Layout from '../../../../components/Layout'
 import Toast from '../../../../components/Toast'
 import ROUTER from '../../../../router/ROUTER'
 import { SubjectService } from '../../../../services'
-import LearningPathService, { type SkeletonResponse, resolveMentorReviewError } from '../../../../services/LearningPathService'
+import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import { useMentorSidebarConfig } from '../components/MentorSideBar'
-import ShareLearningPathModal from '../../../../components/Chat/ShareLearningPathModal'
-import { createOrGetConversation, getContacts } from '../../../../services/DirectChatService'
-import { shareToStudent } from '../../../../services/LearningPathShareService'
-import { resolveShareToStudentErrorMessage } from '../../../../services/LearningPathShareService/shareErrorMessage'
 import { useResponsive } from '../../../../hook/useResponsive'
-import OverviewStep from './components/OverviewStep'
-import ChaptersStep from './components/ChaptersStep'
-import LessonStudioStep from './components/LessonStudioStep'
-import AssessmentsStep from './components/AssessmentsStep'
-import { ContentNavigator, DraftEditorHeader } from './components/EditorChrome'
-import VersionUpdateModal from './components/VersionUpdateModal'
-import PublishModal from './components/PublishModal'
-import { cardStyle, shellStyle } from './components/editorUi'
-import { buildLessonContentFromSections, parseLessonSections, type LessonSectionKey } from './lessonContentContract'
+import OverviewStep from '../Drafts/components/OverviewStep'
+import ChaptersStep from '../Drafts/components/ChaptersStep'
+import LessonStudioStep from '../Drafts/components/LessonStudioStep'
+import AssessmentsStep from '../Drafts/components/AssessmentsStep'
+import { PublishedEditorHeader, ContentNavigator } from './components/EditorChrome'
+import PublishModal from '../Drafts/components/PublishModal'
+import { cardStyle, shellStyle } from '../Drafts/components/editorUi'
+import { buildLessonContentFromSections, parseLessonSections, type LessonSectionKey } from '../Drafts/lessonContentContract'
 import {
   LEVEL_OPTIONS,
   buildPayload,
@@ -39,10 +34,9 @@ import {
   normalizeTaskType,
   parseQuizSkeletonPayload,
   restoreSelectionSnapshot,
-  validateAiDraftInput,
   validateDraftForm,
-} from './editorState'
-import { resolveDraftUpdateSuccessMessage } from './saveDraftMessage'
+} from '../Drafts/editorState'
+import { resolveDraftUpdateSuccessMessage } from '../Drafts/saveDraftMessage'
 import type {
   AssessmentTab,
   DraftFormState,
@@ -55,7 +49,7 @@ import type {
   QuestionType,
   SubjectOption,
   ToastState,
-} from './editorTypes'
+} from '../Drafts/editorTypes'
 
 const getApiErrorMessage = (err: any, fallback: string) =>
   err?.response?.data?.message
@@ -107,14 +101,8 @@ const asObject = (value: unknown): Record<string, unknown> | null => {
 
 const extractSingleTaskPayload = (payload: unknown): Record<string, unknown> | null => {
   const unwrapKeys = [
-    'value', 'Value',
-    'data', 'Data',
-    'result', 'Result',
-    'payload', 'Payload',
-    'task', 'Task',
-    'taskItem', 'TaskItem',
-    'taskDto', 'TaskDto',
-    'taskItemDto', 'TaskItemDto',
+    'value', 'Value', 'data', 'Data', 'result', 'Result', 'payload', 'Payload',
+    'task', 'Task', 'taskItem', 'TaskItem', 'taskDto', 'TaskDto', 'taskItemDto', 'TaskItemDto',
     'singleTask', 'SingleTask',
   ] as const
 
@@ -128,43 +116,19 @@ const extractSingleTaskPayload = (payload: unknown): Record<string, unknown> | n
       if (visited.has(current)) continue
       visited.add(current)
     }
-
-    if (Array.isArray(current)) {
-      for (const item of current) queue.push(item)
-      continue
-    }
-
+    if (Array.isArray(current)) { for (const item of current) queue.push(item); continue }
     const currentObject = asObject(current)
     if (!currentObject) continue
-
     const hasTaskFields = [
-      currentObject.taskId,
-      currentObject.TaskId,
-      currentObject.id,
-      currentObject.Id,
-      currentObject.title,
-      currentObject.Title,
-      currentObject.description,
-      currentObject.Description,
-      currentObject.taskType,
-      currentObject.TaskType,
-      currentObject.priority,
-      currentObject.Priority,
-      currentObject.taskStatus,
-      currentObject.TaskStatus,
-      currentObject.quizQuestionsJson,
-      currentObject.QuizQuestionsJson,
-      currentObject.quizQuestions,
-      currentObject.QuizQuestions,
-    ].some((value) => value != null)
-
+      currentObject.taskId, currentObject.TaskId, currentObject.id, currentObject.Id,
+      currentObject.title, currentObject.Title, currentObject.description, currentObject.Description,
+      currentObject.taskType, currentObject.TaskType, currentObject.priority, currentObject.Priority,
+      currentObject.taskStatus, currentObject.TaskStatus, currentObject.quizQuestionsJson,
+      currentObject.QuizQuestionsJson, currentObject.quizQuestions, currentObject.QuizQuestions,
+    ].some((v) => v != null)
     if (hasTaskFields) return currentObject
-
-    for (const key of unwrapKeys) {
-      if (key in currentObject) queue.push(currentObject[key])
-    }
+    for (const key of unwrapKeys) { if (key in currentObject) queue.push(currentObject[key]) }
   }
-
   return null
 }
 
@@ -174,23 +138,13 @@ const extractSingleQuizSkeletonPayload = (
   const parsedQuizSkeleton = parseQuizSkeletonPayload(payload)
   if (parsedQuizSkeleton.hasQuizArray && parsedQuizSkeleton.items.length > 0) {
     const firstItem = parsedQuizSkeleton.items[0]
-    return {
-      persistedId: firstItem.persistedId,
-      title: firstItem.title.trim(),
-      description: firstItem.description.trim(),
-    }
+    return { persistedId: firstItem.persistedId, title: firstItem.title.trim(), description: firstItem.description.trim() }
   }
 
   const unwrapKeys = [
-    'value', 'Value',
-    'data', 'Data',
-    'result', 'Result',
-    'payload', 'Payload',
-    'quiz', 'Quiz',
-    'singleQuizSkeleton', 'SingleQuizSkeleton',
-    'quizSkeleton', 'QuizSkeleton',
-    'quizzes', 'Quizzes',
-    'items', 'Items',
+    'value', 'Value', 'data', 'Data', 'result', 'Result', 'payload', 'Payload',
+    'quiz', 'Quiz', 'singleQuizSkeleton', 'SingleQuizSkeleton', 'quizSkeleton', 'QuizSkeleton',
+    'quizzes', 'Quizzes', 'items', 'Items',
   ] as const
 
   const visited = new Set<unknown>()
@@ -199,67 +153,36 @@ const extractSingleQuizSkeletonPayload = (
   while (queue.length > 0) {
     const current = parseMaybeJsonValue(queue.shift())
     if (current == null) continue
-
-    if (typeof current === 'object') {
-      if (visited.has(current)) continue
-      visited.add(current)
-    }
-
-    if (Array.isArray(current)) {
-      for (const item of current) queue.push(item)
-      continue
-    }
-
+    if (typeof current === 'object') { if (visited.has(current)) continue; visited.add(current) }
+    if (Array.isArray(current)) { for (const item of current) queue.push(item); continue }
     const currentObject = asObject(current)
     if (!currentObject) continue
-
     const title = String(currentObject.title ?? currentObject.Title ?? '').trim()
     const description = String(currentObject.description ?? currentObject.Description ?? '').trim()
-    const hasQuizIdentity = currentObject.quizId != null
-      || currentObject.QuizId != null
-      || currentObject.quizzId != null
-      || currentObject.QuizzId != null
-      || currentObject.id != null
-      || currentObject.Id != null
-
+    const hasQuizIdentity = currentObject.quizId != null || currentObject.QuizId != null
+      || currentObject.quizzId != null || currentObject.QuizzId != null
+      || currentObject.id != null || currentObject.Id != null
     if (title || description || hasQuizIdentity) {
       return {
         persistedId: toPersistedId(
-          currentObject.quizId
-          ?? currentObject.QuizId
-          ?? currentObject.quizzId
-          ?? currentObject.QuizzId
-          ?? currentObject.id
-          ?? currentObject.Id,
+          currentObject.quizId ?? currentObject.QuizId ?? currentObject.quizzId
+          ?? currentObject.QuizzId ?? currentObject.id ?? currentObject.Id,
         ),
         title,
         description,
       }
     }
-
-    for (const key of unwrapKeys) {
-      if (key in currentObject) queue.push(currentObject[key])
-    }
+    for (const key of unwrapKeys) { if (key in currentObject) queue.push(currentObject[key]) }
   }
-
   return null
 }
 
 const extractSingleQuizQuestionPayload = (
   payload: unknown,
-): {
-  quizPersistedId: string | null
-  question: EditableQuiz['questions'][number]
-  hasExplicitType: boolean
-} | null => {
+): { quizPersistedId: string | null; question: EditableQuiz['questions'][number]; hasExplicitType: boolean } | null => {
   const unwrapKeys = [
-    'value', 'Value',
-    'data', 'Data',
-    'result', 'Result',
-    'payload', 'Payload',
-    'singleQuizQuestion', 'SingleQuizQuestion',
-    'question', 'Question',
-    'questionDto', 'QuestionDto',
+    'value', 'Value', 'data', 'Data', 'result', 'Result', 'payload', 'Payload',
+    'singleQuizQuestion', 'SingleQuizQuestion', 'question', 'Question', 'questionDto', 'QuestionDto',
   ] as const
 
   const visited = new Set<unknown>()
@@ -268,181 +191,89 @@ const extractSingleQuizQuestionPayload = (
   while (queue.length > 0) {
     const current = parseMaybeJsonValue(queue.shift())
     if (current == null) continue
-
-    if (typeof current === 'object') {
-      if (visited.has(current)) continue
-      visited.add(current)
-    }
-
-    if (Array.isArray(current)) {
-      for (const item of current) queue.push(item)
-      continue
-    }
-
+    if (typeof current === 'object') { if (visited.has(current)) continue; visited.add(current) }
+    if (Array.isArray(current)) { for (const item of current) queue.push(item); continue }
     const currentObject = asObject(current)
     if (!currentObject) continue
-
     const questionCandidates: unknown[] = [
-      currentObject.question,
-      currentObject.Question,
-      currentObject.questionDto,
-      currentObject.QuestionDto,
+      currentObject.question, currentObject.Question,
+      currentObject.questionDto, currentObject.QuestionDto,
     ]
-
     const hasStandaloneQuestionShape = [
-      currentObject.questionText,
-      currentObject.QuestionText,
-      currentObject.correctAnswer,
-      currentObject.CorrectAnswer,
-      currentObject.options,
-      currentObject.Options,
-      currentObject.points,
-      currentObject.Points,
-    ].some((value) => value != null)
-
-    if (hasStandaloneQuestionShape) {
-      questionCandidates.push(currentObject)
-    }
-
+      currentObject.questionText, currentObject.QuestionText, currentObject.correctAnswer,
+      currentObject.CorrectAnswer, currentObject.options, currentObject.Options,
+      currentObject.points, currentObject.Points,
+    ].some((v) => v != null)
+    if (hasStandaloneQuestionShape) questionCandidates.push(currentObject)
     for (const questionCandidate of questionCandidates) {
       if (questionCandidate == null) continue
       const parsedQuestionPayload = parseMaybeJsonValue(questionCandidate)
       const questionObject = asObject(parsedQuestionPayload)
       if (!questionObject) continue
-
       const parsedQuestions = parseGeneratedQuizQuestionsPayload({ questions: [questionObject] })
       if (parsedQuestions.items.length === 0) continue
-
       const firstQuestion = parsedQuestions.items[0]
-
       return {
         quizPersistedId: toPersistedId(
-          currentObject.quizId
-          ?? currentObject.QuizId
-          ?? questionObject.quizId
-          ?? questionObject.QuizId,
+          currentObject.quizId ?? currentObject.QuizId ?? questionObject.quizId ?? questionObject.QuizId,
         ),
         question: firstQuestion,
         hasExplicitType: questionObject.type != null || questionObject.Type != null,
       }
     }
-
-    for (const key of unwrapKeys) {
-      if (key in currentObject) queue.push(currentObject[key])
-    }
+    for (const key of unwrapKeys) { if (key in currentObject) queue.push(currentObject[key]) }
   }
-
   return null
 }
 
 const extractMentorLessonGeneratedContent = (payload: unknown): string => {
   const unwrapKeys = [
-    'value', 'Value',
-    'data', 'Data',
-    'result', 'Result',
-    'payload', 'Payload',
-    'lesson', 'Lesson',
-    'lessonContent', 'LessonContent',
-    'lessonResult', 'LessonResult',
+    'value', 'Value', 'data', 'Data', 'result', 'Result', 'payload', 'Payload',
+    'lesson', 'Lesson', 'lessonContent', 'LessonContent', 'lessonResult', 'LessonResult',
   ] as const
-
   const toText = (value: unknown): string => typeof value === 'string' ? value.trim() : ''
-
   const visited = new Set<unknown>()
   const queue: unknown[] = [payload]
-
   while (queue.length > 0) {
     const current = parseMaybeJsonValue(queue.shift())
     if (current == null) continue
-
-    if (typeof current === 'string') {
-      const content = current.trim()
-      if (content) return content
-      continue
-    }
-
-    if (typeof current === 'object') {
-      if (visited.has(current)) continue
-      visited.add(current)
-    }
-
-    if (Array.isArray(current)) {
-      for (const item of current) queue.push(item)
-      continue
-    }
-
+    if (typeof current === 'string') { const content = current.trim(); if (content) return content; continue }
+    if (typeof current === 'object') { if (visited.has(current)) continue; visited.add(current) }
+    if (Array.isArray(current)) { for (const item of current) queue.push(item); continue }
     const currentObject = asObject(current)
     if (!currentObject) continue
-
     const contentCandidate = [
-      currentObject.content,
-      currentObject.Content,
-      currentObject.markdown,
-      currentObject.Markdown,
-      currentObject.body,
-      currentObject.Body,
-      currentObject.text,
-      currentObject.Text,
-      currentObject.generatedContent,
-      currentObject.GeneratedContent,
-      currentObject.lessonText,
-      currentObject.LessonText,
-      currentObject.lessonMarkdown,
-      currentObject.LessonMarkdown,
+      currentObject.content, currentObject.Content, currentObject.markdown, currentObject.Markdown,
+      currentObject.body, currentObject.Body, currentObject.text, currentObject.Text,
+      currentObject.generatedContent, currentObject.GeneratedContent,
+      currentObject.lessonText, currentObject.LessonText,
+      currentObject.lessonMarkdown, currentObject.LessonMarkdown,
     ]
-
-    const firstStringContent = contentCandidate.find((value) => typeof value === 'string' && value.trim().length > 0)
+    const firstStringContent = contentCandidate.find((v) => typeof v === 'string' && (v as string).trim().length > 0)
     if (typeof firstStringContent === 'string') return firstStringContent.trim()
-
     const sectionLikeContent: Record<LessonSectionKey, string> = {
       overview: toText(currentObject.overview ?? currentObject.Overview),
-      'core-concepts': toText(
-        currentObject['core-concepts']
-        ?? currentObject.coreConcepts
-        ?? currentObject.CoreConcepts,
-      ),
-      'code-examples': toText(
-        currentObject['code-examples']
-        ?? currentObject.codeExamples
-        ?? currentObject.CodeExamples,
-      ),
-      'common-mistakes': toText(
-        currentObject['common-mistakes']
-        ?? currentObject.commonMistakes
-        ?? currentObject.CommonMistakes,
-      ),
-      'best-practices': toText(
-        currentObject['best-practices']
-        ?? currentObject.bestPractices
-        ?? currentObject.BestPractices,
-      ),
+      'core-concepts': toText(currentObject['core-concepts'] ?? currentObject.coreConcepts ?? currentObject.CoreConcepts),
+      'code-examples': toText(currentObject['code-examples'] ?? currentObject.codeExamples ?? currentObject.CodeExamples),
+      'common-mistakes': toText(currentObject['common-mistakes'] ?? currentObject.commonMistakes ?? currentObject.CommonMistakes),
+      'best-practices': toText(currentObject['best-practices'] ?? currentObject.bestPractices ?? currentObject.BestPractices),
       summary: toText(currentObject.summary ?? currentObject.Summary),
     }
-
     if (Object.values(sectionLikeContent).some((item) => item.length > 0)) {
       return buildLessonContentFromSections(sectionLikeContent)
     }
-
-    for (const key of unwrapKeys) {
-      if (key in currentObject) queue.push(currentObject[key])
-    }
+    for (const key of unwrapKeys) { if (key in currentObject) queue.push(currentObject[key]) }
   }
-
   return ''
 }
 
 const getSingleTaskErrorCode = (err: any): string => String(
-  err?.code
-  ?? err?.errorCode
-  ?? err?.ErrorCode
-  ?? err?.response?.data?.errorCode
-  ?? err?.response?.data?.code
-  ?? '',
+  err?.code ?? err?.errorCode ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode ?? err?.response?.data?.code ?? '',
 ).trim().toUpperCase()
 
 const resolveSingleTaskGenerationErrorToast = (
-  err: any,
-  t: (key: string) => string,
+  err: any, t: (key: string) => string,
 ): { message: string; type: ToastState['type'] } => {
   const code = getSingleTaskErrorCode(err)
   if (code === 'CHAPTER_NOT_FOUND') return { message: t('drafts.singleTaskErrorChapterNotFound'), type: 'error' }
@@ -454,24 +285,16 @@ const resolveSingleTaskGenerationErrorToast = (
   if (code === 'NO_VALID_TASKS') return { message: t('drafts.singleTaskErrorNoValidTasks'), type: 'warning' }
   if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.singleTaskErrorInvalidAiResponse'), type: 'warning' }
   if (code === 'TASK_GENERATION_FAILED') return { message: t('drafts.singleTaskErrorGenerationFailed'), type: 'error' }
-  return {
-    message: getApiErrorMessage(err, t('drafts.singleTaskGenerateFailed')),
-    type: 'error',
-  }
+  return { message: getApiErrorMessage(err, t('drafts.singleTaskGenerateFailed')), type: 'error' }
 }
 
 const getSingleQuizSkeletonErrorCode = (err: any): string => String(
-  err?.code
-  ?? err?.errorCode
-  ?? err?.ErrorCode
-  ?? err?.response?.data?.errorCode
-  ?? err?.response?.data?.code
-  ?? '',
+  err?.code ?? err?.errorCode ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode ?? err?.response?.data?.code ?? '',
 ).trim().toUpperCase()
 
 const resolveSingleQuizSkeletonErrorToast = (
-  err: any,
-  t: (key: string) => string,
+  err: any, t: (key: string) => string,
 ): { message: string; type: ToastState['type'] } => {
   const code = getSingleQuizSkeletonErrorCode(err)
   if (code === 'LESSON_NOT_FOUND') return { message: t('drafts.singleQuizSkeletonErrorLessonNotFound'), type: 'error' }
@@ -482,24 +305,16 @@ const resolveSingleQuizSkeletonErrorToast = (
   if (code === 'DUPLICATE_QUIZ_SKELETON') return { message: t('drafts.singleQuizSkeletonErrorDuplicate'), type: 'warning' }
   if (code === 'QUIZ_GENERATION_FAILED') return { message: t('drafts.singleQuizSkeletonErrorGenerationFailed'), type: 'error' }
   if (code === 'UNEXPECTED_ERROR') return { message: t('drafts.singleQuizSkeletonErrorUnexpected'), type: 'error' }
-  return {
-    message: getApiErrorMessage(err, t('drafts.singleQuizSkeletonGenerateFailed')),
-    type: 'error',
-  }
+  return { message: getApiErrorMessage(err, t('drafts.singleQuizSkeletonGenerateFailed')), type: 'error' }
 }
 
 const getSingleQuizQuestionErrorCode = (err: any): string => String(
-  err?.code
-  ?? err?.errorCode
-  ?? err?.ErrorCode
-  ?? err?.response?.data?.errorCode
-  ?? err?.response?.data?.code
-  ?? '',
+  err?.code ?? err?.errorCode ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode ?? err?.response?.data?.code ?? '',
 ).trim().toUpperCase()
 
 const resolveSingleQuizQuestionErrorToast = (
-  err: any,
-  t: (key: string) => string,
+  err: any, t: (key: string) => string,
 ): { message: string; type: ToastState['type'] } => {
   const code = getSingleQuizQuestionErrorCode(err)
   if (code === 'QUIZ_NOT_FOUND') return { message: t('drafts.singleQuizQuestionErrorQuizNotFound'), type: 'error' }
@@ -510,24 +325,16 @@ const resolveSingleQuizQuestionErrorToast = (
   if (code === 'QUESTION_TYPE_MISMATCH') return { message: t('drafts.singleQuizQuestionErrorQuestionTypeMismatch'), type: 'warning' }
   if (code === 'DUPLICATE_QUESTION') return { message: t('drafts.singleQuizQuestionErrorDuplicate'), type: 'warning' }
   if (code === 'QUESTION_GENERATION_FAILED') return { message: t('drafts.singleQuizQuestionErrorGenerationFailed'), type: 'error' }
-  return {
-    message: getApiErrorMessage(err, t('drafts.singleQuizQuestionGenerateFailed')),
-    type: 'error',
-  }
+  return { message: getApiErrorMessage(err, t('drafts.singleQuizQuestionGenerateFailed')), type: 'error' }
 }
 
 const getMentorLessonContentErrorCode = (err: any): string => String(
-  err?.code
-  ?? err?.errorCode
-  ?? err?.ErrorCode
-  ?? err?.response?.data?.errorCode
-  ?? err?.response?.data?.code
-  ?? '',
+  err?.code ?? err?.errorCode ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode ?? err?.response?.data?.code ?? '',
 ).trim().toUpperCase()
 
 const resolveMentorLessonContentErrorToast = (
-  err: any,
-  t: (key: string) => string,
+  err: any, t: (key: string) => string,
 ): { message: string; type: ToastState['type'] } => {
   const code = getMentorLessonContentErrorCode(err)
   if (code === 'LESSON_NOT_FOUND') return { message: t('drafts.lessonContentErrorLessonNotFound'), type: 'error' }
@@ -536,16 +343,27 @@ const resolveMentorLessonContentErrorToast = (
   if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.lessonContentErrorInvalidAiResponse'), type: 'warning' }
   if (code === 'LESSON_CONTENT_GENERATION_FAILED') return { message: t('drafts.lessonContentErrorGenerationFailed'), type: 'error' }
   if (code === 'UNEXPECTED_ERROR') return { message: t('drafts.lessonContentErrorUnexpected'), type: 'error' }
-  return {
-    message: getApiErrorMessage(err, t('drafts.lessonContentGenerateFailed')),
-    type: 'error',
-  }
+  return { message: getApiErrorMessage(err, t('drafts.lessonContentGenerateFailed')), type: 'error' }
 }
 
-const sortGoalsBySubjectOrder = (
-  goals: DraftFormState['goals'],
-  subject: SubjectOption | null,
-) => {
+const getChapterMentorSkeletonErrorCode = (err: any): string => String(
+  err?.code ?? err?.errorCode ?? err?.ErrorCode
+  ?? err?.response?.data?.errorCode ?? err?.response?.data?.code ?? '',
+).trim().toUpperCase()
+
+const resolveChapterMentorSkeletonErrorToast = (
+  err: any, t: (key: string) => string,
+): { message: string; type: ToastState['type'] } => {
+  const code = getChapterMentorSkeletonErrorCode(err)
+  if (code === 'INVALID_CHAPTER_TITLE') return { message: t('drafts.chapterMentorSkeletonErrorInvalidTitle'), type: 'warning' }
+  if (code === 'LEARNING_PATH_NOT_FOUND') return { message: t('drafts.chapterMentorSkeletonErrorPathNotFound'), type: 'error' }
+  if (code === 'UNAUTHORIZED' || code === 'ACCESS_DENIED') return { message: t('drafts.chapterMentorSkeletonErrorUnauthorized'), type: 'error' }
+  if (code === 'INVALID_AI_RESPONSE') return { message: t('drafts.chapterMentorSkeletonErrorInvalidAiResponse'), type: 'warning' }
+  if (code === 'GENERATION_FAILED') return { message: t('drafts.chapterMentorSkeletonErrorGenerationFailed'), type: 'error' }
+  return { message: getApiErrorMessage(err, t('drafts.chapterMentorSkeletonGenerateFailed')), type: 'error' }
+}
+
+const sortGoalsBySubjectOrder = (goals: DraftFormState['goals'], subject: SubjectOption | null) => {
   if (!subject || goals.length < 2) return goals
   const order = new Map(subject.goals.map((goal, index) => [goal.goalId, index]))
   return [...goals].sort((a, b) => (order.get(a.goalId) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.goalId) ?? Number.MAX_SAFE_INTEGER))
@@ -553,58 +371,16 @@ const sortGoalsBySubjectOrder = (
 
 const parseChapterMentorSkeletonLessons = (payload: unknown): Array<{ title: string; orderIndex: number }> => {
   const source = payload as any
-  const lessons = Array.isArray(source?.lessons)
-    ? source.lessons
-    : Array.isArray(source?.Lessons)
-      ? source.Lessons
-      : []
-
+  const lessons = Array.isArray(source?.lessons) ? source.lessons
+    : Array.isArray(source?.Lessons) ? source.Lessons : []
   return lessons
     .map((lesson: any, index: number) => {
       const title = String(lesson?.title ?? lesson?.Title ?? '').trim()
       const numericOrder = Number(lesson?.orderIndex ?? lesson?.OrderIndex)
-      return {
-        title,
-        orderIndex: Number.isFinite(numericOrder) ? numericOrder : index,
-      }
+      return { title, orderIndex: Number.isFinite(numericOrder) ? numericOrder : index }
     })
     .filter((lesson: { title: string }) => lesson.title.length > 0)
     .sort((a: { orderIndex: number }, b: { orderIndex: number }) => a.orderIndex - b.orderIndex)
-}
-
-const getChapterMentorSkeletonErrorCode = (err: any): string => String(
-  err?.code
-  ?? err?.errorCode
-  ?? err?.ErrorCode
-  ?? err?.response?.data?.errorCode
-  ?? err?.response?.data?.code
-  ?? '',
-).trim().toUpperCase()
-
-const resolveChapterMentorSkeletonErrorToast = (
-  err: any,
-  t: (key: string) => string,
-): { message: string; type: ToastState['type'] } => {
-  const code = getChapterMentorSkeletonErrorCode(err)
-  if (code === 'INVALID_CHAPTER_TITLE') {
-    return { message: t('drafts.chapterMentorSkeletonErrorInvalidTitle'), type: 'warning' }
-  }
-  if (code === 'LEARNING_PATH_NOT_FOUND') {
-    return { message: t('drafts.chapterMentorSkeletonErrorPathNotFound'), type: 'error' }
-  }
-  if (code === 'UNAUTHORIZED' || code === 'ACCESS_DENIED') {
-    return { message: t('drafts.chapterMentorSkeletonErrorUnauthorized'), type: 'error' }
-  }
-  if (code === 'INVALID_AI_RESPONSE') {
-    return { message: t('drafts.chapterMentorSkeletonErrorInvalidAiResponse'), type: 'warning' }
-  }
-  if (code === 'GENERATION_FAILED') {
-    return { message: t('drafts.chapterMentorSkeletonErrorGenerationFailed'), type: 'error' }
-  }
-  return {
-    message: getApiErrorMessage(err, t('drafts.chapterMentorSkeletonGenerateFailed')),
-    type: 'error',
-  }
 }
 
 const resolveSelectionAfterHydrate = (
@@ -617,45 +393,40 @@ const resolveSelectionAfterHydrate = (
   const lessonIndex = chapterIndex >= 0
     ? previousForm.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLessonId)
     : -1
-
   const snapshot = createSelectionSnapshot(previousForm, activeChapterId, activeLessonId)
   const restored = restoreSelectionSnapshot(nextForm, snapshot)
-
   const resolvedChapterId = !snapshot.activeChapterPersistedId && chapterIndex >= 0
     ? (nextForm.chapters[chapterIndex]?.id ?? restored.chapterId)
     : restored.chapterId
-
   const resolvedChapter = nextForm.chapters.find((chapter) => chapter.id === resolvedChapterId) ?? nextForm.chapters[0] ?? null
   const resolvedLessonId = !snapshot.activeLessonPersistedId && lessonIndex >= 0
     ? (resolvedChapter?.lessons[lessonIndex]?.id ?? restored.lessonId)
     : restored.lessonId
-
   return {
     chapterId: resolvedChapter?.id ?? resolvedChapterId ?? null,
     lessonId: resolvedChapter?.lessons.find((lesson) => lesson.id === resolvedLessonId)?.id
-      ?? resolvedChapter?.lessons[0]?.id
-      ?? null,
+      ?? resolvedChapter?.lessons[0]?.id ?? null,
   }
 }
 
-const MentorDraftFormPage: React.FC = () => {
+const MentorPublishedFormPage: React.FC = () => {
   const { pathId } = useParams()
-  const isCreateMode = !pathId
   const navigate = useNavigate()
-  const location = useLocation() as { state?: { draft?: SkeletonResponse; toast?: ToastState } }
-  const [searchParams] = useSearchParams()
-  const reviewPathId = searchParams.get('reviewPathId') || null // original student pathId
+  const location = useLocation() as { state?: { toast?: ToastState } }
   const { t } = useTranslation('mentor')
   const { isSmallScreen } = useResponsive()
-  const sidebarConfig = { navItems: useMentorSidebarConfig(), actions: [], brand: { name: t('drafts.brandName'), subtitle: t('drafts.brandSubtitle') } }
+  const sidebarConfig = {
+    navItems: useMentorSidebarConfig(),
+    actions: [],
+    brand: { name: t('publishedPaths.brandName'), subtitle: t('publishedPaths.brandSubtitle') },
+  }
 
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [subjectSearch, setSubjectSearch] = useState('')
   const [isSubjectMenuOpen, setIsSubjectMenuOpen] = useState(false)
-  const [form, setForm] = useState<DraftFormState>(hydrateDraftForm(location.state?.draft))
-  const [loading, setLoading] = useState(!isCreateMode)
+  const [form, setForm] = useState<DraftFormState>(hydrateDraftForm(null))
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [generatingAiDraft, setGeneratingAiDraft] = useState(false)
   const [generatingMentorLessonContentId, setGeneratingMentorLessonContentId] = useState<string | null>(null)
   const [generatingChapterSkeletonId, setGeneratingChapterSkeletonId] = useState<string | null>(null)
   const [generatingChapterSkeletonPathId, setGeneratingChapterSkeletonPathId] = useState<string | null>(null)
@@ -671,21 +442,13 @@ const MentorDraftFormPage: React.FC = () => {
   const [assessmentTab, setAssessmentTab] = useState<AssessmentTab>('tasks')
   const [activeChapterId, setActiveChapterId] = useState<string | null>(form.chapters[0]?.id ?? null)
   const [activeLessonId, setActiveLessonId] = useState<string | null>(form.chapters[0]?.lessons[0]?.id ?? null)
-  const [studentOptions, setStudentOptions] = useState<Array<{ id: string; label: string }>>([])
-  const [selectedStudentId, setSelectedStudentId] = useState('')
-  const [shareError, setShareError] = useState<string | null>(null)
-  const [sharing, setSharing] = useState(false)
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
-  const [isVersionUpdateModalOpen, setIsVersionUpdateModalOpen] = useState(false)
-  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
-  const [publishing, setPublishing] = useState(false)
+  const [isRepublishModalOpen, setIsRepublishModalOpen] = useState(false)
+  const [republishing, setRepublishing] = useState(false)
+  const [unpublishing, setUnpublishing] = useState(false)
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(!isSmallScreen)
-  const [showReviewModal, setShowReviewModal] = useState(false)
   const chapterSkeletonPendingByPathRef = useRef<Map<string, string>>(new Map())
   const chapterSkeletonRequestCounterRef = useRef(0)
   const subjectPickerRef = useRef<HTMLDivElement | null>(null)
-  const currentPathId = String(pathId ?? location.state?.draft?.pathId ?? '')
-  const canShare = !!currentPathId
 
   useEffect(() => {
     setIsNavigatorOpen(!isSmallScreen)
@@ -693,27 +456,22 @@ const MentorDraftFormPage: React.FC = () => {
 
   useEffect(() => {
     let active = true
-
     const load = async () => {
-      setLoading(!isCreateMode)
+      setLoading(true)
       setLoadError(null)
       try {
-        const [subjectList, draft, contacts] = await Promise.all([
+        const [subjectList, draft] = await Promise.all([
           SubjectService.listSubjects(),
-          isCreateMode ? Promise.resolve(location.state?.draft ?? null) : LearningPathService.getMyDraftDetail(pathId as string),
-          getContacts().catch(() => []),
+          LearningPathService.getMyPublishedDetail(pathId as string),
         ])
         if (!active) return
         setSubjects(subjectList.map((subject: any) => ({
           id: String(subject?.id ?? subject?.subjectId),
           name: subject?.name ?? 'Subject',
-          goals: Array.isArray(subject?.goals) ? subject.goals.map((goal: any) => ({ goalId: String(goal?.goalId ?? goal?.id), title: goal?.title ?? goal?.name ?? 'Goal' })) : [],
+          goals: Array.isArray(subject?.goals)
+            ? subject.goals.map((goal: any) => ({ goalId: String(goal?.goalId ?? goal?.id), title: goal?.title ?? goal?.name ?? 'Goal' }))
+            : [],
         })))
-        setStudentOptions(
-          contacts
-            .filter((item: any) => item?.roleName === 'Student')
-            .map((item: any) => ({ id: String(item?.userId), label: item?.username ?? 'Student' })),
-        )
         const hydrated = hydrateDraftForm(draft)
         setForm(hydrated)
         setActiveChapterId(hydrated.chapters[0]?.id ?? null)
@@ -722,37 +480,54 @@ const MentorDraftFormPage: React.FC = () => {
         if (!active) return
         const status = err?.response?.status
         const code = err?.response?.data?.errorCode || err?.response?.data?.code
-        if (!isCreateMode && (status === 403 || code === 'ACCESS_DENIED')) {
-          navigate(ROUTER.MENTOR_DRAFTS, { replace: true, state: { toast: { message: t('drafts.accessDenied'), type: 'error' } satisfies ToastState } })
+        if (status === 403 || code === 'ACCESS_DENIED') {
+          navigate(ROUTER.MENTOR_PUBLISHED_PATHS, {
+            replace: true,
+            state: { toast: { message: t('publishedPaths.accessDenied'), type: 'error' } satisfies ToastState },
+          })
           return
         }
-        if (!isCreateMode && (status === 404 || code === 'LEARNING_PATH_NOT_FOUND')) {
-          navigate(ROUTER.MENTOR_DRAFTS, { replace: true, state: { toast: { message: t('drafts.notFound'), type: 'error' } satisfies ToastState } })
+        if (status === 404 || code === 'LEARNING_PATH_NOT_FOUND') {
+          navigate(ROUTER.MENTOR_PUBLISHED_PATHS, {
+            replace: true,
+            state: { toast: { message: t('publishedPaths.notFound'), type: 'error' } satisfies ToastState },
+          })
           return
         }
-        if (!isCreateMode && (status === 400 || code === 'INVALID_STATUS')) {
-          navigate(ROUTER.MENTOR_DRAFTS, { replace: true, state: { toast: { message: t('drafts.invalidStatus'), type: 'error' } satisfies ToastState } })
+        if (status === 400 && (code === 'LEARNING_PATH_NOT_PUBLISHED' || code === 'INVALID_STATUS')) {
+          navigate(ROUTER.MENTOR_PUBLISHED_PATHS, {
+            replace: true,
+            state: { toast: { message: t('publishedPaths.invalidStatus'), type: 'error' } satisfies ToastState },
+          })
           return
         }
-        setLoadError(getApiErrorMessage(err, t('drafts.loadFailed')))
+        setLoadError(getApiErrorMessage(err, t('publishedPaths.loadFailed')))
       } finally {
         if (active) setLoading(false)
       }
     }
-
     load()
     return () => { active = false }
-  }, [isCreateMode, location.state?.draft, navigate, pathId, t])
+  }, [navigate, pathId, t])
 
-  const selectedSubject = useMemo(() => subjects.find((subject) => subject.id === form.subjectId) ?? null, [form.subjectId, subjects])
+  const selectedSubject = useMemo(
+    () => subjects.find((subject) => subject.id === form.subjectId) ?? null,
+    [form.subjectId, subjects],
+  )
   const filteredSubjects = useMemo(() => {
     const keyword = subjectSearch.trim().toLowerCase()
     const matched = keyword ? subjects.filter((subject) => subject.name.toLowerCase().includes(keyword)) : subjects
     if (selectedSubject && !matched.some((subject) => subject.id === selectedSubject.id)) return [selectedSubject, ...matched]
     return matched
   }, [selectedSubject, subjectSearch, subjects])
-  const activeChapter = useMemo(() => form.chapters.find((chapter) => chapter.id === activeChapterId) ?? form.chapters[0] ?? null, [activeChapterId, form.chapters])
-  const activeLesson = useMemo(() => activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? activeChapter?.lessons[0] ?? null, [activeChapter, activeLessonId])
+  const activeChapter = useMemo(
+    () => form.chapters.find((chapter) => chapter.id === activeChapterId) ?? form.chapters[0] ?? null,
+    [activeChapterId, form.chapters],
+  )
+  const activeLesson = useMemo(
+    () => activeChapter?.lessons.find((lesson) => lesson.id === activeLessonId) ?? activeChapter?.lessons[0] ?? null,
+    [activeChapter, activeLessonId],
+  )
   const isGeneratingActiveMentorLessonContent = activeLesson?.id != null && generatingMentorLessonContentId === activeLesson.id
   const isGeneratingActiveChapterSkeleton = activeChapter?.id != null && generatingChapterSkeletonId === activeChapter.id
   const isGeneratingActiveSingleQuizSkeleton = activeLesson?.id != null && generatingSingleQuizSkeletonLessonId === activeLesson.id
@@ -776,9 +551,7 @@ const MentorDraftFormPage: React.FC = () => {
     if (!selectedSubject || form.goals.length < 2) return
     const sortedGoals = sortGoalsBySubjectOrder(form.goals, selectedSubject)
     const isSameOrder = sortedGoals.every((goal, index) => goal.goalId === form.goals[index]?.goalId)
-    if (!isSameOrder) {
-      setForm((prev) => ({ ...prev, goals: sortGoalsBySubjectOrder(prev.goals, selectedSubject) }))
-    }
+    if (!isSameOrder) setForm((prev) => ({ ...prev, goals: sortGoalsBySubjectOrder(prev.goals, selectedSubject) }))
   }, [form.goals, selectedSubject])
 
   useEffect(() => {
@@ -798,10 +571,7 @@ const MentorDraftFormPage: React.FC = () => {
   const updateQuiz = (chapterId: string, lessonId: string, quizId: string, updater: (quiz: EditableQuiz) => EditableQuiz) =>
     updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.map((quiz) => quiz.id === quizId ? updater(quiz) : quiz) }))
   const updateQuestion = (
-    chapterId: string,
-    lessonId: string,
-    quizId: string,
-    questionId: string,
+    chapterId: string, lessonId: string, quizId: string, questionId: string,
     updater: (question: EditableQuiz['questions'][number]) => EditableQuiz['questions'][number],
   ) => updateQuiz(chapterId, lessonId, quizId, (quiz) => ({
     ...quiz,
@@ -906,384 +676,246 @@ const MentorDraftFormPage: React.FC = () => {
     setActiveLessonId(safeLessons[0].id)
     return { ...chapter, lessons: safeLessons }
   })
-  const removeTask = (chapterId: string, taskId: string) => updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.filter((task) => task.id !== taskId) }))
-  const removeQuiz = (chapterId: string, lessonId: string, quizId: string) => updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.filter((quiz) => quiz.id !== quizId) }))
+  const removeTask = (chapterId: string, taskId: string) =>
+    updateChapter(chapterId, (chapter) => ({ ...chapter, tasks: chapter.tasks.filter((task) => task.id !== taskId) }))
+  const removeQuiz = (chapterId: string, lessonId: string, quizId: string) =>
+    updateLesson(chapterId, lessonId, (lesson) => ({ ...lesson, quizzes: lesson.quizzes.filter((quiz) => quiz.id !== quizId) }))
   const removeQuestion = (chapterId: string, lessonId: string, quizId: string, questionId: string) =>
     updateQuiz(chapterId, lessonId, quizId, (quiz) => ({ ...quiz, questions: quiz.questions.filter((question) => question.id !== questionId) }))
 
-  const generateAiDraftFromSettings = async () => {
-    const validationError = validateAiDraftInput(form)
-    if (validationError) {
-      setToast({ message: validationError, type: 'warning' })
-      return
-    }
-    setGeneratingAiDraft(true)
-    try {
-      const draft = await LearningPathService.generateAiDraft({ subjectId: form.subjectId, goals: form.goals, complexityLevel: form.complexityLevel, languageSelection: form.languageSelection })
-      if (!draft?.pathId) {
-        setToast({ message: t('aiPlans.missingDraftId'), type: 'error' })
-        return
-      }
-      navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(draft.pathId)), { state: { pathId: draft.pathId, draft, toast: { message: t('drafts.aiGenerateSuccess'), type: 'success' } satisfies ToastState } })
-    } catch (err: any) {
-      setToast({ message: getApiErrorMessage(err, t('aiPlans.detailLoadFailed')), type: 'error' })
-    } finally {
-      setGeneratingAiDraft(false)
-    }
-  }
-
-  const persistDraft = async (
-    versionOptions?: {
-      increaseVersion: boolean
-      versionUpdateType: ManualDraftVersionUpdateType | null
-    },
+  // ── Core persist ────────────────────────────────────────────────────────────
+  const persistPublished = async (
+    versionOptions?: { increaseVersion: boolean; versionUpdateType: ManualDraftVersionUpdateType | null },
   ) => {
     const validationError = validateDraftForm(form)
     if (validationError) {
       setToast({ message: validationError, type: 'warning' })
       return null
     }
-
+    if (!pathId) return null
     const previousTitle = form.title
     setSaving(true)
     try {
-      const response = currentPathId
-        ? await LearningPathService.updateManualDraft(currentPathId, buildPayload(form, versionOptions))
-        : await LearningPathService.createManualDraft(buildPayload(form))
-
-      const resolvedPathId = String(response?.pathId ?? currentPathId ?? '')
-      if (!resolvedPathId) {
-        setToast({ message: t('drafts.saveFailed'), type: 'error' })
-        return null
-      }
-
+      const response = await LearningPathService.updateMyPublished(pathId, buildPayload(form, versionOptions))
+      const resolvedPathId = String(response?.pathId ?? pathId)
       const latestDraft = await LearningPathService.getMyDraftDetail(resolvedPathId).catch(() => response)
       const nextForm = hydrateDraftForm(latestDraft, form)
       const nextSelection = resolveSelectionAfterHydrate(form, nextForm, activeChapterId, activeLessonId)
-
       setForm(nextForm)
       setActiveChapterId(nextSelection.chapterId)
       setActiveLessonId(nextSelection.lessonId)
-
-      if (isCreateMode && response?.pathId) {
-        navigate(ROUTER.MENTOR_DRAFT_DETAIL.replace(':pathId', String(response.pathId)), { replace: true, state: { draft: latestDraft } })
-      }
-
       return {
         resolvedPathId,
         response,
         latestDraft,
         nextForm,
         nextSelection,
-        successMessage: isCreateMode
-          ? t('drafts.manualCreateSuccess')
-          : resolveDraftUpdateSuccessMessage(response, latestDraft, previousTitle, t),
+        successMessage: resolveDraftUpdateSuccessMessage(response, latestDraft, previousTitle, t),
       }
     } catch (err: any) {
-      setToast({ message: getApiErrorMessage(err, t('drafts.saveFailed')), type: 'error' })
+      setToast({ message: getApiErrorMessage(err, t('publishedPaths.saveFailed')), type: 'error' })
       return null
     } finally {
       setSaving(false)
     }
   }
 
-  const saveDraftForGeneration = async () => persistDraft(
-    currentPathId
-      ? { increaseVersion: false, versionUpdateType: null }
-      : undefined,
-  )
+  const savePublishedForGeneration = async () =>
+    persistPublished({ increaseVersion: false, versionUpdateType: null })
 
-  const generateChapterMentorSkeletonForActiveChapter = async () => {
-    if (!activeChapter) {
-      setToast({ message: t('drafts.noChapterSelected'), type: 'warning' })
+  const handleRepublish = () => {
+    const validationError = validateDraftForm(form)
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
       return
     }
+    setIsRepublishModalOpen(true)
+  }
 
-    const activeChapterSnapshot = {
-      id: activeChapter.id,
-      title: activeChapter.title,
-      content: activeChapter.content,
-    }
-    const activeChapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
-
-    if (currentPathId && chapterSkeletonPendingByPathRef.current.has(currentPathId)) {
-      setToast({ message: t('drafts.chapterMentorSkeletonGenerateInProgress'), type: 'warning' })
+  const handleConfirmRepublish = async (options: {
+    increaseVersion: boolean
+    versionUpdateType: ManualDraftVersionUpdateType | null
+  }) => {
+    if (!pathId) return
+    const validationError = validateDraftForm(form)
+    if (validationError) {
+      setToast({ message: validationError, type: 'warning' })
+      setIsRepublishModalOpen(false)
       return
     }
-
-    setGeneratingChapterSkeletonId(activeChapter.id)
-    let requestPathId: string | null = null
-    let requestKey: string | null = null
-
+    setRepublishing(true)
     try {
-      const persisted = await saveDraftForGeneration()
-      if (!persisted) return
-
-      requestPathId = persisted.resolvedPathId
-      if (chapterSkeletonPendingByPathRef.current.has(requestPathId)) {
-        setToast({ message: t('drafts.chapterMentorSkeletonGenerateInProgress'), type: 'warning' })
-        return
+      await persistPublished({ increaseVersion: false, versionUpdateType: null })
+      const payload = {
+        increaseVersion: options.increaseVersion,
+        versionUpdateType: options.increaseVersion
+          ? (options.versionUpdateType === 'Major' ? 1 : options.versionUpdateType === 'Minor' ? 0 : null)
+          : null
       }
-
-      const chapterFromSelection = persisted.nextSelection.chapterId
-        ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
-        : null
-      const chapterFromIndex = activeChapterIndex >= 0
-        ? (persisted.nextForm.chapters[activeChapterIndex] ?? null)
-        : null
-
-      const chapterForContext = chapterFromSelection ?? chapterFromIndex ?? {
-        ...activeChapterSnapshot,
-        lessons: [],
-        tasks: [],
-        startDate: '',
-        endDate: '',
-        estimatedDays: '',
-        persistedId: null,
-      }
-
-      const chapterIdToUpdate = chapterFromSelection?.id ?? chapterFromIndex?.id ?? null
-
-      requestKey = `${requestPathId}:${chapterForContext.title.trim().toLowerCase()}:${++chapterSkeletonRequestCounterRef.current}`
-      chapterSkeletonPendingByPathRef.current.set(requestPathId, requestKey)
-      setGeneratingChapterSkeletonPathId(requestPathId)
-
-      setGeneratingChapterSkeletonId(chapterIdToUpdate ?? activeChapterSnapshot.id)
-
-      const chapterSkeleton = await LearningPathService.generateChapterMentorSkeleton(
-        requestPathId,
-        chapterForContext.title,
-        chapterForContext.content,
-        {
-          useSignalR: true,
-          onLoading: () => {
-            setGeneratingChapterSkeletonId(chapterIdToUpdate ?? activeChapterSnapshot.id)
-          },
-        },
-      )
-
-      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) !== requestKey) {
-        return
-      }
-
-      const rawLessonArray = Array.isArray((chapterSkeleton as any)?.lessons)
-        ? (chapterSkeleton as any).lessons
-        : Array.isArray((chapterSkeleton as any)?.Lessons)
-          ? (chapterSkeleton as any).Lessons
-          : []
-
-      const parsedLessons = parseChapterMentorSkeletonLessons(chapterSkeleton)
-      if (rawLessonArray.length === 0) {
-        setToast({ message: t('drafts.chapterMentorSkeletonGenerateEmpty'), type: 'warning' })
-        return
-      }
-      if (rawLessonArray.length > 0 && parsedLessons.length === 0) {
-        setToast({ message: t('drafts.chapterMentorSkeletonGenerateInvalidPayload'), type: 'warning' })
-        return
-      }
-
-      const nextLessons: EditableLesson[] = parsedLessons.map((lesson) => {
-        const base = emptyLesson()
-        return {
-          ...base,
-          title: lesson.title,
-        }
+      await LearningPathService.republishLearningPath(pathId, payload)
+      setIsRepublishModalOpen(false)
+      navigate(ROUTER.MENTOR_PUBLISHED_PATHS, {
+        state: { toast: { message: t('publishedPaths.republishSuccess'), type: 'success' } satisfies ToastState },
       })
-
-      const nextChapters = [...persisted.nextForm.chapters]
-      let targetChapterIndex = chapterIdToUpdate
-        ? nextChapters.findIndex((chapter) => chapter.id === chapterIdToUpdate)
-        : -1
-
-      if (targetChapterIndex < 0 && activeChapterIndex >= 0 && activeChapterIndex < nextChapters.length) {
-        targetChapterIndex = activeChapterIndex
-      }
-
-      let resolvedChapterId: string
-      if (targetChapterIndex >= 0) {
-        const targetChapter = nextChapters[targetChapterIndex]
-        nextChapters[targetChapterIndex] = {
-          ...targetChapter,
-          lessons: nextLessons,
-        }
-        resolvedChapterId = nextChapters[targetChapterIndex].id
-      } else {
-        const fallbackChapter = emptyChapter()
-        fallbackChapter.title = chapterForContext.title
-        fallbackChapter.content = chapterForContext.content
-        fallbackChapter.lessons = nextLessons
-        nextChapters.push(fallbackChapter)
-        resolvedChapterId = fallbackChapter.id
-      }
-
-      setForm({
-        ...persisted.nextForm,
-        chapters: nextChapters,
-      })
-      setActiveChapterId(resolvedChapterId)
-      setActiveLessonId(nextLessons[0]?.id ?? null)
-      setToast({ message: t('drafts.chapterMentorSkeletonGenerateSuccess'), type: 'success' })
     } catch (err: any) {
-      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) !== requestKey) {
-        return
+      const errCode = String(
+        err?.response?.data?.errorCode ?? err?.response?.data?.code ?? '',
+      ).toUpperCase()
+      if (errCode === 'PUBLISH_CONTENT_INCOMPLETE' || errCode === 'LESSON_CONTENT_INCOMPLETE') {
+        setToast({ message: t('drafts.publishErrorContentIncomplete'), type: 'warning' })
+      } else if (errCode === 'CHAPTERS_REQUIRED') {
+        setToast({ message: t('drafts.publishErrorChaptersRequired'), type: 'warning' })
+      } else {
+        setToast({ message: getApiErrorMessage(err, t('publishedPaths.republishFailed')), type: 'error' })
       }
-      const toastPayload = resolveChapterMentorSkeletonErrorToast(err, t)
-      setToast({ message: toastPayload.message, type: toastPayload.type })
+      setIsRepublishModalOpen(false)
     } finally {
-      if (requestPathId && requestKey && chapterSkeletonPendingByPathRef.current.get(requestPathId) === requestKey) {
-        chapterSkeletonPendingByPathRef.current.delete(requestPathId)
-        setGeneratingChapterSkeletonPathId((prev) => (prev === requestPathId ? null : prev))
-      }
-      setGeneratingChapterSkeletonId(null)
+      setRepublishing(false)
     }
   }
 
-  const generateAiTaskForChapter = async (chapterId: string, taskId: string) => {
-    const targetChapter = form.chapters.find((chapter) => chapter.id === chapterId) ?? null
-    const targetTask = targetChapter?.tasks.find((task) => task.id === taskId) ?? null
+  const handleUnpublish = async () => {
+    if (!pathId) return
+    if (!window.confirm(t('publishedPaths.unpublishConfirmDescription'))) return
+    setUnpublishing(true)
+    try {
+      await LearningPathService.unpublishLearningPath(pathId)
+      navigate(ROUTER.MENTOR_PUBLISHED_PATHS, {
+        state: { toast: { message: t('publishedPaths.unpublishSuccess'), type: 'success' } satisfies ToastState },
+      })
+    } catch (err: any) {
+      setToast({ message: getApiErrorMessage(err, t('publishedPaths.unpublishFailed')), type: 'error' })
+    } finally {
+      setUnpublishing(false)
+    }
+  }
 
-    if (!targetChapter || !targetTask) {
-      setToast({ message: t('drafts.noChapterSelected'), type: 'warning' })
-      return
+  // ── AI generation helpers ───────────────────────────────────────────────────
+  const generateChapterMentorSkeletonForActiveChapter = async () => {
+    if (!activeChapter) { setToast({ message: t('drafts.noChapterSelected'), type: 'warning' }); return }
+    const activeChapterSnapshot = { id: activeChapter.id, persistedId: activeChapter.persistedId }
+    const requestId = ++chapterSkeletonRequestCounterRef.current
+
+    if (pathId && chapterSkeletonPendingByPathRef.current.has(pathId)) {
+      setToast({ message: t('drafts.chapterMentorSkeletonGenerateInProgress'), type: 'warning' }); return
     }
 
-    if (generatingTaskId) {
-      setToast({ message: t('drafts.singleTaskGenerateInProgress'), type: 'warning' })
-      return
-    }
-
-    if (!targetChapter.persistedId) {
-      setToast({ message: t('drafts.saveBeforeGenerateSingleTask'), type: 'warning' })
-      return
-    }
-
-    setGeneratingTaskId(taskId)
+    let targetChapterId = activeChapter.id
+    let persistedChapterId = activeChapter.persistedId
+    setGeneratingChapterSkeletonId(activeChapter.id)
 
     try {
-      setGeneratingTaskId(targetTask.id)
-      const requestedTaskType = TASK_TYPE_TO_SIGNALR[targetTask.taskType]
-      const preferredTitle = targetTask.title.trim() || null
-      const generatedTaskPayload = await LearningPathService.generateSingleTask(
-        targetChapter.persistedId,
-        preferredTitle,
-        requestedTaskType,
-        {
-          onLoading: () => setGeneratingTaskId(targetTask.id),
-        },
-      )
-
-      const source = extractSingleTaskPayload(generatedTaskPayload) as any
-      if (!source) {
-        setToast({ message: t('drafts.singleTaskGenerateInvalidPayload'), type: 'warning' })
-        return
+      if (!persistedChapterId) {
+        const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
+        const persisted = await savePublishedForGeneration()
+        if (!persisted || requestId !== chapterSkeletonRequestCounterRef.current) return
+        const chapterFromIndex = chapterIndex >= 0 ? (persisted.nextForm.chapters[chapterIndex] ?? null) : null
+        const targetChapter = persisted.nextSelection.chapterId
+          ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId) ?? chapterFromIndex
+          : chapterFromIndex
+        if (!targetChapter?.persistedId) {
+          setToast({ message: t('drafts.saveBeforeGenerateChapterSkeleton'), type: 'warning' }); return
+        }
+        targetChapterId = targetChapter.id
+        persistedChapterId = targetChapter.persistedId
+        setGeneratingChapterSkeletonId(targetChapterId)
       }
 
-      const nextPersistedId = toPersistedId(source?.taskId ?? source?.TaskId ?? source?.id ?? source?.Id)
-      const nextTitle = String(source?.title ?? source?.Title ?? '').trim()
-      const nextDescription = String(source?.description ?? source?.Description ?? '').trim()
-      const hasTaskType = source?.taskType != null || source?.TaskType != null
-      const hasPriority = source?.priority != null || source?.Priority != null
-      const hasTaskStatus = source?.taskStatus != null || source?.TaskStatus != null
-      const hasQuizJson = source?.quizQuestionsJson != null
-        || source?.QuizQuestionsJson != null
-        || source?.quizQuestions != null
-        || source?.QuizQuestions != null
+      if (!persistedChapterId) {
+        setToast({ message: t('drafts.saveBeforeGenerateChapterSkeleton'), type: 'warning' }); return
+      }
 
-      updateTask(targetChapter.id, targetTask.id, (task) => ({
-        ...task,
-        persistedId: nextPersistedId ?? task.persistedId,
-        title: nextTitle || task.title,
-        description: nextDescription || task.description,
-        taskType: hasTaskType ? normalizeTaskType(source?.taskType ?? source?.TaskType) : task.taskType,
-        priority: hasPriority ? normalizeTaskPriority(source?.priority ?? source?.Priority) : task.priority,
-        taskStatus: hasTaskStatus ? normalizeTaskStatus(source?.taskStatus ?? source?.TaskStatus) : task.taskStatus,
-        quizQuestionsJson: hasQuizJson
-          ? normalizeJsonField(source?.quizQuestionsJson ?? source?.QuizQuestionsJson ?? source?.quizQuestions ?? source?.QuizQuestions)
-          : task.quizQuestionsJson,
-      }))
+      if (pathId) {
+        chapterSkeletonPendingByPathRef.current.set(pathId, persistedChapterId)
+        setGeneratingChapterSkeletonPathId(pathId)
+      }
 
-      setToast({ message: t('drafts.singleTaskGenerateSuccess'), type: 'success' })
+      const generatedPayload = await LearningPathService.generateChapterMentorSkeleton(persistedChapterId, {
+        onLoading: () => { setGeneratingChapterSkeletonId(targetChapterId) },
+      })
+
+      if (requestId !== chapterSkeletonRequestCounterRef.current) return
+
+      const parsedLessons = parseChapterMentorSkeletonLessons(generatedPayload)
+      if (!parsedLessons || parsedLessons.length === 0) {
+        setToast({ message: t('drafts.chapterMentorSkeletonGenerateEmpty'), type: 'warning' }); return
+      }
+
+      updateChapter(targetChapterId, (chapter) => {
+        const existingLessonTitles = new Set(chapter.lessons.map((lesson) => lesson.title.trim().toLowerCase()))
+        const newLessons: EditableLesson[] = parsedLessons
+          .filter((lesson) => !existingLessonTitles.has(lesson.title.toLowerCase()))
+          .map((lesson) => ({ ...emptyLesson(), title: lesson.title }))
+        if (newLessons.length === 0) return chapter
+        return { ...chapter, lessons: [...chapter.lessons, ...newLessons] }
+      })
+
+      if (activeChapterSnapshot.id === targetChapterId) {
+        const updatedChapter = form.chapters.find((chapter) => chapter.id === targetChapterId)
+        if (updatedChapter) setActiveLessonId(updatedChapter.lessons[0]?.id ?? null)
+      }
+
+      setToast({ message: t('drafts.chapterMentorSkeletonGenerateSuccess'), type: 'success' })
     } catch (err: any) {
-      const toastPayload = resolveSingleTaskGenerationErrorToast(err, t)
+      const toastPayload = resolveChapterMentorSkeletonErrorToast(err, t)
       setToast({ message: toastPayload.message, type: toastPayload.type })
     } finally {
-      setGeneratingTaskId(null)
+      setGeneratingChapterSkeletonId(null)
+      if (pathId) {
+        chapterSkeletonPendingByPathRef.current.delete(pathId)
+        setGeneratingChapterSkeletonPathId(null)
+      }
     }
   }
 
   const generateMentorLessonContentForActiveLesson = async () => {
     if (!activeChapter || !activeLesson) {
-      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' })
-      return
+      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' }); return
     }
-
     if (generatingMentorLessonContentId) {
-      setToast({ message: t('drafts.lessonContentGenerateInProgress'), type: 'warning' })
-      return
+      setToast({ message: t('drafts.lessonContentGenerateInProgress'), type: 'warning' }); return
     }
-
     let targetChapterId = activeChapter.id
     let targetLessonId = activeLesson.id
     let persistedLessonId = activeLesson.persistedId
-
     setGeneratingMentorLessonContentId(activeLesson.id)
-
     try {
       if (!persistedLessonId) {
         const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
         const lessonIndex = chapterIndex >= 0
           ? form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLesson.id)
           : -1
-
-        const persisted = await saveDraftForGeneration()
+        const persisted = await savePublishedForGeneration()
         if (!persisted) return
-
         const chapterFromSelection = persisted.nextSelection.chapterId
           ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
           : null
-        const chapterFromIndex = chapterIndex >= 0
-          ? (persisted.nextForm.chapters[chapterIndex] ?? null)
-          : null
+        const chapterFromIndex = chapterIndex >= 0 ? (persisted.nextForm.chapters[chapterIndex] ?? null) : null
         const targetChapter = chapterFromSelection ?? chapterFromIndex
         const lessonFromSelection = persisted.nextSelection.lessonId && targetChapter
           ? targetChapter.lessons.find((lesson) => lesson.id === persisted.nextSelection.lessonId)
           : null
-        const lessonFromIndex = targetChapter && lessonIndex >= 0
-          ? (targetChapter.lessons[lessonIndex] ?? null)
-          : null
+        const lessonFromIndex = targetChapter && lessonIndex >= 0 ? (targetChapter.lessons[lessonIndex] ?? null) : null
         const targetLesson = lessonFromSelection ?? lessonFromIndex ?? targetChapter?.lessons[0] ?? null
-
         if (!targetChapter || !targetLesson?.persistedId) {
-          setToast({ message: t('drafts.saveBeforeGenerateLessonContent'), type: 'warning' })
-          return
+          setToast({ message: t('drafts.saveBeforeGenerateLessonContent'), type: 'warning' }); return
         }
-
         targetChapterId = targetChapter.id
         targetLessonId = targetLesson.id
         persistedLessonId = targetLesson.persistedId
         setGeneratingMentorLessonContentId(targetLesson.id)
       }
-
       if (!persistedLessonId) {
-        setToast({ message: t('drafts.saveBeforeGenerateLessonContent'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.saveBeforeGenerateLessonContent'), type: 'warning' }); return
       }
-
       const generatedLessonPayload = await LearningPathService.generateMentorLessonContent(persistedLessonId, {
         onLoading: () => setGeneratingMentorLessonContentId(targetLessonId),
       })
-
       const generatedContent = extractMentorLessonGeneratedContent(generatedLessonPayload)
       if (!generatedContent.trim()) {
-        setToast({ message: t('drafts.lessonContentGenerateEmpty'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.lessonContentGenerateEmpty'), type: 'warning' }); return
       }
-
-      updateLesson(targetChapterId, targetLessonId, (lesson) => ({
-        ...lesson,
-        sections: parseLessonSections(generatedContent),
-      }))
-
+      updateLesson(targetChapterId, targetLessonId, (lesson) => ({ ...lesson, sections: parseLessonSections(generatedContent) }))
       setToast({ message: t('drafts.lessonContentGenerateSuccess'), type: 'success' })
     } catch (err: any) {
       const toastPayload = resolveMentorLessonContentErrorToast(err, t)
@@ -1295,80 +927,56 @@ const MentorDraftFormPage: React.FC = () => {
 
   const generateSingleQuizSkeletonForActiveLesson = async () => {
     if (!activeChapter || !activeLesson) {
-      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' })
-      return
+      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' }); return
     }
-
     if (generatingSingleQuizSkeletonLessonId) {
-      setToast({ message: t('drafts.singleQuizSkeletonGenerateInProgress'), type: 'warning' })
-      return
+      setToast({ message: t('drafts.singleQuizSkeletonGenerateInProgress'), type: 'warning' }); return
     }
-
     let targetChapterId = activeChapter.id
     let targetLessonId = activeLesson.id
     let persistedLessonId = activeLesson.persistedId
-
     setGeneratingSingleQuizSkeletonLessonId(activeLesson.id)
     setIsQuizSkeletonLoading(true)
     setHasQuizSkeleton(false)
     setQuizSkeletonError(null)
-
     try {
       if (!persistedLessonId) {
         const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
         const lessonIndex = chapterIndex >= 0
           ? form.chapters[chapterIndex]?.lessons.findIndex((lesson) => lesson.id === activeLesson.id)
           : -1
-
-        const persisted = await saveDraftForGeneration()
+        const persisted = await savePublishedForGeneration()
         if (!persisted) return
-
         const chapterFromSelection = persisted.nextSelection.chapterId
           ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
           : null
-        const chapterFromIndex = chapterIndex >= 0
-          ? (persisted.nextForm.chapters[chapterIndex] ?? null)
-          : null
+        const chapterFromIndex = chapterIndex >= 0 ? (persisted.nextForm.chapters[chapterIndex] ?? null) : null
         const targetChapter = chapterFromSelection ?? chapterFromIndex
         const lessonFromSelection = persisted.nextSelection.lessonId && targetChapter
           ? targetChapter.lessons.find((lesson) => lesson.id === persisted.nextSelection.lessonId)
           : null
-        const lessonFromIndex = targetChapter && lessonIndex >= 0
-          ? (targetChapter.lessons[lessonIndex] ?? null)
-          : null
+        const lessonFromIndex = targetChapter && lessonIndex >= 0 ? (targetChapter.lessons[lessonIndex] ?? null) : null
         const targetLesson = lessonFromSelection ?? lessonFromIndex ?? targetChapter?.lessons[0] ?? null
-
         if (!targetChapter || !targetLesson?.persistedId) {
-          setToast({ message: t('drafts.saveBeforeGenerateSingleQuizSkeleton'), type: 'warning' })
-          return
+          setToast({ message: t('drafts.saveBeforeGenerateSingleQuizSkeleton'), type: 'warning' }); return
         }
-
         targetChapterId = targetChapter.id
         targetLessonId = targetLesson.id
         persistedLessonId = targetLesson.persistedId
         setGeneratingSingleQuizSkeletonLessonId(targetLesson.id)
       }
-
       if (!persistedLessonId) {
-        setToast({ message: t('drafts.saveBeforeGenerateSingleQuizSkeleton'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.saveBeforeGenerateSingleQuizSkeleton'), type: 'warning' }); return
       }
-
       const generatedQuizPayload = await LearningPathService.generateSingleQuizSkeleton(persistedLessonId, {
-        onLoading: () => {
-          setGeneratingSingleQuizSkeletonLessonId(targetLessonId)
-          setIsQuizSkeletonLoading(true)
-        },
+        onLoading: () => { setGeneratingSingleQuizSkeletonLessonId(targetLessonId); setIsQuizSkeletonLoading(true) },
       })
-
       const parsedQuiz = extractSingleQuizSkeletonPayload(generatedQuizPayload)
       if (!parsedQuiz || !parsedQuiz.title) {
         const message = t('drafts.singleQuizSkeletonGenerateInvalidPayload')
         setQuizSkeletonError(message)
-        setToast({ message, type: 'warning' })
-        return
+        setToast({ message, type: 'warning' }); return
       }
-
       const quizTemplate = emptyQuiz()
       const nextQuiz: EditableQuiz = {
         ...quizTemplate,
@@ -1376,12 +984,7 @@ const MentorDraftFormPage: React.FC = () => {
         title: parsedQuiz.title,
         description: parsedQuiz.description,
       }
-
-      updateLesson(targetChapterId, targetLessonId, (lesson) => ({
-        ...lesson,
-        quizzes: [...lesson.quizzes, nextQuiz],
-      }))
-
+      updateLesson(targetChapterId, targetLessonId, (lesson) => ({ ...lesson, quizzes: [...lesson.quizzes, nextQuiz] }))
       setHasQuizSkeleton(true)
       setQuizSkeletonError(null)
       setToast({ message: t('drafts.singleQuizSkeletonGenerateSuccess'), type: 'success' })
@@ -1402,27 +1005,17 @@ const MentorDraftFormPage: React.FC = () => {
     questionType: QuestionType,
   ) => {
     if (!activeChapter || !activeLesson) {
-      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' })
-      return
+      setToast({ message: t('drafts.noLessonSelected'), type: 'warning' }); return
     }
-
-    if (generatingSingleQuizQuestionQuizId) {
-      setToast({ message: t('drafts.singleQuizQuestionGenerateInProgress'), type: 'warning' })
-      return
-    }
-
-    const requestedQuestionType = questionType
     const requestedQuestionTypeNumber = QUESTION_TYPE_TO_SIGNALR[questionType]
-
+    const requestedQuestionType = questionType
     let targetChapterId = activeChapter.id
     let targetLessonId = activeLesson.id
     let targetQuizId = quiz.id
     let targetQuestionId = questionId
     const targetQuestionIndex = quiz.questions.findIndex((item) => item.id === questionId)
     let persistedQuizId = quiz.persistedId
-
     setGeneratingSingleQuizQuestionQuizId(quiz.id)
-
     try {
       if (!persistedQuizId) {
         const chapterIndex = form.chapters.findIndex((chapter) => chapter.id === activeChapter.id)
@@ -1432,45 +1025,27 @@ const MentorDraftFormPage: React.FC = () => {
         const quizIndex = chapterIndex >= 0 && lessonIndex >= 0
           ? form.chapters[chapterIndex]?.lessons[lessonIndex]?.quizzes.findIndex((item) => item.id === quiz.id)
           : -1
-
-        const persisted = await saveDraftForGeneration()
+        const persisted = await savePublishedForGeneration()
         if (!persisted) return
-
         const chapterFromSelection = persisted.nextSelection.chapterId
           ? persisted.nextForm.chapters.find((chapter) => chapter.id === persisted.nextSelection.chapterId)
           : null
-        const chapterFromIndex = chapterIndex >= 0
-          ? (persisted.nextForm.chapters[chapterIndex] ?? null)
-          : null
+        const chapterFromIndex = chapterIndex >= 0 ? (persisted.nextForm.chapters[chapterIndex] ?? null) : null
         const targetChapter = chapterFromSelection ?? chapterFromIndex
-
         const lessonFromSelection = persisted.nextSelection.lessonId && targetChapter
           ? targetChapter.lessons.find((lesson) => lesson.id === persisted.nextSelection.lessonId)
           : null
-        const lessonFromIndex = targetChapter && lessonIndex >= 0
-          ? (targetChapter.lessons[lessonIndex] ?? null)
-          : null
+        const lessonFromIndex = targetChapter && lessonIndex >= 0 ? (targetChapter.lessons[lessonIndex] ?? null) : null
         const targetLesson = lessonFromSelection ?? lessonFromIndex ?? targetChapter?.lessons[0] ?? null
-
-        const quizFromIndex = targetLesson && quizIndex >= 0
-          ? (targetLesson.quizzes[quizIndex] ?? null)
-          : null
-        const targetQuiz = quizFromIndex
-          ?? targetLesson?.quizzes.find((item) => item.id === quiz.id)
-          ?? null
-
+        const quizFromIndex = targetLesson && quizIndex >= 0 ? (targetLesson.quizzes[quizIndex] ?? null) : null
+        const targetQuiz = quizFromIndex ?? targetLesson?.quizzes.find((item) => item.id === quiz.id) ?? null
         const targetQuestionFromIndex = targetQuiz && targetQuestionIndex >= 0
           ? (targetQuiz.questions[targetQuestionIndex] ?? null)
           : null
-        const targetQuestion = targetQuiz?.questions.find((item) => item.id === questionId)
-          ?? targetQuestionFromIndex
-          ?? null
-
+        const targetQuestion = targetQuiz?.questions.find((item) => item.id === questionId) ?? targetQuestionFromIndex ?? null
         if (!targetChapter || !targetLesson || !targetQuiz?.persistedId || !targetQuestion) {
-          setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' })
-          return
+          setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' }); return
         }
-
         targetChapterId = targetChapter.id
         targetLessonId = targetLesson.id
         targetQuizId = targetQuiz.id
@@ -1478,43 +1053,31 @@ const MentorDraftFormPage: React.FC = () => {
         persistedQuizId = targetQuiz.persistedId
         setGeneratingSingleQuizQuestionQuizId(targetQuiz.id)
       }
-
       if (!persistedQuizId) {
-        setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.saveBeforeGenerateSingleQuizQuestion'), type: 'warning' }); return
       }
-
       const generatedQuestionPayload = await LearningPathService.generateSingleQuizQuestion(
-        persistedQuizId,
-        requestedQuestionTypeNumber,
-        {
+        persistedQuizId, requestedQuestionTypeNumber, {
           onLoading: () => setGeneratingSingleQuizQuestionQuizId(targetQuizId),
         },
       )
-
       const parsedGeneratedQuestion = extractSingleQuizQuestionPayload(generatedQuestionPayload)
       if (!parsedGeneratedQuestion || !parsedGeneratedQuestion.hasExplicitType || !parsedGeneratedQuestion.question.questionText.trim()) {
-        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' }); return
       }
-
       if (
         parsedGeneratedQuestion.quizPersistedId
         && !isSameIdentifier(parsedGeneratedQuestion.quizPersistedId, persistedQuizId)
       ) {
-        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' }); return
       }
-
       if (parsedGeneratedQuestion.question.type !== requestedQuestionType) {
-        setToast({ message: t('drafts.singleQuizQuestionErrorQuestionTypeMismatch'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.singleQuizQuestionErrorQuestionTypeMismatch'), type: 'warning' }); return
       }
-
       let didReplaceQuestion = false
       updateQuiz(targetChapterId, targetLessonId, targetQuizId, (currentQuiz) => {
         let targetFound = false
-        const { id: _generatedQuestionId, ...generatedQuestionPatch } = parsedGeneratedQuestion.question
+        const { id: _id, ...generatedQuestionPatch } = parsedGeneratedQuestion.question
         const nextQuestions = currentQuiz.questions.map((currentQuestion) => {
           if (currentQuestion.id !== targetQuestionId) return currentQuestion
           targetFound = true
@@ -1526,22 +1089,12 @@ const MentorDraftFormPage: React.FC = () => {
             persistedId: generatedQuestionPatch.persistedId ?? currentQuestion.persistedId,
           }
         })
-
-        if (!targetFound) {
-          return currentQuiz
-        }
-
-        return {
-          ...currentQuiz,
-          questions: nextQuestions,
-        }
+        if (!targetFound) return currentQuiz
+        return { ...currentQuiz, questions: nextQuestions }
       })
-
       if (!didReplaceQuestion) {
-        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' })
-        return
+        setToast({ message: t('drafts.singleQuizQuestionGenerateInvalidPayload'), type: 'warning' }); return
       }
-
       setToast({ message: t('drafts.singleQuizQuestionGenerateSuccess'), type: 'success' })
     } catch (err: any) {
       const toastPayload = resolveSingleQuizQuestionErrorToast(err, t)
@@ -1551,90 +1104,74 @@ const MentorDraftFormPage: React.FC = () => {
     }
   }
 
-  const saveDraft = async () => {
-    const validationError = validateDraftForm(form)
-    if (validationError) {
-      setToast({ message: validationError, type: 'warning' })
-      return
-    }
-
-    if (!isCreateMode) {
-      setIsVersionUpdateModalOpen(true)
-      return
-    }
-
-    const result = await persistDraft()
-    if (result?.successMessage) {
-      setToast({ message: result.successMessage, type: 'success' })
-    }
-  }
-
-  const handleConfirmVersionUpdate = async (options: {
-    increaseVersion: boolean
-    versionUpdateType: ManualDraftVersionUpdateType | null
-  }) => {
-    const result = await persistDraft(options)
-    if (!result) return
-    setIsVersionUpdateModalOpen(false)
-    setToast({ message: result.successMessage, type: 'success' })
-  }
-
-  const handleShareDraft = async () => {
-    if (!currentPathId || !selectedStudentId) return
-    setSharing(true)
-    setShareError(null)
+  const generateAiTaskForChapter = async (chapterId: string, taskId: string) => {
+    const chapter = form.chapters.find((item) => item.id === chapterId)
+    const task = chapter?.tasks.find((item) => item.id === taskId)
+    if (!chapter || !task) { setToast({ message: t('drafts.noChapterSelected'), type: 'warning' }); return }
+    let targetChapterId = chapterId
+    let targetTaskId = taskId
+    let persistedChapterId = chapter.persistedId
+    setGeneratingTaskId(taskId)
+    const taskTypeSignalR = TASK_TYPE_TO_SIGNALR[task.taskType]
     try {
-      const conversation = await createOrGetConversation(selectedStudentId)
-      await shareToStudent(currentPathId, selectedStudentId)
-      navigate(ROUTER.MENTOR_CHAT, { state: { conversationId: conversation.conversationId, toast: { message: t('chat.shareSuccess'), type: 'success' } satisfies ToastState } })
-    } catch (err: any) {
-      setShareError(resolveShareToStudentErrorMessage(err, t, getApiErrorMessage(err, t('chat.shareError'))))
-    } finally {
-      setSharing(false)
-    }
-  }
-
-  const handlePublish = () => {
-    const validationError = validateDraftForm(form)
-    if (validationError) {
-      setToast({ message: validationError, type: 'warning' })
-      return
-    }
-    setIsPublishModalOpen(true)
-  }
-
-  const handleConfirmPublish = async (options: {
-    increaseVersion: boolean
-    versionUpdateType: ManualDraftVersionUpdateType | null
-  }) => {
-    if (!currentPathId) return
-    const validationError = validateDraftForm(form)
-    if (validationError) {
-      setToast({ message: validationError, type: 'warning' })
-      setIsPublishModalOpen(false)
-      return
-    }
-    setPublishing(true)
-    try {
-      const payload = buildPayload(form, options)
-      await LearningPathService.publishLearningPath(currentPathId, payload)
-      setIsPublishModalOpen(false)
-      setToast({ message: t('drafts.publishSuccess'), type: 'success' })
-      navigate(ROUTER.MENTOR_DRAFTS)
-    } catch (err: any) {
-      const code = err?.response?.data?.errorCode || err?.response?.data?.code
-      setIsPublishModalOpen(false)
-      if (code === 'CONTENT_INCOMPLETE') {
-        setToast({ message: t('drafts.publishErrorContentIncomplete'), type: 'error' })
-      } else if (code === 'CHAPTERS_REQUIRED') {
-        setToast({ message: t('drafts.publishErrorChaptersRequired'), type: 'error' })
-      } else if (code === 'PATH_NOT_IN_DRAFT_STATUS') {
-        setToast({ message: t('drafts.publishErrorNotDraft'), type: 'error' })
-      } else {
-        setToast({ message: getApiErrorMessage(err, t('drafts.publishFailed')), type: 'error' })
+      if (!persistedChapterId) {
+        const chapterIndex = form.chapters.findIndex((item) => item.id === chapterId)
+        const taskIndex = chapter.tasks.findIndex((item) => item.id === taskId)
+        const persisted = await savePublishedForGeneration()
+        if (!persisted) return
+        const chapterFromIndex = chapterIndex >= 0 ? (persisted.nextForm.chapters[chapterIndex] ?? null) : null
+        const targetChapter = persisted.nextSelection.chapterId
+          ? persisted.nextForm.chapters.find((item) => item.id === persisted.nextSelection.chapterId) ?? chapterFromIndex
+          : chapterFromIndex
+        if (!targetChapter?.persistedId) {
+          setToast({ message: t('drafts.saveBeforeGenerateTask'), type: 'warning' }); return
+        }
+        const targetTask = taskIndex >= 0
+          ? (targetChapter.tasks[taskIndex] ?? targetChapter.tasks.find((item) => item.id === taskId))
+          : targetChapter.tasks.find((item) => item.id === taskId)
+        if (!targetTask) {
+          setToast({ message: t('drafts.saveBeforeGenerateTask'), type: 'warning' }); return
+        }
+        targetChapterId = targetChapter.id
+        targetTaskId = targetTask.id
+        persistedChapterId = targetChapter.persistedId
+        setGeneratingTaskId(targetTask.id)
       }
+      if (!persistedChapterId) {
+        setToast({ message: t('drafts.saveBeforeGenerateTask'), type: 'warning' }); return
+      }
+      const generatedTaskPayload = await LearningPathService.generateSingleTask(persistedChapterId, taskTypeSignalR, {
+        onLoading: () => setGeneratingTaskId(targetTaskId),
+      })
+      const parsedTask = extractSingleTaskPayload(generatedTaskPayload)
+      if (!parsedTask) {
+        setToast({ message: t('drafts.singleTaskGenerateInvalidPayload'), type: 'warning' }); return
+      }
+      const parsedTitle = String(parsedTask.title ?? parsedTask.Title ?? '').trim()
+      const parsedDescription = String(parsedTask.description ?? parsedTask.Description ?? '').trim()
+      const parsedPriority = normalizeTaskPriority(parsedTask.priority ?? parsedTask.Priority)
+      const parsedStatus = normalizeTaskStatus(parsedTask.taskStatus ?? parsedTask.TaskStatus)
+      const parsedType = normalizeTaskType(parsedTask.taskType ?? parsedTask.TaskType)
+      const parsedDueDate = String(parsedTask.dueDate ?? parsedTask.DueDate ?? '').trim() || null
+      const normalizedFields = normalizeJsonField(parsedTask)
+      const persistedTaskId = toPersistedId(parsedTask.taskId ?? parsedTask.TaskId ?? parsedTask.id ?? parsedTask.Id)
+      updateTask(targetChapterId, targetTaskId, (currentTask) => ({
+        ...currentTask,
+        persistedId: persistedTaskId ?? currentTask.persistedId,
+        title: parsedTitle || currentTask.title,
+        description: parsedDescription || currentTask.description,
+        priority: parsedPriority ?? currentTask.priority,
+        taskStatus: parsedStatus ?? currentTask.taskStatus,
+        taskType: parsedType ?? currentTask.taskType,
+        dueDate: parsedDueDate ?? currentTask.dueDate,
+        ...normalizedFields,
+      }))
+      setToast({ message: t('drafts.singleTaskGenerateSuccess'), type: 'success' })
+    } catch (err: any) {
+      const toastPayload = resolveSingleTaskGenerationErrorToast(err, t)
+      setToast({ message: toastPayload.message, type: toastPayload.type })
     } finally {
-      setPublishing(false)
+      setGeneratingTaskId(null)
     }
   }
 
@@ -1648,28 +1185,39 @@ const MentorDraftFormPage: React.FC = () => {
     return null
   }, [activeChapter, activeLesson, assessmentTab, currentStep, t])
 
-  if (loading) return <Layout sidebar={sidebarConfig}><div style={{ ...shellStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}><Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" /><p>{t('drafts.loading')}</p></div></div></Layout>
-  if (loadError) return <Layout sidebar={sidebarConfig}><div style={shellStyle}><div style={{ ...cardStyle, padding: 20, color: 'var(--danger-primary)' }}>{loadError}</div></div></Layout>
+  if (loading) return (
+    <Layout sidebar={sidebarConfig}>
+      <div style={{ ...shellStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" />
+          <p>{t('publishedPaths.loading')}</p>
+        </div>
+      </div>
+    </Layout>
+  )
+  if (loadError) return (
+    <Layout sidebar={sidebarConfig}>
+      <div style={shellStyle}>
+        <div style={{ ...cardStyle, padding: 20, color: 'var(--danger-primary)' }}>{loadError}</div>
+      </div>
+    </Layout>
+  )
 
   return (
     <Layout sidebar={sidebarConfig}>
       <div style={shellStyle}>
         <div style={{ maxWidth: 1440, margin: '0 auto', display: 'grid', gap: 20 }}>
-          <DraftEditorHeader
-            isCreateMode={isCreateMode}
+          <PublishedEditorHeader
             title={form.title}
             chapterCount={form.chapters.length}
             version={form.version}
             currentStep={currentStep}
             contextLabel={contextLabel}
-            canShare={canShare}
-            saving={saving}
-            sharing={sharing}
-            publishing={publishing}
-            onBack={() => navigate(ROUTER.MENTOR_DRAFTS)}
-            onSave={saveDraft}
-            onShare={() => { setShareError(null); setSelectedStudentId(''); setIsShareModalOpen(true) }}
-            onPublish={handlePublish}
+            republishing={republishing}
+            unpublishing={unpublishing}
+            onBack={() => navigate(ROUTER.MENTOR_PUBLISHED_PATHS)}
+            onRepublish={handleRepublish}
+            onUnpublish={handleUnpublish}
             onStepChange={setCurrentStep}
           />
 
@@ -1723,7 +1271,7 @@ const MentorDraftFormPage: React.FC = () => {
                   filteredSubjects={filteredSubjects}
                   isSubjectMenuOpen={isSubjectMenuOpen}
                   subjectPickerRef={subjectPickerRef}
-                  generatingAiDraft={generatingAiDraft}
+                  generatingAiDraft={false}
                   saving={saving}
                   levelOptions={LEVEL_OPTIONS}
                   onFormChange={(updater) => setForm((prev) => updater(prev))}
@@ -1736,8 +1284,8 @@ const MentorDraftFormPage: React.FC = () => {
                     if (selectedSubject && value !== selectedSubject.name) setForm((prev) => ({ ...prev, subjectId: '', goals: [] }))
                   }}
                   onSubjectMenuToggle={(next) => setIsSubjectMenuOpen((prev) => next ?? !prev)}
-                  onGenerateAiDraft={generateAiDraftFromSettings}
-                  isCreateMode={isCreateMode}
+                  onGenerateAiDraft={() => {}}
+                  isCreateMode={false}
                 />
               ) : null}
 
@@ -1794,168 +1342,20 @@ const MentorDraftFormPage: React.FC = () => {
           </div>
         </div>
 
-        <ShareLearningPathModal
-          isOpen={isShareModalOpen}
-          title={t('chat.shareTitle')}
-          studentLabel={t('chat.selectStudent')}
-          pathLabel={t('chat.selectPath', { defaultValue: 'Select learning path' })}
-          selectStudentPlaceholder={t('chat.selectStudent')}
-          selectPathPlaceholder={t('chat.selectPath', { defaultValue: 'Select learning path' })}
-          submitLabel={t('chat.sharePath')}
-          submittingLabel={t('chat.sharing')}
-          closeLabel={t('drafts.close', { defaultValue: 'Close' })}
-          students={studentOptions}
-          paths={canShare ? [{ id: currentPathId, label: form.title.trim() || t('chat.untitledPath', { defaultValue: 'Untitled learning path' }) }] : []}
-          selectedStudentId={selectedStudentId}
-          selectedPathId={currentPathId}
-          onSelectStudent={setSelectedStudentId}
-          onSelectPath={() => {}}
-          onClose={() => setIsShareModalOpen(false)}
-          onSubmit={handleShareDraft}
-          error={shareError}
-          submitting={sharing}
-          lockPath
-        />
-        <VersionUpdateModal
-          isOpen={isVersionUpdateModalOpen}
-          saving={saving}
-          onClose={() => setIsVersionUpdateModalOpen(false)}
-          onSubmit={handleConfirmVersionUpdate}
-        />
         <PublishModal
-          isOpen={isPublishModalOpen}
-          publishing={publishing}
-          onClose={() => setIsPublishModalOpen(false)}
-          onSubmit={handleConfirmPublish}
+          isOpen={isRepublishModalOpen}
+          publishing={republishing}
+          onClose={() => setIsRepublishModalOpen(false)}
+          onSubmit={handleConfirmRepublish}
         />
-        {toast ? <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div> : null}
-
-        {/* Floating review button when opened from chat review request */}
-        {reviewPathId && (
-          <button
-            onClick={() => setShowReviewModal(true)}
-            style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 100, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-          >
-            ✉️ Gửi review cho student
-          </button>
-        )}
-
-        {/* Review submit modal */}
-        {showReviewModal && reviewPathId && (
-          <ReviewSubmitModal
-            originalPathId={reviewPathId}
-            onClose={() => setShowReviewModal(false)}
-            onSuccess={() => { setShowReviewModal(false); navigate(-1) }}
-          />
-        )}
+        {toast ? (
+          <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50 }}>
+            <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+          </div>
+        ) : null}
       </div>
     </Layout>
   )
 }
 
-// ── Review Submit Modal ───────────────────────────────────────────────────────
-const REVIEW_DRAFT_KEY = (pathId: string) => `review_draft:${pathId}`
-
-function ReviewSubmitModal({ originalPathId, onClose, onSuccess }: {
-  originalPathId: string
-  onClose: () => void; onSuccess: () => void
-}) {
-  // Persist draft to sessionStorage so data survives close/reopen
-  const draftKey = REVIEW_DRAFT_KEY(originalPathId)
-  const loadDraft = () => {
-    try { return JSON.parse(sessionStorage.getItem(draftKey) || '{}') } catch { return {} }
-  }
-  const saved = loadDraft()
-
-  const [changeSummary, setChangeSummary] = useState<string>(saved.changeSummary || '')
-  const [changeReason, setChangeReason] = useState<string>(saved.changeReason || '')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-
-  // Save to sessionStorage on every change
-  const persist = (summary: string, reason: string) => {
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ changeSummary: summary, changeReason: reason })) } catch { }
-  }
-
-  const handleClose = () => {
-    persist(changeSummary, changeReason)
-    onClose()
-  }
-
-  const ta: React.CSSProperties = {
-    width: '100%', padding: '10px 14px', background: 'var(--bg-main)',
-    border: '1px solid var(--border-base)', borderRadius: 8, color: 'var(--text-primary)',
-    fontSize: 14, resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.6,
-    fontFamily: 'inherit',
-  }
-  const lbl: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 8 }
-
-  const handleSubmit = async () => {
-    if (!changeSummary.trim()) { setError('Vui lòng nhập tóm tắt thay đổi.'); return }
-    setSubmitting(true); setError(null)
-    try {
-      await LearningPathService.submitMentorReview(originalPathId, {
-        score: 5,
-        feedback: changeSummary.trim(),
-        changeSummary: changeSummary.trim() || null,
-        changeReason: changeReason.trim() || null,
-      })
-      // Clear draft on success
-      try { sessionStorage.removeItem(draftKey) } catch { }
-      setSuccess(true)
-      setTimeout(onSuccess, 1200)
-    } catch (e: any) {
-      setError(resolveMentorReviewError(e))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
-      onClick={handleClose}>
-      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, maxWidth: 500, width: '100%', border: '1px solid var(--border-base)', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Gửi review cho student</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Nội dung được lưu tự động khi đóng</div>
-          </div>
-          <button onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 6, display: 'flex', borderRadius: 6, fontSize: 18, lineHeight: 1 }}>✕</button>
-        </div>
-        <div style={{ padding: '20px 24px' }}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Tóm tắt thay đổi *</label>
-            <textarea value={changeSummary}
-              onChange={e => { setChangeSummary(e.target.value); persist(e.target.value, changeReason) }}
-              rows={4} placeholder="Đổi thứ tự chapter, thêm task thực chiến..." style={ta}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
-              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'} />
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={lbl}>Lý do thay đổi</label>
-            <textarea value={changeReason}
-              onChange={e => { setChangeReason(e.target.value); persist(changeSummary, e.target.value) }}
-              rows={3} placeholder="Để student có output sớm, bám mục tiêu tuyển dụng..." style={ta}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
-              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'} />
-          </div>
-          {error && <div style={{ fontSize: 13, color: 'var(--danger-primary)', marginBottom: 14, padding: '10px 14px', background: 'rgba(220,38,38,0.06)', borderRadius: 8 }}>{error}</div>}
-          {success && <div style={{ fontSize: 13, color: 'var(--success-primary)', marginBottom: 14, padding: '10px 14px', background: 'rgba(34,197,94,0.08)', borderRadius: 8 }}>✓ Đã gửi review thành công!</div>}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button onClick={handleClose} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 8, fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>Đóng</button>
-            <button onClick={handleSubmit} disabled={submitting || success}
-              style={{ padding: '10px 24px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: (submitting || success) ? 'not-allowed' : 'pointer', opacity: (submitting || success) ? 0.7 : 1, fontFamily: 'inherit' }}>
-              {submitting ? 'Đang gửi...' : 'Gửi review'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default MentorDraftFormPage
+export default MentorPublishedFormPage
