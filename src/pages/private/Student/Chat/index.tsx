@@ -107,21 +107,47 @@ interface StudentChatPageProps {
 // ── ReviewRequestCard ─────────────────────────────────────────────────────────
 import type { ReviewRequestData } from "../../../../components/Chat/learningPathShare";
 
+// Shared cache for review status (30s TTL)
+const studentReviewCache = new Map<string, { status: string; ts: number }>()
+const REVIEW_CACHE_TTL = 120000 // 2 minutes
+
 function ReviewRequestCard({ data, isMine, onNavigate }: {
   data: ReviewRequestData; isMine: boolean; onNavigate?: () => void
 }) {
-  const [decisionStatus, setDecisionStatus] = React.useState<string | null>(null)
+  const [decisionStatus, setDecisionStatus] = React.useState<string | null>(() => {
+    const cached = studentReviewCache.get(data.pathId)
+    if (cached && Date.now() - cached.ts < REVIEW_CACHE_TTL) return cached.status
+    try {
+      const raw = sessionStorage.getItem(`srv:${data.pathId}`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Date.now() - parsed.ts < REVIEW_CACHE_TTL) {
+          studentReviewCache.set(data.pathId, parsed)
+          return parsed.status
+        }
+      }
+    } catch { }
+    return null
+  })
 
   React.useEffect(() => {
     if (!data.pathId) return
+    const cached = studentReviewCache.get(data.pathId)
+    if (cached && Date.now() - cached.ts < REVIEW_CACHE_TTL) {
+      setDecisionStatus(cached.status)
+      return
+    }
     import('../../../../services/LearningPathService').then(({ getMentorReviews }) => {
       getMentorReviews(data.pathId)
         .then(reviews => {
           const latest = [...reviews].sort((a, b) =>
             new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
           )[0]
-          // Always set status - default to Pending if review exists but no decision yet
-          setDecisionStatus(latest?.decisionStatus || (reviews.length > 0 ? 'Pending' : null))
+          const status = latest?.decisionStatus || (reviews.length > 0 ? 'Pending' : 'Pending')
+          const cacheData = { status, ts: Date.now() }
+          studentReviewCache.set(data.pathId, cacheData)
+          try { sessionStorage.setItem(`srv:${data.pathId}`, JSON.stringify(cacheData)) } catch { }
+          setDecisionStatus(status)
         })
         .catch(() => {})
     })

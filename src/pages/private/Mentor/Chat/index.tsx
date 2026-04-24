@@ -112,27 +112,69 @@ function getInitials(name: string): string {
     .join("");
 }
 
+// Cache for review status to avoid repeated API calls
+const reviewStatusCache = new Map<string, { status: string; revisedPathId?: string; ts: number }>()
+const CACHE_TTL = 120000 // 2 minutes - long enough to avoid flicker
+
+function getReviewCache(key: string) {
+  // Check memory cache first
+  const mem = reviewStatusCache.get(key)
+  if (mem && Date.now() - mem.ts < CACHE_TTL) return mem
+  // Check sessionStorage
+  try {
+    const raw = sessionStorage.getItem(`rv:${key}`)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Date.now() - parsed.ts < CACHE_TTL) {
+        reviewStatusCache.set(key, parsed)
+        return parsed
+      }
+    }
+  } catch { }
+  return null
+}
+
+function setReviewCache(key: string, value: { status: string; revisedPathId?: string; ts: number }) {
+  reviewStatusCache.set(key, value)
+  try { sessionStorage.setItem(`rv:${key}`, JSON.stringify(value)) } catch { }
+}
+
 // Button that fetches revisedPathId from review then navigates to draft editor
 function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, mentorId }: { pathId: string; revisedPathId?: string; mentorId: string }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [decisionStatus, setDecisionStatus] = useState<string | null>(null)
+  const [cachedRevisedPathId, setCachedRevisedPathId] = useState<string | null>(null)
 
   React.useEffect(() => {
     if (!pathId) return
+    const cacheKey = `${pathId}:${mentorId}`
+    const cached = getReviewCache(cacheKey)
+    if (cached) {
+      setDecisionStatus(cached.status)
+      if (cached.revisedPathId) setCachedRevisedPathId(cached.revisedPathId)
+      return
+    }
     LearningPathService.getMentorReviews(pathId)
       .then(reviews => {
-        // Find review for this mentor, or take latest
         const mine = reviews.find((r: any) => r.mentorId === mentorId) || reviews[0]
-        if (mine?.decisionStatus) setDecisionStatus(mine.decisionStatus)
+        if (mine) {
+          setReviewCache(cacheKey, { status: mine.decisionStatus, revisedPathId: mine.revisedPathId || undefined, ts: Date.now() })
+          setDecisionStatus(mine.decisionStatus)
+          if (mine.revisedPathId) setCachedRevisedPathId(mine.revisedPathId)
+        }
       })
       .catch(() => {})
   }, [pathId, mentorId])
 
+  const isAccepted = decisionStatus === 'Accepted'
+  const effectiveRevisedPathId = revisedPathIdFromMsg || cachedRevisedPathId
+
   const handleOpen = async () => {
-    if (revisedPathIdFromMsg) {
-      navigate(`/mentor/drafts/${revisedPathIdFromMsg}?reviewPathId=${pathId}`)
+    if (isAccepted) return
+    if (effectiveRevisedPathId) {
+      navigate(`/mentor/drafts/${effectiveRevisedPathId}?reviewPathId=${pathId}`)
       return
     }
     setLoading(true); setErr(null)
@@ -166,10 +208,16 @@ function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, 
           {status.label}
         </span>
       </div>
-      <button onClick={handleOpen} disabled={loading}
-        style={{ width: '100%', padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-        {loading ? 'Đang tải...' : 'Xem & Review lộ trình'}
-      </button>
+      {!isAccepted ? (
+        <button onClick={handleOpen} disabled={loading}
+          style={{ width: '100%', padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'Đang tải...' : 'Xem & Review lộ trình'}
+        </button>
+      ) : (
+        <div style={{ padding: '8px 12px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, fontSize: 12, color: 'var(--success-primary)', textAlign: 'center' }}>
+          Student đã chấp nhận bản sửa
+        </div>
+      )}
       {err && <div style={{ fontSize: 11, color: 'var(--danger-primary)', marginTop: 4 }}>{err}</div>}
     </div>
   )

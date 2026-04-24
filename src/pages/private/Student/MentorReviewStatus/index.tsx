@@ -476,11 +476,15 @@ const MentorReviewStatusPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Preview button */}
+                {/* Preview button - only show when mentor has submitted review */}
                 {review.revisedPathId && (
-                  <button onClick={() => setShowPreviewModal(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => hasContent && setShowPreviewModal(true)}
+                    disabled={!hasContent}
+                    title={!hasContent ? t('mentorReview.waitingMentor', 'Đang chờ mentor gửi review') : undefined}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: hasContent ? 'var(--accent-primary)' : 'var(--bg-main)', color: hasContent ? 'white' : 'var(--text-secondary)', border: hasContent ? 'none' : '1px dashed var(--border-base)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: hasContent ? 'pointer' : 'not-allowed', width: '100%', justifyContent: 'center', opacity: hasContent ? 1 : 0.6 }}>
                     <Eye size={15} /> {t('mentorReview.previewBtn')}
+                    {!hasContent && <span style={{ fontSize: 11, marginLeft: 4 }}>({t('mentorReview.waitingMentor', 'chờ mentor')})</span>}
                   </button>
                 )}
               </motion.div>

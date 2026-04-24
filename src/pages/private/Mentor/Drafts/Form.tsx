@@ -1666,6 +1666,7 @@ const MentorDraftFormPage: React.FC = () => {
             saving={saving}
             sharing={sharing}
             publishing={publishing}
+            hidePublish={!!reviewPathId}
             onBack={() => navigate(ROUTER.MENTOR_DRAFTS)}
             onSave={saveDraft}
             onShare={() => { setShareError(null); setSelectedStudentId(''); setIsShareModalOpen(true) }}
