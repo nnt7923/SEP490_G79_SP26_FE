@@ -14,12 +14,14 @@ interface SelectMentorModalProps {
   isOpen: boolean
   onClose: () => void
   askMentorContext?: any
+  onMentorSelected?: (mentor: MentorDto) => void
 }
 
 const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
   isOpen,
   onClose,
-  askMentorContext
+  askMentorContext,
+  onMentorSelected,
 }) => {
   const { t } = useTranslation('student')
   const navigate = useNavigate()
@@ -235,6 +237,10 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
   }, [mentors, searchQuery])
 
   const handleSelectMentor = (mentor: MentorDto) => {
+    if (onMentorSelected) {
+      onMentorSelected(mentor)
+      return
+    }
     if (reviewPathId) {
       setConfirmMentor(mentor)
       setRequestNote('')

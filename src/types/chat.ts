@@ -3,7 +3,7 @@
 // Based on: fe-chat-learningpath-ui-guide.md
 // ============================================================
 
-export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare'
+export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare' | 'TaskReview'
 export type ShareStatus = 'Pending' | 'Accepted' | 'Rejected'
 export interface AskMentorGoalItem {
   goal: string
@@ -50,6 +50,7 @@ export interface DirectMessageDto {
   replyToContent?: string | null
   replyToSenderId?: string | null
   learningPathShareId?: string | null
+  taskReviewId?: string | null
   learningPathTitle?: string | null
   learningPathDescription?: string | null
   shareStatus?: ShareStatus | null

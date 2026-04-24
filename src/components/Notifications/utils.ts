@@ -22,6 +22,10 @@ export type ShareVersionUpdatedTitleParts = {
 const SHARE_VERSION_UPDATED_TITLE_KEY = 'notification.shareVersionUpdated.title'
 const SHARE_VERSION_UPDATED_MESSAGE_KEY = 'notification.shareVersionUpdated.message'
 const NOTIFICATION_DEFAULT_TITLE_KEY = 'notification.default.title'
+const TASK_REVIEW_REQUESTED_TITLE_KEY = 'notification.taskReviewRequested.title'
+const TASK_REVIEW_REQUESTED_MESSAGE_KEY = 'notification.taskReviewRequested.message'
+const TASK_REVIEW_COMPLETED_TITLE_KEY = 'notification.taskReviewCompleted.title'
+const TASK_REVIEW_COMPLETED_MESSAGE_KEY = 'notification.taskReviewCompleted.message'
 
 function normalizeText(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -41,6 +45,16 @@ function isShareVersionUpdatedType(type?: string | null): boolean {
   return normalized === 'shareversionupdated' || normalized === '9'
 }
 
+function isTaskReviewRequestedType(type?: string | null): boolean {
+  const normalized = String(type || '').trim().toLowerCase()
+  return normalized === 'taskreviewrequested' || normalized === '8'
+}
+
+function isTaskReviewCompletedType(type?: string | null): boolean {
+  const normalized = String(type || '').trim().toLowerCase()
+  return normalized === 'taskreviewcompleted' || normalized === 'taskreviewcompletednotification' || normalized === '9'
+}
+
 function translateKeyIfExists(key: string, t: TranslateFn): string | null {
   const translated = t(key)
   if (translated !== key) return translated
@@ -56,6 +70,16 @@ function fallbackTitleByType(type?: string | null, raw?: string | null, t?: Tran
     return translated || 'Learning path updated'
   }
 
+  if (isTaskReviewRequestedType(type)) {
+    const translated = t ? translateKeyIfExists(TASK_REVIEW_REQUESTED_TITLE_KEY, t) : null
+    return translated || 'New task review request'
+  }
+
+  if (isTaskReviewCompletedType(type)) {
+    const translated = t ? translateKeyIfExists(TASK_REVIEW_COMPLETED_TITLE_KEY, t) : null
+    return translated || 'Task review completed'
+  }
+
   const translatedDefault = t ? translateKeyIfExists(NOTIFICATION_DEFAULT_TITLE_KEY, t) : null
   return translatedDefault || 'Notification'
 }
@@ -67,6 +91,16 @@ function fallbackMessageByType(type?: string | null, raw?: string | null, t?: Tr
   if (isShareVersionUpdatedType(type)) {
     const translated = t ? translateKeyIfExists(SHARE_VERSION_UPDATED_MESSAGE_KEY, t) : null
     return translated || 'A newer shared learning path version is available. Review changes and choose how to sync.'
+  }
+
+  if (isTaskReviewRequestedType(type)) {
+    const translated = t ? translateKeyIfExists(TASK_REVIEW_REQUESTED_MESSAGE_KEY, t) : null
+    return translated || 'A student requested you to review a focus session submission.'
+  }
+
+  if (isTaskReviewCompletedType(type)) {
+    const translated = t ? translateKeyIfExists(TASK_REVIEW_COMPLETED_MESSAGE_KEY, t) : null
+    return translated || 'Your mentor has completed the task review.'
   }
 
   return ''
@@ -99,6 +133,51 @@ export function resolveNotificationText(
   const message = resolveFieldValue(rawMessage, notification.type, t, fallbackMessageByType)
 
   return { title, message }
+}
+
+function isTaskReviewTarget(
+  notification: Pick<NotificationDto, 'type' | 'title' | 'message' | 'action'>,
+): boolean {
+  if (notification.action?.targetType === 'taskReview') {
+    return true
+  }
+
+  return Boolean(extractTaskReviewIdFromPath(String(notification.action?.targetUrl || '').trim()))
+}
+
+function normalizeNotificationTypeWithContext(
+  notification: Pick<NotificationDto, 'type' | 'title' | 'message' | 'action'>,
+): string | null | undefined {
+  const rawType = notification.type
+  const normalized = String(rawType || '').trim().toLowerCase()
+
+  if (!isTaskReviewTarget(notification)) {
+    return rawType
+  }
+
+  if (normalized === '8' || normalized === 'taskreviewrequested') {
+    return 'TaskReviewRequested'
+  }
+
+  if (
+    normalized === '9'
+    || normalized === 'taskreviewcompleted'
+    || normalized === 'taskreviewcompletednotification'
+  ) {
+    return 'TaskReviewCompleted'
+  }
+
+  return rawType
+}
+
+export function resolveNotificationTextWithContext(
+  notification: Pick<NotificationDto, 'type' | 'title' | 'message' | 'action'>,
+  t: TranslateFn,
+): { title: string; message: string } {
+  return resolveNotificationText({
+    ...notification,
+    type: normalizeNotificationTypeWithContext(notification),
+  }, t)
 }
 
 export function hasShareVersionUpdatedSnapshot(
@@ -198,6 +277,12 @@ function extractShareIdFromUpdatePath(path: string): string | null {
   return match?.[1] || null
 }
 
+function extractTaskReviewIdFromPath(path: string): string | null {
+  const trimmed = String(path || '').trim()
+  const match = trimmed.match(/^\/task-reviews\/([^/?#]+)(?:[/?#].*)?$/i)
+  return match?.[1] || null
+}
+
 function isSupportedNotificationPath(path: string): boolean {
   if (!path.startsWith('/')) return false
 
@@ -209,6 +294,7 @@ function isSupportedNotificationPath(path: string): boolean {
     path === ROUTER.NOTIFICATIONS ||
     path.startsWith('/learning-path-shares/') ||
     path.startsWith('/learningpath-shares/') ||
+    path.startsWith('/task-reviews/') ||
     path.startsWith('/lesson/') ||
     path.startsWith('/quiz/') ||
     path.startsWith('/my-plans/detail')
@@ -339,10 +425,26 @@ export function resolveNotificationNavigationTarget(notification: NotificationDt
     return { path: ROUTER.SUBSCRIPTION_CURRENT }
   }
 
+  if (action?.targetType === 'taskReview') {
+    const reviewId = String(action.targetId || '').trim() || extractTaskReviewIdFromPath(targetUrl)
+    if (reviewId) {
+      return {
+        path: ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', reviewId),
+      }
+    }
+  }
+
   const shareIdFromTargetUrl = extractShareIdFromUpdatePath(targetUrl)
   if (shareIdFromTargetUrl) {
     return {
       path: ROUTER.LEARNING_PATH_SHARE_UPDATES.replace(':shareId', shareIdFromTargetUrl),
+    }
+  }
+
+  const taskReviewIdFromTargetUrl = extractTaskReviewIdFromPath(targetUrl)
+  if (taskReviewIdFromTargetUrl) {
+    return {
+      path: ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', taskReviewIdFromTargetUrl),
     }
   }
 

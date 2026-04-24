@@ -214,11 +214,160 @@
     "company": "Công ty",
     "plans": "kế hoạch",
     "overview": "tổng quan",
+    "billing": "Quản lý hóa đơn",
+    "aiSpending": "Chi tiêu AI",
+    "mentorAiUsage": "Hạn mức AI Mentor",
+    "auditLogs": "Nhật ký hệ thống",
+    "community": "Cộng đồng",
+    "logout": "Đăng xuất"
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "subtitle": "Theo dõi công việc quá hạn và trạng thái gói dịch vụ.",
+    "empty": "Chưa có thông báo nào.",
+    "viewAll": "Xem tất cả",
+    "unreadOnly": "Chỉ hiện chưa đọc",
+    "typeFilter": "Loại",
+    "allTypes": "Tất cả loại",
+    "refresh": "Tải lại",
+    "markAllRead": "Đọc tất cả",
+    "markAllReadSuccess": "Đã đánh dấu tất cả thông báo là đã đọc.",
+    "markAllReadError": "Không thể đánh dấu tất cả thông báo.",
+    "fetchError": "Không thể tải thông báo.",
+    "markReadError": "Không thể đồng bộ trạng thái thông báo.",
+    "pageLabel": "Trang {{page}}",
+    "unreadCountLabel": "{{count}} chưa đọc",
+    "types": {
+      "Alert": "Cảnh báo",
+      "Message": "Tin nhắn",
+      "Reminder": "Nhắc nhở",
+      "TaskOverdue": "Task quá hạn",
+      "ChapterOverdue": "Chapter quá hạn",
+      "LessonOverdue": "Lesson quá hạn",
+      "LearningPathOverdue": "Lộ trình quá hạn",
+      "PlanExpiringSoon": "Gói sắp hết hạn",
+      "PlanExpired": "Gói đã hết hạn",
+      "ShareVersionUpdated": "Phiên bản chia sẻ mới"
+    }
+  },
+  "notification": {
+    "shareVersionUpdated": {
+      "title": "Lộ trình được mentor cập nhật",
+      "message": "Đã có phiên bản lộ trình chia sẻ mới. Hãy xem thay đổi và chọn cách đồng bộ.",
+      "titleDetailed": "Lộ trình {{pathTitle}} có phiên bản mới",
+      "titleDetailedWithVersion": "Lộ trình {{pathTitle}} đã có phiên bản mới ver {{version}}",
+      "messageDetailed": "Mentor {{mentorName}} vừa cập nhật lộ trình {{pathTitle}}.",
+      "messagePathOnly": "Lộ trình {{pathTitle}} vừa có phiên bản mới từ mentor.",
+      "messageMentorOnly": "Mentor {{mentorName}} vừa cập nhật một lộ trình chia sẻ.",
+      "loadingTitle": "Đang tải chi tiết cập nhật...",
+      "loadingMessage": "Đang lấy thông tin mentor và lộ trình."
+    },
+    "default": {
+      "title": "Thông báo"
+    }
+  },
+  "toast": {
+    "loading": "Đang xử lý",
+    "success": "Thành công",
+    "error": "Có lỗi xảy ra"
+  },
+  "aboutPage": {
+    "badge": "about://codenexus",
+    "title": "Nền tảng hỗ trợ học tập lập trình bằng AI",
+    "description": "CodeNexus không bán khóa học đóng gói. Chúng tôi cung cấp hệ thống AI hỗ trợ bạn tự học hiệu quả hơn: gợi ý lộ trình, chia nhỏ mục tiêu, theo dõi tiến độ và nhắc bước tiếp theo.",
+    "tags": {
+      "supportOnly": "Hỗ trợ học tập, không bán khóa học",
+      "aiGenerated": "Nội dung học được AI tạo và tối ưu theo mục tiêu",
+      "goalTracking": "Theo dõi tiến độ theo mục tiêu thực tế"
+    },
+    "features": {
+      "title": "CodeNexus hỗ trợ gì cho bạn?",
+      "items": [
+        "Tạo learning path theo mục tiêu nghề nghiệp (Frontend, Backend, Fullstack...).",
+        "Chia lộ trình thành chapter/lesson có quiz và task để tự kiểm tra ngay.",
+        "Focus session giúp giữ nhịp học ổn định mỗi ngày.",
+        "Chat với mentor/AI để tháo gỡ vấn đề trong quá trình học."
+      ]
+    },
+    "supportStatement": "$ product.mode = \"AI learning support\"; // not course-selling",
+    "valuesTitle": "Giá trị cốt lõi",
+    "values": {
+      "aiFirst": {
+        "title": "AI-First Support",
+        "description": "Lộ trình được cá nhân hóa theo mục tiêu, tốc độ và thời gian học thực tế của từng người."
+      },
+      "goalDriven": {
+        "title": "Goal-Driven",
+        "description": "Mọi gợi ý đều bám đầu ra cụ thể: kỹ năng, dự án, milestone và deadline rõ ràng."
+      },
+      "reliable": {
+        "title": "Reliable & Transparent",
+        "description": "Tiến độ được đo theo dữ liệu học tập thực tế, giúp bạn biết mình đang ở đâu và cần làm gì tiếp."
+      },
+      "community": {
+        "title": "Community Support",
+        "description": "Kết nối học viên, mentor và kênh hỗ trợ để giải quyết vướng mắc nhanh hơn."
+      }
+    },
+    "support": {
+      "title": "Thông tin hỗ trợ",
+      "email": "support@codenexus.app",
+      "website": "https://codenexus.app",
+      "liveChat": "Live chat trong ứng dụng (08:00 - 22:00, Thứ 2 - Chủ nhật)",
+      "response": "Thời gian phản hồi email trung bình: 2 - 6 giờ làm việc",
+      "note": "Nếu cần hỗ trợ nhanh, vui lòng gửi kèm email đăng ký, thời điểm gặp lỗi và ảnh màn hình để team xử lý sớm hơn."
+    },
+    "supportCenter": {
+      "title": "Trung tâm hỗ trợ nhanh",
+      "description": "Bạn có thể gửi yêu cầu hỗ trợ trực tiếp qua thông báo hoặc chat trong ứng dụng. Với sự cố tài khoản nghiêm trọng, hãy liên hệ email hỗ trợ để được ưu tiên.",
+      "backHome": "Quay về trang chủ",
+      "sendEmail": "Gửi email hỗ trợ"
+    }
+  },
+  "footer": {
+    "tagline1": "Lộ trình học tập cá nhân hóa",
+    "tagline2": "được hỗ trợ bởi AI",
+    "product": "Sản phẩm",
+    "company": "Công ty",
+    "plans": "kế hoạch",
+    "overview": "tổng quan",
     "resources": "tài liệu",
     "about": "giới thiệu",
     "home": "trang chủ",
     "copyright": "© {{year}} CodeNexus - Bản quyền thuộc về.",
     "terms": "điều khoản",
     "privacy": "bảo mật"
+  },
+  "taskReview": {
+    "title": "Đánh giá bài tập",
+    "back": "Quay lại",
+    "detailEyebrow": "Đánh giá bài tập Focus Session",
+    "pending": "Đang chờ",
+    "reviewed": "Đã đánh giá",
+    "submitTitle": "Gửi đánh giá",
+    "submitHint": "Cung cấp điểm số, nhận xét và đề xuất (không bắt buộc).",
+    "submitting": "Đang gửi...",
+    "submit": "Gửi đánh giá",
+    "sessionId": "ID Phiên",
+    "taskId": "ID Bài tập",
+    "student": "Học viên",
+    "mentor": "Mentor",
+    "requestedAt": "Yêu cầu lúc",
+    "reviewedAt": "Đánh giá lúc",
+    "verification": "Xác minh",
+    "verified": "Đã xác minh",
+    "notVerified": "Chưa xác minh",
+    "score": "Điểm",
+    "studentRequestNote": "Ghi chú yêu cầu của học viên",
+    "mentorFeedback": "Nhận xét của mentor",
+    "suggestions": "Đề xuất",
+    "submittedCode": "Mã đã nộp",
+    "submittedSummary": "Tóm tắt đã nộp",
+    "submittedQuizAnswers": "Câu trả lời Quiz đã nộp",
+    "aiFeedback": "Đánh giá từ AI",
+    "reviewIdLabel": "ID Đánh giá",
+    "scoreLabel": "Điểm (0-100)",
+    "feedbackLabel": "Nhận xét",
+    "suggestionsLabel": "Đề xuất"
   }
 }

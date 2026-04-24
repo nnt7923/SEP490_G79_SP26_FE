@@ -3,6 +3,7 @@ import {
   hasShareVersionUpdatedSnapshot,
   resolveNotificationNavigationTarget,
   resolveNotificationText,
+  resolveNotificationTextWithContext,
   resolveShareVersionUpdatedNotificationText,
   resolveShareVersionUpdatedTitleParts,
 } from './utils'
@@ -10,6 +11,10 @@ import {
 const translateMap: Record<string, string> = {
   'notification.shareVersionUpdated.title': 'Learning path updated by mentor',
   'notification.shareVersionUpdated.message': 'A newer shared learning path version is available.',
+  'notification.taskReviewRequested.title': 'New task review request',
+  'notification.taskReviewRequested.message': 'A student requested you to review a focus session submission.',
+  'notification.taskReviewCompleted.title': 'Task review completed',
+  'notification.taskReviewCompleted.message': 'Your mentor has completed the task review.',
   'notification.shareVersionUpdated.titleDetailed': '{{pathTitle}} has a new version',
   'notification.shareVersionUpdated.titleDetailedWithVersion': 'Learning path {{pathTitle}} has a new version ver {{version}}',
   'notification.shareVersionUpdated.messageDetailed': 'Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.',
@@ -186,6 +191,66 @@ describe('notification navigation resolver', () => {
     expect(target).toEqual({ path: '/learning-path-shares/share-456/updates' })
   })
 
+  it('routes task review notifications to the shared task review detail page', () => {
+    const target = resolveNotificationNavigationTarget({
+      notificationId: 'n-task-review-1',
+      userId: 'u-1',
+      type: 'TaskReviewRequested',
+      title: 'Task review requested',
+      message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
+      createdAt: '2026-04-24T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'Medium',
+      channels: ['Web'],
+      action: {
+        targetType: 'taskReview',
+        targetId: 'review-123',
+        targetUrl: '/task-reviews/review-123',
+        route: '/task-reviews/:reviewId',
+        taskId: null,
+        chapterId: null,
+        lessonId: null,
+        learningPathId: null,
+      },
+    })
+
+    expect(target).toEqual({ path: '/task-reviews/review-123' })
+  })
+
+  it('supports task review targetUrl path even without taskReview targetType', () => {
+    const target = resolveNotificationNavigationTarget({
+      notificationId: 'n-task-review-2',
+      userId: 'u-1',
+      type: 'TaskReviewCompleted',
+      title: 'Task review completed',
+      message: null,
+      notifiedPathTitle: null,
+      notifiedSourceVersion: null,
+      notifiedMentorUserName: null,
+      createdAt: '2026-04-24T07:00:00Z',
+      isRead: false,
+      readAt: null,
+      severity: 'Medium',
+      channels: ['Web'],
+      action: {
+        targetType: null,
+        targetId: null,
+        targetUrl: '/task-reviews/review-456',
+        route: '/task-reviews/:reviewId',
+        taskId: null,
+        chapterId: null,
+        lessonId: null,
+        learningPathId: null,
+      },
+    })
+
+    expect(target).toEqual({ path: '/task-reviews/review-456' })
+  })
+
   it('normalizes legacy learningpath-shares targetUrl to canonical route', () => {
     const target = resolveNotificationNavigationTarget({
       notificationId: 'n-6',
@@ -279,6 +344,64 @@ describe('notification text resolver', () => {
     expect(text).toEqual({
       title: 'Notification',
       message: '',
+    })
+  })
+
+  it('falls back by TaskReviewRequested type when payload key is missing', () => {
+    const text = resolveNotificationText(
+      {
+        type: 'TaskReviewRequested',
+        title: '',
+        message: '',
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'New task review request',
+      message: 'A student requested you to review a focus session submission.',
+    })
+  })
+
+  it('falls back by TaskReviewCompleted type when payload key is missing', () => {
+    const text = resolveNotificationText(
+      {
+        type: 'TaskReviewCompleted',
+        title: '',
+        message: '',
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Task review completed',
+      message: 'Your mentor has completed the task review.',
+    })
+  })
+
+  it('uses task review context to disambiguate numeric type values', () => {
+    const text = resolveNotificationTextWithContext(
+      {
+        type: '9',
+        title: '',
+        message: '',
+        action: {
+          targetType: 'taskReview',
+          targetId: 'review-123',
+          targetUrl: '/task-reviews/review-123',
+          route: '/task-reviews/:reviewId',
+          taskId: null,
+          chapterId: null,
+          lessonId: null,
+          learningPathId: null,
+        },
+      },
+      t,
+    )
+
+    expect(text).toEqual({
+      title: 'Task review completed',
+      message: 'Your mentor has completed the task review.',
     })
   })
 

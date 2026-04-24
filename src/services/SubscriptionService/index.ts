@@ -121,6 +121,19 @@ export interface StudentMentorQuota {
   [key: string]: unknown
 }
 
+export interface ActiveMentorSubscription {
+  subscriptionId: string
+  packageId: string | null
+  packageName: string | null
+  mentorId: string
+  mentorUserName: string | null
+  mentorDisplayName: string | null
+  mentorAvatarUrl?: string | null
+  startedAt?: string | null
+  expiresAt?: string | null
+  [key: string]: unknown
+}
+
 export type PaymentTransactionStatus =
   | 'pending'
   | 'success'
@@ -315,6 +328,54 @@ function normalizeMentorQuota(raw: unknown): StudentMentorQuota {
     taskReviewLimit: toNumberValue(record.taskReviewLimit ?? record.TaskReviewLimit),
     taskReviewsUsed: toNumberValue(record.taskReviewsUsed ?? record.TaskReviewsUsed),
     taskReviewsRemaining: toNumberValue(record.taskReviewsRemaining ?? record.TaskReviewsRemaining),
+    ...record,
+  }
+}
+
+function normalizeActiveMentorSubscription(raw: unknown): ActiveMentorSubscription | null {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+  const mentorSource = (record.mentor && typeof record.mentor === 'object')
+    ? record.mentor as Record<string, unknown>
+    : {}
+
+  const subscriptionId = String(
+    record.subscriptionId
+    ?? record.studentMentorSubscriptionId
+    ?? record.id
+    ?? '',
+  ).trim()
+  const mentorId = String(
+    record.mentorId
+    ?? mentorSource.mentorId
+    ?? mentorSource.id
+    ?? mentorSource.userId
+    ?? '',
+  ).trim()
+
+  if (!subscriptionId || !mentorId) return null
+
+  return {
+    subscriptionId,
+    packageId: String(record.packageId ?? record.mentorPackageId ?? '').trim() || null,
+    packageName: String(record.packageName ?? record.mentorPackageName ?? record.packageDisplayName ?? '').trim() || null,
+    mentorId,
+    mentorUserName: String(
+      record.mentorUserName
+      ?? mentorSource.userName
+      ?? mentorSource.username
+      ?? '',
+    ).trim() || null,
+    mentorDisplayName: String(
+      record.mentorDisplayName
+      ?? record.mentorName
+      ?? mentorSource.fullName
+      ?? mentorSource.displayName
+      ?? mentorSource.name
+      ?? '',
+    ).trim() || null,
+    mentorAvatarUrl: String(record.mentorAvatarUrl ?? mentorSource.avatarUrl ?? '').trim() || null,
+    startedAt: String(record.startedAt ?? record.startDate ?? '').trim() || null,
+    expiresAt: String(record.expiresAt ?? record.expiredAt ?? record.endDate ?? '').trim() || null,
     ...record,
   }
 }
@@ -609,6 +670,19 @@ class SubscriptionService {
     const response = await axiosInstance.get('/student/mentor-subscription/quota')
     const source = (response as any)?.data ?? (response as any)?.value ?? response
     return normalizeMentorQuota(source)
+  }
+
+  async getActiveMentorSubscriptions(): Promise<ActiveMentorSubscription[]> {
+    try {
+      const response = await axiosInstance.get('/student-mentor-subscriptions')
+      return unwrapPlansResponse(response)
+        .map(normalizeActiveMentorSubscription)
+        .filter((item): item is ActiveMentorSubscription => item != null)
+    } catch (error: any) {
+      const status = Number(error?.response?.status)
+      if (status === 404 || status === 405) return []
+      throw error
+    }
   }
 
   async verifyVnpayCallback(query: Record<string, string>): Promise<Record<string, unknown>> {

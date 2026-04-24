@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 interface CompleteSessionDialogProps {
   isOpen: boolean
-  onConfirm: (submissionType: 0 | 1) => void
+  onConfirm: (submissionType: 0 | 1, requestMentorReview: boolean) => void
   onCancel: () => void
   loading?: boolean
 }
@@ -16,6 +16,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
 }) => {
   const { t } = useTranslation('student')
   const [selectedType, setSelectedType] = useState<0 | 1>(0)
+  const [requestMentorReview, setRequestMentorReview] = useState(false)
 
   const submitTypes = [
     {
@@ -33,7 +34,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
   ]
 
   const handleConfirm = () => {
-    onConfirm(selectedType)
+    onConfirm(selectedType, selectedType === 1 && requestMentorReview)
   }
 
   if (!isOpen) return null
@@ -151,6 +152,52 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
               </label>
             ))}
           </div>
+
+          {selectedType === 1 && (
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 12,
+                marginTop: 14,
+                padding: 12,
+                border: '1px solid var(--accent-primary)',
+                borderRadius: 4,
+                background: 'var(--bg-blue-hover)',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={requestMentorReview}
+                onChange={(event) => setRequestMentorReview(event.target.checked)}
+                style={{ margin: '2px 0 0 0' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginBottom: 4,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                }}
+                >
+                  <span>👨‍🏫</span>
+                  <span>Mentor Review</span>
+                </div>
+                <div style={{
+                  fontSize: 12,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.4,
+                }}
+                >
+                  Open mentor review request right after AI review completes.
+                </div>
+              </div>
+            </label>
+          )}
 
           {/* Early finish warning */}
           <div style={{

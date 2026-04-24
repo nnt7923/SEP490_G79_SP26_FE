@@ -61,6 +61,7 @@ const StudentOverview = React.lazy(() => import('../pages/private/Student/Overvi
 const StudentAchievements = React.lazy(() => import('../pages/private/Student/Achievements'))
 const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 const FocusSessionHistory = React.lazy(() => import('../pages/private/FocusSession/History'))
+const TaskReviewDetailPage = React.lazy(() => import('../pages/private/TaskReview'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
 const StudentShareUpdatesPage = React.lazy(() => import('../pages/private/Student/Chat/ShareUpdates'))
@@ -148,6 +149,7 @@ const router = createBrowserRouter([
         children: [
           { path: ROUTER.PROFILE, element: <Profile /> },
           { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
+          { path: ROUTER.TASK_REVIEW_DETAIL, element: <TaskReviewDetailPage /> },
         ],
       },
     ],

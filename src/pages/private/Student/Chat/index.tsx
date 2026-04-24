@@ -64,6 +64,7 @@ import {
 import EmojiPicker, { Theme as EmojiTheme } from "emoji-picker-react";
 import ChatReplyPreview from "../../../../components/Chat/ChatReplyPreview";
 import LearningPathShareCard from "../../../../components/Chat/LearningPathShareCard";
+import TaskReviewMessageCard from "../../../../components/TaskReview/TaskReviewMessageCard";
 import {
   buildLearningPathShareCardData,
   isLearningPathShareMessage,
@@ -72,6 +73,10 @@ import {
   parseReviewRequestMessage,
   normalizeConversationPreview,
 } from "../../../../components/Chat/learningPathShare";
+import {
+  getTaskReviewId,
+  isTaskReviewMessage,
+} from "../../../../components/Chat/taskReview";
 import {
   buildReplyDraft,
   buildReplyPreviewForMessage,
@@ -1366,7 +1371,10 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                     const shareCardData = isLearningPathShareMessage(msg)
                       ? resolveStudentShareCardData(msg)
                       : null;
-                    const reviewRequestData = !shareCardData && isReviewRequestMessage(msg.content)
+                    const taskReviewId = !shareCardData && isTaskReviewMessage(msg)
+                      ? getTaskReviewId(msg)
+                      : null;
+                    const reviewRequestData = !shareCardData && !taskReviewId && isReviewRequestMessage(msg.content)
                       ? parseReviewRequestMessage(msg.content || '')
                       : null;
                     const replyPreview = buildReplyPreviewForMessage(
@@ -1374,6 +1382,24 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                       activeMessages,
                       replyContext,
                     );
+                    if (taskReviewId) {
+                      return (
+                        <div key={msg.messageId} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8, padding: '0 16px' }}>
+                          <TaskReviewMessageCard
+                            reviewId={taskReviewId}
+                            note={msg.content}
+                            isMine={isMine}
+                            onOpen={() => navigate(ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', taskReviewId))}
+                            openLabel={t("chat.openTaskReview", { defaultValue: "Open review" })}
+                            loadingLabel={t("chat.loadingTaskReview", { defaultValue: "Loading task review..." })}
+                            loadFailedLabel={t("chat.taskReviewLoadFailed", { defaultValue: "Failed to load task review." })}
+                            titleFallback={t("chat.taskReviewTitle", { defaultValue: "Task review" })}
+                            mentorLabel={t("chat.taskReviewMentor", { defaultValue: "Mentor" })}
+                            studentLabel={t("chat.taskReviewStudent", { defaultValue: "Student" })}
+                          />
+                        </div>
+                      )
+                    }
                     if (reviewRequestData) {
                       return (
                         <div key={msg.messageId} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8, padding: '0 16px' }}>

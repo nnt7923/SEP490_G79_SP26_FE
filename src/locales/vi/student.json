@@ -1122,7 +1122,9 @@
     "noteCreateError": "Không thể lưu ghi chú",
     "cancel": "Hủy",
     "creating": "Đang tạo...",
-    "create": "Tạo phiên"
+    "create": "Tạo phiên",
+    "continueToMentorReviewButton": "Xem đánh giá Mentor",
+    "mentorReviewButton": "Yêu cầu Mentor đánh giá"
   },
   "focusSessionHistory": {
     "title": "Lịch sử phiên học",

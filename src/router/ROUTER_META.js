@@ -19,6 +19,7 @@ const ROUTER_META = {
   [ROUTER.BILLING_HISTORY]: { breadcrumb: 'Billing History', title: 'Billing History' },
   [ROUTER.SHOP]: { breadcrumb: 'Pricing', title: 'Pricing' },
   [ROUTER.FOCUS_SESSION_HISTORY]: { breadcrumb: 'Focus Session History', title: 'Focus Session History' },
+  [ROUTER.TASK_REVIEW_DETAIL]: { breadcrumb: 'Task Review', title: 'Task Review' },
   [ROUTER.ADMIN_DASHBOARD]: { breadcrumb: 'Admin', title: 'Admin Dashboard' },
   [ROUTER.ADMIN_SHOP]: { breadcrumb: 'Pricing', title: 'Admin Pricing' },
   [ROUTER.MENTOR_DASHBOARD]: { breadcrumb: 'Mentor', title: 'Mentor Dashboard' },

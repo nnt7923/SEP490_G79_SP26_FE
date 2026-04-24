@@ -54,6 +54,7 @@ const ROUTER = {
   // Focus Session
   FOCUS_SESSION: "/focus-session",
   FOCUS_SESSION_HISTORY: "/focus-session/history",
+  TASK_REVIEW_DETAIL: "/task-reviews/:reviewId",
   // Chat
   CHAT: "/chat",
   CHAT_SHARE_PREVIEW: "/chat/share-preview/:shareId",

@@ -214,11 +214,160 @@
     "company": "Company",
     "plans": "plans",
     "overview": "overview",
+    "billing": "Billing",
+    "aiSpending": "AI Spending",
+    "mentorAiUsage": "Mentor AI Usage",
+    "auditLogs": "Audit Logs",
+    "community": "Community",
+    "logout": "Logout"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Stay on top of overdue work and plan status updates.",
+    "empty": "No notifications yet.",
+    "viewAll": "View all",
+    "unreadOnly": "Unread only",
+    "typeFilter": "Type",
+    "allTypes": "All types",
+    "refresh": "Refresh",
+    "markAllRead": "Mark all as read",
+    "markAllReadSuccess": "All notifications were marked as read.",
+    "markAllReadError": "Failed to mark all notifications as read.",
+    "fetchError": "Failed to load notifications.",
+    "markReadError": "Failed to sync notification state.",
+    "pageLabel": "Page {{page}}",
+    "unreadCountLabel": "{{count}} unread",
+    "types": {
+      "Alert": "Alert",
+      "Message": "Message",
+      "Reminder": "Reminder",
+      "TaskOverdue": "Task overdue",
+      "ChapterOverdue": "Chapter overdue",
+      "LessonOverdue": "Lesson overdue",
+      "LearningPathOverdue": "Learning path overdue",
+      "PlanExpiringSoon": "Plan expiring soon",
+      "PlanExpired": "Plan expired",
+      "ShareVersionUpdated": "Share version updated"
+    }
+  },
+  "notification": {
+    "shareVersionUpdated": {
+      "title": "Learning path updated by mentor",
+      "message": "A newer shared learning path version is available. Review changes and choose how to sync.",
+      "titleDetailed": "{{pathTitle}} has a new version",
+      "titleDetailedWithVersion": "Learning path {{pathTitle}} has a new version ver {{version}}",
+      "messageDetailed": "Mentor {{mentorName}} updated the shared learning path {{pathTitle}}.",
+      "messagePathOnly": "The shared learning path {{pathTitle}} has a new version from your mentor.",
+      "messageMentorOnly": "Mentor {{mentorName}} updated a shared learning path.",
+      "loadingTitle": "Loading update details...",
+      "loadingMessage": "Fetching mentor and learning path details."
+    },
+    "default": {
+      "title": "Notification"
+    }
+  },
+  "toast": {
+    "loading": "Processing",
+    "success": "Success",
+    "error": "Something went wrong"
+  },
+  "aboutPage": {
+    "badge": "about://codenexus",
+    "title": "AI-powered coding learning support",
+    "description": "CodeNexus does not sell packaged courses. We provide an AI system that supports self-learning: suggesting paths, breaking down goals, tracking progress, and guiding your next move.",
+    "tags": {
+      "supportOnly": "Learning support only, not course selling",
+      "aiGenerated": "Learning content is AI-generated and goal-optimized",
+      "goalTracking": "Progress tracking tied to real goals"
+    },
+    "features": {
+      "title": "How CodeNexus supports your learning",
+      "items": [
+        "Generate learning paths for career goals (Frontend, Backend, Fullstack...).",
+        "Split plans into chapter/lesson flow with quizzes and tasks for quick self-check.",
+        "Focus sessions help maintain consistent study rhythm.",
+        "Chat with mentor/AI to unblock issues during practice."
+      ]
+    },
+    "supportStatement": "$ product.mode = \"AI learning support\"; // not course-selling",
+    "valuesTitle": "Core values",
+    "values": {
+      "aiFirst": {
+        "title": "AI-First Support",
+        "description": "Plans are personalized by goals, pace, and real availability for each learner."
+      },
+      "goalDriven": {
+        "title": "Goal-Driven",
+        "description": "Every recommendation maps to concrete outcomes: skills, projects, milestones, and deadlines."
+      },
+      "reliable": {
+        "title": "Reliable & Transparent",
+        "description": "Progress is measured from real activity data so you always know where you are and what to do next."
+      },
+      "community": {
+        "title": "Community Support",
+        "description": "Connect with learners, mentors, and support channels to solve blockers faster."
+      }
+    },
+    "support": {
+      "title": "Support information",
+      "email": "support@codenexus.app",
+      "website": "https://codenexus.app",
+      "liveChat": "In-app live chat support (08:00 - 22:00, Monday - Sunday)",
+      "response": "Average email response time: 2 - 6 business hours",
+      "note": "For faster support, include your registered email, issue time, and screenshots so the team can investigate quickly."
+    },
+    "supportCenter": {
+      "title": "Quick support center",
+      "description": "You can send support requests via notifications or in-app chat. For serious account issues, contact support email for priority handling.",
+      "backHome": "Back to home",
+      "sendEmail": "Send support email"
+    }
+  },
+  "footer": {
+    "tagline1": "Personalized learning paths",
+    "tagline2": "powered by AI",
+    "product": "Product",
+    "company": "Company",
+    "plans": "plans",
+    "overview": "overview",
     "resources": "resources",
     "about": "about",
     "home": "home",
     "copyright": "© {{year}} CodeNexus - All rights reserved.",
     "terms": "terms",
     "privacy": "privacy"
+  },
+  "taskReview": {
+    "title": "Task Review",
+    "back": "Back",
+    "detailEyebrow": "Focus Session Task Review",
+    "pending": "Pending",
+    "reviewed": "Reviewed",
+    "submitTitle": "Submit review",
+    "submitHint": "Provide a score, feedback, and optional suggestions.",
+    "submitting": "Submitting...",
+    "submit": "Submit review",
+    "sessionId": "Session ID",
+    "taskId": "Task ID",
+    "student": "Student",
+    "mentor": "Mentor",
+    "requestedAt": "Requested at",
+    "reviewedAt": "Reviewed at",
+    "verification": "Verification",
+    "verified": "Verified",
+    "notVerified": "Not verified",
+    "score": "Score",
+    "studentRequestNote": "Student request note",
+    "mentorFeedback": "Mentor feedback",
+    "suggestions": "Suggestions",
+    "submittedCode": "Submitted code",
+    "submittedSummary": "Submitted summary",
+    "submittedQuizAnswers": "Submitted quiz answers",
+    "aiFeedback": "AI feedback",
+    "reviewIdLabel": "Review ID",
+    "scoreLabel": "Score (0-100)",
+    "feedbackLabel": "Feedback",
+    "suggestionsLabel": "Suggestions"
   }
 }

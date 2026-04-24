@@ -1121,7 +1121,9 @@
     "noteCreateError": "Unable to save note",
     "cancel": "Cancel",
     "creating": "Creating...",
-    "create": "Create session"
+    "create": "Create session",
+    "continueToMentorReviewButton": "View Mentor Review",
+    "mentorReviewButton": "Request Mentor Review"
   },
   "focusSessionHistory": {
     "title": "Focus Session History",

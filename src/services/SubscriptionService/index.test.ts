@@ -52,6 +52,23 @@ describe('SubscriptionService shop APIs', () => {
       taskReviewsUsed: 1,
       taskReviewsRemaining: 3,
     })
+    expect(mockedAxios.get).toHaveBeenCalledWith('/student/mentor-subscription/quota')
+  })
+
+  it('loads mentor packages from the preferred endpoint', async () => {
+    mockedAxios.get.mockResolvedValue({
+      data: [
+        {
+          mentorPackageId: 'pkg-1',
+          name: 'Starter',
+          priceVnd: 50000,
+          taskReviewLimit: 5,
+        },
+      ],
+    })
+
+    await SubscriptionService.getMentorPackages()
+    expect(mockedAxios.get).toHaveBeenCalledWith('/student/mentor-subscription/packages')
   })
 
   it('sends mentorPackageId to VNPay create endpoint', async () => {
@@ -66,6 +83,32 @@ describe('SubscriptionService shop APIs', () => {
       mentorPackageId: 'mentor-pkg-1',
       returnUrl: 'https://example.com/billing/result',
     })
+  })
+
+  it('loads active mentor subscriptions from the preferred endpoint', async () => {
+    mockedAxios.get.mockResolvedValue({
+      data: [
+        {
+          subscriptionId: 'sub-mentor-1',
+          packageId: 'pkg-mentor-1',
+          packageName: 'Mentor Plus',
+          mentorId: 'mentor-1',
+          mentorUserName: 'mentor01',
+          mentorDisplayName: 'Mentor One',
+        },
+      ],
+    })
+
+    await expect(SubscriptionService.getActiveMentorSubscriptions()).resolves.toEqual([
+      expect.objectContaining({
+        subscriptionId: 'sub-mentor-1',
+        packageName: 'Mentor Plus',
+        mentorId: 'mentor-1',
+        mentorUserName: 'mentor01',
+        mentorDisplayName: 'Mentor One',
+      }),
+    ])
+    expect(mockedAxios.get).toHaveBeenCalledWith('/student-mentor-subscriptions')
   })
 
   it('normalizes transaction type and package display name for token and mentor purchases', async () => {
