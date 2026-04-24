@@ -75,6 +75,7 @@ export const getStudentSidebarConfig = (): SidebarNavItem[] => {
 // Hook version for use in React components
 export const useStudentSidebarConfig = (): SidebarNavItem[] => {
   const { t } = useTranslation('common')
+  const { t: ts } = useTranslation('student')
   useChatUnreadBadge()
   const globalUnreadCount = useChatStore((state) => state.globalUnreadCount)
 
@@ -89,8 +90,8 @@ export const useStudentSidebarConfig = (): SidebarNavItem[] => {
     { label: t('sidebar.profile'), path: '/profile', icon: <User size={18} /> },
     { label: t('sidebar.focusSessionHistory', { defaultValue: 'Focus Session History' }), path: '/focus-session/history', icon: <History size={18} /> },
     { label: 'Chat', path: '/chat', icon: <MessageSquare size={18} />, badge: globalUnreadCount },
-    { label: t('mentorReviews.title'), path: '/my-plans/mentor-reviews', icon: <Star size={18} /> },
-    { label: t('sidebar.upgrade'), path: '/subscription', icon: <Crown size={18} className="text-yellow-500" /> },
+    { label: ts('mentorReviews.title', 'Góp ý lộ trình'), path: '/my-plans/mentor-reviews', icon: <Star size={18} /> },
+    { label: t('sidebar.shop', { defaultValue: t('sidebar.upgrade', { defaultValue: 'Pricing' }) }), path: ROUTER.SHOP, icon: <Crown size={18} className="text-yellow-500" /> },
     { label: t('sidebar.transactionHistory', { defaultValue: 'Transaction History' }), path: '/billing/history', icon: <Receipt size={18} /> },
   ]
 }
