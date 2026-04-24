@@ -15,8 +15,6 @@ import type { LearningPathProgressResponse } from '../../../../services/Learning
 import ROUTER from '../../../../router/ROUTER'
 import SelectMentorModal from '../../../../components/SelectMentorModal'
 import MentorReviewSection from '../../../../components/MentorReviewSection'
-import SelectMentorModal from '../../../../components/SelectMentorModal'
-import MentorReviewSection from '../../../../components/MentorReviewSection'
 
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)
