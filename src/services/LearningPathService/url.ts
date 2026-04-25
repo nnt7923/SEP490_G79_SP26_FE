@@ -10,6 +10,8 @@ export const lessonContentUrl = (lessonId: string) => `${basePath}/lessons/${les
 export const lessonReadUrl = (lessonId: string) => `${basePath}/lessons/${lessonId}/read`
 export const lessonReadStatusUrl = (lessonId: string) => `${basePath}/lessons/${lessonId}/read-status`
 export const userLearningPathsUrl = (userId: string | number) => `${basePath}/user/${userId}`
+export const userLearningPathsSummaryUrl = (userId: string | number) => `${basePath}/user/${userId}/summary`
+export const userLearningPathDetailUrl = (userId: string | number, pathId: string) => `${basePath}/user/${userId}/${pathId}`
 export const learningPathProgressUrl = (pathId: string) => `${basePath}/${pathId}/progress`
 export const publishedPathsUrl = `${basePath}/published`
 export const publishedPathPreviewUrl = (pathId: string) => `${publishedPathsUrl}/${pathId}/preview`

@@ -202,7 +202,6 @@ export function setSignalRDebug(enabled: boolean): void {
 }
 
 async function ensureStarted(conn: signalR.HubConnection, _name: string) {
-  // If already connected, return immediately
   if (conn.state === signalR.HubConnectionState.Connected) {
     debugSignalR(_name, 'connection already started')
     return
@@ -2943,8 +2942,13 @@ export async function requestBulkLearningPathContent(
       try {
         debugSignalR('bulk', 'invoking RequestBulkLearningPathContent', { pathId, lessonConcurrency, quizConcurrency })
         hub.invoke('RequestBulkLearningPathContent', pathId, lessonConcurrency, quizConcurrency)
-          .catch(handleErrorWrap)
+          .then(() => console.log('[BulkGen] invoke OK, waiting for events...'))
+          .catch((err: any) => {
+            console.error('[BulkGen] invoke FAILED:', err)
+            handleErrorWrap(err)
+          })
       } catch (e) {
+        console.error('[BulkGen] invoke threw:', e)
         handleErrorWrap(e)
       }
     })

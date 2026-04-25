@@ -109,6 +109,7 @@ function normalizeGoal(goal: any): Goal {
     durationDays: normalizeDurationDays(goal),
     isCompleted: goal?.isCompleted,
     completedAt: goal?.completedAt ?? null,
+    subjectId: goal?.subjectId ?? goal?.SubjectId ?? null,
   }
 }
 
@@ -255,34 +256,32 @@ export async function getUserGoals(): Promise<Goal[]> {
   return normalizedGoals
 }
 
-export async function getMyGoals(): Promise<Goal[]> {
-  const cacheKey = buildGoalCacheKey('my')
-  const memoryEntry = goalMemoryCache.get(cacheKey)
-  if (memoryEntry && memoryEntry.expiresAt > Date.now()) {
-    return memoryEntry.data
-  }
+export async function getMyGoals(params?: { pageNumber?: number; pageSize?: number; searchTerm?: string }): Promise<{ items: Goal[]; totalCount: number; totalPages: number; pageNumber: number; pageSize: number; hasNextPage: boolean; hasPreviousPage: boolean }> {
+  const pageNumber = params?.pageNumber ?? 1
+  const pageSize = params?.pageSize ?? 10
 
-  const storageEntry = readGoalStorageCache(cacheKey)
-  if (storageEntry) {
-    goalMemoryCache.set(cacheKey, storageEntry)
-    return storageEntry.data
-  }
+  const res: any = await api.get(myGoalsUrl, {
+    params: {
+      pageNumber,
+      pageSize,
+      ...(params?.searchTerm ? { searchTerm: params.searchTerm } : {}),
+    },
+  })
 
-  const res: any = await api.get(myGoalsUrl)
-
-  // Unwrap response - backend returns { items: [...], pageNumber, pageSize, totalCount, hasNextPage, hasPreviousPage }
   const root: any = res?.data ?? res
-  const items = extractGoalItems(root)
-
+  const source: any = root?.data ?? root
+  const items = extractGoalItems(source)
   const normalizedGoals = items.map((g: any) => normalizeGoal(g))
-  const entry: GoalCacheEntry = {
-    data: normalizedGoals,
-    expiresAt: Date.now() + GOAL_CACHE_TTL_MS,
-  }
-  goalMemoryCache.set(cacheKey, entry)
-  writeGoalStorageCache(cacheKey, entry)
 
-  return normalizedGoals
+  return {
+    items: normalizedGoals,
+    totalCount: Number(source?.totalCount ?? normalizedGoals.length),
+    totalPages: Number(source?.totalPages ?? 1),
+    pageNumber: Number(source?.pageNumber ?? pageNumber),
+    pageSize: Number(source?.pageSize ?? pageSize),
+    hasNextPage: Boolean(source?.hasNextPage),
+    hasPreviousPage: Boolean(source?.hasPreviousPage),
+  }
 }
 
 export async function getGoalsDashboard(query: GoalDashboardQuery = {}): Promise<GoalDashboardResponse> {
@@ -370,4 +369,11 @@ export async function deleteGoal(id: string | number): Promise<any> {
   return res?.data ?? res
 }
 
-export default { listGoals, getUserGoals, getMyGoals, getGoalsDashboard, createGoal, updateGoal, deleteGoal, clearMyGoalsCache }
+export async function getGoalById(id: string | number): Promise<Goal> {
+  const res: any = await api.get(goalUrl(String(id)))
+  const data: any = res?.data ?? res
+  const goal = data?.value ?? data
+  return normalizeGoal(goal)
+}
+
+export default { listGoals, getUserGoals, getMyGoals, getGoalsDashboard, createGoal, updateGoal, deleteGoal, getGoalById, clearMyGoalsCache }

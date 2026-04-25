@@ -14,6 +14,7 @@ function StatusBadge({ status, t }: { status: string; t: (k: string) => string }
     Pending: { label: t('mentorReview.statusPending'), color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.1)', icon: <Clock size={12} /> },
     Accepted: { label: t('mentorReview.statusAccepted'), color: 'var(--success-primary)', bg: 'rgba(34,197,94,0.1)', icon: <CheckCircle size={12} /> },
     Rejected: { label: t('mentorReview.statusRejected'), color: 'var(--danger-primary)', bg: 'rgba(220,38,38,0.1)', icon: <XCircle size={12} /> },
+    WaitingStudentResponse: { label: t('mentorReview.statusWaitingStudentResponse'), color: '#7c3aed', bg: 'rgba(124,58,237,0.1)', icon: <Clock size={12} /> },
   }
   const s = map[status] || map.Pending
   return (
@@ -476,21 +477,31 @@ const MentorReviewStatusPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Preview button - only show when mentor has submitted review */}
+                {/* Preview button - only active when WaitingStudentResponse */}
                 {review.revisedPathId && (
                   <button
-                    onClick={() => hasContent && setShowPreviewModal(true)}
-                    disabled={!hasContent}
-                    title={!hasContent ? t('mentorReview.waitingMentor', 'Đang chờ mentor gửi review') : undefined}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: hasContent ? 'var(--accent-primary)' : 'var(--bg-main)', color: hasContent ? 'white' : 'var(--text-secondary)', border: hasContent ? 'none' : '1px dashed var(--border-base)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: hasContent ? 'pointer' : 'not-allowed', width: '100%', justifyContent: 'center', opacity: hasContent ? 1 : 0.6 }}>
+                    onClick={() => review.decisionStatus === 'WaitingStudentResponse' && setShowPreviewModal(true)}
+                    disabled={review.decisionStatus !== 'WaitingStudentResponse'}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
+                      background: review.decisionStatus === 'WaitingStudentResponse' ? 'var(--accent-primary)' : 'var(--bg-main)',
+                      color: review.decisionStatus === 'WaitingStudentResponse' ? 'white' : 'var(--text-secondary)',
+                      border: review.decisionStatus === 'WaitingStudentResponse' ? 'none' : '1px dashed var(--border-base)',
+                      borderRadius: 8, fontSize: 13, fontWeight: 600,
+                      cursor: review.decisionStatus === 'WaitingStudentResponse' ? 'pointer' : 'not-allowed',
+                      width: '100%', justifyContent: 'center',
+                      opacity: review.decisionStatus === 'WaitingStudentResponse' ? 1 : 0.5,
+                    }}>
                     <Eye size={15} /> {t('mentorReview.previewBtn')}
-                    {!hasContent && <span style={{ fontSize: 11, marginLeft: 4 }}>({t('mentorReview.waitingMentor', 'chờ mentor')})</span>}
+                    {review.decisionStatus !== 'WaitingStudentResponse' && (
+                      <span style={{ fontSize: 11, marginLeft: 4 }}>({t('mentorReview.waitingMentor', 'Đang chờ mentor')})</span>
+                    )}
                   </button>
                 )}
               </motion.div>
 
-              {/* Waiting */}
-              {review.decisionStatus === 'Pending' && !hasContent && (
+              {/* Waiting for mentor */}
+              {review.decisionStatus === 'Pending' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   style={{ padding: '24px 20px', background: 'var(--bg-surface)', border: '1px dashed var(--border-base)', borderRadius: 10, textAlign: 'center' }}>
                   <Clock size={28} style={{ color: 'var(--warning-primary)', margin: '0 auto 10px' }} />
@@ -498,8 +509,8 @@ const MentorReviewStatusPage: React.FC = () => {
                 </motion.div>
               )}
 
-              {/* Decision buttons - show when Pending and has content */}
-              {review.decisionStatus === 'Pending' && hasContent && pathId && (
+              {/* Decision buttons - show when WaitingStudentResponse */}
+              {review.decisionStatus === 'WaitingStudentResponse' && pathId && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                   <DecisionButtons pathId={pathId} review={review} t={t}
                     onDecided={updated => {

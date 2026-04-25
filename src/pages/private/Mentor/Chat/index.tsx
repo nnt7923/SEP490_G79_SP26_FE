@@ -117,69 +117,33 @@ function getInitials(name: string): string {
     .join("");
 }
 
-// Cache for review status to avoid repeated API calls
-const reviewStatusCache = new Map<string, { status: string; revisedPathId?: string; ts: number }>()
-const CACHE_TTL = 120000 // 2 minutes - long enough to avoid flicker
-
-function getReviewCache(key: string) {
-  // Check memory cache first
-  const mem = reviewStatusCache.get(key)
-  if (mem && Date.now() - mem.ts < CACHE_TTL) return mem
-  // Check sessionStorage
-  try {
-    const raw = sessionStorage.getItem(`rv:${key}`)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Date.now() - parsed.ts < CACHE_TTL) {
-        reviewStatusCache.set(key, parsed)
-        return parsed
-      }
-    }
-  } catch { }
-  return null
-}
-
-function setReviewCache(key: string, value: { status: string; revisedPathId?: string; ts: number }) {
-  reviewStatusCache.set(key, value)
-  try { sessionStorage.setItem(`rv:${key}`, JSON.stringify(value)) } catch { }
-}
-
 // Button that fetches revisedPathId from review then navigates to draft editor
 function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, mentorId }: { pathId: string; revisedPathId?: string; mentorId: string }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [decisionStatus, setDecisionStatus] = useState<string | null>(null)
-  const [cachedRevisedPathId, setCachedRevisedPathId] = useState<string | null>(null)
+  const [revisedPathId, setRevisedPathId] = useState<string | null>(revisedPathIdFromMsg ?? null)
 
   React.useEffect(() => {
     if (!pathId) return
-    const cacheKey = `${pathId}:${mentorId}`
-    const cached = getReviewCache(cacheKey)
-    if (cached) {
-      setDecisionStatus(cached.status)
-      if (cached.revisedPathId) setCachedRevisedPathId(cached.revisedPathId)
-      return
-    }
     LearningPathService.getMentorReviews(pathId)
       .then(reviews => {
         const mine = reviews.find((r: any) => r.mentorId === mentorId) || reviews[0]
         if (mine) {
-          setReviewCache(cacheKey, { status: mine.decisionStatus, revisedPathId: mine.revisedPathId || undefined, ts: Date.now() })
           setDecisionStatus(mine.decisionStatus)
-          if (mine.revisedPathId) setCachedRevisedPathId(mine.revisedPathId)
+          if (mine.revisedPathId) setRevisedPathId(mine.revisedPathId)
         }
       })
       .catch(() => {})
   }, [pathId, mentorId])
 
   const isAccepted = decisionStatus === 'Accepted'
-  const effectiveRevisedPathId = revisedPathIdFromMsg || cachedRevisedPathId
 
   const handleOpen = async () => {
     if (isAccepted) return
-    if (effectiveRevisedPathId) {
-      navigate(`/mentor/drafts/${effectiveRevisedPathId}?reviewPathId=${pathId}`)
+    if (revisedPathId) {
+      navigate(`/mentor/drafts/${revisedPathId}?reviewPathId=${pathId}`)
       return
     }
     setLoading(true); setErr(null)
@@ -202,8 +166,9 @@ function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, 
     Pending: { label: '⏳ Đang chờ', color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.12)' },
     Accepted: { label: '✓ Đã chấp nhận', color: 'var(--success-primary)', bg: 'rgba(34,197,94,0.12)' },
     Rejected: { label: '✕ Đã từ chối', color: 'var(--danger-primary)', bg: 'rgba(220,38,38,0.12)' },
+    WaitingStudentResponse: { label: '⏳ Chờ student phản hồi', color: 'var(--brand-blue, #3b82f6)', bg: 'rgba(59,130,246,0.12)' },
   }
-  const status = statusMap[decisionStatus || 'Pending']
+  const status = statusMap[decisionStatus || 'Pending'] ?? statusMap.Pending
 
   return (
     <div>

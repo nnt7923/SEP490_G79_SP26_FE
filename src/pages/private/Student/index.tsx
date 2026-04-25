@@ -9,7 +9,6 @@ import { useStudentSidebarConfig } from './components/StudentSideBar'
 import { AlertTriangle, CheckCircle2, Clock3, Flag, Circle, ArrowRight, X } from 'lucide-react'
 import { getTimeline, type TimelineItem, type TimelineResponse } from '../../../services/TimelineService'
 import { FocusSessionService, SessionType } from '../../../services'
-import type { FocusSession } from '../../../services/FocusSessionService'
 import LearningPathService from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
 import useAppNotificationStore from '../../../store/useAppNotificationStore'
@@ -216,8 +215,8 @@ const StudentIndex: React.FC = () => {
   const [showFocusDialog, setShowFocusDialog] = React.useState(false)
   const [creatingSession, setCreatingSession] = React.useState(false)
   const [selectedTimelineTask, setSelectedTimelineTask] = React.useState<TimelineTaskSessionTarget | null>(null)
-  const [pausedSessionByTaskId, setPausedSessionByTaskId] = React.useState<Record<string, FocusSession>>({})
-  const [checkedTaskSessionMap, setCheckedTaskSessionMap] = React.useState<Record<string, true>>({})
+
+
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false)
   const [showExpiringSoonModal, setShowExpiringSoonModal] = React.useState(false)
   const [currentSubExpiredAt, setCurrentSubExpiredAt] = React.useState<Date | null>(null)
@@ -766,71 +765,10 @@ const StudentIndex: React.FC = () => {
     return ''
   }, [])
 
-  const getTimelineTaskId = React.useCallback((item: TimelineItem): string => {
-    return readTimelineIdField(item, ['taskId', 'TaskId', 'itemId', 'id'])
-  }, [readTimelineIdField])
 
-  React.useEffect(() => {
-    const taskIds = Array.from(
-      new Set(
-        items
-          .filter((item) => String(item.itemType || '').trim().toLowerCase() === 'task')
-          .map((item) => getTimelineTaskId(item))
-          .filter((taskId) => Boolean(taskId))
-      )
-    )
-
-    const missingTaskIds = taskIds.filter((taskId) => !checkedTaskSessionMap[taskId])
-    if (missingTaskIds.length === 0) return
-
-    let cancelled = false
-
-    const inspectTaskSessions = async () => {
-      const results = await Promise.all(missingTaskIds.map(async (taskId) => {
-        try {
-          const session = await FocusSessionService.getActiveSession(taskId)
-          const normalizedStatus = String(session?.sessionStatus || '').trim().toLowerCase()
-          if (session && normalizedStatus === 'paused') {
-            return { taskId, session }
-          }
-          return { taskId, session: null }
-        } catch {
-          return { taskId, session: null }
-        }
-      }))
-
-      if (cancelled) return
-
-      setCheckedTaskSessionMap((prev) => {
-        const next = { ...prev }
-        results.forEach(({ taskId }) => {
-          next[taskId] = true
-        })
-        return next
-      })
-
-      setPausedSessionByTaskId((prev) => {
-        const next = { ...prev }
-        results.forEach(({ taskId, session }) => {
-          if (session) next[taskId] = session
-          else delete next[taskId]
-        })
-        return next
-      })
-    }
-
-    void inspectTaskSessions()
-    return () => {
-      cancelled = true
-    }
-  }, [checkedTaskSessionMap, getTimelineTaskId, items])
-
-  const hasPausedTimelineSession = React.useCallback((item: TimelineItem): boolean => {
-    if (String(item.itemType || '').trim().toLowerCase() !== 'task') return false
-    const taskId = getTimelineTaskId(item)
-    if (!taskId) return false
-    return Boolean(pausedSessionByTaskId[taskId])
-  }, [getTimelineTaskId, pausedSessionByTaskId])
+  const hasPausedTimelineSession = React.useCallback((_item: TimelineItem): boolean => {
+    return false
+  }, [])
 
   const resolveTimelineLessonSkeleton = React.useCallback(async (item: TimelineItem, lessonId: string) => {
     const userId = user?.id
@@ -943,40 +881,6 @@ const StudentIndex: React.FC = () => {
         return
       }
 
-      const pausedSession = pausedSessionByTaskId[taskId]
-      if (pausedSession?.id) {
-        try {
-          const resumedSession = await FocusSessionService.resumeSession(pausedSession.id)
-          navigate(ROUTER.FOCUS_SESSION, {
-            state: {
-              session: resumedSession,
-              task: {
-                id: taskId,
-                title: String(item.title || '').trim() || t('focusSession.untitledTask'),
-                description: String(item.description ?? item.taskDescription ?? '').trim() || undefined,
-                taskType: item.taskType ?? item.TaskType,
-                quizQuestionsJson: item.quizQuestionsJson ?? item.QuizQuestionsJson,
-              },
-            },
-          })
-          return
-        } catch {
-          navigate(ROUTER.FOCUS_SESSION, {
-            state: {
-              session: pausedSession,
-              task: {
-                id: taskId,
-                title: String(item.title || '').trim() || t('focusSession.untitledTask'),
-                description: String(item.description ?? item.taskDescription ?? '').trim() || undefined,
-                taskType: item.taskType ?? item.TaskType,
-                quizQuestionsJson: item.quizQuestionsJson ?? item.QuizQuestionsJson,
-              },
-            },
-          })
-          return
-        }
-      }
-
       const taskTitle = String(item.title || '').trim() || t('focusSession.untitledTask')
       const descriptionRaw = String(item.description ?? item.taskDescription ?? '').trim()
       const taskTypeRaw = item.taskType ?? item.TaskType
@@ -991,7 +895,7 @@ const StudentIndex: React.FC = () => {
       })
       setShowFocusDialog(true)
     }
-  }, [navigate, pausedSessionByTaskId, readTimelineIdField, resolveTimelineLessonSkeleton, t])
+  }, [navigate, readTimelineIdField, resolveTimelineLessonSkeleton, t])
 
   const handleCreateFocusSession = React.useCallback(async (sessionType: SessionType, duration: number, title?: string) => {
     if (!selectedTimelineTask?.taskId) return

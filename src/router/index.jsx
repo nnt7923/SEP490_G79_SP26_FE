@@ -40,6 +40,7 @@ const AdminMentorAIUsage = React.lazy(() => import('../pages/private/Admin/Mento
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
 const AdminAuditLogs = React.lazy(() => import('../pages/private/Admin/AuditLogs'))
 const AdminSystemRuntimePolicy = React.lazy(() => import('../pages/private/Admin/SystemRuntimePolicy'))
+const AdminMentorReviews = React.lazy(() => import('../pages/private/Admin/MentorReviews'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
@@ -169,6 +170,7 @@ const router = createBrowserRouter([
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
       { path: ROUTER.ADMIN_AUDIT_LOGS, element: <AdminAuditLogs /> },
       { path: ROUTER.ADMIN_SYSTEM_RUNTIME_POLICY, element: <AdminSystemRuntimePolicy /> },
+      { path: ROUTER.ADMIN_MENTOR_REVIEWS, element: <AdminMentorReviews /> },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },

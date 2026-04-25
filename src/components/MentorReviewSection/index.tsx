@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ExternalLink, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import LearningPathService, {
@@ -7,6 +7,20 @@ import LearningPathService, {
   type MentorReviewDecisionStatus,
   resolveMentorReviewError,
 } from '../../services/LearningPathService'
+
+function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button key={n} type="button" onClick={() => onChange(n)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+          <Star size={18} fill={n <= value ? 'var(--warning-primary, #f59e0b)' : 'none'}
+            color={n <= value ? 'var(--warning-primary, #f59e0b)' : 'var(--text-secondary)'} />
+        </button>
+      ))}
+    </div>
+  )
+}
 
 interface MentorReviewSectionProps {
   pathId: string
@@ -17,9 +31,10 @@ interface MentorReviewSectionProps {
 function DecisionBadge({ status }: { status: MentorReviewDecisionStatus }) {
   const { t } = useTranslation('student')
   const map: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-    Pending: { label: t('mentorReview.statusPending', 'Chờ quyết định'), color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.1)', icon: <Clock size={11} /> },
+    Pending: { label: t('mentorReview.statusPending', 'Chờ mentor phản hồi'), color: '#1e40af', bg: 'rgba(59,130,246,0.10)', icon: <Clock size={11} /> },
     Accepted: { label: t('mentorReview.statusAccepted', 'Đã chấp nhận'), color: 'var(--success-primary)', bg: 'rgba(34,197,94,0.1)', icon: <CheckCircle size={11} /> },
     Rejected: { label: t('mentorReview.statusRejected', 'Đã từ chối'), color: 'var(--danger-primary)', bg: 'rgba(220,38,38,0.1)', icon: <XCircle size={11} /> },
+    WaitingStudentResponse: { label: t('mentorReview.statusWaitingStudentResponse', 'Chờ phản hồi của bạn'), color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.1)', icon: <Clock size={11} /> },
   }
   const s = map[status] || map.Pending
   return (
@@ -243,8 +258,8 @@ function ReviewCard({ review, pathId, isMentor, onUpdated }: {
             </div>
           )}
 
-          {/* Student decision - only if Pending and has content */}
-          {!isMentor && review.decisionStatus === 'Pending' && hasContent && (
+          {/* Student decision - only if WaitingStudentResponse */}
+          {!isMentor && review.decisionStatus === 'WaitingStudentResponse' && (
             <DecisionForm pathId={pathId} review={review} onDecided={onUpdated} />
           )}
         </div>

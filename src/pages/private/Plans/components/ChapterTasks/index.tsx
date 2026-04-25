@@ -381,25 +381,22 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId =
 
   const getTaskId = (task: Task) => task.id || task.taskId || task.TaskId || null
 
-  // Check for active sessions for all tasks
+  // Check for active sessions for all tasks - single request instead of N requests
   const checkActiveSessions = async (taskList: Task[]) => {
-    const activeSessionsMap: Record<string, FocusSession> = {}
-    
-    for (const task of taskList) {
-      const taskId = getTaskId(task)
-      if (taskId) {
-        try {
-          const activeSession = await FocusSessionService.getActiveSession(taskId)
-          if (activeSession) {
-            activeSessionsMap[taskId] = activeSession
-          }
-        } catch (error) {
-          // Ignore errors - no active session
+    try {
+      const allActive = await FocusSessionService.getActiveSessions()
+      if (!allActive.length) return
+      const taskIds = new Set(taskList.map(t => getTaskId(t)).filter(Boolean))
+      const activeSessionsMap: Record<string, FocusSession> = {}
+      for (const session of allActive) {
+        if (session.taskId && taskIds.has(session.taskId)) {
+          activeSessionsMap[session.taskId] = session
         }
       }
+      setActiveSessions(activeSessionsMap)
+    } catch {
+      // Ignore errors - no active sessions
     }
-    
-    setActiveSessions(activeSessionsMap)
   }
 
   // Handle focus session creation

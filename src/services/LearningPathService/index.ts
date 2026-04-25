@@ -5,6 +5,8 @@ import {
   lessonReadUrl,
   lessonReadStatusUrl,
   userLearningPathsUrl,
+  userLearningPathsSummaryUrl,
+  userLearningPathDetailUrl,
   aiDraftUrl,
   manualDraftUrl,
   manualDraftDetailUrl,
@@ -1125,6 +1127,66 @@ export async function getUserLearningPaths(
   return normalizedResponse
 }
 
+export interface LearningPathSummaryItem {
+  pathId: string
+  title: string
+  description: string | null
+  status: string
+  chapterCount: number
+  progressPercent: number
+  startDate: string | null
+  endDate: string | null
+  createdAt: string
+  complexityLevel: string | null
+  languageSelection: string | null
+  shareId?: string | null
+  sharedByUserName?: string | null
+}
+
+export interface UserLearningPathsSummaryResponse {
+  items: LearningPathSummaryItem[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export async function getUserLearningPathsSummary(
+  userId: string | number,
+  params?: { pageNumber?: number; pageSize?: number; searchTerm?: string; subjectId?: string }
+): Promise<UserLearningPathsSummaryResponse> {
+  const queryParams = new URLSearchParams()
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+
+  const url = `${userLearningPathsSummaryUrl(userId)}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<UserLearningPathsSummaryResponse>(res)
+
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+    totalPages: data?.totalPages ?? 1,
+    hasPreviousPage: data?.hasPreviousPage ?? false,
+    hasNextPage: data?.hasNextPage ?? false,
+  }
+}
+
+export async function getUserLearningPathDetail(
+  userId: string | number,
+  pathId: string
+): Promise<SkeletonResponse> {
+  const res: any = await api.get(userLearningPathDetailUrl(userId, pathId))
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
 export async function getLearningPathProgress(pathId: string): Promise<LearningPathProgressResponse> {
   const res: any = await api.get(learningPathProgressUrl(pathId))
   const data = unwrap<LearningPathProgressResponse>(res)
@@ -1380,7 +1442,7 @@ export async function generateBulkLearningPathContent(
 // === MENTOR REVIEW =========================================================
 // ===========================================================================
 
-export type MentorReviewDecisionStatus = 'Pending' | 'Accepted' | 'Rejected'
+export type MentorReviewDecisionStatus = 'Pending' | 'Accepted' | 'Rejected' | 'WaitingStudentResponse'
 
 export interface MentorReviewDto {
   reviewId: string
@@ -1534,6 +1596,8 @@ export default {
   generateMultipleQuizQuestionsForQuiz,
   generateBulkLearningPathContent,
   getUserLearningPaths,
+  getUserLearningPathsSummary,
+  getUserLearningPathDetail,
   clearUserLearningPathsCache,
   getLearningPathProgress,
   getLessonReadStatus,

@@ -432,9 +432,9 @@
 }
 
 .chat-kit-share-status--pending {
-  background: rgba(191, 135, 0, 0.14);
-  color: #8a5b00;
-  border-color: rgba(191, 135, 0, 0.22);
+  background: rgba(59, 130, 246, 0.10);
+  color: #1e40af;
+  border-color: rgba(59, 130, 246, 0.20);
 }
 
 .chat-kit-share-status--accepted {

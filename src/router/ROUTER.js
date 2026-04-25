@@ -43,6 +43,7 @@ const ROUTER = {
   ADMIN_REPORTS: "/admin/reports",
   ADMIN_AUDIT_LOGS: "/admin/audit-logs",
   ADMIN_SYSTEM_RUNTIME_POLICY: "/admin/system-runtime-policy",
+  ADMIN_MENTOR_REVIEWS: "/admin/mentor-reviews",
   // Mentor nested
   MENTOR_PROFILE: "/mentor/profile",
   // Student resources

@@ -140,6 +140,12 @@ const GoalsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<DashboardPathStatusFilter>('All')
 
   const [personalGoals, setPersonalGoals] = useState<PersonalGoalItem[]>([])
+  const [personalGoalsTotal, setPersonalGoalsTotal] = useState(0)
+  const [personalGoalsTotalPages, setPersonalGoalsTotalPages] = useState(1)
+  const [personalGoalsHasNext, setPersonalGoalsHasNext] = useState(false)
+  const [personalGoalsHasPrev, setPersonalGoalsHasPrev] = useState(false)
+  const [personalGoalsPage, setPersonalGoalsPage] = useState(1)
+  const personalGoalsPageSize = 6
   const [pathGoalsPage, setPathGoalsPage] = useState<PathGoalPage>(DEFAULT_PATH_GOAL_PAGE)
 
   const [showAddGoalModal, setShowAddGoalModal] = useState<boolean>(false)
@@ -311,16 +317,38 @@ const GoalsPage: React.FC = () => {
     setError(null)
 
     try {
-      const response = await GoalService.getGoalsDashboard({
-        pageNumber,
-        pageSize,
-        searchTerm: debouncedSearchTerm || undefined,
-        pathStatus: statusFilter === 'All' ? undefined : statusFilter,
-        sortDescending: true,
-      })
+      const [dashboardResponse, personalGoalsResponse] = await Promise.all([
+        GoalService.getGoalsDashboard({
+          pageNumber,
+          pageSize,
+          searchTerm: debouncedSearchTerm || undefined,
+          pathStatus: statusFilter === 'All' ? undefined : statusFilter,
+          sortDescending: true,
+        }),
+        GoalService.getMyGoals({
+          pageNumber: personalGoalsPage,
+          pageSize: personalGoalsPageSize,
+          searchTerm: debouncedSearchTerm || undefined,
+        }),
+      ])
 
-      setPersonalGoals(Array.isArray(response?.personalGoals) ? response.personalGoals : [])
-      setPathGoalsPage(response?.pathGoals || DEFAULT_PATH_GOAL_PAGE)
+      setPersonalGoals(personalGoalsResponse.items.map((g: any) => ({
+        goalId: g.goalId,
+        subjectId: g.subjectId ?? g.subjects?.[0]?.subjectId ?? '',
+        title: g.title,
+        description: g.description,
+        duration: g.duration,
+        durationDays: g.durationDays,
+        progressPercent: Number(g.progressPercentage ?? g.progressPercent ?? 0),
+        status: g.status ?? 'NotStarted',
+        lastUpdatedAt: g.lastUpdatedAt ?? null,
+      })))
+      setPersonalGoalsTotal(personalGoalsResponse.totalCount)
+      setPersonalGoalsTotalPages(personalGoalsResponse.totalPages)
+      setPersonalGoalsHasNext(personalGoalsResponse.hasNextPage)
+      setPersonalGoalsHasPrev(personalGoalsResponse.hasPreviousPage)
+
+      setPathGoalsPage(dashboardResponse?.pathGoals || DEFAULT_PATH_GOAL_PAGE)
     } catch (err: any) {
       const statusCode = Number(err?.response?.status)
       const msg = extractErrorMessage(err, t('goals.loadDashboardFailed'))
@@ -347,7 +375,7 @@ const GoalsPage: React.FC = () => {
         setLoading(false)
       }
     }
-  }, [debouncedSearchTerm, navigate, pageNumber, showToast, statusFilter, t])
+  }, [debouncedSearchTerm, navigate, pageNumber, personalGoalsPage, showToast, statusFilter, t])
 
   const handleCreateGoal = async () => {
     const title = createGoalTitle.trim()
@@ -411,19 +439,33 @@ const GoalsPage: React.FC = () => {
     setUpdatingGoal(false)
 
     try {
-      const myGoals = await GoalService.getUserGoals()
-      const selectedGoal = (Array.isArray(myGoals) ? myGoals : []).find((goal: any) => String(goal?.goalId || goal?.id || '') === goalId)
+      // Fetch goal detail directly to get subjectId
+      let selectedGoal: any = null
+      try {
+        selectedGoal = await GoalService.getGoalById(goalId)
+      } catch (fetchErr: any) {
+        console.warn('[Goals] getGoalById failed, trying getUserGoals fallback', fetchErr?.response?.status)
+        // Fallback to list
+        try {
+          const myGoals = await GoalService.getUserGoals()
+          selectedGoal = (Array.isArray(myGoals) ? myGoals : []).find((goal: any) => String(goal?.goalId || goal?.id || '') === goalId)
+        } catch {
+          // ignore
+        }
+      }
 
       if (!selectedGoal) {
         setEditGoalError(t('goals.goalLoadForEditFailed'))
+        setShowEditGoalModal(true) // show modal with error
         return
       }
 
-      const subjectId = String(selectedGoal?.subjectId ?? '').trim()
-      if (!subjectId) {
-        setEditGoalError(t('goals.goalMissingSubject'))
-        return
-      }
+      const subjectId = String(
+        selectedGoal?.subjects?.[0]?.subjectId
+        ?? selectedGoal?.subjectId
+        ?? selectedGoal?.SubjectId
+        ?? ''
+      ).trim()
 
       setEditingGoalId(goalId)
       setEditGoalSubjectId(subjectId)
@@ -434,6 +476,7 @@ const GoalsPage: React.FC = () => {
       await loadSubjects()
     } catch (err: any) {
       setEditGoalError(extractErrorMessage(err, t('goals.goalLoadForEditFailed')))
+      setShowEditGoalModal(true)
     }
   }
 
@@ -607,6 +650,37 @@ const GoalsPage: React.FC = () => {
                   </article>
                 )
               })}
+            </div>
+          )}
+
+          {/* Personal goals pagination */}
+          {!loading && personalGoalsTotal > 0 && (
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                {t('goals.paginationInfo', {
+                  page: personalGoalsPage,
+                  totalPages: personalGoalsTotalPages,
+                  totalCount: personalGoalsTotal,
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setPersonalGoalsPage((p) => Math.max(1, p - 1))}
+                  disabled={loading || !personalGoalsHasPrev}
+                  style={{ padding: '7px 12px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: loading || !personalGoalsHasPrev ? 'not-allowed' : 'pointer', opacity: loading || !personalGoalsHasPrev ? 0.6 : 1 }}
+                >
+                  {t('goals.prevPage')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPersonalGoalsPage((p) => p + 1)}
+                  disabled={loading || !personalGoalsHasNext}
+                  style={{ padding: '7px 12px', border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: loading || !personalGoalsHasNext ? 'not-allowed' : 'pointer', opacity: loading || !personalGoalsHasNext ? 0.6 : 1 }}
+                >
+                  {t('goals.nextPage')}
+                </button>
+              </div>
             </div>
           )}
         </div>

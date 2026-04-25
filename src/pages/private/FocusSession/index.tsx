@@ -2433,25 +2433,6 @@ const FocusSessionPage: React.FC = () => {
           </div>
 
           <div style={{ flex: 1, padding: 16 }}>
-            {/* Session Type Badge */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '12px 20px',
-                background: 'transparent',
-                border: `2px solid ${getSessionTypeColor(session.sessionType)}`,
-                color: getSessionTypeColor(session.sessionType),
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600
-              }}>
-                {getSessionTypeIcon(session.sessionType)}
-                {getSessionTypeLabel(session.sessionType)}
-              </div>
-            </div>
-
             {/* Session Name */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ 

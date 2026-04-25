@@ -159,12 +159,12 @@ function ReviewRequestCard({ data, isMine, onNavigate }: {
   }, [data.pathId])
 
   const statusMap: Record<string, { label: string; color: string; bg: string }> = {
-    Pending: { label: '⏳ Đang chờ', color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.12)' },
+    Pending: { label: '⏳ Chờ mentor phản hồi', color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.12)' },
     Accepted: { label: '✓ Đã chấp nhận', color: 'var(--success-primary)', bg: 'rgba(34,197,94,0.12)' },
     Rejected: { label: '✕ Đã từ chối', color: 'var(--danger-primary)', bg: 'rgba(220,38,38,0.12)' },
+    WaitingStudentResponse: { label: '⏳ Chờ phản hồi của bạn', color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
   }
-  // Default to Pending since we just sent the request
-  const status = statusMap[decisionStatus || 'Pending']
+  const status = statusMap[decisionStatus || 'Pending'] ?? statusMap.Pending
 
   return (
     <div style={{ maxWidth: 300, background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', borderRadius: 10, padding: '12px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>

@@ -3,13 +3,11 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
-import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
+import LearningPathService, { type LearningPathSummaryItem } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
 import useChatStore from '../../../../store/useChatStore'
 import { useTranslation } from 'react-i18next'
-import { shouldShowSourceUpdateBadge } from '../shareVersionBadge'
 import ROUTER from '../../../../router/ROUTER'
-
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return 0
@@ -51,10 +49,9 @@ const getProgressVisual = (value: number) => {
 const MyPlansPage: React.FC = () => {
   const { user } = useAuthStore()
   const navigate = useNavigate()
-  const [plans, setPlans] = useState<SkeletonResponse[]>([])
+  const [plans, setPlans] = useState<LearningPathSummaryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [planProgressMap, setPlanProgressMap] = useState<Record<string, number>>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [pageNumber, setPageNumber] = useState(1)
   const [pageSize] = useState(10)
@@ -78,11 +75,10 @@ const MyPlansPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await LearningPathService.getUserLearningPaths(user.id, {
+      const response = await LearningPathService.getUserLearningPathsSummary(user.id, {
         pageNumber,
         pageSize,
         searchTerm: searchTerm || undefined,
-        useCache: false,
       })
       setPlans(response.items)
       setTotalCount(response.totalCount)
@@ -93,50 +89,7 @@ const MyPlansPage: React.FC = () => {
     }
   }
 
-  const filteredPlans = plans.filter(plan => {
-    const q = searchTerm.toLowerCase()
-    return (plan?.title || '').toLowerCase().includes(q) || (plan?.description || '').toLowerCase().includes(q)
-  })
-
-  useEffect(() => {
-    let isCancelled = false
-
-    const fetchPlanProgress = async () => {
-      const pathIds = plans
-        .map((plan) => String(plan.pathId || plan.id || '').trim())
-        .filter((pathId) => Boolean(pathId))
-
-      if (pathIds.length === 0) {
-        if (!isCancelled) setPlanProgressMap({})
-        return
-      }
-
-      const progressEntries = await Promise.all(pathIds.map(async (pathId) => {
-        try {
-          const response = await LearningPathService.getLearningPathProgress(pathId)
-          return [pathId, clampPercent(response.progressPercent)] as const
-        } catch {
-          const fallbackPlan = plans.find((plan) => String(plan.pathId || plan.id || '').trim() === pathId)
-          const fallbackPercent = clampPercent(fallbackPlan?.progressPercent ?? fallbackPlan?.completionPercent ?? 0)
-          return [pathId, fallbackPercent] as const
-        }
-      }))
-
-      if (isCancelled) return
-
-      const nextProgressMap: Record<string, number> = {}
-      progressEntries.forEach(([pathId, progressPercent]) => {
-        nextProgressMap[pathId] = progressPercent
-      })
-      setPlanProgressMap(nextProgressMap)
-    }
-
-    fetchPlanProgress()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [plans])
+  const filteredPlans = plans
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
@@ -171,7 +124,7 @@ const MyPlansPage: React.FC = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filteredPlans.map((plan) => {
-              const planId = String(plan.pathId || plan.id || '').trim()
+              const planId = plan.pathId
               const fallbackShare = receivedLearningPathShares.find(
                 (share) => share.status === 'Accepted' && String(share.pathId || '').trim() === planId,
               )
@@ -180,18 +133,13 @@ const MyPlansPage: React.FC = () => {
                 fallbackShare?.mentorName ||
                 '',
               ).trim()
-              const hasSourceUpdate = shouldShowSourceUpdateBadge(plan)
-              const progressPercent = clampPercent(
-                planId
-                  ? (planProgressMap[planId] ?? plan?.progressPercent ?? plan?.completionPercent ?? 0)
-                  : (plan?.progressPercent ?? plan?.completionPercent ?? 0)
-              )
+              const progressPercent = clampPercent(plan.progressPercent ?? 0)
               const progressVisual = getProgressVisual(progressPercent)
 
               return (
                 <div
-                  key={plan.pathId || plan.id}
-                  onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId || plan.id } })}
+                  key={plan.pathId}
+                  onClick={() => navigate('/my-plans/detail', { state: { pathId: plan.pathId } })}
                   style={{
                     border: '1px solid var(--border-base)',
                     borderRadius: 12,
@@ -218,31 +166,6 @@ const MyPlansPage: React.FC = () => {
                         <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {plan.title || t('myPlans.untitled')}
                         </h3>
-                        {hasSourceUpdate && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const resolvedShareId = String(plan.shareId ?? '').trim()
-                              if (resolvedShareId) {
-                                navigate(ROUTER.LEARNING_PATH_SHARE_UPDATES.replace(':shareId', resolvedShareId))
-                              }
-                            }}
-                            style={{
-                              flexShrink: 0,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: '#854d0e',
-                              border: '1px solid rgba(245, 158, 11, 0.35)',
-                              borderRadius: 999,
-                              padding: '2px 8px',
-                              background: 'rgba(245, 158, 11, 0.12)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {t('myPlans.newVersionBadge', { defaultValue: 'Có phiên bản mới' })}
-                          </button>
-                        )}
                       </div>
                       {sharedByUserName && (
                         <div style={{ marginBottom: 10, fontSize: 11, color: 'var(--text-secondary)' }}>
@@ -250,8 +173,7 @@ const MyPlansPage: React.FC = () => {
                         </div>
                       )}
                       <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--gray-400)', flexWrap: 'wrap' }}>
-                        <span>{t('myPlans.chapters', { count: plan.chapterCount || plan.chapters?.length || 0 })}</span>
-                        <span>{t('myPlans.lessons', { count: plan.lessonCount ?? plan.lessons?.length ?? 0 })}</span>
+                        <span>{t('myPlans.chapters', { count: plan.chapterCount || 0 })}</span>
                         {plan.createdAt && <span>{new Date(plan.createdAt).toLocaleDateString()}</span>}
                       </div>
 
