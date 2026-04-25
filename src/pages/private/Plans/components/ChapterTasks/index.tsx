@@ -49,7 +49,7 @@ interface Task {
   quizQuestionsJson?: string // lowercase version
 }
 
-type TaskVisualStatus = 'completed' | 'overdue' | 'due-today' | 'default'
+type TaskVisualStatus = 'completed' | 'overdue' | 'due-today' | 'pending-review' | 'default'
 
 const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
 
@@ -118,7 +118,7 @@ const normalizeTaskStatus = (value: unknown): TaskVisualStatus | undefined => {
 
   if (typeof value === 'number') {
     if (value === 2) return 'completed'
-    if (value === 3) return 'overdue'
+    if (value === 3) return 'pending-review'
     return undefined
   }
 
@@ -127,6 +127,7 @@ const normalizeTaskStatus = (value: unknown): TaskVisualStatus | undefined => {
 
   if (['completed', 'done', 'finished', 'success'].includes(normalized)) return 'completed'
   if (['overdue', 'pastdue', 'late', 'expired'].includes(normalized)) return 'overdue'
+  if (['pendingreview', 'reviewing'].includes(normalized)) return 'pending-review'
 
   return undefined
 }
@@ -260,13 +261,22 @@ const getTaskStatusMeta = (task: Task, t: (key: string, options?: any) => string
       border: 'rgba(22, 163, 74, 0.22)'
     }
   }
-  if (status === 3 || normalized === 'overdue' || normalized === 'pastdue') {
+  if (normalized === 'overdue' || normalized === 'pastdue') {
     return {
       icon: <AlertTriangle size={12} />,
       label: t('task.statusOverdue', { defaultValue: 'Overdue' }),
       color: '#b91c1c',
       background: 'rgba(255, 255, 255, 0.92)',
       border: 'rgba(220, 38, 38, 0.22)'
+    }
+  }
+  if (status === 3 || normalized === 'pendingreview') {
+    return {
+      icon: <Clock3 size={12} />,
+      label: t('task.statusPendingReview', { defaultValue: 'Pending Review' }),
+      color: '#9333ea',
+      background: 'rgba(255, 255, 255, 0.92)',
+      border: 'rgba(147, 51, 234, 0.22)'
     }
   }
   if (status === 1 || normalized === 'inprogress') {
@@ -319,6 +329,18 @@ const getTaskVisualStyles = (status: TaskVisualStatus) => {
       badgeColor: 'var(--bg-surface)',
       titleColor: 'var(--text-primary)',
       secondaryColor: 'var(--danger-primary)'
+    }
+  }
+
+  if (status === 'pending-review') {
+    return {
+      background: 'rgba(147, 51, 234, 0.06)',
+      borderColor: 'rgba(147, 51, 234, 0.3)',
+      leftAccent: '#9333ea',
+      badgeBackground: '#9333ea',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      secondaryColor: '#9333ea'
     }
   }
 

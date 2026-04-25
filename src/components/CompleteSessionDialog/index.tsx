@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 interface CompleteSessionDialogProps {
   isOpen: boolean
-  onConfirm: (submissionType: 0 | 1, requestMentorReview: boolean) => void
+  onConfirm: (submissionType: 0 | 1 | 2) => void
   onCancel: () => void
   loading?: boolean
 }
@@ -15,26 +15,28 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
   loading = false
 }) => {
   const { t } = useTranslation('student')
-  const [selectedType, setSelectedType] = useState<0 | 1>(0)
-  const [requestMentorReview, setRequestMentorReview] = useState(false)
+  const [selectedType, setSelectedType] = useState<0 | 1 | 2>(0)
 
   const submitTypes = [
     {
       id: 0 as const,
-      icon: '💾',
       title: t('focusSession.saveProgressTitle'),
       description: t('focusSession.saveProgressDescription')
     },
     {
       id: 1 as const,
-      icon: '✅',
       title: t('focusSession.submitFinalTitle'),
       description: t('focusSession.submitFinalDescription')
+    },
+    {
+      id: 2 as const,
+      title: t('focusSession.submitMentorTitle'),
+      description: t('focusSession.submitMentorDescription')
     }
   ]
 
   const handleConfirm = () => {
-    onConfirm(selectedType, selectedType === 1 && requestMentorReview)
+    onConfirm(selectedType)
   }
 
   if (!isOpen) return null
@@ -75,7 +77,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
             justifyContent: 'center',
             gap: 8
           }}>
-            🏁 {t('focusSession.completeDialogTitle')}
+            {t('focusSession.completeDialogTitle')}
           </h3>
         </div>
         
@@ -132,7 +134,6 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
                     gap: 6, 
                     marginBottom: 4 
                   }}>
-                    <span style={{ fontSize: 14 }}>{type.icon}</span>
                     <span style={{ 
                       fontSize: 13, 
                       fontWeight: 600, 
@@ -153,52 +154,6 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
             ))}
           </div>
 
-          {selectedType === 1 && (
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 12,
-                marginTop: 14,
-                padding: 12,
-                border: '1px solid var(--accent-primary)',
-                borderRadius: 4,
-                background: 'var(--bg-blue-hover)',
-                cursor: 'pointer',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={requestMentorReview}
-                onChange={(event) => setRequestMentorReview(event.target.checked)}
-                style={{ margin: '2px 0 0 0' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  marginBottom: 4,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                }}
-                >
-                  <span>👨‍🏫</span>
-                  <span>Mentor Review</span>
-                </div>
-                <div style={{
-                  fontSize: 12,
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.4,
-                }}
-                >
-                  Open mentor review request right after AI review completes.
-                </div>
-              </div>
-            </label>
-          )}
-
           {/* Early finish warning */}
           <div style={{
             display: 'flex',
@@ -210,7 +165,6 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
             border: '1px solid var(--warning-primary)',
             borderRadius: 4
           }}>
-            <span style={{ fontSize: 14 }}>⚠️</span>
             <div style={{ fontSize: 12, color: 'var(--warning-primary)' }}>
               <strong>{t('focusSession.completeDialogEarlyFinish')}</strong>
             </div>
@@ -286,7 +240,7 @@ const CompleteSessionDialog: React.FC<CompleteSessionDialogProps> = ({
                   borderRadius: '50%' 
                 }} />
               )}
-              🏁 {loading ? t('focusSession.completingBtn') : t('focusSession.completeBtn')}
+              {loading ? t('focusSession.completingBtn') : t('focusSession.completeBtn')}
             </button>
           </div>
         </div>

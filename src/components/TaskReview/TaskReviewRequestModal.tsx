@@ -74,7 +74,7 @@ const TaskReviewRequestModal: React.FC<TaskReviewRequestModalProps> = ({
       })
 
     return () => { active = false }
-  }, [isOpen, session])
+  }, [isOpen, session?.sessionId])
 
   if (!isOpen || !session) return null
 

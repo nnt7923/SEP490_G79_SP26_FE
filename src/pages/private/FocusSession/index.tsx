@@ -1497,15 +1497,15 @@ const FocusSessionPage: React.FC = () => {
     setShowCompleteDialog(true)
   }
 
-  const handleCompleteSession = async (submissionType: 0 | 1, requestMentorReview = false) => {
+  const handleCompleteSession = async (submissionType: 0 | 1 | 2) => {
     if (!session) return
 
     setLoading(true)
-    setShouldPromptTaskReviewAfterComplete(submissionType === 1 && requestMentorReview)
+    setShouldPromptTaskReviewAfterComplete(false)
     try {
       // Prepare payload based on submitType and taskType
       const payload: any = {
-        submissionType,
+        submissionType: submissionType === 2 ? 0 : submissionType,
         isEarlyCompletion: true
       }
 
@@ -1553,9 +1553,13 @@ const FocusSessionPage: React.FC = () => {
       setToast({ message, type: 'success' })
 
       if (submissionType !== 1) {
-        setTimeout(() => {
-          navigateBackToDetail()
-        }, 2000)
+        if (submissionType === 2) {
+          setIsTaskReviewRequestModalOpen(true)
+        } else {
+          setTimeout(() => {
+            navigateBackToDetail()
+          }, 2000)
+        }
         return
       }
 

@@ -1044,6 +1044,8 @@
     "saveProgressDescription": "Chỉ lưu tiến độ",
     "submitFinalTitle": "Nộp bài",
     "submitFinalDescription": "Đóng phiên và AI review",
+    "submitMentorTitle": "Nộp cho Mentor",
+    "submitMentorDescription": "Nộp bài trực tiếp cho mentor chấm điểm, bỏ qua đánh giá bằng AI.",
     "finalPassBadge": "ĐẠT",
     "finalFailBadge": "CHƯA ĐẠT",
     "restartSessionBtn": "Bắt đầu phiên mới",
