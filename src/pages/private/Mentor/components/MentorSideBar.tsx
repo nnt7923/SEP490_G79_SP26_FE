@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import ROUTER from '../../../../router/ROUTER'
-import { LayoutDashboard, BookOpen, MessageSquare, User, FolderOpen, Globe } from 'lucide-react'
+import { LayoutDashboard, BookOpen, MessageSquare, User, FolderOpen, Globe, ClipboardCheck } from 'lucide-react'
 import useChatUnreadBadge from '../../../../hooks/useChatUnreadBadge'
 import useChatStore from '../../../../store/useChatStore'
 
@@ -18,6 +18,7 @@ export const getMentorSidebarConfig = (): MentorNavItem[] => {
     { label: 'Drafts', path: ROUTER.MENTOR_DRAFTS, icon: <FolderOpen size={18} /> },
     { label: 'Published', path: ROUTER.MENTOR_PUBLISHED_PATHS, icon: <Globe size={18} /> },
     { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} /> },
+    { label: 'Task Reviews', path: ROUTER.MENTOR_TASK_REVIEWS, icon: <ClipboardCheck size={18} /> },
     { label: 'Profile', path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }
@@ -34,6 +35,7 @@ export const useMentorSidebarConfig = (): MentorNavItem[] => {
     { label: t('sidebar.drafts'), path: ROUTER.MENTOR_DRAFTS, icon: <FolderOpen size={18} /> },
     { label: t('sidebar.publishedPaths'), path: ROUTER.MENTOR_PUBLISHED_PATHS, icon: <Globe size={18} /> },
     { label: 'Chat', path: '/mentor/chat', icon: <MessageSquare size={18} />, badge: globalUnreadCount },
+    { label: 'Task Reviews', path: ROUTER.MENTOR_TASK_REVIEWS, icon: <ClipboardCheck size={18} /> },
     { label: t('sidebar.profile'), path: ROUTER.MENTOR_PROFILE, icon: <User size={18} /> },
   ]
 }
