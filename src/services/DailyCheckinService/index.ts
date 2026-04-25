@@ -4,6 +4,7 @@ import {
   dailyCheckinStatusUrl,
   myDailyCheckinUrl,
   todayDailyCheckinUrl,
+  setMoodDailyCheckinUrl,
 } from './url'
 
 export interface DailyCheckinDto {
@@ -11,7 +12,7 @@ export interface DailyCheckinDto {
   userId: string
   checkinDate: string
   mood?: string | null
-  productivity?: number | null
+  productivityMessage?: string | null
   createdAt: string
 }
 
@@ -85,7 +86,7 @@ const normalizeDailyCheckin = (payload: any): DailyCheckinDto => ({
   userId: String(payload?.userId ?? ''),
   checkinDate: String(payload?.checkinDate ?? ''),
   mood: typeof payload?.mood === 'string' && payload.mood.trim().length > 0 ? payload.mood : null,
-  productivity: normalizeProductivity(payload?.productivity),
+  productivityMessage: typeof payload?.productivityMessage === 'string' && payload.productivityMessage.trim().length > 0 ? payload.productivityMessage : null,
   createdAt: String(payload?.createdAt ?? payload?.checkInCreatedAt ?? ''),
 })
 
@@ -151,6 +152,10 @@ export async function getDailyCheckinStatus(): Promise<DailyCheckinStatusDto> {
   return normalizeDailyCheckinStatus(unwrap(res))
 }
 
+export async function saveMood(mood: string): Promise<void> {
+  await api.post(setMoodDailyCheckinUrl, { mood })
+}
+
 export async function getTodayCheckinWithFallback(date = new Date()): Promise<DailyCheckinLookupResult> {
   try {
     const todayCheckin = await getTodayCheckin()
@@ -185,4 +190,5 @@ export default {
   getUtcDateOnly,
   normalizeDailyCheckinError,
   isDailyCheckinNotFoundError,
+  saveMood,
 }

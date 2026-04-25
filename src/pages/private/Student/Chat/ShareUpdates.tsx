@@ -16,6 +16,7 @@ import type {
 } from '../../../../types/chat'
 import { clearUserLearningPathsCache } from '../../../../services/LearningPathService'
 import { clearCachedShareUpdateContext } from '../../../../components/Notifications/shareUpdateContextCache'
+import { clearAllQuizSkeletonCaches } from '../../../../utils/quizCache'
 import useAuthStore from '../../../../store/useAuthStore'
 import useAppNotificationStore from '../../../../store/useAppNotificationStore'
 import { useTranslation } from 'react-i18next'
@@ -102,6 +103,7 @@ const ShareUpdatesPage: React.FC = () => {
       await applyUpdate(context.shareId, action)
       clearCachedShareUpdateContext(context.shareId)
       clearUserLearningPathsCache(user?.id)
+      clearAllQuizSkeletonCaches()
       const notificationState = useAppNotificationStore.getState()
       await Promise.allSettled([
         refreshNotificationPanel(),

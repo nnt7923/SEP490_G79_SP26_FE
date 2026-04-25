@@ -1,24 +1,14 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import Layout from '../../../../components/Layout'
 import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { Activity, RefreshCw, X, Search, ChevronRight, ChevronLeft, Database, User, Clock, Info, FilterX } from 'lucide-react'
 import useAuthStore from '../../../../store/useAuthStore'
 import { useTranslation } from 'react-i18next'
-import * as signalR from '@microsoft/signalr'
 import api from '../../../../services/Axios'
 
-// Compute Base URL identical to Axios/index.ts, but adapted for /hubs
-const rawBase = (import.meta.env.VITE_API_BASE_URL as string)
-  || (import.meta.env.VITE_BASE_URL as string)
-  || (import.meta.env.PROD ? 'https://pplp.click/api' : '')
-const trimmed = (rawBase || '').replace(/\/+$/, '')
-const isDev = typeof window !== 'undefined' && import.meta.env.DEV
-const isVercel = typeof window !== 'undefined' && /vercel\.app$/i.test(window.location.hostname)
-const HUB_URL = (isDev || isVercel)
-  ? '/hubs/audit-log'
-  : trimmed
-    ? trimmed.replace(/\/api$/, '') + '/hubs/audit-log'
-    : 'https://pplp.click/hubs/audit-log'
+const AUDIT_MAX_RANGE_DAYS = 30
+const DAY_MS = 24 * 60 * 60 * 1000
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000
 
 interface AuditLogResponse {
   logId: string;
@@ -48,17 +38,11 @@ type AuditLogsCacheEntry = {
   data: PaginatedResult<AuditLogResponse>
 }
 
+type AuditLogSortBy = 'Timestamp' | 'Action' | 'TableName'
+
 const AUDIT_LOGS_CACHE_PREFIX = 'admin:audit-logs:'
 const AUDIT_LOGS_CACHE_TTL_MS = 2 * 60 * 1000
 const auditLogsMemoryCache = new Map<string, AuditLogsCacheEntry>()
-
-function isTransientAuditConnectionMessage(message: string): boolean {
-  const normalized = message.toLowerCase()
-  return normalized.includes('disconnected')
-    || normalized.includes('retrying')
-    || normalized.includes('reconnecting')
-    || normalized.includes('connection')
-}
 
 function buildAuditLogsCacheKey(params: {
   page: number
@@ -67,7 +51,7 @@ function buildAuditLogsCacheKey(params: {
   tableFilter: string
   fromDate: string
   toDate: string
-  sortBy: number
+  sortBy: AuditLogSortBy
   sortDescending: boolean
 }): string {
   return JSON.stringify(params)
@@ -100,9 +84,84 @@ function writeAuditLogsStorageCache(cacheKey: string, entry: AuditLogsCacheEntry
   }
 }
 
+function parseDateTimeLocal(value: string): { year: number; month: number; day: number; hour: number; minute: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return null
+
+  const [, year, month, day, hour, minute] = match
+  return {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+  }
+}
+
+function parseVnDateTimeLocalToUtcMs(value: string): number | null {
+  if (!value) return null
+  const parsed = parseDateTimeLocal(value)
+  if (!parsed) return null
+
+  const { year, month, day, hour, minute } = parsed
+  return Date.UTC(year, month - 1, day, hour - 7, minute, 0, 0)
+}
+
+function toUtcIsoFromVnDateTimeLocal(value: string): string | null {
+  const utcMs = parseVnDateTimeLocalToUtcMs(value)
+  if (utcMs === null) return null
+  return new Date(utcMs).toISOString()
+}
+
+function formatVnDateTimeLocalFromUtcMs(utcMs: number): string {
+  const vnMs = utcMs + VN_OFFSET_MS
+  const date = new Date(vnMs)
+  const pad = (value: number) => String(value).padStart(2, '0')
+
+  const year = date.getUTCFullYear()
+  const month = pad(date.getUTCMonth() + 1)
+  const day = pad(date.getUTCDate())
+  const hour = pad(date.getUTCHours())
+  const minute = pad(date.getUTCMinutes())
+
+  return `${year}-${month}-${day}T${hour}:${minute}`
+}
+
+function buildDefaultVnDateRange(): { fromDate: string; toDate: string } {
+  const nowUtcMs = Date.now()
+  return {
+    fromDate: formatVnDateTimeLocalFromUtcMs(nowUtcMs - (3 * DAY_MS)),
+    toDate: formatVnDateTimeLocalFromUtcMs(nowUtcMs),
+  }
+}
+
+function normalizeAuditLogsResult(data: any, fallbackPage: number, fallbackPageSize: number): PaginatedResult<AuditLogResponse> {
+  const totalCount = Number(data?.totalCount ?? 0)
+  const pageNumber = Number(data?.pageNumber ?? fallbackPage)
+  const pageSize = Number(data?.pageSize ?? fallbackPageSize)
+  const totalPages = Number(data?.totalPages ?? 1)
+
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    totalCount,
+    pageNumber,
+    pageSize,
+    totalPages,
+    hasPreviousPage: Boolean(data?.hasPreviousPage ?? pageNumber > 1),
+    hasNextPage: Boolean(data?.hasNextPage ?? pageNumber < totalPages),
+  }
+}
+
+function formatAuditTimestamp(timestamp: string, locale: string): string {
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString(locale, { timeZone: 'Asia/Ho_Chi_Minh' })
+}
+
 const AuditLogs: React.FC = () => {
-  const { t } = useTranslation('admin')
+  const { t, i18n } = useTranslation('admin')
   const { token } = useAuthStore()
+  const initialDateRange = useMemo(() => buildDefaultVnDateRange(), [])
 
   const navItems = useAdminSidebarConfig()
   const sidebarConfig = {
@@ -125,17 +184,38 @@ const AuditLogs: React.FC = () => {
   const [tableFilter, setTableFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState<string>('') // Can be used to filter locally or send as parameter if supported
 
-  const [fromDate, setFromDate] = useState<string>('')
-  const [toDate, setToDate] = useState<string>('')
-  const [sortBy, setSortBy] = useState<number>(0)
+  const [fromDate, setFromDate] = useState<string>(initialDateRange.fromDate)
+  const [toDate, setToDate] = useState<string>(initialDateRange.toDate)
+  const [sortBy, setSortBy] = useState<AuditLogSortBy>('Timestamp')
   const [sortDescending, setSortDescending] = useState<boolean>(true)
-
-  // SignalR Connection Ref
-  const connectionRef = useRef<signalR.HubConnection | null>(null)
-  const lastRequestCacheKeyRef = useRef<string>('')
-  const hasReceivedLogsRef = useRef<boolean>(false)
+  const displayLocale = i18n.language?.toLowerCase().startsWith('vi') ? 'vi-VN' : 'en-US'
 
   const fetchLogs = useCallback(async (forceRefresh: boolean = false) => {
+    if (!token) return
+
+    const fromDateUtcMs = parseVnDateTimeLocalToUtcMs(fromDate)
+    const toDateUtcMs = parseVnDateTimeLocalToUtcMs(toDate)
+
+    if ((fromDate && fromDateUtcMs === null) || (toDate && toDateUtcMs === null)) {
+      setError(t('auditLogs.invalidDateFormat', { defaultValue: 'Invalid date format.' }))
+      setLoading(false)
+      return
+    }
+
+    if (fromDateUtcMs !== null && toDateUtcMs !== null) {
+      if (toDateUtcMs < fromDateUtcMs) {
+        setError(t('auditLogs.invalidDateRange', { defaultValue: '`To Date` must be later than or equal to `From Date`.' }))
+        setLoading(false)
+        return
+      }
+
+      if ((toDateUtcMs - fromDateUtcMs) > (AUDIT_MAX_RANGE_DAYS * DAY_MS)) {
+        setError(t('auditLogs.maxDateRangeExceeded', { days: AUDIT_MAX_RANGE_DAYS, defaultValue: 'Date range must not exceed {{days}} days.' }))
+        setLoading(false)
+        return
+      }
+    }
+
     const cacheKey = buildAuditLogsCacheKey({
       page,
       pageSize,
@@ -174,33 +254,54 @@ const AuditLogs: React.FC = () => {
       }
     }
 
-    if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
-      try {
-        lastRequestCacheKeyRef.current = cacheKey
-        if (forceRefresh || !hasCachedData) {
-          setLoading(true)
-        }
-        // param signature: pageNumber, pageSize, action, tableName, userId, fromDate, toDate, sortBy, sortDescending
-        await connectionRef.current.invoke(
-          "RequestAuditLogs",
-          page,
+    try {
+      if (forceRefresh || !hasCachedData) {
+        setLoading(true)
+      }
+
+      const response: any = await api.get('/admin/audit-logs', {
+        params: {
+          pageNumber: page,
           pageSize,
-          actionFilter || null,
-          tableFilter || null,
-          null, // userId
-          fromDate ? new Date(fromDate).toISOString() : null, // fromDate
-          toDate ? new Date(toDate).toISOString() : null, // toDate
-          sortBy, // sortBy Timestamp
-          sortDescending // sortDescending
-        )
-      } catch (err) {
-        setError(t('auditLogs.error'))
-        if (!hasCachedData || forceRefresh) {
-          setLoading(false)
-        }
+          action: actionFilter || undefined,
+          tableName: tableFilter || undefined,
+          fromDate: fromDate ? toUtcIsoFromVnDateTimeLocal(fromDate) : undefined,
+          toDate: toDate ? toUtcIsoFromVnDateTimeLocal(toDate) : undefined,
+          sortBy,
+          sortDescending,
+        },
+      })
+
+      const data = normalizeAuditLogsResult(response?.data || response, page, pageSize)
+      setLogs(data.items)
+      setTotalPages(data.totalPages)
+      setTotalItems(data.totalCount)
+      setError(null)
+      setLoading(false)
+
+      const cacheEntry: AuditLogsCacheEntry = {
+        data,
+        expiresAt: Date.now() + AUDIT_LOGS_CACHE_TTL_MS,
+      }
+      auditLogsMemoryCache.set(cacheKey, cacheEntry)
+      writeAuditLogsStorageCache(cacheKey, cacheEntry)
+    } catch (err: any) {
+      const errorCode = err?.response?.data?.errorCode
+      const errorMessage = err?.response?.data?.errorMessage
+
+      if (errorCode === 'DATE_RANGE_TOO_LARGE') {
+        setError(t('auditLogs.maxDateRangeExceeded', { days: AUDIT_MAX_RANGE_DAYS, defaultValue: 'Date range must not exceed {{days}} days.' }))
+      } else if (errorCode === 'INVALID_DATE_RANGE') {
+        setError(t('auditLogs.invalidDateRange', { defaultValue: '`To Date` must be later than or equal to `From Date`.' }))
+      } else {
+        setError(String(errorMessage || t('auditLogs.fetchError', { defaultValue: 'Failed to load audit logs. Please try again.' })))
+      }
+
+      if (!hasCachedData || forceRefresh) {
+        setLoading(false)
       }
     }
-  }, [page, pageSize, actionFilter, tableFilter, fromDate, toDate, sortBy, sortDescending, t])
+  }, [token, page, pageSize, actionFilter, tableFilter, fromDate, toDate, sortBy, sortDescending, t])
 
   useEffect(() => {
     const fetchTableNames = async () => {
@@ -219,100 +320,24 @@ const AuditLogs: React.FC = () => {
 
   useEffect(() => {
     if (!token) return
-
-    const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl(HUB_URL, {
-        accessTokenFactory: () => token,
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.None)
-      .build()
-
-    connectionRef.current = newConnection
-
-    newConnection.on("AuditLogsLoading", () => {
-      setLoading(true)
-    })
-
-    newConnection.on("ReceiveAuditLogs", (data: PaginatedResult<AuditLogResponse>) => {
-      setLoading(false)
-      hasReceivedLogsRef.current = true
-      setLogs(data.items)
-      setTotalPages(data.totalPages)
-      setTotalItems(data.totalCount)
-      setError(null)
-
-      const cacheKey = lastRequestCacheKeyRef.current
-      if (cacheKey) {
-        const cacheEntry: AuditLogsCacheEntry = {
-          data,
-          expiresAt: Date.now() + AUDIT_LOGS_CACHE_TTL_MS,
-        }
-        auditLogsMemoryCache.set(cacheKey, cacheEntry)
-        writeAuditLogsStorageCache(cacheKey, cacheEntry)
-      }
-    })
-
-    newConnection.on("AuditLogsError", (err: { errorCode: string; errorMessage: string }) => {
-      setLoading(false)
-      const message = String(err?.errorMessage || t('auditLogs.error'))
-      if (isTransientAuditConnectionMessage(message) && !hasReceivedLogsRef.current) {
-        return
-      }
-      setError(message)
-    })
-
-    newConnection.on("ReceiveNewAuditLog", (newLog: AuditLogResponse) => {
-      // Real-time update: Add to top of the list if we are on the first page
-      setLogs((prev) => {
-        // If filters are active, conditionally add only if matching
-        if (actionFilter && newLog.action !== actionFilter) return prev
-        if (tableFilter && newLog.tableName !== tableFilter) return prev
-
-        const newLogs = [newLog, ...prev]
-        if (newLogs.length > pageSize) newLogs.pop() // keep pageSize limit
-        return newLogs
-      })
-      setTotalItems(prev => prev + 1)
-    })
-
-    const startConnection = async () => {
-      try {
-        await newConnection.start()
-        fetchLogs()
-      } catch (err) {
-        setError(t('auditLogs.error'))
-        setLoading(false)
-      }
-    }
-
-    startConnection()
-
-    return () => {
-      if (connectionRef.current) {
-        connectionRef.current.stop()
-      }
-    }
-  }, [token]) // Re-run only if token changes
-
-  // Fetch when page or filters change
-  useEffect(() => {
     fetchLogs()
-  }, [fetchLogs])
+  }, [token, fetchLogs])
 
   const handleRefresh = () => {
     fetchLogs(true)
   }
 
   const resetFilters = () => {
+    const defaultDateRange = buildDefaultVnDateRange()
     setSearchQuery('')
     setTableFilter('')
     setActionFilter('')
-    setFromDate('')
-    setToDate('')
-    setSortBy(0)
+    setFromDate(defaultDateRange.fromDate)
+    setToDate(defaultDateRange.toDate)
+    setSortBy('Timestamp')
     setSortDescending(true)
     setPage(1)
+    setError(null)
   }
 
   // For Detail Modal
@@ -339,7 +364,7 @@ const AuditLogs: React.FC = () => {
               <Activity className="text-accent-primary" size={24} />
               {t('auditLogs.title')}
             </h1>
-            <p className="text-muted mt-1">{t('auditLogs.subtitle')}</p>
+            <p className="text-muted mt-1">{t('auditLogs.subtitleApi', { defaultValue: 'Track system events and modifications.' })}</p>
           </div>
 
           <button
@@ -414,11 +439,11 @@ const AuditLogs: React.FC = () => {
               <select
                 className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
                 value={sortBy}
-                onChange={e => { setSortBy(Number(e.target.value)); setPage(1); }}
+                onChange={e => { setSortBy(e.target.value as AuditLogSortBy); setPage(1); }}
               >
-                <option value={0}>{t('auditLogs.sortTimestamp')}</option>
-                <option value={1}>{t('auditLogs.sortAction')}</option>
-                <option value={2}>{t('auditLogs.sortTableName')}</option>
+                <option value="Timestamp">{t('auditLogs.sortTimestamp')}</option>
+                <option value="Action">{t('auditLogs.sortAction')}</option>
+                <option value="TableName">{t('auditLogs.sortTableName')}</option>
               </select>
               <select
                 className="px-3 py-1.5 bg-th-input border border-bd text-body focus:outline-none focus:border-accent-primary text-sm rounded-sm"
@@ -471,7 +496,7 @@ const AuditLogs: React.FC = () => {
                     <td colSpan={5} className="p-8 text-center text-muted">
                       <div className="flex flex-col items-center gap-2">
                         <RefreshCw className="animate-spin" size={24} />
-                        {t('auditLogs.loading')}
+                        {t('auditLogs.loadingApi', { defaultValue: 'Loading audit logs...' })}
                       </div>
                     </td>
                   </tr>
@@ -495,7 +520,7 @@ const AuditLogs: React.FC = () => {
                       <td className="p-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <Clock size={14} className="text-muted" />
-                          {new Date(log.timestamp).toLocaleString()}
+                          {formatAuditTimestamp(log.timestamp, displayLocale)}
                         </div>
                       </td>
                       <td className="p-4">
@@ -603,7 +628,7 @@ const AuditLogs: React.FC = () => {
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex-1 text-body bg-th-card">
               <div className="grid grid-cols-2 gap-y-5 gap-x-8 mb-8 bg-th-card p-5 border border-bd">
-                <div><span className="text-muted text-sm">{t('auditLogs.timestamp')}</span><p className="font-semibold text-heading mt-1">{new Date(selectedLog.timestamp).toLocaleString()}</p></div>
+                <div><span className="text-muted text-sm">{t('auditLogs.timestamp')}</span><p className="font-semibold text-heading mt-1">{formatAuditTimestamp(selectedLog.timestamp, displayLocale)}</p></div>
                 <div><span className="text-muted text-sm">{t('auditLogs.action')}</span>
                   <p className="mt-1">
                     <span

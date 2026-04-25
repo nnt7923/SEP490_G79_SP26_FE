@@ -9,10 +9,14 @@ import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import Toast from '../../../components/Toast'
 import CompleteSessionDialog from '../../../components/CompleteSessionDialog'
+import TaskReviewRequestModal, { type TaskReviewRequestSession } from '../../../components/TaskReview/TaskReviewRequestModal'
 import ROUTER from '../../../router/ROUTER'
 import { useTranslation } from 'react-i18next'
 import useDailyCheckinActivitySync from '../../../hooks/useDailyCheckinActivitySync'
 import DailyCheckinPopup from '../Student/components/DailyCheckinPopup'
+import { hasTaskReviewSubmission } from '../../../components/TaskReview/utils'
+import type { MentorDto } from '../../../services/MentorService'
+import type { RequestTaskReviewResult } from '../../../services/TaskReviewService'
 
 interface TaskData {
   id?: string
@@ -297,6 +301,8 @@ const FocusSessionPage: React.FC = () => {
   const [isAiReviewModalOpen, setIsAiReviewModalOpen] = useState<boolean>(false)
   const [finalSubmissionResult, setFinalSubmissionResult] = useState<{ feedback: string; score?: number; taskCompleted: boolean; message?: string } | null>(null)
   const [isFinalSubmissionModalOpen, setIsFinalSubmissionModalOpen] = useState<boolean>(false)
+  const [isTaskReviewRequestModalOpen, setIsTaskReviewRequestModalOpen] = useState<boolean>(false)
+  const [shouldPromptTaskReviewAfterComplete, setShouldPromptTaskReviewAfterComplete] = useState(false)
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false)
   const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
   const [noteTitle, setNoteTitle] = useState<string>('')
@@ -444,6 +450,39 @@ const FocusSessionPage: React.FC = () => {
       return JSON.stringify([])
     }
   }
+
+  const taskReviewRequestSession = React.useMemo<TaskReviewRequestSession | null>(() => {
+    if (!session?.id) return null
+
+    return {
+      sessionId: String(session.id),
+      taskId: String(session.taskId || task?.taskId || task?.id || ''),
+      taskTitle: task?.title || session.title || null,
+      title: session.title || task?.title || '',
+      submittedCode: currentTaskTypeNum === 0 ? code : (session.submittedCode ?? null),
+      submittedSummary: currentTaskTypeNum === 1 ? (theoryAnswers.answer || '') : (session.submittedSummary ?? null),
+      submittedQuizAnswers: currentTaskTypeNum === 2 ? formatQuizAnswers() : (session.submittedQuizAnswers ?? null),
+    }
+  }, [
+    code,
+    currentTaskTypeNum,
+    formatQuizAnswers,
+    session?.id,
+    session?.submittedCode,
+    session?.submittedQuizAnswers,
+    session?.submittedSummary,
+    session?.taskId,
+    session?.title,
+    task?.id,
+    task?.taskId,
+    task?.title,
+    theoryAnswers.answer,
+  ])
+
+  const canRequestMentorReviewAfterComplete = React.useMemo(() => {
+    if (!finalSubmissionResult || !taskReviewRequestSession) return false
+    return hasTaskReviewSubmission(taskReviewRequestSession)
+  }, [finalSubmissionResult, taskReviewRequestSession])
 
   const parseSubmittedQuizAnswers = (value: unknown): Record<string, number> => {
     if (value == null) return {}
@@ -720,6 +759,29 @@ const FocusSessionPage: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {canRequestMentorReviewAfterComplete && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFinalSubmissionModalOpen(false)
+                        setIsTaskReviewRequestModalOpen(true)
+                      }}
+                      style={{
+                        border: 'none',
+                        borderRadius: 8,
+                        background: shouldPromptTaskReviewAfterComplete ? 'var(--warning-primary)' : 'var(--accent-primary)',
+                        color: 'white',
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {shouldPromptTaskReviewAfterComplete
+                        ? t('focusSession.continueToMentorReviewButton')
+                        : t('focusSession.mentorReviewButton')}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={navigateBackToDetail}
@@ -1435,10 +1497,11 @@ const FocusSessionPage: React.FC = () => {
     setShowCompleteDialog(true)
   }
 
-  const handleCompleteSession = async (submissionType: 0 | 1) => {
+  const handleCompleteSession = async (submissionType: 0 | 1, requestMentorReview = false) => {
     if (!session) return
 
     setLoading(true)
+    setShouldPromptTaskReviewAfterComplete(submissionType === 1 && requestMentorReview)
     try {
       // Prepare payload based on submitType and taskType
       const payload: any = {
@@ -1515,11 +1578,11 @@ const FocusSessionPage: React.FC = () => {
             message: dailyCheckinResult.message,
             currentStreak: dailyCheckinResult.stats.currentStreak,
             mood: dailyCheckinResult.todayCheckin?.mood,
-            productivity: dailyCheckinResult.todayCheckin?.productivity,
           })
         }
       }
     } catch (error: any) {
+      setShouldPromptTaskReviewAfterComplete(false)
       const msg = error?.response?.data?.message || error?.message || t('focusSession.completeError')
       setToast({ message: msg, type: 'error' })
     } finally {
@@ -1530,6 +1593,18 @@ const FocusSessionPage: React.FC = () => {
   const handleCancelComplete = () => {
     setShowCompleteDialog(false)
   }
+
+  const handleTaskReviewSubmitted = React.useCallback((result: RequestTaskReviewResult, mentor: MentorDto) => {
+    setIsTaskReviewRequestModalOpen(false)
+    setIsFinalSubmissionModalOpen(false)
+    setToast({
+      message: t('focusSession.mentorReviewRequestedSuccess', {
+        mentorName: mentor.fullName || mentor.username || mentor.mentorId,
+      }),
+      type: 'success',
+    })
+    navigate(ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', result.reviewId))
+  }, [navigate, t])
 
   const handleAiReview = async () => {
     if (!session) return
@@ -2393,7 +2468,7 @@ const FocusSessionPage: React.FC = () => {
                   letterSpacing: '0.5px', 
                   marginBottom: 8 
                 }}>
-                  SESSION NAME
+                  {t('focusSession.sessionNameLabel')}
                 </div>
                 <div style={{ 
                   fontSize: 16, 
@@ -2885,6 +2960,12 @@ const FocusSessionPage: React.FC = () => {
 
       {renderAiReviewModal()}
       {renderFinalSubmissionModal()}
+      <TaskReviewRequestModal
+        isOpen={isTaskReviewRequestModalOpen}
+        session={taskReviewRequestSession}
+        onClose={() => setIsTaskReviewRequestModalOpen(false)}
+        onSubmitted={handleTaskReviewSubmitted}
+      />
 
       {/* Complete Session Dialog */}
       {showCompleteDialog && (
@@ -2920,7 +3001,6 @@ const FocusSessionPage: React.FC = () => {
           userId: '',
           checkinDate: '',
           mood: dailyCheckinPopup.mood ?? null,
-          productivity: dailyCheckinPopup.productivity ?? null,
           createdAt: '',
         } : null}
         onClose={() => setDailyCheckinPopup(null)}

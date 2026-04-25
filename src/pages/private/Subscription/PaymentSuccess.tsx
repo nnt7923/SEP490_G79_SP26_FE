@@ -12,6 +12,7 @@ import useAuthStore from '../../../store/useAuthStore'
 import { UserService } from '../../../services'
 
 type PaymentResultStatus = PaymentTransactionStatus
+type PaymentSource = 'token' | 'mentor' | 'unknown'
 
 const PaymentSuccess: React.FC = () => {
   const { t } = useTranslation('student')
@@ -23,12 +24,14 @@ const PaymentSuccess: React.FC = () => {
   const sidebarConfig = useMemo(() => ({
     navItems,
     actions: [],
-    brand: { name: 'Token', subtitle: 'Student' },
+    brand: { name: 'Pricing', subtitle: 'Student' },
   }), [navItems])
 
   const [status, setStatus] = useState<PaymentResultStatus>('pending')
   const [isVerifying, setIsVerifying] = useState<boolean>(true)
   const [message, setMessage] = useState<string>('')
+  const [paymentSource, setPaymentSource] = useState<PaymentSource>('unknown')
+  const [subscriptionId, setSubscriptionId] = useState<string>('')
   const [balanceVnd, setBalanceVnd] = useState<number>(() => {
     const parsed = Number((user as any)?.tokenBalance ?? (user as any)?.BalanceVnd ?? (user as any)?.balanceVnd ?? 0)
     return Number.isFinite(parsed) ? parsed : 0
@@ -78,6 +81,16 @@ const PaymentSuccess: React.FC = () => {
 
     const verifyPayment = async () => {
       const queryObject = Object.fromEntries(searchParams.entries()) as Record<string, string>
+      const sourceParam = String(searchParams.get('source') || '').trim().toLowerCase()
+      const inferredSource: PaymentSource =
+        sourceParam === 'token'
+          ? 'token'
+          : sourceParam === 'mentor'
+            ? 'mentor'
+            : 'unknown'
+      if (!cancelled) {
+        setPaymentSource(inferredSource)
+      }
       const rawStatusParam = String(searchParams.get('status') || '').trim().toLowerCase()
       const statusFromParam: PaymentResultStatus | null = (() => {
         if (rawStatusParam === 'success' || rawStatusParam === 'paid' || rawStatusParam === 'succeeded') {
@@ -93,9 +106,14 @@ const PaymentSuccess: React.FC = () => {
       })()
 
       if (statusFromParam) {
+        const normalizedSubscriptionId = String(searchParams.get('subscriptionId') || '').trim()
         if (!cancelled) {
           setStatus(statusFromParam)
           setMessage(String(searchParams.get('message') || ''))
+          setSubscriptionId(normalizedSubscriptionId)
+          if (normalizedSubscriptionId) {
+            setPaymentSource('mentor')
+          }
           setIsVerifying(false)
         }
 
@@ -113,13 +131,20 @@ const PaymentSuccess: React.FC = () => {
       ].some((key) => Boolean(queryObject[key]))
 
       if (!hasTransactionParams) {
-        navigate(ROUTER.SUBSCRIPTION, { replace: true })
+        navigate(ROUTER.SHOP, { replace: true })
         return
       }
 
       try {
         const callbackRaw = await SubscriptionService.verifyVnpayCallback(queryObject)
         const callback = ((callbackRaw as any)?.data ?? (callbackRaw as any)?.value ?? callbackRaw) as Record<string, unknown>
+        const normalizedSubscriptionId = String(callback?.subscriptionId ?? '').trim()
+        if (!cancelled) {
+          setSubscriptionId(normalizedSubscriptionId)
+          if (normalizedSubscriptionId) {
+            setPaymentSource('mentor')
+          }
+        }
         const nextStatus = parseStatusFromCallback({ ...queryObject, ...callback })
 
         if (!cancelled) {
@@ -227,9 +252,28 @@ const PaymentSuccess: React.FC = () => {
               fontWeight: 700,
               background: 'color-mix(in oklab, var(--success-primary) 10%, var(--bg-surface))'
             }}>
-              {t('subscription.currentBalanceAfterTopUp', { balance: formatCurrency(balanceVnd) })}
+              {paymentSource === 'mentor'
+                ? t('subscription.paymentMentorPackageSuccess', { defaultValue: 'Mentor package has been activated successfully.' })
+                : t('subscription.currentBalanceAfterTopUp', { balance: formatCurrency(balanceVnd) })}
             </div>
           )}
+
+          {(status === 'success' || status === 'already-processed') && paymentSource === 'mentor' && subscriptionId ? (
+            <div style={{
+              marginBottom: 16,
+              border: '1px solid var(--border-base)',
+              borderRadius: 8,
+              padding: '10px 12px',
+              color: 'var(--text-secondary)',
+              fontSize: 13,
+              background: 'var(--bg-main)'
+            }}>
+              {t('subscription.paymentMentorSubscriptionId', {
+                defaultValue: 'Subscription ID: {{subscriptionId}}',
+                subscriptionId,
+              })}
+            </div>
+          ) : null}
 
           {!isVerifying && (
             <button
@@ -252,7 +296,7 @@ const PaymentSuccess: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => navigate(ROUTER.SUBSCRIPTION)}
+            onClick={() => navigate(ROUTER.SHOP)}
             style={{
               borderRadius: 8,
               border: '1px solid var(--accent-primary)',
@@ -263,7 +307,7 @@ const PaymentSuccess: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            {t('subscription.backToSubscription')}
+            {t('subscription.backToShop', { defaultValue: t('subscription.backToSubscription') })}
           </button>
         </div>
       </div>

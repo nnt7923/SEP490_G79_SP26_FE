@@ -14,6 +14,7 @@ interface ChapterTasksProps {
   selectedTaskId?: string | null
   initialTasks?: Task[]
   onAllTasksCompleted?: (chapterId: string, completed: boolean) => void
+  showReloadButton?: boolean
 }
 
 interface Task {
@@ -361,7 +362,7 @@ const buildTaskSignature = (tasks: Task[]) => {
     .join('|')
 }
 
-const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId = null, initialTasks = [] }) => {
+const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId = null, initialTasks = [], showReloadButton = true }) => {
   const { t } = useTranslation('student')
   const navigate = useNavigate()
   const [tasks, setTasks] = useState<Task[]>([])
@@ -662,7 +663,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId =
           {t('task.title')}
         </h4>
         <div style={{ display: 'flex', gap: 12 }}>
-          {loaded && (
+          {showReloadButton && loaded && (
             <button
               onClick={() => {
                 setLoaded(false); loadingRef.current = false; setTasks([]); setError(null);

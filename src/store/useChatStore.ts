@@ -230,7 +230,13 @@ const useChatStore = create<ChatState>((set, get) => ({
   reconcilePendingShares(shares) {
     const patchShareMessage = get().patchShareMessage
     const upsertReceivedShare = get().upsertReceivedShare
+    const receivedLearningPathShares = get().receivedLearningPathShares
+
     shares.forEach((share) => {
+      // Không overwrite nếu share đã được quyết định (Accepted/Rejected) trong store
+      const existing = receivedLearningPathShares.find((r) => r.shareId === share.shareId)
+      if (existing && existing.status !== 'Pending') return
+
       patchShareMessage(share.shareId, {
         shareStatus: 'Pending',
         learningPathTitle: share.learningPathTitle,

@@ -22,7 +22,7 @@ const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
 const NOTIFICATION_HUB_URL = `${HUB_BASE}/hubs/notification`
-const REQUEST_TIMEOUT = 120000 // 2m timeout
+const REQUEST_TIMEOUT = 180000 // 3m timeout
 const SIGNALR_DEBUG_STORAGE_KEY = 'signalr:debug'
 const SIGNALR_DEBUG_QUERY_KEY = 'debugSignalR'
 
@@ -1895,7 +1895,90 @@ export async function requestAdoptSuggestedLearningPath(
   return p
 }
 
-// ==== Send tutor message (pure SignalR) ====
+// ==== Request learning path suggestion preview (pure SignalR) ====
+const inflightSuggestionPreview = new Map<string, Promise<any>>()
+
+export async function requestLearningPathSuggestionPreview(
+  suggestedPathId: string,
+  subjectId: string,
+  goals: Array<{ goalId: string; weight: number }>,
+  complexityLevel: string,
+  languageSelection: number,
+  onLoading?: () => void
+): Promise<any> {
+  if (!suggestedPathId || !subjectId || !goals?.length || !complexityLevel || languageSelection === undefined) {
+    return Promise.reject(new Error('Missing required parameters for suggestion preview'))
+  }
+
+  const languageSelectionString = languageSelection === 1 ? 'VietNamese' : 'English'
+  const key = `preview-${suggestedPathId}-${subjectId}`
+  if (inflightSuggestionPreview.has(key)) return inflightSuggestionPreview.get(key)!
+
+  const p = (async () => {
+    const hub = await getLearningPathHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+      const cleanup = () => {
+        hub.off('LearningPathSuggestionPreviewStarted', handleLoading)
+        hub.off('LearningPathSuggestionPreviewLoaded', handleLoaded)
+        hub.off('LearningPathSuggestionPreviewError', handleError)
+        inflightSuggestionPreview.delete(key)
+      }
+
+      const handleLoading = () => { onLoading?.() }
+
+      const handleLoaded = (data: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        resolve(data)
+      }
+
+      const handleError = (err: any) => {
+        if (done) return
+        done = true
+        cleanup()
+        const errorCode = err?.errorCode
+        const errorMessage = err?.errorMessage || err?.message || 'Failed to preview learning path'
+        const error: any = new Error(errorMessage)
+        error.errorCode = errorCode
+        reject(error)
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Learning path suggestion preview request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleLoadedWrap = (d: any) => { clearTo(); handleLoaded(d) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('LearningPathSuggestionPreviewStarted', handleLoading)
+      hub.on('LearningPathSuggestionPreviewLoaded', handleLoadedWrap)
+      hub.on('LearningPathSuggestionPreviewError', handleErrorWrap)
+
+      try {
+        hub.invoke(
+          'RequestLearningPathSuggestionPreview',
+          suggestedPathId,
+          subjectId,
+          goals,
+          complexityLevel,
+          languageSelectionString
+        ).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightSuggestionPreview.set(key, p)
+  return p
+}
 export type TutorHubErrorCode =
   | 'UNAUTHORIZED'
   | 'EMPTY_MESSAGE'
@@ -2700,6 +2783,177 @@ export async function requestChapterMentorSkeleton(
   return p
 }
 
+// ==== Bulk learning path content generation (LessonHub) ====
+
+export interface BulkGenerationStarted {
+  PathId: string
+  TotalLessons: number
+  TotalQuizzes: number
+  LessonConcurrency: number
+  QuizConcurrency: number
+}
+
+export interface BulkGenerationProgress {
+  PathId: string
+  TotalLessons: number
+  CompletedLessons: number
+  FailedLessons: number
+  TotalQuizzes: number
+  CompletedQuizzes: number
+  FailedQuizzes: number
+}
+
+export interface BulkGenerationCompleted extends BulkGenerationProgress {}
+
+export interface BulkGenerationError {
+  PathId: string
+  ErrorCode: string
+  ErrorMessage: string
+}
+
+export interface BulkGenerationCancelled {
+  PathId: string
+  ErrorCode: string
+  ErrorMessage: string
+}
+
+export interface BulkGenerationCallbacks {
+  onStarted?: (data: BulkGenerationStarted) => void
+  onProgress?: (data: BulkGenerationProgress) => void
+  onCompleted?: (data: BulkGenerationCompleted) => void
+  onError?: (data: BulkGenerationError) => void
+  onCancelled?: (data: BulkGenerationCancelled) => void
+  onLessonSuccess?: (lesson: any) => void
+  onLessonError?: (data: { LessonId: string; ErrorCode: string; ErrorMessage: string }) => void
+  onQuizSuccess?: (data: { QuizId: string; Questions: any }) => void
+  onQuizError?: (data: { QuizId: string; ErrorCode: string; ErrorMessage: string }) => void
+}
+
+const inflightBulkGeneration = new Map<string, Promise<BulkGenerationCompleted>>()
+
+export async function requestBulkLearningPathContent(
+  pathId: string,
+  lessonConcurrency = 4,
+  quizConcurrency = 6,
+  callbacks?: BulkGenerationCallbacks,
+): Promise<BulkGenerationCompleted> {
+  if (!pathId) return Promise.reject(new Error('pathId is required'))
+
+  if (inflightBulkGeneration.has(pathId)) return inflightBulkGeneration.get(pathId)!
+
+  const p = (async () => {
+    const hub = await getLessonHub()
+
+    return new Promise<BulkGenerationCompleted>((resolve, reject) => {
+      let done = false
+
+      const cleanup = () => {
+        hub.off('BulkLearningPathGenerationStarted', handleStarted)
+        hub.off('BulkLearningPathGenerationProgress', handleProgress)
+        hub.off('BulkLearningPathGenerationCompleted', handleCompleted)
+        hub.off('BulkLearningPathGenerationError', handleError)
+        hub.off('BulkLearningPathGenerationCancelled', handleCancelled)
+        hub.off('ReceiveLessonContent', handleLessonSuccess)
+        hub.off('LessonContentError', handleLessonError)
+        hub.off('ReceiveQuizQuestions', handleQuizSuccess)
+        hub.off('QuizQuestionsError', handleQuizError)
+        inflightBulkGeneration.delete(pathId)
+      }
+
+      const handleStarted = (data: any) => {
+        debugSignalR('bulk', 'BulkLearningPathGenerationStarted', data)
+        callbacks?.onStarted?.(data)
+      }
+
+      const handleProgress = (data: any) => {
+        debugSignalR('bulk', 'BulkLearningPathGenerationProgress', data)
+        callbacks?.onProgress?.(data)
+      }
+
+      const handleCompleted = (data: any) => {
+        if (done) return
+        done = true
+        debugSignalR('bulk', 'BulkLearningPathGenerationCompleted', data)
+        callbacks?.onCompleted?.(data)
+        cleanup()
+        resolve(data)
+      }
+
+      const handleError = (data: any) => {
+        if (done) return
+        done = true
+        debugSignalR('bulk', 'BulkLearningPathGenerationError', data)
+        callbacks?.onError?.(data)
+        cleanup()
+        const err: any = new Error(data?.ErrorMessage || 'Bulk generation failed')
+        err.errorCode = data?.ErrorCode
+        reject(err)
+      }
+
+      const handleCancelled = (data: any) => {
+        if (done) return
+        done = true
+        debugSignalR('bulk', 'BulkLearningPathGenerationCancelled', data)
+        callbacks?.onCancelled?.(data)
+        cleanup()
+        const err: any = new Error(data?.ErrorMessage || 'Bulk generation cancelled')
+        err.errorCode = data?.ErrorCode || 'CONNECTION_ABORTED'
+        reject(err)
+      }
+
+      const handleLessonSuccess = (data: any) => {
+        callbacks?.onLessonSuccess?.(data)
+      }
+
+      const handleLessonError = (data: any) => {
+        callbacks?.onLessonError?.(data)
+      }
+
+      const handleQuizSuccess = (data: any) => {
+        callbacks?.onQuizSuccess?.(data)
+      }
+
+      const handleQuizError = (data: any) => {
+        callbacks?.onQuizError?.(data)
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Bulk learning path generation timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleCompletedWrap = (d: any) => { clearTo(); handleCompleted(d) }
+      const handleErrorWrap = (d: any) => { clearTo(); handleError(d) }
+      const handleCancelledWrap = (d: any) => { clearTo(); handleCancelled(d) }
+
+      // Register all listeners BEFORE invoke
+      hub.on('BulkLearningPathGenerationStarted', handleStarted)
+      hub.on('BulkLearningPathGenerationProgress', handleProgress)
+      hub.on('BulkLearningPathGenerationCompleted', handleCompletedWrap)
+      hub.on('BulkLearningPathGenerationError', handleErrorWrap)
+      hub.on('BulkLearningPathGenerationCancelled', handleCancelledWrap)
+      hub.on('ReceiveLessonContent', handleLessonSuccess)
+      hub.on('LessonContentError', handleLessonError)
+      hub.on('ReceiveQuizQuestions', handleQuizSuccess)
+      hub.on('QuizQuestionsError', handleQuizError)
+
+      try {
+        debugSignalR('bulk', 'invoking RequestBulkLearningPathContent', { pathId, lessonConcurrency, quizConcurrency })
+        hub.invoke('RequestBulkLearningPathContent', pathId, lessonConcurrency, quizConcurrency)
+          .catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightBulkGeneration.set(pathId, p)
+  return p
+}
+
 export async function disconnectHubs(): Promise<void> {
   try {
     if (lessonHub && lessonHub.state !== signalR.HubConnectionState.Disconnected) {
@@ -2754,6 +3008,8 @@ export async function disconnectHubs(): Promise<void> {
     inflightQuizSkeleton.clear()
     inflightLearningPathSuggestions.clear()
     inflightAdoptSuggestedPath.clear()
+    inflightSuggestionPreview.clear()
+    inflightBulkGeneration.clear()
     inflightTutorMessages.clear()
     inflightTutorMessageHistory.clear()
     inflightTutorSummaryHistory.clear()
@@ -2771,3 +3027,386 @@ export async function reconnectHubs(): Promise<void> {
   // Hubs will be recreated automatically on next use with new token
 }
 
+// ===========================================================================
+// ===  BATCH / CONCURRENT GENERATION HELPERS  ================================
+// ===========================================================================
+// These functions fire N invocations simultaneously and return results keyed
+// by resource ID.  They reuse all existing single-item functions so the
+// single-flight guards, ID-routing, and error semantics stay identical.
+//
+// Return value: Map<key, { status: 'fulfilled' | 'rejected'; value?: any; reason?: Error }>
+// Per-item callbacks fire as soon as each item settles — callers can update UI
+// incrementally without waiting for the slowest item.
+
+export type BatchSettledEntry = {
+  status: 'fulfilled' | 'rejected'
+  value?: any
+  reason?: Error
+}
+
+// ---------------------------------------------------------------------------
+// 1. requestMultipleLessonContents
+//    Concurrent lesson-content + quiz-skeleton generation.
+// ---------------------------------------------------------------------------
+export async function requestMultipleLessonContents(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+    onQuizEvent?: {
+      onLoading?: (lessonId: string) => void
+      onSuccess?: (lessonId: string, quizData: any) => void
+      onError?: (lessonId: string, err: any) => void
+    }
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  const results = new Map<string, BatchSettledEntry>()
+  if (!lessonIds || lessonIds.length === 0) return results
+
+  const tasks = lessonIds.map(async (lessonId) => {
+    try {
+      const result = await requestLessonContent(
+        lessonId,
+        callbacks?.onItemLoading ? () => callbacks.onItemLoading!(lessonId) : undefined,
+        callbacks?.onQuizEvent
+          ? {
+              onLoading: callbacks.onQuizEvent.onLoading
+                ? () => callbacks.onQuizEvent!.onLoading!(lessonId)
+                : undefined,
+              onSuccess: callbacks.onQuizEvent.onSuccess
+                ? (quizData: any) => callbacks.onQuizEvent!.onSuccess!(lessonId, quizData)
+                : undefined,
+              onError: callbacks.onQuizEvent.onError
+                ? (err: any) => callbacks.onQuizEvent!.onError!(lessonId, err)
+                : undefined,
+            }
+          : undefined,
+      )
+      results.set(lessonId, { status: 'fulfilled', value: result })
+      callbacks?.onItemSuccess?.(lessonId, result)
+    } catch (err: any) {
+      const error = err instanceof Error ? err : new Error(String(err?.message ?? err ?? 'Unknown error'))
+      results.set(lessonId, { status: 'rejected', reason: error })
+      callbacks?.onItemError?.(lessonId, error)
+    }
+  })
+
+  await Promise.allSettled(tasks)
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// 2. requestMultipleMentorLessonContents
+//    Same as above but via RequestMentorLessonContent (mentor-only).
+// ---------------------------------------------------------------------------
+export async function requestMultipleMentorLessonContents(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  const results = new Map<string, BatchSettledEntry>()
+  if (!lessonIds || lessonIds.length === 0) return results
+
+  const tasks = lessonIds.map(async (lessonId) => {
+    try {
+      const result = await requestMentorLessonContent(
+        lessonId,
+        callbacks?.onItemLoading ? () => callbacks.onItemLoading!(lessonId) : undefined,
+      )
+      results.set(lessonId, { status: 'fulfilled', value: result })
+      callbacks?.onItemSuccess?.(lessonId, result)
+    } catch (err: any) {
+      const error = err instanceof Error ? err : new Error(String(err?.message ?? err ?? 'Unknown error'))
+      results.set(lessonId, { status: 'rejected', reason: error })
+      callbacks?.onItemError?.(lessonId, error)
+    }
+  })
+
+  await Promise.allSettled(tasks)
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// 3. requestMultipleTasks
+//    Concurrent single-task generation across multiple (chapterId, taskType) pairs.
+//    Key in result Map: `${chapterId}:${taskType}:${title ?? ''}`
+// ---------------------------------------------------------------------------
+export type MultiTaskRequest = {
+  chapterId: string
+  title?: string | null
+  taskType: number
+}
+
+export async function requestMultipleTasks(
+  requests: MultiTaskRequest[],
+  callbacks?: {
+    onItemLoading?: (chapterId: string, taskType: number) => void
+    onItemSuccess?: (key: string, chapterId: string, result: any) => void
+    onItemError?: (key: string, chapterId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  const results = new Map<string, BatchSettledEntry>()
+  if (!requests || requests.length === 0) return results
+
+  const tasks = requests.map(async ({ chapterId, title, taskType }) => {
+    const normalizedTitle = title == null ? '' : String(title).trim()
+    const key = `${chapterId}:${taskType}:${normalizedTitle.toLowerCase()}`
+    try {
+      const result = await requestSingleTask(
+        chapterId,
+        title ?? null,
+        taskType,
+        callbacks?.onItemLoading ? () => callbacks.onItemLoading!(chapterId, taskType) : undefined,
+      )
+      results.set(key, { status: 'fulfilled', value: result })
+      callbacks?.onItemSuccess?.(key, chapterId, result)
+    } catch (err: any) {
+      const error = err instanceof Error ? err : new Error(String(err?.message ?? err ?? 'Unknown error'))
+      results.set(key, { status: 'rejected', reason: error })
+      callbacks?.onItemError?.(key, chapterId, error)
+    }
+  })
+
+  await Promise.allSettled(tasks)
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// 4. requestChapterTasksById (internal helper)
+//    Wrapper around requestChapterTasks that strictly filters incoming events
+//    by chapterId — safe to call N times in parallel for different chapters.
+//    For backward compat, the public requestChapterTasks is unchanged.
+// ---------------------------------------------------------------------------
+async function requestChapterTasksById(
+  chapterId: string,
+  onLoading?: () => void,
+): Promise<any> {
+  if (!isGuid(chapterId)) {
+    return Promise.reject(new Error('chapterId must be a valid GUID'))
+  }
+
+  // Reuse the existing single-flight map — same key as requestChapterTasks
+  if (inflightTask.has(chapterId)) {
+    return inflightTask.get(chapterId)!
+  }
+
+  const p = (async () => {
+    const hub = await getTaskHub()
+
+    return new Promise<any>((resolve, reject) => {
+      let done = false
+
+      const isMatchingPayload = (payload: any): boolean => {
+        const payloadChapterId = getPayloadCorrelationId(payload, ['chapterId', 'ChapterId'])
+        return !!payloadChapterId && payloadChapterId === chapterId
+      }
+
+      const cleanup = () => {
+        hub.off('ChapterTasksLoading', handleLoading)
+        hub.off('ReceiveChapterTasks', handleContent)
+        hub.off('ChapterTasksError', handleError)
+        inflightTask.delete(chapterId)
+      }
+
+      const handleLoading = (data: any) => {
+        if (data && !isMatchingPayload(data)) return
+        onLoading?.()
+      }
+
+      const handleContent = (tasks: any) => {
+        if (!isMatchingPayload(tasks)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        resolve(tasks)
+      }
+
+      const handleError = (err: any) => {
+        if (!isMatchingPayload(err)) return
+        if (done) return
+        done = true
+        cleanup()
+        clearTo()
+        reject(new Error(resolveHubErrorMessage(err, 'Failed to load chapter tasks')))
+      }
+
+      const to = setTimeout(() => {
+        if (done) return
+        done = true
+        cleanup()
+        reject(new Error('Chapter tasks request timeout'))
+      }, REQUEST_TIMEOUT)
+
+      const clearTo = () => { try { clearTimeout(to) } catch { } }
+      const handleContentWrap = (c: any) => { clearTo(); handleContent(c) }
+      const handleErrorWrap = (e: any) => { clearTo(); handleError(e) }
+
+      hub.on('ChapterTasksLoading', handleLoading)
+      hub.on('ReceiveChapterTasks', handleContentWrap)
+      hub.on('ChapterTasksError', handleErrorWrap)
+
+      try {
+        hub.invoke('RequestChapterTasks', chapterId).catch(handleErrorWrap)
+      } catch (e) {
+        handleErrorWrap(e)
+      }
+    })
+  })()
+
+  inflightTask.set(chapterId, p)
+  return p
+}
+
+// ---------------------------------------------------------------------------
+// 5. requestMultipleChapterTasks
+//    Concurrent full-chapter-tasks generation for multiple chapters.
+//    Key in result Map: chapterId
+// ---------------------------------------------------------------------------
+export async function requestMultipleChapterTasks(
+  chapterIds: string[],
+  callbacks?: {
+    onItemLoading?: (chapterId: string) => void
+    onItemSuccess?: (chapterId: string, result: any) => void
+    onItemError?: (chapterId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  const results = new Map<string, BatchSettledEntry>()
+  if (!chapterIds || chapterIds.length === 0) return results
+
+  const tasks = chapterIds.map(async (chapterId) => {
+    try {
+      const result = await requestChapterTasksById(
+        chapterId,
+        callbacks?.onItemLoading ? () => callbacks.onItemLoading!(chapterId) : undefined,
+      )
+      results.set(chapterId, { status: 'fulfilled', value: result })
+      callbacks?.onItemSuccess?.(chapterId, result)
+    } catch (err: any) {
+      const error = err instanceof Error ? err : new Error(String(err?.message ?? err ?? 'Unknown error'))
+      results.set(chapterId, { status: 'rejected', reason: error })
+      callbacks?.onItemError?.(chapterId, error)
+    }
+  })
+
+  await Promise.allSettled(tasks)
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// 6. requestMultipleQuizSkeletons
+//    Concurrent quiz-skeleton generation (RequestSingleQuizSkeleton × N).
+//    Key in result Map: lessonId
+// ---------------------------------------------------------------------------
+export async function requestMultipleQuizSkeletons(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  const results = new Map<string, BatchSettledEntry>()
+  if (!lessonIds || lessonIds.length === 0) return results
+
+  const tasks = lessonIds.map(async (lessonId) => {
+    try {
+      const result = await requestSingleQuizSkeleton(
+        lessonId,
+        callbacks?.onItemLoading ? () => callbacks.onItemLoading!(lessonId) : undefined,
+      )
+      results.set(lessonId, { status: 'fulfilled', value: result })
+      callbacks?.onItemSuccess?.(lessonId, result)
+    } catch (err: any) {
+      const error = err instanceof Error ? err : new Error(String(err?.message ?? err ?? 'Unknown error'))
+      results.set(lessonId, { status: 'rejected', reason: error })
+      callbacks?.onItemError?.(lessonId, error)
+    }
+  })
+
+  await Promise.allSettled(tasks)
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// 7. requestMultipleQuizQuestions
+//    Concurrent single-question generation (RequestSingleQuizQuestion × N).
+//    Key in result Map: `${quizId}:${questionType}`
+// ---------------------------------------------------------------------------
+export type MultiQuizRequest = {
+  quizId: string
+  questionType: number
+}
+
+export async function requestMultipleQuizQuestions(
+  requests: MultiQuizRequest[],
+  callbacks?: {
+    onItemLoading?: (quizId: string, questionType: number) => void
+    onItemSuccess?: (key: string, quizId: string, result: any) => void
+    onItemError?: (key: string, quizId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  const results = new Map<string, BatchSettledEntry>()
+  if (!requests || requests.length === 0) return results
+
+  const tasks = requests.map(async ({ quizId, questionType }) => {
+    const key = `${quizId}:${questionType}`
+    try {
+      const result = await requestSingleQuizQuestion(
+        quizId,
+        questionType,
+        callbacks?.onItemLoading ? () => callbacks.onItemLoading!(quizId, questionType) : undefined,
+      )
+      results.set(key, { status: 'fulfilled', value: result })
+      callbacks?.onItemSuccess?.(key, quizId, result)
+    } catch (err: any) {
+      const error = err instanceof Error ? err : new Error(String(err?.message ?? err ?? 'Unknown error'))
+      results.set(key, { status: 'rejected', reason: error })
+      callbacks?.onItemError?.(key, quizId, error)
+    }
+  })
+
+  await Promise.allSettled(tasks)
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// 8. requestMultipleQuizQuestionsForQuiz
+//    Convenience: generate ALL question types at once for a single quiz.
+//    questionTypes defaults to [0,1,2,3,4,5] (all types).
+// ---------------------------------------------------------------------------
+export async function requestMultipleQuizQuestionsForQuiz(
+  quizId: string,
+  questionTypes: number[] = [0, 1, 2, 3, 4, 5],
+  callbacks?: {
+    onItemLoading?: (questionType: number) => void
+    onItemSuccess?: (questionType: number, result: any) => void
+    onItemError?: (questionType: number, err: Error) => void
+  }
+): Promise<Map<number, BatchSettledEntry>> {
+  const results = new Map<number, BatchSettledEntry>()
+  if (!isGuid(quizId) || questionTypes.length === 0) return results
+
+  const tasks = questionTypes.map(async (questionType) => {
+    try {
+      const result = await requestSingleQuizQuestion(
+        quizId,
+        questionType,
+        callbacks?.onItemLoading ? () => callbacks.onItemLoading!(questionType) : undefined,
+      )
+      results.set(questionType, { status: 'fulfilled', value: result })
+      callbacks?.onItemSuccess?.(questionType, result)
+    } catch (err: any) {
+      const error = err instanceof Error ? err : new Error(String(err?.message ?? err ?? 'Unknown error'))
+      results.set(questionType, { status: 'rejected', reason: error })
+      callbacks?.onItemError?.(questionType, error)
+    }
+  })
+
+  await Promise.allSettled(tasks)
+  return results
+}

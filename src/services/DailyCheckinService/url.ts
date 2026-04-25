@@ -3,3 +3,4 @@ export const myDailyCheckinUrl = `${basePath}/me`
 export const todayDailyCheckinUrl = `${myDailyCheckinUrl}/today`
 export const dailyCheckinStatsUrl = `${myDailyCheckinUrl}/stats`
 export const dailyCheckinStatusUrl = `${myDailyCheckinUrl}/status`
+export const setMoodDailyCheckinUrl = `${myDailyCheckinUrl}/mood`

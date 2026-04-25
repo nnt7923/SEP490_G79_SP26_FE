@@ -12,7 +12,9 @@ import {
   MessageSquare,
   Reply,
   Smile,
+  Star,
   Users,
+  UserCircle,
 } from "lucide-react";
 import Layout from "../../../../components/Layout";
 import ChannelChatPage from "../../../../components/ChannelChat/ChannelChatPage";
@@ -24,15 +26,19 @@ import ROUTER from "../../../../router/ROUTER";
 import { useChatHub } from "../../../../hooks/useChatHub";
 import {
   getPendingShares,
+  getSentShares,
   getSharePreview,
 } from "../../../../services/LearningPathShareService";
 import {
+  createOrGetConversation,
   getContacts,
   getConversations,
   getMessages,
+  sendMessageRest,
 } from "../../../../services/DirectChatService";
 import MessageStatusIcon from "../../../../components/Chat/MessageStatusIcon";
 import type {
+  AskMentorContextPayload,
   DirectChatContactDto,
   DirectMessageDto,
   LearningPathShareCardData,
@@ -58,11 +64,19 @@ import {
 import EmojiPicker, { Theme as EmojiTheme } from "emoji-picker-react";
 import ChatReplyPreview from "../../../../components/Chat/ChatReplyPreview";
 import LearningPathShareCard from "../../../../components/Chat/LearningPathShareCard";
+import TaskReviewMessageCard from "../../../../components/TaskReview/TaskReviewMessageCard";
 import {
   buildLearningPathShareCardData,
   isLearningPathShareMessage,
   normalizeShareId,
+  isReviewRequestMessage,
+  parseReviewRequestMessage,
+  normalizeConversationPreview,
 } from "../../../../components/Chat/learningPathShare";
+import {
+  getTaskReviewId,
+  isTaskReviewMessage,
+} from "../../../../components/Chat/taskReview";
 import {
   buildReplyDraft,
   buildReplyPreviewForMessage,
@@ -71,6 +85,12 @@ import {
   type ReplyDraft,
   normalizeChatMessageContent,
 } from "../../../../components/Chat/chatReply";
+import {
+  formatAskMentorContextMessage,
+  isValidAskMentorContextPayload,
+} from "../../../../utils/askMentorContext";
+import ReviewMentorModal from "../../../../components/ReviewMentorModal";
+import MentorProfileModal from "../../../../components/MentorProfileModal";
 
 type ToastState = {
   message: string;
@@ -80,9 +100,92 @@ type ChatRouteState = {
   conversationId?: string;
   activeTab?: "conversations" | "invites" | "contacts";
   toast?: ToastState;
+  askMentorContext?: AskMentorContextPayload;
+  selectedMentorId?: string;
+  reviewPathId?: string;
+  reviewPathTitle?: string;
 };
 interface StudentChatPageProps {
   initialView?: "direct" | "community";
+}
+
+// ── ReviewRequestCard ─────────────────────────────────────────────────────────
+import type { ReviewRequestData } from "../../../../components/Chat/learningPathShare";
+
+// Shared cache for review status (30s TTL)
+const studentReviewCache = new Map<string, { status: string; ts: number }>()
+const REVIEW_CACHE_TTL = 120000 // 2 minutes
+
+function ReviewRequestCard({ data, isMine, onNavigate }: {
+  data: ReviewRequestData; isMine: boolean; onNavigate?: () => void
+}) {
+  const [decisionStatus, setDecisionStatus] = React.useState<string | null>(() => {
+    const cached = studentReviewCache.get(data.pathId)
+    if (cached && Date.now() - cached.ts < REVIEW_CACHE_TTL) return cached.status
+    try {
+      const raw = sessionStorage.getItem(`srv:${data.pathId}`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Date.now() - parsed.ts < REVIEW_CACHE_TTL) {
+          studentReviewCache.set(data.pathId, parsed)
+          return parsed.status
+        }
+      }
+    } catch { }
+    return null
+  })
+
+  React.useEffect(() => {
+    if (!data.pathId) return
+    const cached = studentReviewCache.get(data.pathId)
+    if (cached && Date.now() - cached.ts < REVIEW_CACHE_TTL) {
+      setDecisionStatus(cached.status)
+      return
+    }
+    import('../../../../services/LearningPathService').then(({ getMentorReviews }) => {
+      getMentorReviews(data.pathId)
+        .then(reviews => {
+          const latest = [...reviews].sort((a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          )[0]
+          const status = latest?.decisionStatus || (reviews.length > 0 ? 'Pending' : 'Pending')
+          const cacheData = { status, ts: Date.now() }
+          studentReviewCache.set(data.pathId, cacheData)
+          try { sessionStorage.setItem(`srv:${data.pathId}`, JSON.stringify(cacheData)) } catch { }
+          setDecisionStatus(status)
+        })
+        .catch(() => {})
+    })
+  }, [data.pathId])
+
+  const statusMap: Record<string, { label: string; color: string; bg: string }> = {
+    Pending: { label: '⏳ Đang chờ', color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.12)' },
+    Accepted: { label: '✓ Đã chấp nhận', color: 'var(--success-primary)', bg: 'rgba(34,197,94,0.12)' },
+    Rejected: { label: '✕ Đã từ chối', color: 'var(--danger-primary)', bg: 'rgba(220,38,38,0.12)' },
+  }
+  // Default to Pending since we just sent the request
+  const status = statusMap[decisionStatus || 'Pending']
+
+  return (
+    <div style={{ maxWidth: 300, background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', borderRadius: 10, padding: '12px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Review Request</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: status.color, background: status.bg, padding: '2px 8px', borderRadius: 999 }}>
+          {status.label}
+        </span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: data.note ? 6 : 10, lineHeight: 1.4 }}>{data.title}</div>
+      {data.note && (
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.5, fontStyle: 'italic' }}>"{data.note}"</div>
+      )}
+      {isMine && onNavigate && (
+        <button onClick={onNavigate}
+          style={{ width: '100%', padding: '7px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          Xem trạng thái review
+        </button>
+      )}
+    </div>
+  )
 }
 
 function formatConversationTime(iso: string | null): string {
@@ -135,7 +238,7 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   const { theme } = useTheme();
   const { logout, user } = useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation() as { state?: ChatRouteState };
+  const location = useLocation() as { state?: ChatRouteState; pathname: string };
 
   const {
     conversationsById,
@@ -172,17 +275,51 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
   const [toast, setToast] = useState<ToastState | null>(
     location.state?.toast ?? null,
   );
+  const readAskMentorContextFromStorage = (): AskMentorContextPayload | null => {
+    try {
+      const raw = sessionStorage.getItem("plans.askMentorContext");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as AskMentorContextPayload;
+      return isValidAskMentorContextPayload(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
   const [requestedConversationId, setRequestedConversationId] = useState<
     string | null
   >(location.state?.conversationId ?? null);
+  const [requestedMentorId, setRequestedMentorId] = useState<string | null>(
+    location.state?.selectedMentorId ?? null,
+  );
+  const [reviewPathId, setReviewPathId] = useState<string | null>(
+    location.state?.reviewPathId ?? null,
+  );
+  const [reviewPathTitle, setReviewPathTitle] = useState<string | null>(
+    location.state?.reviewPathTitle ?? null,
+  );
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [activeMentorDetail, setActiveMentorDetail] = useState<import("../../../../services/MentorService").MentorDto | null>(null);
+  const [profileModalMentorId, setProfileModalMentorId] = useState<string | null>(null);
+  const [askMentorContext, setAskMentorContext] =
+    useState<AskMentorContextPayload | null>(
+      location.state?.askMentorContext ?? readAskMentorContextFromStorage(),
+    );
   const deliveredRef = useRef<Set<string>>(new Set());
   const seenRef = useRef<Set<string>>(new Set());
   const hydratedShareIdsRef = useRef<Set<string>>(new Set());
   const hydratingShareIdsRef = useRef<Set<string>>(new Set());
+  const sentAskMentorKeysRef = useRef<Set<string>>(new Set());
   const messageListId = "student-chat-message-list";
   const messageInputRef = useRef<any>(null);
 
   const currentUserId = String(user?.id ?? "");
+
+  // Build avatar lookup from contacts for use in conversation list
+  const contactAvatarMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    contacts.forEach((c) => map.set(c.userId, c.avatarUrl));
+    return map;
+  }, [contacts]);
 
   const conversations = conversationOrder
     .map((id) => conversationsById[id])
@@ -315,6 +452,46 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
         reconcilePendingShares(shares);
       })
       .catch(() => {});
+    // Load ALL received shares (including Accepted/Rejected) để hiển thị đúng status
+    getSentShares()
+      .then((sentShares) => {
+        sentShares.forEach((share) => {
+          upsertReceivedShare({
+            shareId: share.shareId,
+            pathId: share.acceptedPathId ?? share.pathId,
+            learningPathTitle: share.learningPathTitle,
+            learningPathDescription: share.learningPathDescription,
+            mentorId: share.mentorId ?? "",
+            mentorName: share.mentorName ?? "",
+            status: share.status,
+            sentAt: share.sentAt,
+            respondedAt: share.respondedAt,
+          });
+          if (share.status !== "Pending") {
+            removePendingShare(share.shareId);
+          }
+          if (share.status === "Pending") {
+            patchShareMessage(share.shareId, {
+              shareStatus: share.status,
+              respondedAt: null,
+              pathId: share.pathId,
+              learningPathTitle: share.learningPathTitle,
+              learningPathDescription: share.learningPathDescription,
+              mentorName: share.mentorName ?? undefined,
+            });
+          } else {
+            patchShareMessage(share.shareId, {
+              shareStatus: share.status,
+              respondedAt: share.respondedAt,
+              pathId: share.acceptedPathId ?? share.pathId,
+              learningPathTitle: share.learningPathTitle,
+              learningPathDescription: share.learningPathDescription,
+              mentorName: share.mentorName ?? undefined,
+            });
+          }
+        });
+      })
+      .catch(() => {});
     getContacts()
       .then((c) => setContacts(c.filter((u) => u.roleName === "Mentor")))
       .catch(() => {});
@@ -327,10 +504,24 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     if (location.state.activeTab) setActiveTab(location.state.activeTab);
     if (location.state.conversationId)
       setRequestedConversationId(location.state.conversationId);
+    if (location.state.selectedMentorId)
+      setRequestedMentorId(location.state.selectedMentorId);
+    if (location.state.reviewPathId)
+      setReviewPathId(location.state.reviewPathId);
+    if (location.state.reviewPathTitle)
+      setReviewPathTitle(location.state.reviewPathTitle);
+    if (location.state.askMentorContext)
+      setAskMentorContext(location.state.askMentorContext);
+    if (!location.state.askMentorContext) {
+      const cachedContext = readAskMentorContextFromStorage();
+      if (cachedContext) setAskMentorContext(cachedContext);
+    }
     if (
       location.state.toast ||
       location.state.activeTab ||
-      location.state.conversationId
+      location.state.conversationId ||
+      location.state.selectedMentorId ||
+      location.state.askMentorContext
     ) {
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -352,6 +543,44 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
     requestedConversationId,
     setActiveConversation,
   ]);
+
+  // Auto-start conversation with requested mentor (from SelectMentorModal)
+  useEffect(() => {
+    if (!requestedMentorId) return;
+    handleStartConversation(requestedMentorId);
+    setRequestedMentorId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedMentorId]);
+
+  // Auto-send review request message when reviewPathId is set and conversation is active
+  useEffect(() => {
+    if (!reviewPathId || !activeConversationId) return;
+    const pathId = reviewPathId;
+    const pathTitle = reviewPathTitle;
+    const studentId = currentUserId;
+    setReviewPathId(null);
+    setReviewPathTitle(null);
+    const message = `[REVIEW_REQUEST] pathId=${pathId} studentId=${studentId} title=${pathTitle || pathId} note=Tôi muốn nhờ bạn review learning path này.`;
+    hub.joinConversation(activeConversationId).catch(() => {}).finally(() => {
+      hub.sendMessage(activeConversationId, message, 'Text', null).catch(() => {
+        sendMessageRest(activeConversationId, message, 'Text', null).catch(() => {});
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewPathId, activeConversationId]);
+
+  // Load mentor detail (for myReview) when active conversation changes
+  useEffect(() => {
+    if (!activeConv || activeConv.mentorId === currentUserId) {
+      setActiveMentorDetail(null);
+      return;
+    }
+    import("../../../../services/MentorService").then(({ default: MentorService }) => {
+      MentorService.getMentorById(activeConv.mentorId)
+        .then((data) => setActiveMentorDetail(data))
+        .catch(() => setActiveMentorDetail(null));
+    });
+  }, [activeConv?.mentorId]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -474,7 +703,43 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
 
           hydratedShareIdsRef.current.add(normalizedShareId);
         })
-        .catch(() => {})
+        .catch((err) => {
+          const code =
+            err?.response?.data?.errorCode || err?.response?.data?.code;
+          // Share đã được quyết định, getSharePreview bị block — lấy status thực từ getSentShares
+          if (code === "SHARE_ALREADY_DECIDED") {
+            getSentShares()
+              .then((sentShares) => {
+                const match = sentShares.find(
+                  (s) => normalizeShareId(s.shareId) === normalizedShareId,
+                );
+                if (match && match.status !== "Pending") {
+                  patchShareMessage(match.shareId, {
+                    shareStatus: match.status,
+                    respondedAt: match.respondedAt,
+                    pathId: match.acceptedPathId ?? match.pathId,
+                    learningPathTitle: match.learningPathTitle,
+                    learningPathDescription: match.learningPathDescription,
+                    mentorName: match.mentorName ?? undefined,
+                  });
+                  upsertReceivedShare({
+                    shareId: match.shareId,
+                    pathId: match.acceptedPathId ?? match.pathId,
+                    learningPathTitle: match.learningPathTitle,
+                    learningPathDescription: match.learningPathDescription,
+                    mentorId: match.mentorId ?? "",
+                    mentorName: match.mentorName ?? "",
+                    status: match.status,
+                    sentAt: match.sentAt,
+                    respondedAt: match.respondedAt,
+                  });
+                  removePendingShare(match.shareId);
+                  hydratedShareIdsRef.current.add(normalizedShareId);
+                }
+              })
+              .catch(() => {});
+          }
+        })
         .finally(() => {
           hydratingShareIdsRef.current.delete(normalizedShareId);
         });
@@ -548,10 +813,133 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
 
   const handleStartConversation = async (participantId: string) => {
     try {
-      await hub.startConversation(participantId);
+      let targetConvId = null;
+      const existingConv = Object.values(
+        useChatStore.getState().conversationsById,
+      ).find(
+        (c) => c.mentorId === participantId || c.studentId === participantId,
+      );
+      if (existingConv) {
+        targetConvId = existingConv.conversationId;
+      }
+
+      if (!targetConvId) {
+        try {
+          const conversation = await createOrGetConversation(participantId);
+          if (conversation?.conversationId) {
+            targetConvId = conversation.conversationId;
+            useChatStore.getState().upsertConversation(conversation);
+          }
+        } catch {}
+      }
+
+      if (!targetConvId) {
+        const result = (await hub.startConversation(participantId)) as any;
+        if (result && typeof result === "string") {
+          targetConvId = result;
+        } else if (result && typeof result === "object") {
+          targetConvId = result.conversationId || result.ConversationId;
+        }
+      }
+
       setActiveTab("conversations");
       setSearchQuery("");
-    } catch {}
+
+      if (targetConvId) {
+        setActiveConversation(targetConvId);
+
+        if (askMentorContext) {
+          const messagePayload =
+            formatAskMentorContextMessage(askMentorContext);
+          const dedupeKey = `${participantId}:${JSON.stringify(askMentorContext)}`;
+          if (!sentAskMentorKeysRef.current.has(dedupeKey)) {
+            sentAskMentorKeysRef.current.add(dedupeKey);
+            if (!isValidAskMentorContextPayload(askMentorContext)) {
+              setToast({
+                message: t("chat.askMentorContextInvalid", {
+                  defaultValue:
+                    "Plan context is incomplete. You can continue messaging mentor manually.",
+                }),
+                type: "warning",
+              });
+              setAskMentorContext(null);
+              return;
+            }
+
+            let sent = false;
+            try {
+              await hub.joinConversation(targetConvId).catch(() => {});
+              await hub.sendMessage(
+                targetConvId,
+                messagePayload,
+                "Text",
+                null,
+              );
+              sent = true;
+            } catch {
+              try {
+                await sendMessageRest(
+                  targetConvId,
+                  messagePayload,
+                  "Text",
+                  null,
+                );
+                sent = true;
+              } catch {
+                // handled below
+              }
+            }
+
+            try {
+              const latestMessages = await getMessages(targetConvId);
+              setMessages(targetConvId, latestMessages?.items ?? []);
+            } catch {}
+            getConversations().then(setConversations).catch(() => {});
+
+            if (sent) {
+              setToast({
+                message: t("chat.askMentorContextSent", {
+                  defaultValue:
+                    "Plan context was sent to mentor automatically.",
+                }),
+                type: "success",
+              });
+              setAskMentorContext(null);
+              try {
+                sessionStorage.removeItem("plans.askMentorContext");
+              } catch {}
+            } else {
+              sentAskMentorKeysRef.current.delete(dedupeKey);
+              setToast({
+                message: t("chat.askMentorContextSendFailed", {
+                  defaultValue:
+                    "Could not send plan context automatically. You can continue messaging mentor manually.",
+                }),
+                type: "warning",
+              });
+            }
+          }
+        }
+      } else if (askMentorContext) {
+        setToast({
+          message: t("chat.askMentorConversationMissing", {
+            defaultValue:
+              "Could not open mentor conversation for auto context send.",
+          }),
+          type: "warning",
+        });
+      }
+    } catch {
+      if (askMentorContext) {
+        setToast({
+          message: t("chat.askMentorContextSendFailed", {
+            defaultValue:
+              "Could not send plan context automatically. You can continue messaging mentor manually.",
+            }),
+          type: "warning",
+        });
+      }
+    }
   };
 
   const handleReplyToMessage = (message: DirectMessageDto) => {
@@ -728,11 +1116,13 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                               ? conv.studentName
                               : conv.mentorName;
                           const initials = getInitials(name);
+                          const otherUserId = conv.mentorId === currentUserId ? conv.studentId : conv.mentorId;
+                          const avatarUrl = contactAvatarMap.get(otherUserId);
                           return (
                             <Conversation
                               key={conv.conversationId}
                               name={name}
-                              info={conv.lastMessagePreview ?? ""}
+                              info={normalizeConversationPreview(conv.lastMessagePreview)}
                               lastActivityTime={formatConversationTime(
                                 conv.lastMessageAt,
                               )}
@@ -753,9 +1143,18 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                               }}
                             >
                               <Avatar>
-                                <span className="chat-kit-avatar">
-                                  {initials}
-                                </span>
+                                {avatarUrl ? (
+                                  <img
+                                    src={avatarUrl}
+                                    alt={name}
+                                    className="chat-kit-avatar"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                                  />
+                                ) : (
+                                  <span className="chat-kit-avatar">
+                                    {initials}
+                                  </span>
+                                )}
                               </Avatar>
                             </Conversation>
                           );
@@ -779,9 +1178,18 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                             handleStartConversation(contact.userId)
                           }
                           className="chat-kit-contact-item"
+                          style={{ position: 'relative' }}
                         >
                           <div className="chat-kit-contact-avatar">
-                            {contact.username.substring(0, 2).toUpperCase()}
+                            {contact.avatarUrl ? (
+                              <img
+                                src={contact.avatarUrl}
+                                alt={contact.username}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                              />
+                            ) : (
+                              contact.username.substring(0, 2).toUpperCase()
+                            )}
                           </div>
                           <div style={{ flex: 1 }}>
                             <div className="chat-kit-contact-name">
@@ -791,6 +1199,24 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                               {t("chat.mentor", { defaultValue: "Mentor" })}
                             </div>
                           </div>
+                          {/* Profile icon */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setProfileModalMentorId(contact.userId)
+                            }}
+                            style={{
+                              background: 'transparent', border: 'none',
+                              cursor: 'pointer', padding: 4, flexShrink: 0,
+                              color: 'var(--text-secondary)', display: 'flex',
+                              alignItems: 'center', borderRadius: 2,
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+                            title={t('plans.viewProfile')}
+                          >
+                            <UserCircle size={14} />
+                          </button>
                         </div>
                       ))
                     )}
@@ -832,8 +1258,10 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                             respondedAt: share.respondedAt,
                           }}
                           actionMode="invite"
-                          onPreview={() =>
-                            openSharePreview(share.shareId, "invites")
+                          onPreview={
+                            share.status === 'Pending'
+                              ? () => openSharePreview(share.shareId, 'invites')
+                              : undefined
                           }
                           onViewPath={
                             share.pathId && share.status === "Accepted"
@@ -855,15 +1283,61 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
             <ChatContainer className="chat-kit-panel">
               <ConversationHeader>
                 <Avatar>
-                  <span className="chat-kit-avatar chat-kit-avatar--header">
-                    {getInitials(otherName || t("chat.title"))}
-                  </span>
+                  {activeConv && contactAvatarMap.get(activeConv.mentorId === currentUserId ? activeConv.studentId : activeConv.mentorId) ? (
+                    <img
+                      src={contactAvatarMap.get(activeConv.mentorId === currentUserId ? activeConv.studentId : activeConv.mentorId)!}
+                      alt={otherName}
+                      className="chat-kit-avatar chat-kit-avatar--header"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                    />
+                  ) : (
+                    <span className="chat-kit-avatar chat-kit-avatar--header">
+                      {getInitials(otherName || t("chat.title"))}
+                    </span>
+                  )}
                 </Avatar>
                 <ConversationHeader.Content
                   userName={
                     activeConversationId ? otherName || "..." : t("chat.title")
                   }
                 />
+                {activeConversationId && activeConv && activeConv.mentorId !== currentUserId && (
+                  <ConversationHeader.Actions>
+                    <button
+                      onClick={() => setReviewModalOpen(true)}
+                      title={t("review.title")}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 2,
+                        cursor: 'pointer',
+                        padding: '5px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        color: activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--text-secondary)',
+                        borderColor: activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--border-base)',
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--warning-primary)'
+                        e.currentTarget.style.color = 'var(--warning-primary)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--border-base)'
+                        e.currentTarget.style.color = activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'var(--text-secondary)'
+                      }}
+                    >
+                      <Star size={12} fill={activeMentorDetail?.myReview ? 'var(--warning-primary)' : 'none'} />
+                      {activeMentorDetail?.myReview ? t("review.editTitle") : t("review.title")}
+                    </button>
+                  </ConversationHeader.Actions>
+                )}
               </ConversationHeader>
 
               <MessageList
@@ -897,11 +1371,46 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                     const shareCardData = isLearningPathShareMessage(msg)
                       ? resolveStudentShareCardData(msg)
                       : null;
+                    const taskReviewId = !shareCardData && isTaskReviewMessage(msg)
+                      ? getTaskReviewId(msg)
+                      : null;
+                    const reviewRequestData = !shareCardData && !taskReviewId && isReviewRequestMessage(msg.content)
+                      ? parseReviewRequestMessage(msg.content || '')
+                      : null;
                     const replyPreview = buildReplyPreviewForMessage(
                       msg,
                       activeMessages,
                       replyContext,
                     );
+                    if (taskReviewId) {
+                      return (
+                        <div key={msg.messageId} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8, padding: '0 16px' }}>
+                          <TaskReviewMessageCard
+                            reviewId={taskReviewId}
+                            note={msg.content}
+                            isMine={isMine}
+                            onOpen={() => navigate(ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', taskReviewId))}
+                            openLabel={t("chat.openTaskReview", { defaultValue: "Open review" })}
+                            loadingLabel={t("chat.loadingTaskReview", { defaultValue: "Loading task review..." })}
+                            loadFailedLabel={t("chat.taskReviewLoadFailed", { defaultValue: "Failed to load task review." })}
+                            titleFallback={t("chat.taskReviewTitle", { defaultValue: "Task review" })}
+                            mentorLabel={t("chat.taskReviewMentor", { defaultValue: "Mentor" })}
+                            studentLabel={t("chat.taskReviewStudent", { defaultValue: "Student" })}
+                          />
+                        </div>
+                      )
+                    }
+                    if (reviewRequestData) {
+                      return (
+                        <div key={msg.messageId} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8, padding: '0 16px' }}>
+                          <ReviewRequestCard
+                            data={reviewRequestData}
+                            isMine={isMine}
+                            onNavigate={() => navigate(`/learning-paths/${reviewRequestData.pathId}/mentor-review`)}
+                          />
+                        </div>
+                      )
+                    }
                     if (shareCardData) {
                       return (
                         <div
@@ -916,16 +1425,9 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
                             )}
                             <LearningPathShareCard
                               data={shareCardData}
-                              onPreview={() =>
-                                openSharePreview(shareCardData.shareId, "chat")
-                              }
-                              onViewPath={
-                                shareCardData.pathId &&
-                                shareCardData.status === "Accepted"
-                                  ? () =>
-                                      navigate("/my-plans/detail", {
-                                        state: { pathId: shareCardData.pathId },
-                                      })
+                              onPreview={
+                                shareCardData.status === 'Pending'
+                                  ? () => openSharePreview(shareCardData.shareId, 'chat')
                                   : undefined
                               }
                               extraActions={
@@ -1079,6 +1581,34 @@ const StudentChatPage: React.FC<StudentChatPageProps> = ({
           />
         </div>
       )}
+      {activeConv && activeConv.mentorId !== currentUserId && (
+        <ReviewMentorModal
+          isOpen={reviewModalOpen}
+          onClose={() => setReviewModalOpen(false)}
+          mentorId={activeConv.mentorId}
+          mentorName={otherName}
+          existingReview={activeMentorDetail?.myReview}
+          onSuccess={() => {
+            setToast({ message: t("review.success"), type: "success" })
+            // Reload mentor detail to get updated myReview
+            import("../../../../services/MentorService").then(({ default: MentorService }) => {
+              MentorService.getMentorById(activeConv.mentorId)
+                .then((data) => setActiveMentorDetail(data))
+                .catch(() => {})
+            })
+          }}
+        />
+      )}
+      <MentorProfileModal
+        isOpen={!!profileModalMentorId}
+        onClose={() => setProfileModalMentorId(null)}
+        mentorId={profileModalMentorId ?? ''}
+        backLabel={t('plans.backToList')}
+        onChat={profileModalMentorId ? () => {
+          handleStartConversation(profileModalMentorId)
+          setProfileModalMentorId(null)
+        } : undefined}
+      />
     </Layout>
   );
 };

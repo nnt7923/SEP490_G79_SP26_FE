@@ -129,6 +129,7 @@ export const normalizeDirectMessage = (
 
   const rawMessageType =
     asString(nested.messageType) ?? asString(nested.MessageType);
+  const numericMessageType = Number(nested.messageType ?? nested.MessageType)
 
   const content = asString(nested.content) ?? asString(nested.Content) ?? "";
   const contentIsSharePattern =
@@ -146,8 +147,20 @@ export const normalizeDirectMessage = (
     contentIsSharePattern ||
     !!normalizedShare;
 
+  const taskReviewId =
+    asString(nested.taskReviewId) ??
+    asString(nested.TaskReviewId) ??
+    null;
+
+  const isTaskReviewType =
+    rawMessageType === "TaskReview" ||
+    numericMessageType === 3 ||
+    !!taskReviewId;
+
   const finalMessageType = isShareType
     ? "LearningPathShare"
+    : isTaskReviewType
+      ? "TaskReview"
     : ((rawMessageType ?? "Text") as DirectMessageDto["messageType"]);
 
   return {
@@ -176,6 +189,7 @@ export const normalizeDirectMessage = (
       asString(nested.replyToSenderId) ??
       asString(nested.ReplyToSenderId) ??
       null,
+    taskReviewId,
     learningPathShareId:
       asString(nested.learningPathShareId) ??
       asString(nested.LearningPathShareId) ??

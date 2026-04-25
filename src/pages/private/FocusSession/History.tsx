@@ -6,6 +6,7 @@ import Layout from '../../../components/Layout'
 import { useStudentSidebarConfig } from '../Student/components/StudentSideBar'
 import { FocusSessionService } from '../../../services'
 import ROUTER from '../../../router/ROUTER'
+import TaskReviewStatusBadge from '../../../components/TaskReview/TaskReviewStatusBadge'
 import type {
   FocusSession,
   FocusSessionHistoryItem,
@@ -860,6 +861,72 @@ const FocusSessionHistoryPageView: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {item.taskReview && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        border: '1px solid var(--border-base)',
+                        borderRadius: 12,
+                        padding: 12,
+                        background: 'var(--bg-main)',
+                        display: 'grid',
+                        gap: 10,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12, flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {t('focusSessionHistory.taskReviewTitle', { defaultValue: 'Mentor Review' })}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+                            {item.taskReview
+                              ? t('focusSessionHistory.taskReviewRequestedWithMentor', {
+                                defaultValue: 'Mentor: {{mentor}}',
+                                mentor: item.taskReview.mentorUserName || item.taskReview.mentorId || '-',
+                              })
+                              : t('focusSessionHistory.taskReviewHint', {
+                                defaultValue: 'Request a mentor to review this focus session submission.',
+                              })}
+                          </div>
+                        </div>
+
+                        {item.taskReview ? (
+                          <TaskReviewStatusBadge
+                            status={item.taskReview.status}
+                            pendingLabel={t('focusSessionHistory.taskReviewPending', { defaultValue: 'Pending' })}
+                            reviewedLabel={t('focusSessionHistory.taskReviewReviewed', { defaultValue: 'Reviewed' })}
+                          />
+                        ) : null}
+                      </div>
+
+                      {item.taskReview ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                            {t('focusSessionHistory.taskReviewScore', { defaultValue: 'Score' })}: {item.taskReview.score ?? '-'}
+                            {' • '}
+                            {t('focusSessionHistory.taskReviewRequestedAt', { defaultValue: 'Requested' })}: {formatDate(item.taskReview.requestedAt)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => navigate(ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', item.taskReview!.reviewId))}
+                            style={{
+                              borderRadius: 999,
+                              border: '1px solid var(--border-base)',
+                              background: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
+                              padding: '6px 12px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t('focusSessionHistory.taskReviewOpen', { defaultValue: 'Open review' })}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
                   )
                 }
@@ -1033,6 +1100,70 @@ const FocusSessionHistoryPageView: React.FC = () => {
                     <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text-primary)', fontSize: 13, lineHeight: 1.5 }}>
 {String(selectedSession.aiFeedback)}
                     </pre>
+
+                    {selectedSession.taskReview && (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          paddingTop: 12,
+                          borderTop: '1px solid var(--border-base)',
+                          display: 'grid',
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12, flexWrap: 'wrap' }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {t('focusSessionHistory.taskReviewTitle', { defaultValue: 'Mentor Review' })}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+                              {selectedSession.taskReview
+                                ? t('focusSessionHistory.taskReviewRequestedWithMentor', {
+                                  defaultValue: 'Mentor: {{mentor}}',
+                                  mentor: selectedSession.taskReview.mentorUserName || selectedSession.taskReview.mentorId || '-',
+                                })
+                                : t('focusSessionHistory.taskReviewHint', {
+                                  defaultValue: 'Request a mentor to review this focus session submission.',
+                                })}
+                            </div>
+                          </div>
+
+                          {selectedSession.taskReview ? (
+                            <TaskReviewStatusBadge
+                              status={selectedSession.taskReview.status}
+                              pendingLabel={t('focusSessionHistory.taskReviewPending', { defaultValue: 'Pending' })}
+                              reviewedLabel={t('focusSessionHistory.taskReviewReviewed', { defaultValue: 'Reviewed' })}
+                            />
+                          ) : null}
+                        </div>
+
+                        {selectedSession.taskReview ? (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                              {t('focusSessionHistory.taskReviewScore', { defaultValue: 'Score' })}: {selectedSession.taskReview.score ?? '-'}
+                              {' • '}
+                              {t('focusSessionHistory.taskReviewRequestedAt', { defaultValue: 'Requested' })}: {formatDate(selectedSession.taskReview.requestedAt)}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => navigate(ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', selectedSession.taskReview!.reviewId))}
+                              style={{
+                                borderRadius: 999,
+                                border: '1px solid var(--border-base)',
+                                background: 'var(--bg-surface)',
+                                color: 'var(--text-primary)',
+                                padding: '6px 12px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {t('focusSessionHistory.taskReviewOpen', { defaultValue: 'Open review' })}
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

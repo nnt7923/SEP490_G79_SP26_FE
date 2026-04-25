@@ -4,7 +4,7 @@ import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
-import { ArrowLeft, Loader, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader, AlertCircle, PencilLine } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 import ChapterTasks from '../../Plans/components/ChapterTasks'
@@ -12,6 +12,9 @@ import { motion } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
 import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
 import type { LearningPathProgressResponse } from '../../../../services/LearningPathService'
+import ROUTER from '../../../../router/ROUTER'
+import SelectMentorModal from '../../../../components/SelectMentorModal'
+import MentorReviewSection from '../../../../components/MentorReviewSection'
 
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)
@@ -222,6 +225,17 @@ const MyPlansDetailPage: React.FC = () => {
   const detailScrollRef = useRef<HTMLDivElement>(null)
   // Track chapter completion status
   const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
+  // Bulk gen ref to avoid duplicate triggers
+  const bulkGenTriggeredRef = useRef(false)
+  // Bulk gen progress tracking
+  const [bulkGenProgress, setBulkGenProgress] = useState<{
+    total: number; completed: number; failed: number
+  } | null>(null)
+  const [bulkGenDone, setBulkGenDone] = useState(false)
+  // Send to mentor review dialog
+  const [showSendReviewWarning, setShowSendReviewWarning] = useState(false)
+  const [showSelectMentor, setShowSelectMentor] = useState(false)
+  const [reviewAccepted, setReviewAccepted] = useState(false)
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
@@ -232,6 +246,102 @@ const MyPlansDetailPage: React.FC = () => {
   useEffect(() => {
     fetchPlanDetail()
   }, [pathId, location?.key, user?.id])
+
+  // Trigger bulk generation once plan is loaded
+  useEffect(() => {
+    if (!plan || bulkGenTriggeredRef.current) return
+    const currentPathId = plan.pathId || (plan as any).id
+    if (!currentPathId) return
+    bulkGenTriggeredRef.current = true
+
+    // Check if review already accepted
+    LearningPathService.getMentorReviews(currentPathId)
+      .then(reviews => {
+        if (reviews.some(r => r.decisionStatus === 'Accepted')) setReviewAccepted(true)
+      })
+      .catch(() => {})
+
+    const run = async () => {
+      try {
+        await LearningPathService.generateBulkLearningPathContent(currentPathId, {
+          lessonConcurrency: 4,
+          quizConcurrency: 6,
+          onStarted: (data: any) => {
+            setBulkGenProgress({ total: data.TotalLessons || 0, completed: 0, failed: 0 })
+            setBulkGenDone(false)
+          },
+          onProgress: (data: any) => {
+            setBulkGenProgress({
+              total: data.TotalLessons || 0,
+              completed: data.CompletedLessons || 0,
+              failed: data.FailedLessons || 0,
+            })
+          },
+          onLessonSuccess: (lesson: any) => {
+            const lessonId = lesson.lessonId || lesson.LessonId || lesson.id
+            if (!lessonId) return
+            setPlan((prev) => {
+              if (!prev) return prev
+              const arr = prev.chapters || (prev as any).chapterDtos || []
+              const updated = arr.map((ch: any) => {
+                if (!Array.isArray(ch.lessons)) return ch
+                return {
+                  ...ch,
+                  lessons: ch.lessons.map((ls: any) => {
+                    if ((ls.lessonId || ls.id) !== lessonId) return ls
+                    return { ...ls, content: lesson.content || lesson.Content, hasContent: true }
+                  }),
+                }
+              })
+              return {
+                ...prev,
+                chapters: (prev as any).chapters ? updated : undefined,
+                chapterDtos: (prev as any).chapterDtos ? updated : undefined,
+              } as SkeletonResponse
+            })
+          },
+          onQuizSuccess: (data: any) => {
+            const quiz = data.Questions
+            if (!quiz) return
+            const quizId = quiz.QuizId || quiz.quizId
+            setPlan((prev) => {
+              if (!prev) return prev
+              const arr = prev.chapters || (prev as any).chapterDtos || []
+              const updated = arr.map((ch: any) => ({
+                ...ch,
+                lessons: (ch.lessons || []).map((ls: any) => {
+                  const quizzes = ls.quizzes || []
+                  if (!quizzes.some((q: any) => (q.quizzId || q.quizId) === quizId)) return ls
+                  return {
+                    ...ls,
+                    quizzes: quizzes.map((q: any) =>
+                      (q.quizzId || q.quizId) === quizId
+                        ? { ...q, questions: quiz.Questions, status: 'Completed' }
+                        : q
+                    ),
+                  }
+                }),
+              }))
+              return {
+                ...prev,
+                chapters: (prev as any).chapters ? updated : undefined,
+                chapterDtos: (prev as any).chapterDtos ? updated : undefined,
+              } as SkeletonResponse
+            })
+          },
+          onCompleted: () => {
+            setBulkGenDone(true)
+            setBulkGenProgress(null)
+            // Refetch to sync final state from server
+            void fetchPlanDetail()
+          },
+        })
+      } catch {
+        // silent - bulk gen errors are non-fatal
+      }
+    }
+    run()
+  }, [plan?.pathId])
 
   useEffect(() => {
     setActiveChapterId(activeChapterFromNav)
@@ -248,24 +358,41 @@ const MyPlansDetailPage: React.FC = () => {
     setError(null)
     setProgress(null)
     try {
-      const [plansResult, progressResult] = await Promise.allSettled([
-        LearningPathService.getUserLearningPaths(user.id, {
+      void LearningPathService.getLearningPathProgress(pathId)
+        .then((progressData) => setProgress(progressData))
+        .catch(() => undefined)
+
+      const maxAttempts = 6
+      let foundPlan: SkeletonResponse | null = null
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const plansResult = await LearningPathService.getUserLearningPaths(user.id, {
           pageNumber: 1,
           pageSize: 100,
           includeDetails: true,
-        }),
-        LearningPathService.getLearningPathProgress(pathId),
-      ])
+          useCache: false,
+        })
 
-      if (progressResult.status === 'fulfilled') {
-        setProgress(progressResult.value)
+        const candidate = plansResult.items.find((p) => (p.pathId || p.id) === pathId)
+        if (candidate) {
+          foundPlan = candidate
+
+          const chapters = Array.isArray(candidate.chapters) ? candidate.chapters : []
+          const lessonCount = chapters.reduce((sum, chapter) => {
+            const lessons = Array.isArray(chapter.lessons) ? chapter.lessons : []
+            return sum + lessons.length
+          }, 0)
+
+          if (chapters.length > 0 && lessonCount > 0) {
+            break
+          }
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1000))
+        }
       }
 
-      if (plansResult.status !== 'fulfilled') {
-        throw plansResult.reason
-      }
-
-      const foundPlan = plansResult.value.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         const merged = mergeSkeletonWithCachedQuizzes(foundPlan)
         setPlan(merged)
@@ -384,18 +511,41 @@ const MyPlansDetailPage: React.FC = () => {
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
-          {/* Back Button */}
-          <motion.button
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={() => navigate(-1)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', marginBottom: 24, fontSize: 14, fontWeight: 700 }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-            whileHover={{ x: -2 }}
-          >
-            <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
-          </motion.button>
+          {/* Top action row: Back + Edit */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <motion.button
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              onClick={() => navigate(-1)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+              whileHover={{ x: -2 }}
+            >
+              <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
+            </motion.button>
+
+            {plan?.status === 'Active' && pathId && (
+              <motion.button
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => navigate(ROUTER.STUDENT_PATH_EDIT.replace(':pathId', pathId))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  color: 'var(--accent-primary)',
+                  background: 'color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface) 90%)',
+                  border: '1px solid var(--accent-primary)',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  padding: '8px 14px',
+                }}
+              >
+                <PencilLine size={14} /> Edit path
+              </motion.button>
+            )}
+          </div>
 
           {/* Hero frame */}
           <Tilt tiltMaxAngleX={2} tiltMaxAngleY={2} scale={1.01} transitionSpeed={400}>
@@ -434,6 +584,29 @@ const MyPlansDetailPage: React.FC = () => {
                     {plan.description || t('myPlans.noDescription')}
                   </p>
                 </div>
+                {/* Send to mentor review button */}
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  {!reviewAccepted && (
+                    <button
+                      onClick={() => {
+                        const isGenDone = bulkGenDone || bulkGenProgress === null
+                        if (!isGenDone) {
+                          setShowSendReviewWarning(true)
+                        } else {
+                          setShowSelectMentor(true)
+                        }
+                      }}
+                      style={{ flexShrink: 0, padding: '8px 16px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >
+                      {bulkGenProgress !== null && (
+                        <span style={{ fontSize: 10, opacity: 0.85 }}>{bulkGenProgress.completed}/{bulkGenProgress.total}</span>
+                      )}
+                      {t('myPlans.sendMentorReview', 'Gửi mentor review')}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{
@@ -466,6 +639,14 @@ const MyPlansDetailPage: React.FC = () => {
                     {new Date(plan.createdAt).toLocaleDateString()}
                   </span>
                 )}
+                <button
+                  onClick={() => navigate(`/learning-paths/${plan.pathId || (plan as any).id}/mentor-review`)}
+                  style={{ padding: '6px 12px', background: 'transparent', color: 'var(--text-secondary)', border: '1px dashed var(--border-base)', borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-secondary)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                >
+                  {t('mentorReview.title', 'Xem review')}
+                </button>
               </div>
 
               <div style={{ marginTop: 20 }}>
@@ -525,6 +706,9 @@ const MyPlansDetailPage: React.FC = () => {
               </div>
             </motion.section>
           </Tilt>
+
+          {/* Mentor Reviews */}
+          <MentorReviewSection pathId={plan.pathId || (plan as any).id} />
 
           {/* Chapters & Lessons Display (Master-Detail Grid) */}
           {plan.chapters && plan.chapters.length > 0 ? (
@@ -789,7 +973,13 @@ const MyPlansDetailPage: React.FC = () => {
                                                   return
                                                 }
                                                 navigate(`/quiz/${quizId}`, {
-                                                  state: { quizTitle: quiz.title, skeleton: plan }
+                                                  state: {
+                                                    quizTitle: quiz.title,
+                                                    timeLimit: quiz.timeLimit ?? quiz.timeLimitMinutes ?? null,
+                                                    passingScore: quiz.passingScore ?? null,
+                                                    totalQuestions: quiz.totalQuestions ?? quiz.questions?.length ?? null,
+                                                    skeleton: plan,
+                                                  }
                                                 })
                                               }}
                                               style={{
@@ -831,6 +1021,7 @@ const MyPlansDetailPage: React.FC = () => {
                           selectedTaskId={chapter.id === activeChapterId ? selectedTaskId : null}
                           initialTasks={chapter.tasks}
                           onAllTasksCompleted={handleChapterTasksCompleted}
+                          showReloadButton={false}
                         />
                       </div>
                     </>
@@ -851,6 +1042,74 @@ const MyPlansDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Select mentor modal for review */}
+      <SelectMentorModal
+        isOpen={showSelectMentor}
+        onClose={() => setShowSelectMentor(false)}
+        askMentorContext={{
+          reviewPathId: plan?.pathId || (plan as any)?.id,
+          reviewPathTitle: plan?.title,
+        } as any}
+      />
+
+      {/* Warning dialog: content not fully generated */}
+      {showSendReviewWarning && bulkGenProgress !== null && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          }}
+          onClick={() => setShowSendReviewWarning(false)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
+              borderRadius: 4, padding: 28, maxWidth: 420, width: '90%', fontFamily: 'monospace',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ borderLeft: '3px solid var(--warning-primary)', paddingLeft: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--warning-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                // CONTENT_NOT_READY
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                {bulkGenProgress.completed}/{bulkGenProgress.total} bài học đã được gen xong.{' '}
+                {bulkGenProgress.total - bulkGenProgress.completed - bulkGenProgress.failed} bài còn đang xử lý.
+              </p>
+            </div>
+            <p style={{ margin: '0 0 20px 0', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              Mentor sẽ thấy các bài chưa có nội dung. Nội dung sẽ tiếp tục được gen ngầm và hoàn tất sau.
+              Bạn vẫn muốn gửi?
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowSendReviewWarning(false)}
+                style={{
+                  padding: '7px 16px', background: 'transparent', border: '1px solid var(--border-base)',
+                  borderRadius: 2, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)',
+                  cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase',
+                }}
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => {
+                  setShowSendReviewWarning(false)
+                  setShowSelectMentor(true)
+                }}
+                style={{
+                  padding: '7px 16px', background: 'var(--accent-primary)', border: 'none',
+                  borderRadius: 2, fontSize: 11, fontWeight: 700, color: 'white',
+                  cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase',
+                }}
+              >
+                Vẫn gửi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

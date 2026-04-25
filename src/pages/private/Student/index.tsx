@@ -18,6 +18,8 @@ import { resolveNotificationNavigationTarget } from '../../../components/Notific
 import type { NotificationDto } from '../../../types/notification'
 import SubscriptionService from '../../../services/SubscriptionService'
 import useDailyCheckinDashboard from '../../../hooks/useDailyCheckinDashboard'
+import DailyCheckinService from '../../../services/DailyCheckinService'
+import { MoodSelectionModal } from './components/MoodSelectionModal'
 
 type DayBucket = {
   key: string
@@ -227,10 +229,32 @@ const StudentIndex: React.FC = () => {
   const markingExpiringNoticeRef = React.useRef<string | null>(null)
   const learningPathSkeletonCacheRef = React.useRef<Map<string, any>>(new Map())
   const dailyCheckin = useDailyCheckinDashboard()
+  const [showMoodModal, setShowMoodModal] = React.useState(false)
+  const hasCheckedMoodOnLoad = React.useRef(false)
 
   React.useEffect(() => {
     setAvatarLoadFailed(false)
   }, [avatarUrl])
+
+  React.useEffect(() => {
+    if (!dailyCheckin.loading && !hasCheckedMoodOnLoad.current) {
+      hasCheckedMoodOnLoad.current = true
+      // Trigger mood popup if not set previously today
+      if (!dailyCheckin.todayCheckin?.mood) {
+        setShowMoodModal(true)
+      }
+    }
+  }, [dailyCheckin.loading, dailyCheckin.todayCheckin?.mood])
+
+  const handleSaveMood = React.useCallback(async (mood: string) => {
+    try {
+      await DailyCheckinService.saveMood(mood)
+      dailyCheckin.refresh()
+    } catch (error: any) {
+      showToast(error?.response?.data?.message || error?.message || 'Failed to save mood', 'error')
+      throw error // Let the modal handle the loading state revert
+    }
+  }, [dailyCheckin, showToast])
 
   React.useEffect(() => {
     const fetchTimeline = async () => {
@@ -895,7 +919,18 @@ const StudentIndex: React.FC = () => {
     if (itemType === 'quiz') {
       const quizId = readTimelineIdField(item, ['quizId', 'QuizId', 'quizzId', 'QuizzId', 'itemId', 'id'])
       if (!quizId) return
-      navigate(`/quiz/${encodeURIComponent(quizId)}`)
+      const quizTitle = String(
+        item.title
+        ?? item.quizTitle
+        ?? item.QuizTitle
+        ?? item.itemTitle
+        ?? item.name
+        ?? ''
+      ).trim()
+
+      navigate(`/quiz/${encodeURIComponent(quizId)}`, {
+        state: quizTitle ? { quizTitle } : undefined,
+      })
       return
     }
 
@@ -1125,6 +1160,11 @@ const StudentIndex: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
+      <MoodSelectionModal
+        isOpen={showMoodModal}
+        onClose={() => setShowMoodModal(false)}
+        onSave={handleSaveMood}
+      />
       <div className="page-fade-in" style={{ padding: 16, background: 'var(--bg-surface)' }}>
         <motion.div
           initial={{ opacity: 0, y: -12 }}

@@ -39,6 +39,7 @@ export interface SubscriptionPlan {
 export interface CreateVnpayPaymentRequest {
   subscriptionPlanId?: string
   tokenPackageId?: string
+  mentorPackageId?: string
   topUpAmountVnd?: number
   orderInfo?: string
   returnUrl: string
@@ -90,6 +91,49 @@ export interface TokenTopUpPricing {
   [key: string]: unknown
 }
 
+export interface MentorPackage {
+  mentorPackageId: string
+  name: string
+  description: string
+  priceVnd: number
+  sharesFromMentorLimit: number
+  validationRequestLimit: number
+  taskReviewLimit: number
+  isActive: boolean
+  displayOrder: number
+  [key: string]: unknown
+}
+
+export interface StudentMentorQuota {
+  subscriptionId: string | null
+  packageId: string | null
+  packageName: string | null
+  hasActiveSubscription: boolean
+  sharesFromMentorLimit: number
+  sharesFromMentorUsed: number
+  sharesFromMentorRemaining: number
+  validationRequestLimit: number
+  validationRequestsUsed: number
+  validationRequestsRemaining: number
+  taskReviewLimit: number
+  taskReviewsUsed: number
+  taskReviewsRemaining: number
+  [key: string]: unknown
+}
+
+export interface ActiveMentorSubscription {
+  subscriptionId: string
+  packageId: string | null
+  packageName: string | null
+  mentorId: string
+  mentorUserName: string | null
+  mentorDisplayName: string | null
+  mentorAvatarUrl?: string | null
+  startedAt?: string | null
+  expiresAt?: string | null
+  [key: string]: unknown
+}
+
 export type PaymentTransactionStatus =
   | 'pending'
   | 'success'
@@ -97,10 +141,20 @@ export type PaymentTransactionStatus =
   | 'failed'
   | 'canceled'
 
+export type PaymentTransactionType =
+  | 'token_topup'
+  | 'mentor_package'
+  | 'unknown'
+
 export interface PaymentTransactionItem {
   paymentTransactionId: string
   tokenPackageName?: string
+  mentorPackageName?: string
+  packageDisplayName?: string
+  transactionType?: PaymentTransactionType
+  subscriptionId?: string
   amount: number
+  creditedTokens: number
   creditedAmountVnd: number
   status: string
   paidAt?: string
@@ -241,6 +295,116 @@ function normalizeTokenTopUpPricing(raw: unknown): TokenTopUpPricing {
   }
 }
 
+function normalizeMentorPackage(raw: unknown): MentorPackage {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+
+  return {
+    mentorPackageId: String(record.mentorPackageId ?? record.id ?? ''),
+    name: String(record.name ?? ''),
+    description: String(record.description ?? ''),
+    priceVnd: toNumberValue(record.priceVnd ?? record.PriceVnd),
+    sharesFromMentorLimit: toNumberValue(record.sharesFromMentorLimit ?? record.SharesFromMentorLimit),
+    validationRequestLimit: toNumberValue(record.validationRequestLimit ?? record.ValidationRequestLimit),
+    taskReviewLimit: toNumberValue(record.taskReviewLimit ?? record.TaskReviewLimit),
+    isActive: Boolean(record.isActive ?? true),
+    displayOrder: toNumberValue(record.displayOrder),
+    ...record,
+  }
+}
+
+function normalizeMentorQuota(raw: unknown): StudentMentorQuota {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+  return {
+    subscriptionId: String(record.subscriptionId ?? record.SubscriptionId ?? '').trim() || null,
+    packageId: String(record.packageId ?? record.PackageId ?? '').trim() || null,
+    packageName: String(record.packageName ?? record.PackageName ?? '').trim() || null,
+    hasActiveSubscription: Boolean(record.hasActiveSubscription),
+    sharesFromMentorLimit: toNumberValue(record.sharesFromMentorLimit ?? record.SharesFromMentorLimit),
+    sharesFromMentorUsed: toNumberValue(record.sharesFromMentorUsed ?? record.SharesFromMentorUsed),
+    sharesFromMentorRemaining: toNumberValue(record.sharesFromMentorRemaining ?? record.SharesFromMentorRemaining),
+    validationRequestLimit: toNumberValue(record.validationRequestLimit ?? record.ValidationRequestLimit),
+    validationRequestsUsed: toNumberValue(record.validationRequestsUsed ?? record.ValidationRequestsUsed),
+    validationRequestsRemaining: toNumberValue(record.validationRequestsRemaining ?? record.ValidationRequestsRemaining),
+    taskReviewLimit: toNumberValue(record.taskReviewLimit ?? record.TaskReviewLimit),
+    taskReviewsUsed: toNumberValue(record.taskReviewsUsed ?? record.TaskReviewsUsed),
+    taskReviewsRemaining: toNumberValue(record.taskReviewsRemaining ?? record.TaskReviewsRemaining),
+    ...record,
+  }
+}
+
+function normalizeActiveMentorSubscription(raw: unknown): ActiveMentorSubscription | null {
+  const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
+  const mentorSource = (record.mentor && typeof record.mentor === 'object')
+    ? record.mentor as Record<string, unknown>
+    : {}
+
+  const subscriptionId = String(
+    record.subscriptionId
+    ?? record.studentMentorSubscriptionId
+    ?? record.id
+    ?? '',
+  ).trim()
+  const mentorId = String(
+    record.mentorId
+    ?? mentorSource.mentorId
+    ?? mentorSource.id
+    ?? mentorSource.userId
+    ?? '',
+  ).trim()
+
+  if (!subscriptionId || !mentorId) return null
+
+  return {
+    subscriptionId,
+    packageId: String(record.packageId ?? record.mentorPackageId ?? '').trim() || null,
+    packageName: String(record.packageName ?? record.mentorPackageName ?? record.packageDisplayName ?? '').trim() || null,
+    mentorId,
+    mentorUserName: String(
+      record.mentorUserName
+      ?? mentorSource.userName
+      ?? mentorSource.username
+      ?? '',
+    ).trim() || null,
+    mentorDisplayName: String(
+      record.mentorDisplayName
+      ?? record.mentorName
+      ?? mentorSource.fullName
+      ?? mentorSource.displayName
+      ?? mentorSource.name
+      ?? '',
+    ).trim() || null,
+    mentorAvatarUrl: String(record.mentorAvatarUrl ?? mentorSource.avatarUrl ?? '').trim() || null,
+    startedAt: String(record.startedAt ?? record.startDate ?? '').trim() || null,
+    expiresAt: String(record.expiresAt ?? record.expiredAt ?? record.endDate ?? '').trim() || null,
+    ...record,
+  }
+}
+
+function normalizeTransactionType(record: Record<string, unknown>, normalizedCreditedTokens: number): PaymentTransactionType {
+  const rawType = String(record.transactionType ?? record.type ?? '').trim().toLowerCase()
+  if (rawType.includes('mentor')) return 'mentor_package'
+  if (rawType.includes('token') || rawType.includes('topup') || rawType.includes('top-up')) return 'token_topup'
+
+  const hasMentorSignal = Boolean(
+    record.mentorPackageId
+    || record.subscriptionId
+    || String(record.mentorPackageName ?? '').trim(),
+  )
+  if (hasMentorSignal) return 'mentor_package'
+
+  const hasTokenSignal = Boolean(
+    record.tokenPackageId
+    || String(record.tokenPackageName ?? '').trim(),
+  )
+  if (hasTokenSignal || normalizedCreditedTokens > 0) return 'token_topup'
+
+  const orderInfo = String(record.orderInfo ?? record.vnpOrderInfo ?? '').trim().toLowerCase()
+  if (orderInfo.includes('mentor')) return 'mentor_package'
+  if (orderInfo.includes('token') || orderInfo.includes('top up') || orderInfo.includes('topup')) return 'token_topup'
+
+  return 'unknown'
+}
+
 function unwrapPlansResponse(raw: unknown): unknown[] {
   if (Array.isArray(raw)) {
     return raw
@@ -277,13 +441,37 @@ function toNumberValue(raw: unknown): number {
 function normalizePaymentTransaction(raw: unknown): PaymentTransactionItem {
   const record = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}
   const amountRaw = toNumberValue(record.amount ?? record.amountVnd ?? record.vnpAmount)
-  const creditedRaw = toNumberValue(record.creditedAmountVnd ?? record.creditedAmount ?? record.creditAmountVnd)
+  const creditedRaw = toNumberValue(
+    record.creditedTokens
+    ?? record.CreditedTokens
+    ?? record.creditedAmountVnd
+    ?? record.CreditedAmountVnd
+    ?? record.creditedAmount
+    ?? record.creditAmountVnd
+    ?? record.creditedBalanceVnd
+    ?? record.CreditedBalanceVnd,
+  )
+  const normalizedCreditedTokens = Math.max(0, Math.round(creditedRaw))
+  const tokenPackageName = String(record.tokenPackageName ?? '').trim() || undefined
+  const mentorPackageName = String(record.mentorPackageName ?? '').trim() || undefined
+  const packageDisplayName = mentorPackageName
+    || tokenPackageName
+    || String(record.subscriptionPlanName ?? '').trim()
+    || String(record.packageName ?? '').trim()
+    || undefined
+  const transactionType = normalizeTransactionType(record, normalizedCreditedTokens)
 
   return {
     paymentTransactionId: String(record.paymentTransactionId ?? record.id ?? ''),
-    tokenPackageName: String(record.tokenPackageName ?? record.packageName ?? '').trim() || undefined,
+    tokenPackageName,
+    mentorPackageName,
+    packageDisplayName,
+    transactionType,
+    subscriptionId: String(record.subscriptionId ?? '').trim() || undefined,
     amount: Math.max(0, Math.round(amountRaw)),
-    creditedAmountVnd: Math.max(0, Math.round(creditedRaw)),
+    creditedTokens: normalizedCreditedTokens,
+    // Backward-compatible alias to avoid breaking old UI branches.
+    creditedAmountVnd: normalizedCreditedTokens,
     txnRef: String(record.txnRef ?? record.vnpTxnRef ?? ''),
     status: String(record.status ?? record.paymentStatus ?? '').trim(),
     paidAt: String(record.paidAt ?? record.paymentTime ?? '').trim() || undefined,
@@ -471,6 +659,30 @@ class SubscriptionService {
     const response = await axiosInstance.get('/token-packages/pricing')
     const source = (response as any)?.data ?? (response as any)?.value ?? response
     return normalizeTokenTopUpPricing(source)
+  }
+
+  async getMentorPackages(): Promise<MentorPackage[]> {
+    const response = await axiosInstance.get('/student/mentor-subscription/packages')
+    return unwrapPlansResponse(response).map(normalizeMentorPackage)
+  }
+
+  async getMentorQuota(): Promise<StudentMentorQuota> {
+    const response = await axiosInstance.get('/student/mentor-subscription/quota')
+    const source = (response as any)?.data ?? (response as any)?.value ?? response
+    return normalizeMentorQuota(source)
+  }
+
+  async getActiveMentorSubscriptions(): Promise<ActiveMentorSubscription[]> {
+    try {
+      const response = await axiosInstance.get('/student-mentor-subscriptions')
+      return unwrapPlansResponse(response)
+        .map(normalizeActiveMentorSubscription)
+        .filter((item): item is ActiveMentorSubscription => item != null)
+    } catch (error: any) {
+      const status = Number(error?.response?.status)
+      if (status === 404 || status === 405) return []
+      throw error
+    }
   }
 
   async verifyVnpayCallback(query: Record<string, string>): Promise<Record<string, unknown>> {

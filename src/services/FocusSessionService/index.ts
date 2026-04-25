@@ -1,5 +1,6 @@
 import api from '../Axios'
 import { basePath, startSessionUrl, sessionUrl, stopSessionUrl, pauseSessionUrl, resumeSessionUrl, heartbeatSessionUrl, reviewUrl, completeUrl, notesUrl, mySessionsUrl, serverTimeUrl, activeSessionUrl, activeSessionsUrl } from './url'
+import type { TaskReviewSummary } from '../TaskReviewService'
 
 export const SessionType = {
   Pomodoro: 0,
@@ -92,11 +93,48 @@ export interface FocusSessionHistoryItem {
   sessionType: SessionType
   submittedCode?: string | null
   submittedSummary?: string | null
+  submittedQuizAnswers?: string | null
   aiFeedback?: string | null
   verificationScore?: number | null
   isVerified: boolean
+  taskReview?: TaskReviewSummary | null
   createdAt: string
   [key: string]: any
+}
+
+function normalizeTaskReviewSummary(raw: unknown): TaskReviewSummary | null {
+  if (!raw || typeof raw !== 'object') return null
+  const record = raw as Record<string, unknown>
+  const reviewId = String(record.reviewId ?? record.taskReviewId ?? record.id ?? '').trim()
+  if (!reviewId) return null
+
+  const normalizeStatus = (value: unknown): TaskReviewSummary['status'] => {
+    const normalized = String(value ?? '').trim().toLowerCase()
+    return normalized === 'reviewed' || normalized === '1' ? 'Reviewed' : 'Pending'
+  }
+
+  const toNullableString = (value: unknown): string | null => {
+    const normalized = String(value ?? '').trim()
+    return normalized || null
+  }
+
+  const toNullableNumber = (value: unknown): number | null => {
+    if (value == null || value === '') return null
+    const numeric = Number(value)
+    return Number.isFinite(numeric) ? numeric : null
+  }
+
+  return {
+    reviewId,
+    mentorId: String(record.mentorId ?? '').trim(),
+    mentorUserName: toNullableString(record.mentorUserName ?? record.mentorName),
+    score: toNullableNumber(record.score),
+    feedback: toNullableString(record.feedback),
+    suggestions: toNullableString(record.suggestions),
+    status: normalizeStatus(record.status),
+    requestedAt: toNullableString(record.requestedAt),
+    reviewedAt: toNullableString(record.reviewedAt),
+  }
 }
 
 export interface FocusSessionHistoryQuery {
@@ -287,9 +325,11 @@ export async function getSessionHistory(query: FocusSessionHistoryQuery = {}): P
     sessionType: parseSessionType(item?.sessionType),
     submittedCode: item?.submittedCode ?? null,
     submittedSummary: item?.submittedSummary ?? null,
+    submittedQuizAnswers: item?.submittedQuizAnswers ?? null,
     aiFeedback: item?.aiFeedback ?? null,
     verificationScore: item?.verificationScore == null ? null : Number(item.verificationScore),
     isVerified: Boolean(item?.isVerified),
+    taskReview: normalizeTaskReviewSummary(item?.taskReview ?? item?.TaskReview),
     createdAt: String(item?.createdAt ?? item?.startTime ?? ''),
   }))
 

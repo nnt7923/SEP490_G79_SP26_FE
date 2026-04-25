@@ -23,6 +23,9 @@ const initialState: DailyCheckinDashboardState = {
 const useDailyCheckinDashboard = () => {
   const { t } = useTranslation('student')
   const [state, setState] = useState<DailyCheckinDashboardState>(initialState)
+  const [refreshCount, setRefreshCount] = useState(0)
+
+  const refresh = () => setRefreshCount(prev => prev + 1)
 
   useEffect(() => {
     let cancelled = false
@@ -63,9 +66,9 @@ const useDailyCheckinDashboard = () => {
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [t, refreshCount])
 
-  return state
+  return { ...state, refresh }
 }
 
 export default useDailyCheckinDashboard
