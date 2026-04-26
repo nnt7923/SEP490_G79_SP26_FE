@@ -255,7 +255,7 @@ function PathPreviewModal({ revisedPathId, onClose }: { revisedPathId: string; o
                           style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 6, cursor: 'pointer', width: '100%', border: `1px solid ${i === activeChIdx ? 'var(--accent-primary)' : 'transparent'}`, background: i === activeChIdx ? 'rgba(59,130,246,0.08)' : 'transparent', transition: 'all 0.15s' }}
                           onMouseEnter={e => { if (i !== activeChIdx) e.currentTarget.style.background = 'var(--bg-main)' }}
                           onMouseLeave={e => { if (i !== activeChIdx) e.currentTarget.style.background = 'transparent' }}>
-                          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>Chương {i + 1}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>{i + 1}</div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>{ch.title}</div>
                           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
                             {ch.lessons?.length || 0} bài · {ch.tasks?.length || 0} task
@@ -268,7 +268,7 @@ function PathPreviewModal({ revisedPathId, onClose }: { revisedPathId: string; o
                   {activeCh && (
                     <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 8, padding: 18, flexShrink: 0 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Chương {activeChIdx + 1}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{activeChIdx + 1}</div>
                         <h3 style={{ margin: '0 0 6px 0', fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>{activeCh.title}</h3>
                         {activeCh.content && <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{activeCh.content}</p>}
                       </div>

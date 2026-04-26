@@ -76,8 +76,6 @@ const QUESTION_TYPE_FROM_API: Record<number, QuestionType> = {
   5: 'Ordering',
 }
 
-const CHAPTER_TITLE_PREFIX_PATTERN = /^chapter\s+\d+\s*:\s*/i
-
 type GenericObject = Record<string, unknown>
 
 const asObject = (value: unknown): GenericObject | null => (
@@ -497,12 +495,10 @@ const normalizePointsString = (value: unknown): string => {
   return String(numeric)
 }
 
-const stripChapterTitlePrefix = (value: string): string => value.replace(CHAPTER_TITLE_PREFIX_PATTERN, '').trim()
+const stripChapterTitlePrefix = (value: string): string => value.trim()
 
 const formatChapterTitleForSave = (value: string, index: number): string => {
-  const normalized = stripChapterTitlePrefix(value)
-  if (!normalized) return ''
-  return `Chapter ${index + 1}: ${normalized}`
+  return value.trim()
 }
 
 const serializeLanguageSelection = (value: number): 'VietNamese' | 'English' => (

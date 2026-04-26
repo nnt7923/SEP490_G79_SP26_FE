@@ -590,7 +590,7 @@ const MentorReviewEditorPage: React.FC = () => {
               onViewLesson={(chIdx, lsIdx) => setLessonModal({ chIdx, lsIdx })}
               onViewQuiz={quiz => setQuizModal(quiz)} />
           ))}
-          <button onClick={() => setChapters(prev => [...prev, { id: uid(), title: `Chương ${prev.length + 1}`, content: '', lessons: [], tasks: [] }])}
+          <button onClick={() => setChapters(prev => [...prev, { id: uid(), title: '', content: '', lessons: [], tasks: [] }])}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'transparent', border: '2px dashed var(--border-base)', borderRadius: 8, color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, cursor: 'pointer', width: '100%', justifyContent: 'center', transition: 'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-base)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
