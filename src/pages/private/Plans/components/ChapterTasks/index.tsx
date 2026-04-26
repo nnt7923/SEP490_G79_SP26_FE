@@ -14,6 +14,7 @@ interface ChapterTasksProps {
   selectedTaskId?: string | null
   initialTasks?: Task[]
   onAllTasksCompleted?: (chapterId: string, completed: boolean) => void
+  showReloadButton?: boolean
 }
 
 interface Task {
@@ -48,7 +49,7 @@ interface Task {
   quizQuestionsJson?: string // lowercase version
 }
 
-type TaskVisualStatus = 'completed' | 'overdue' | 'due-today' | 'default'
+type TaskVisualStatus = 'completed' | 'overdue' | 'due-today' | 'pending-review' | 'default'
 
 const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
 
@@ -117,7 +118,7 @@ const normalizeTaskStatus = (value: unknown): TaskVisualStatus | undefined => {
 
   if (typeof value === 'number') {
     if (value === 2) return 'completed'
-    if (value === 3) return 'overdue'
+    if (value === 3) return 'pending-review'
     return undefined
   }
 
@@ -126,6 +127,7 @@ const normalizeTaskStatus = (value: unknown): TaskVisualStatus | undefined => {
 
   if (['completed', 'done', 'finished', 'success'].includes(normalized)) return 'completed'
   if (['overdue', 'pastdue', 'late', 'expired'].includes(normalized)) return 'overdue'
+  if (['pendingreview', 'reviewing'].includes(normalized)) return 'pending-review'
 
   return undefined
 }
@@ -259,13 +261,22 @@ const getTaskStatusMeta = (task: Task, t: (key: string, options?: any) => string
       border: 'rgba(22, 163, 74, 0.22)'
     }
   }
-  if (status === 3 || normalized === 'overdue' || normalized === 'pastdue') {
+  if (normalized === 'overdue' || normalized === 'pastdue') {
     return {
       icon: <AlertTriangle size={12} />,
       label: t('task.statusOverdue', { defaultValue: 'Overdue' }),
       color: '#b91c1c',
       background: 'rgba(255, 255, 255, 0.92)',
       border: 'rgba(220, 38, 38, 0.22)'
+    }
+  }
+  if (status === 3 || normalized === 'pendingreview') {
+    return {
+      icon: <Clock3 size={12} />,
+      label: t('task.statusPendingReview', { defaultValue: 'Pending Review' }),
+      color: '#9333ea',
+      background: 'rgba(255, 255, 255, 0.92)',
+      border: 'rgba(147, 51, 234, 0.22)'
     }
   }
   if (status === 1 || normalized === 'inprogress') {
@@ -321,6 +332,18 @@ const getTaskVisualStyles = (status: TaskVisualStatus) => {
     }
   }
 
+  if (status === 'pending-review') {
+    return {
+      background: 'rgba(147, 51, 234, 0.06)',
+      borderColor: 'rgba(147, 51, 234, 0.3)',
+      leftAccent: '#9333ea',
+      badgeBackground: '#9333ea',
+      badgeColor: 'var(--bg-surface)',
+      titleColor: 'var(--text-primary)',
+      secondaryColor: '#9333ea'
+    }
+  }
+
   if (status === 'due-today') {
     return {
       background: 'rgba(245, 158, 11, 0.08)',
@@ -361,7 +384,7 @@ const buildTaskSignature = (tasks: Task[]) => {
     .join('|')
 }
 
-const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId = null, initialTasks = [] }) => {
+const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId = null, initialTasks = [], showReloadButton = true }) => {
   const { t } = useTranslation('student')
   const navigate = useNavigate()
   const [tasks, setTasks] = useState<Task[]>([])
@@ -380,25 +403,22 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId =
 
   const getTaskId = (task: Task) => task.id || task.taskId || task.TaskId || null
 
-  // Check for active sessions for all tasks
+  // Check for active sessions for all tasks - single request instead of N requests
   const checkActiveSessions = async (taskList: Task[]) => {
-    const activeSessionsMap: Record<string, FocusSession> = {}
-    
-    for (const task of taskList) {
-      const taskId = getTaskId(task)
-      if (taskId) {
-        try {
-          const activeSession = await FocusSessionService.getActiveSession(taskId)
-          if (activeSession) {
-            activeSessionsMap[taskId] = activeSession
-          }
-        } catch (error) {
-          // Ignore errors - no active session
+    try {
+      const allActive = await FocusSessionService.getActiveSessions()
+      if (!allActive.length) return
+      const taskIds = new Set(taskList.map(t => getTaskId(t)).filter(Boolean))
+      const activeSessionsMap: Record<string, FocusSession> = {}
+      for (const session of allActive) {
+        if (session.taskId && taskIds.has(session.taskId)) {
+          activeSessionsMap[session.taskId] = session
         }
       }
+      setActiveSessions(activeSessionsMap)
+    } catch {
+      // Ignore errors - no active sessions
     }
-    
-    setActiveSessions(activeSessionsMap)
   }
 
   // Handle focus session creation
@@ -662,7 +682,7 @@ const ChapterTasks: React.FC<ChapterTasksProps> = ({ chapterId, selectedTaskId =
           {t('task.title')}
         </h4>
         <div style={{ display: 'flex', gap: 12 }}>
-          {loaded && (
+          {showReloadButton && loaded && (
             <button
               onClick={() => {
                 setLoaded(false); loadingRef.current = false; setTasks([]); setError(null);

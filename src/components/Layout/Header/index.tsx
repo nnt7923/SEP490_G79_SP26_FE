@@ -413,7 +413,7 @@ const Header: React.FC = () => {
                   {isStudent && (
                     <button
                       type="button"
-                      onClick={() => navigate(ROUTER.SUBSCRIPTION)}
+                      onClick={() => navigate(ROUTER.SHOP)}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',

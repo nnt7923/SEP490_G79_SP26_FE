@@ -34,7 +34,7 @@ export async function shareToStudent(
 }
 
 /** 4.2.2 — Student accept share */
-export async function acceptShare(shareId: string): Promise<void> {
+export async function acceptShare(shareId: string): Promise<LearningPathShareDto> {
   return api.post(`/learningpath-shares/${shareId}/accept`)
 }
 
@@ -52,6 +52,7 @@ export async function getPendingShares(): Promise<PendingLearningPathShareSummar
 export async function getSentShares(filters?: {
   status?: ShareStatus
   studentId?: string
+  pathId?: string
 }): Promise<SentLearningPathShareSummaryDto[]> {
   const response = await api.get('/learningpath-shares/sent', { params: filters })
   return toShareArray<SentLearningPathShareSummaryDto>(response)

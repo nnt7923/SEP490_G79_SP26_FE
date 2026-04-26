@@ -59,11 +59,19 @@ import EmojiPicker, { Theme as EmojiTheme } from "emoji-picker-react";
 import ChatReplyPreview from "../../../../components/Chat/ChatReplyPreview";
 import ShareLearningPathModal from "../../../../components/Chat/ShareLearningPathModal";
 import LearningPathShareCard from "../../../../components/Chat/LearningPathShareCard";
+import TaskReviewMessageCard from "../../../../components/TaskReview/TaskReviewMessageCard";
 import SentShareHistoryBlock from "../../../../components/Chat/SentShareHistoryBlock";
 import {
   buildLearningPathShareCardData,
   normalizeShareId,
+  isReviewRequestMessage,
+  parseReviewRequestMessage,
+  normalizeConversationPreview,
 } from "../../../../components/Chat/learningPathShare";
+import {
+  getTaskReviewId,
+  isTaskReviewMessage,
+} from "../../../../components/Chat/taskReview";
 import {
   buildReplyDraft,
   buildReplyPreviewForMessage,
@@ -107,6 +115,82 @@ function getInitials(name: string): string {
     .slice(-2)
     .map((w) => w[0]?.toUpperCase())
     .join("");
+}
+
+// Button that fetches revisedPathId from review then navigates to draft editor
+function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, mentorId }: { pathId: string; revisedPathId?: string; mentorId: string }) {
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [decisionStatus, setDecisionStatus] = useState<string | null>(null)
+  const [revisedPathId, setRevisedPathId] = useState<string | null>(revisedPathIdFromMsg ?? null)
+
+  React.useEffect(() => {
+    if (!pathId) return
+    LearningPathService.getMentorReviews(pathId)
+      .then(reviews => {
+        const mine = reviews.find((r: any) => r.mentorId === mentorId) || reviews[0]
+        if (mine) {
+          setDecisionStatus(mine.decisionStatus)
+          if (mine.revisedPathId) setRevisedPathId(mine.revisedPathId)
+        }
+      })
+      .catch(() => {})
+  }, [pathId, mentorId])
+
+  const isAccepted = decisionStatus === 'Accepted'
+
+  const handleOpen = async () => {
+    if (isAccepted) return
+    if (revisedPathId) {
+      navigate(`/mentor/drafts/${revisedPathId}?reviewPathId=${pathId}`)
+      return
+    }
+    setLoading(true); setErr(null)
+    try {
+      const reviews = await LearningPathService.getMentorReviews(pathId)
+      const mine = reviews.find((r: any) => r.mentorId === mentorId)
+      if (mine?.revisedPathId) {
+        navigate(`/mentor/drafts/${mine.revisedPathId}?reviewPathId=${pathId}`)
+      } else {
+        setErr('Workspace chưa sẵn sàng. Thử lại sau.')
+      }
+    } catch {
+      setErr('Không thể tải thông tin review.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statusMap: Record<string, { label: string; color: string; bg: string }> = {
+    Pending: { label: '⏳ Đang chờ', color: 'var(--warning-primary)', bg: 'rgba(245,158,11,0.12)' },
+    Accepted: { label: '✓ Đã chấp nhận', color: 'var(--success-primary)', bg: 'rgba(34,197,94,0.12)' },
+    Rejected: { label: '✕ Đã từ chối', color: 'var(--danger-primary)', bg: 'rgba(220,38,38,0.12)' },
+    WaitingStudentResponse: { label: '⏳ Chờ student phản hồi', color: 'var(--brand-blue, #3b82f6)', bg: 'rgba(59,130,246,0.12)' },
+  }
+  const status = statusMap[decisionStatus || 'Pending'] ?? statusMap.Pending
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Review Request</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: status.color, background: status.bg, padding: '2px 8px', borderRadius: 999 }}>
+          {status.label}
+        </span>
+      </div>
+      {!isAccepted ? (
+        <button onClick={handleOpen} disabled={loading}
+          style={{ width: '100%', padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'Đang tải...' : 'Xem & Review lộ trình'}
+        </button>
+      ) : (
+        <div style={{ padding: '8px 12px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, fontSize: 12, color: 'var(--success-primary)', textAlign: 'center' }}>
+          Student đã chấp nhận bản sửa
+        </div>
+      )}
+      {err && <div style={{ fontSize: 11, color: 'var(--danger-primary)', marginTop: 4 }}>{err}</div>}
+    </div>
+  )
 }
 
 function normalizeShareTitle(value: string): string {
@@ -383,9 +467,29 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
 
   const handleStartConversation = async (participantId: string) => {
     try {
-      await hub.startConversation(participantId);
+      const result = await hub.startConversation(participantId) as any;
+      let targetConvId = null;
+      if (result && typeof result === 'string') {
+        targetConvId = result;
+      } else if (result && typeof result === 'object') {
+        targetConvId = result.conversationId || result.ConversationId;
+      }
+
+      if (!targetConvId) {
+        const existingConv = Object.values(useChatStore.getState().conversationsById).find(
+          (c) => c.mentorId === participantId || c.studentId === participantId
+        );
+        if (existingConv) {
+          targetConvId = existingConv.conversationId;
+        }
+      }
+
       setActiveTab("conversations");
       setSearchQuery("");
+      
+      if (targetConvId) {
+        setActiveConversation(targetConvId);
+      }
     } catch {}
   };
 
@@ -771,7 +875,7 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
                             <Conversation
                               key={conv.conversationId}
                               name={name}
-                              info={conv.lastMessagePreview ?? ""}
+                              info={normalizeConversationPreview(conv.lastMessagePreview)}
                               lastActivityTime={formatConversationTime(
                                 conv.lastMessageAt,
                               )}
@@ -909,11 +1013,50 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
                       msg.content,
                     );
                     const shareCardData = resolveMentorShareCardData(msg);
+                    const taskReviewId = !shareCardData && isTaskReviewMessage(msg)
+                      ? getTaskReviewId(msg)
+                      : null;
+                    const reviewRequestData = !shareCardData && !taskReviewId && isReviewRequestMessage(msg.content)
+                      ? parseReviewRequestMessage(msg.content || '')
+                      : null;
                     const replyPreview = buildReplyPreviewForMessage(
                       msg,
                       activeMessages,
                       replyContext,
                     );
+                    if (taskReviewId) {
+                      return (
+                        <div key={msg.messageId} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8, padding: '0 16px' }}>
+                          <TaskReviewMessageCard
+                            reviewId={taskReviewId}
+                            note={msg.content}
+                            isMine={isMine}
+                            onOpen={() => navigate(ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', taskReviewId))}
+                            openLabel={t("chat.openTaskReview", { defaultValue: "Open review" })}
+                            loadingLabel={t("chat.loadingTaskReview", { defaultValue: "Loading task review..." })}
+                            loadFailedLabel={t("chat.taskReviewLoadFailed", { defaultValue: "Failed to load task review." })}
+                            titleFallback={t("chat.taskReviewTitle", { defaultValue: "Task review" })}
+                            mentorLabel={t("chat.taskReviewMentor", { defaultValue: "Mentor" })}
+                            studentLabel={t("chat.taskReviewStudent", { defaultValue: "Student" })}
+                          />
+                        </div>
+                      )
+                    }
+                    if (reviewRequestData) {
+                      return (
+                        <div key={msg.messageId} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8, padding: '0 16px' }}>
+                          <div style={{ maxWidth: 300, background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)', borderRadius: 10, padding: '12px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: reviewRequestData.note ? 6 : 10, lineHeight: 1.4 }}>{reviewRequestData.title}</div>
+                            {reviewRequestData.note && (
+                              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.5, fontStyle: 'italic' }}>"{reviewRequestData.note}"</div>
+                            )}
+                            {!isMine && (
+                              <ReviewRequestOpenButton pathId={reviewRequestData.pathId} revisedPathId={reviewRequestData.revisedPathId} mentorId={currentUserId} />
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
                     if (shareCardData) {
                       return (
                         <div

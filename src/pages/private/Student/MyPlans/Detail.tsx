@@ -4,7 +4,7 @@ import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import LearningPathService, { type SkeletonResponse } from '../../../../services/LearningPathService'
 import useAuthStore from '../../../../store/useAuthStore'
-import { ArrowLeft, Loader, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader, AlertCircle, PencilLine } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import QuizStatusBadge from '../../../../components/Quiz/QuizStatusBadge'
 import ChapterTasks from '../../Plans/components/ChapterTasks'
@@ -12,6 +12,9 @@ import { motion } from 'framer-motion'
 import Tilt from 'react-parallax-tilt'
 import { mergeSkeletonWithCachedQuizzes } from '../../../../utils/quizCache'
 import type { LearningPathProgressResponse } from '../../../../services/LearningPathService'
+import ROUTER from '../../../../router/ROUTER'
+import SelectMentorModal from '../../../../components/SelectMentorModal'
+import MentorReviewSection from '../../../../components/MentorReviewSection'
 
 const clampPercent = (value: unknown) => {
   const numeric = Number(value)
@@ -222,6 +225,15 @@ const MyPlansDetailPage: React.FC = () => {
   const detailScrollRef = useRef<HTMLDivElement>(null)
   // Track chapter completion status
   const [chapterCompletionStatus, setChapterCompletionStatus] = useState<Record<string, boolean>>({})
+  // Bulk gen ref to avoid duplicate triggers
+  const bulkGenTriggeredRef = useRef(false)
+  // Bulk gen progress tracking
+  const [bulkGenProgress, setBulkGenProgress] = useState<{
+    total: number; completed: number; failed: number
+  } | null>(null)
+  // Send to mentor review dialog
+  const [showSelectMentor, setShowSelectMentor] = useState(false)
+  const [reviewAccepted, setReviewAccepted] = useState(false)
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
@@ -232,6 +244,121 @@ const MyPlansDetailPage: React.FC = () => {
   useEffect(() => {
     fetchPlanDetail()
   }, [pathId, location?.key, user?.id])
+
+  // Trigger bulk generation once plan is loaded
+  useEffect(() => {
+    if (!plan || bulkGenTriggeredRef.current) return
+    const currentPathId = plan.pathId || (plan as any).id
+    if (!currentPathId) return
+
+    // Check if all lessons already have content — skip bulk gen if so
+    const allLessons = (plan.chapters || []).flatMap((ch: any) => ch.lessons || [])
+    const allHaveContent = allLessons.length > 0 && allLessons.every((ls: any) => ls.content || ls.Content)
+    if (allHaveContent) {
+      bulkGenTriggeredRef.current = true
+      return
+    }
+
+    // Persist flag across remounts so navigating back doesn't re-trigger
+    const storageKey = `bulkGenDone:${currentPathId}`
+    if (sessionStorage.getItem(storageKey) === 'true') {
+      bulkGenTriggeredRef.current = true
+      return
+    }
+
+    bulkGenTriggeredRef.current = true
+
+    // Check if review already accepted
+    LearningPathService.getMentorReviews(currentPathId)
+      .then(reviews => {
+        if (reviews.some(r => r.decisionStatus === 'Accepted')) setReviewAccepted(true)
+      })
+      .catch(() => {})
+
+    const run = async () => {
+      try {
+        console.log('[BulkGen] Starting for pathId:', currentPathId)
+        await LearningPathService.generateBulkLearningPathContent(currentPathId, {
+          lessonConcurrency: 4,
+          quizConcurrency: 6,
+          onStarted: (data: any) => {
+            console.log('[BulkGen] onStarted:', data)
+            setBulkGenProgress({ total: data.TotalLessons || 0, completed: 0, failed: 0 })
+          },
+          onProgress: (data: any) => {
+            console.log('[BulkGen] onProgress:', data)
+            setBulkGenProgress({
+              total: data.TotalLessons || 0,
+              completed: data.CompletedLessons || 0,
+              failed: data.FailedLessons || 0,
+            })
+          },
+          onLessonSuccess: (lesson: any) => {
+            const lessonId = lesson.lessonId || lesson.LessonId || lesson.id
+            if (!lessonId) return
+            setPlan((prev) => {
+              if (!prev) return prev
+              const arr = prev.chapters || (prev as any).chapterDtos || []
+              const updated = arr.map((ch: any) => {
+                if (!Array.isArray(ch.lessons)) return ch
+                return {
+                  ...ch,
+                  lessons: ch.lessons.map((ls: any) => {
+                    if ((ls.lessonId || ls.id) !== lessonId) return ls
+                    return { ...ls, content: lesson.content || lesson.Content, hasContent: true }
+                  }),
+                }
+              })
+              return {
+                ...prev,
+                chapters: (prev as any).chapters ? updated : undefined,
+                chapterDtos: (prev as any).chapterDtos ? updated : undefined,
+              } as SkeletonResponse
+            })
+          },
+          onQuizSuccess: (data: any) => {
+            const quiz = data.Questions
+            if (!quiz) return
+            const quizId = quiz.QuizId || quiz.quizId
+            setPlan((prev) => {
+              if (!prev) return prev
+              const arr = prev.chapters || (prev as any).chapterDtos || []
+              const updated = arr.map((ch: any) => ({
+                ...ch,
+                lessons: (ch.lessons || []).map((ls: any) => {
+                  const quizzes = ls.quizzes || []
+                  if (!quizzes.some((q: any) => (q.quizzId || q.quizId) === quizId)) return ls
+                  return {
+                    ...ls,
+                    quizzes: quizzes.map((q: any) =>
+                      (q.quizzId || q.quizId) === quizId
+                        ? { ...q, questions: quiz.Questions, status: 'Completed' }
+                        : q
+                    ),
+                  }
+                }),
+              }))
+              return {
+                ...prev,
+                chapters: (prev as any).chapters ? updated : undefined,
+                chapterDtos: (prev as any).chapterDtos ? updated : undefined,
+              } as SkeletonResponse
+            })
+          },
+          onCompleted: (data: any) => {
+            console.log('[BulkGen] onCompleted:', data)
+            setBulkGenProgress(null)
+            sessionStorage.setItem(`bulkGenDone:${currentPathId}`, 'true')
+            // Refetch to sync final state from server
+            void fetchPlanDetail()
+          },
+        })
+      } catch (err) {
+        console.error('[BulkGen] error:', err)
+      }
+    }
+    run()
+  }, [plan?.pathId])
 
   useEffect(() => {
     setActiveChapterId(activeChapterFromNav)
@@ -248,28 +375,27 @@ const MyPlansDetailPage: React.FC = () => {
     setError(null)
     setProgress(null)
     try {
-      const [plansResult, progressResult] = await Promise.allSettled([
-        LearningPathService.getUserLearningPaths(user.id, {
-          pageNumber: 1,
-          pageSize: 100,
-          includeDetails: true,
-        }),
-        LearningPathService.getLearningPathProgress(pathId),
-      ])
+      void LearningPathService.getLearningPathProgress(pathId)
+        .then((progressData) => setProgress(progressData))
+        .catch(() => undefined)
 
-      if (progressResult.status === 'fulfilled') {
-        setProgress(progressResult.value)
+      // Fetch directly by userId + pathId (lightweight, no retry loop)
+      let foundPlan: SkeletonResponse | null = null
+      try {
+        const direct = await LearningPathService.getUserLearningPathDetail(user.id, pathId)
+        if (direct) foundPlan = direct
+      } catch {
+        // fallback to student path endpoint
+        try {
+          const fallback = await LearningPathService.getStudentLearningPath(pathId)
+          if (fallback) foundPlan = fallback
+        } catch { /* ignore */ }
       }
 
-      if (plansResult.status !== 'fulfilled') {
-        throw plansResult.reason
-      }
-
-      const foundPlan = plansResult.value.items.find(p => (p.pathId || p.id) === pathId)
       if (foundPlan) {
         const merged = mergeSkeletonWithCachedQuizzes(foundPlan)
         setPlan(merged)
-        setActiveChapterId(prev => prev || (foundPlan.chapters && foundPlan.chapters.length > 0 ? foundPlan.chapters[0].id : null))
+        setActiveChapterId(prev => prev || (foundPlan!.chapters && foundPlan!.chapters.length > 0 ? foundPlan!.chapters[0].id : null))
       } else {
         setError('Learning path not found')
       }
@@ -279,8 +405,6 @@ const MyPlansDetailPage: React.FC = () => {
         setError(msg)
       }
     } finally {
-      if (!initialSkeleton && !plan) setLoading(false)
-      // Always turn off loading at the end anyway just to be safe
       setLoading(false)
     }
   }
@@ -384,18 +508,41 @@ const MyPlansDetailPage: React.FC = () => {
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
-          {/* Back Button */}
-          <motion.button
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={() => navigate(-1)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', marginBottom: 24, fontSize: 14, fontWeight: 700 }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-            whileHover={{ x: -2 }}
-          >
-            <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
-          </motion.button>
+          {/* Top action row: Back + Edit */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <motion.button
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              onClick={() => navigate(-1)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+              whileHover={{ x: -2 }}
+            >
+              <ArrowLeft className="w-4 h-4" /> {t('plansResult.back').toUpperCase()}
+            </motion.button>
+
+            {plan?.status === 'Active' && pathId && (
+              <motion.button
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => navigate(ROUTER.STUDENT_PATH_EDIT.replace(':pathId', pathId))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  color: 'var(--accent-primary)',
+                  background: 'color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface) 90%)',
+                  border: '1px solid var(--accent-primary)',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  padding: '8px 14px',
+                }}
+              >
+                <PencilLine size={14} /> Edit path
+              </motion.button>
+            )}
+          </div>
 
           {/* Hero frame */}
           <Tilt tiltMaxAngleX={2} tiltMaxAngleY={2} scale={1.01} transitionSpeed={400}>
@@ -423,7 +570,7 @@ const MyPlansDetailPage: React.FC = () => {
               }} />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <h1 style={{
                     color: 'var(--text-primary)', fontSize: 24, fontWeight: 700, margin: '0 0 16px 0',
                     display: 'flex', alignItems: 'center', gap: 12
@@ -433,6 +580,42 @@ const MyPlansDetailPage: React.FC = () => {
                   <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px 0', lineHeight: 1.6 }}>
                     {plan.description || t('myPlans.noDescription')}
                   </p>
+                </div>
+                {/* Action buttons - top right */}
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginLeft: 16 }}>
+                  <button
+                    onClick={() => navigate(`/learning-paths/${plan.pathId || (plan as any).id}/mentor-review`)}
+                    style={{ padding: '8px 14px', background: 'rgba(99,102,241,0.08)', color: 'rgb(99,102,241)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)' }}
+                  >
+                    {t('mentorReview.title', 'Xem review')}
+                  </button>
+                  {!reviewAccepted && (
+                    <button
+                      disabled={bulkGenProgress !== null}
+                      onClick={() => setShowSelectMentor(true)}
+                      style={{
+                        padding: '8px 16px',
+                        background: bulkGenProgress !== null ? 'var(--text-disabled)' : 'var(--accent-primary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: bulkGenProgress !== null ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        whiteSpace: 'nowrap',
+                        opacity: bulkGenProgress !== null ? 0.6 : 1,
+                      }}
+                    >
+                      {bulkGenProgress !== null
+                        ? t('myPlans.generatingContent', 'Đang tạo nội dung...')
+                        : t('myPlans.sendMentorReview', 'Gửi mentor review')}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -464,6 +647,22 @@ const MyPlansDetailPage: React.FC = () => {
                     background: 'var(--bg-main)', padding: '6px 12px', borderRadius: 2, border: '1px dashed var(--border-base)'
                   }}>
                     {new Date(plan.createdAt).toLocaleDateString()}
+                  </span>
+                )}
+                {(plan as any).complexityLevel != null && (
+                  <span style={{
+                    background: 'rgba(139,92,246,0.08)', padding: '6px 12px', borderRadius: 2,
+                    border: '1px dashed rgba(139,92,246,0.4)', color: 'rgb(139,92,246)'
+                  }}>
+                    {t('plansResult.complexityLabel')}: {t(`plansResult.complexity_${(plan as any).complexityLevel}`, String((plan as any).complexityLevel))}
+                  </span>
+                )}
+                {(plan as any).language != null && (
+                  <span style={{
+                    background: 'rgba(20,184,166,0.08)', padding: '6px 12px', borderRadius: 2,
+                    border: '1px dashed rgba(20,184,166,0.4)', color: 'rgb(20,184,166)'
+                  }}>
+                    {t('plansResult.languageLabel')}: {(plan as any).language === 0 ? t('plansResult.languageVietnamese') : t('plansResult.languageEnglish')}
                   </span>
                 )}
               </div>
@@ -525,6 +724,9 @@ const MyPlansDetailPage: React.FC = () => {
               </div>
             </motion.section>
           </Tilt>
+
+          {/* Mentor Reviews */}
+          <MentorReviewSection pathId={plan.pathId || (plan as any).id} />
 
           {/* Chapters & Lessons Display (Master-Detail Grid) */}
           {plan.chapters && plan.chapters.length > 0 ? (
@@ -789,7 +991,13 @@ const MyPlansDetailPage: React.FC = () => {
                                                   return
                                                 }
                                                 navigate(`/quiz/${quizId}`, {
-                                                  state: { quizTitle: quiz.title, skeleton: plan }
+                                                  state: {
+                                                    quizTitle: quiz.title,
+                                                    timeLimit: quiz.timeLimit ?? quiz.timeLimitMinutes ?? null,
+                                                    passingScore: quiz.passingScore ?? null,
+                                                    totalQuestions: quiz.totalQuestions ?? quiz.questions?.length ?? null,
+                                                    skeleton: plan,
+                                                  }
                                                 })
                                               }}
                                               style={{
@@ -831,6 +1039,7 @@ const MyPlansDetailPage: React.FC = () => {
                           selectedTaskId={chapter.id === activeChapterId ? selectedTaskId : null}
                           initialTasks={chapter.tasks}
                           onAllTasksCompleted={handleChapterTasksCompleted}
+                          showReloadButton={false}
                         />
                       </div>
                     </>
@@ -851,6 +1060,18 @@ const MyPlansDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Select mentor modal for review */}
+      <SelectMentorModal
+        isOpen={showSelectMentor}
+        onClose={() => setShowSelectMentor(false)}
+        askMentorContext={{
+          reviewPathId: plan?.pathId || (plan as any)?.id,
+          reviewPathTitle: plan?.title,
+        } as any}
+      />
+
+      {/* Warning dialog removed - button is now disabled during generation */}
     </Layout>
   )
 }

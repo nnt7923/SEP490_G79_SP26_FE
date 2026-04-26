@@ -1,7 +1,7 @@
 // '/Auth/me' has been removed from the frontend.
 // This module is kept intentionally empty to avoid unused endpoint references.
 import api from '../Axios'
-import { getProfileUrl, updateProfileUrl, updateAvatarProfile, changePasswordUrl, listUsersUrl, userUrl, banUserUrl, unbanUserUrl } from './url'
+import { getProfileUrl, updateProfileUrl, updateAvatarProfile, changePasswordUrl, listUsersUrl, userUrl, banUserUrl, unbanUserUrl, createMentorUrl } from './url'
 
 type UsersListCacheEntry = {
   expiresAt: number
@@ -365,4 +365,22 @@ export async function unbanUser(userId: string): Promise<any> {
   return res?.data ?? res
 }
 
-export default { getProfile, updateProfile, uploadAvatarProfile, changePassword, listUsers, listUsersPaged, getUserById, banUser, unbanUser, clearUsersCache }
+export interface CreateMentorPayload {
+  email: string
+  username: string
+  firstName: string
+  lastName: string
+  bio?: string
+  phone?: string
+  address?: string
+  dateOfBirth?: string
+  sendSetupEmail?: boolean
+}
+
+export async function createMentor(payload: CreateMentorPayload): Promise<any> {
+  const res: any = await api.post(createMentorUrl, payload)
+  clearUsersCache()
+  return res?.data ?? res
+}
+
+export default { getProfile, updateProfile, uploadAvatarProfile, changePassword, listUsers, listUsersPaged, getUserById, banUser, unbanUser, createMentor, clearUsersCache }

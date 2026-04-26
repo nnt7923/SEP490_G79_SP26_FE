@@ -12,6 +12,7 @@ import './i18n' // i18n - Khởi tạo đa ngôn ngữ
 import App from './App.tsx'
 import { ThemeProvider } from './contexts/ThemeContext'
 
+
 // Khởi tạo AOS một lần duy nhất
 AOS.init({
   duration: 550,

@@ -8,3 +8,4 @@ export const listUsersUrl = '/users'
 export const userUrl = (userId: string | number) => `/users/${userId}`
 export const banUserUrl = (userId: string) => `/users/${userId}/ban`
 export const unbanUserUrl = (userId: string) => `/users/${userId}/unban`
+export const createMentorUrl = '/users/mentors'

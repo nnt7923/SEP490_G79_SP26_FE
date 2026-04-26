@@ -5,7 +5,7 @@ import {
   formatNotificationDate,
   getNotificationSeverityTone,
   hasShareVersionUpdatedSnapshot,
-  resolveNotificationText,
+  resolveNotificationTextWithContext,
   resolveShareVersionUpdatedNotificationText,
   resolveShareVersionUpdatedTitleParts,
 } from './utils'
@@ -215,7 +215,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
         {items.map((notification) => {
           const tone = getNotificationSeverityTone(notification.severity)
           const muted = notification.isRead
-          const baseText = resolveNotificationText(notification, t)
+          const baseText = resolveNotificationTextWithContext(notification, t)
           const shareId = isShareVersionUpdatedNotification(notification.type)
             ? extractShareIdFromNotification(notification)
             : null

@@ -164,6 +164,9 @@ const QuizPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false)
   const [submitResult, setSubmitResult] = useState<any>(null)
 
+  // Quiz metadata from status API (timeLimit, passingScore, totalQuestions)
+  const [quizMeta, setQuizMeta] = useState<any>(null)
+
   // SignalR Generation State
   const [signalRData, setSignalRData] = useState<any>(null)
   const [generating, setGenerating] = useState(false)
@@ -179,6 +182,18 @@ const QuizPage: React.FC = () => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hasAutoSubmittedRef = useRef(false)
   const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
+
+  /* ── Fetch quiz metadata from /status immediately on mount ── */
+  useEffect(() => {
+    if (!quizId) return
+    let isMounted = true
+    api.get(`/quizzes/${quizId}/status`)
+      .then((res: any) => {
+        if (isMounted) setQuizMeta(res)
+      })
+      .catch(() => { /* ignore, metadata optional */ })
+    return () => { isMounted = false }
+  }, [quizId])
 
   /* ── Restore session or Generate Questions ─────── */
   useEffect(() => {
@@ -429,7 +444,7 @@ const QuizPage: React.FC = () => {
               display: 'flex', alignItems: 'center', gap: 12,
             }}>
               <span style={{ color: 'var(--accent-primary)' }}>{'>'}</span>
-              {signalRData?.title || quizTitle}
+              {signalRData?.questions?.title || signalRData?.title || quizTitle}
               <span style={{ animation: 'blink 1s step-end infinite', color: 'var(--accent-primary)', fontWeight: 300 }}>_</span>
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 32px 0' }}>
@@ -452,18 +467,22 @@ const QuizPage: React.FC = () => {
               </div>
             )}
 
-            {/* Info grid — only show items when data is available */}
-            {!generating && (() => {
-              const sr = signalRData
+            {/* Info grid — show immediately from status API, supplement with signalR data */}
+            {(() => {
+              // ReceiveQuizQuestions payload: { quizId, questions: QuizQuestionsDto }
+              // QuizQuestionsDto: { quizId, title, timeLimit, passingScore, questions: [] }
+              const srInner = signalRData?.questions ?? signalRData
+              const meta = quizMeta
               const loc = location.state
 
-              const tLimit = sr?.timeLimit || loc?.timeLimit
-              let pScore = sr?.passingScore || loc?.passingScore
-              const tQuestions = sr?.questions?.length || loc?.totalQuestions
+              const tLimit = srInner?.timeLimit ?? meta?.timeLimit ?? loc?.timeLimit
+              let pScore = srInner?.passingScore ?? meta?.passingScore ?? loc?.passingScore
+              const questionsList: any[] | undefined = Array.isArray(srInner?.questions) ? srInner.questions : undefined
+              const tQuestions = questionsList?.length ?? meta?.totalQuestions ?? loc?.totalQuestions
 
               // Calculate total points for percentage if available
-              if (pScore !== undefined && sr?.questions && sr.questions.length > 0) {
-                const totalPoints = sr.questions.reduce((sum: number, q: any) => sum + (q.points || 0), 0)
+              if (pScore !== undefined && questionsList && questionsList.length > 0) {
+                const totalPoints = questionsList.reduce((sum: number, q: any) => sum + (q.points || 0), 0)
                 if (totalPoints > 0) {
                   const percent = Math.round((pScore / totalPoints) * 100)
                   pScore = `${pScore} (${percent}%)`
@@ -471,9 +490,9 @@ const QuizPage: React.FC = () => {
               }
 
               const infoItems = [
-                tLimit ? { icon: <Clock style={{ width: 18, height: 18 }} />, label: t('quiz.timeLimit'), value: `${tLimit} ${t('quiz.minutes')}` } : null,
-                pScore ? { icon: <Award style={{ width: 18, height: 18 }} />, label: t('quiz.passingScore'), value: String(pScore).includes('%') ? pScore : `${pScore} ${t('quiz.points')}` } : null,
-                tQuestions ? { icon: <HelpCircle style={{ width: 18, height: 18 }} />, label: t('quiz.totalQuestions'), value: `${tQuestions} ${t('quiz.questions')}` } : null,
+                tLimit != null ? { icon: <Clock style={{ width: 18, height: 18 }} />, label: t('quiz.timeLimit'), value: `${tLimit} ${t('quiz.minutes')}` } : null,
+                pScore != null ? { icon: <Award style={{ width: 18, height: 18 }} />, label: t('quiz.passingScore'), value: String(pScore).includes('%') ? pScore : `${pScore} ${t('quiz.points')}` } : null,
+                tQuestions != null && tQuestions > 0 ? { icon: <HelpCircle style={{ width: 18, height: 18 }} />, label: t('quiz.totalQuestions'), value: `${tQuestions} ${t('quiz.questions')}` } : null,
               ].filter(Boolean)
               if (infoItems.length === 0) return null
               return (

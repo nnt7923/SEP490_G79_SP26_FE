@@ -52,36 +52,51 @@ interface Subject {
   description?: string
   color?: string
   icon?: string | null
+  category?: string
   createdBy?: string
   createdByUserId?: string
   createdAt?: string
 }
 
+const CATEGORY_OPTIONS = [
+  'ProgrammingLanguage',
+  'Frontend',
+  'Backend',
+  'Database',
+  'Cloud',
+  'DataScience',
+  'MachineLearning',
+  'Algorithms',
+  'GameDevelopment',
+  'Mobile',
+  'Other',
+] as const
+
 const PRESET_COLORS = [
-  'var(--blue-500)',
-  'var(--icon-violet-to)',
-  'var(--icon-pink-to)',
-  'var(--color-amber-500)',
-  'var(--color-emerald-500)',
-  'var(--icon-cyan-to)',
-  'var(--color-red-500)',
-  'var(--icon-orange-to)',
-  'var(--icon-indigo-to)',
-  'var(--color-purple-400)',
-  'var(--color-pink-600)',
-  'var(--text-amber-dark)',
-  'var(--text-emerald)',
-  'var(--color-cyan-600)',
-  'var(--red-600)',
-  'var(--color-orange-600)',
-  'var(--accent-indigo)',
-  'var(--color-purple-600)',
-  'var(--color-pink-700)',
-  'var(--warning-primary)',
-  'var(--color-emerald-700)',
-  'var(--color-cyan-700)',
-  'var(--color-red-700)',
-  'var(--color-orange-700)',
+  '#3b82f6', // blue
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#06b6d4', // cyan
+  '#ef4444', // red
+  '#f97316', // orange
+  '#6366f1', // indigo
+  '#a78bfa', // purple-400
+  '#db2777', // pink-600
+  '#d97706', // amber-700
+  '#059669', // emerald-600
+  '#0891b2', // cyan-600
+  '#dc2626', // red-600
+  '#ea580c', // orange-600
+  '#4f46e5', // indigo-600
+  '#9333ea', // purple-600
+  '#be185d', // pink-700
+  '#b45309', // amber-700
+  '#047857', // emerald-700
+  '#0e7490', // cyan-700
+  '#b91c1c', // red-700
+  '#c2410c', // orange-700
 ]
 
 const SUBJECT_ICONS = [
@@ -148,6 +163,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
     description: '',
     color: PRESET_COLORS[0],
     icon: SUBJECT_ICONS[0].emoji,
+    category: 'Other' as string,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
@@ -162,6 +178,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         description: editSubject.description || '',
         color: editSubject.color || PRESET_COLORS[0],
         icon: editSubject.icon || SUBJECT_ICONS[0].emoji,
+        category: editSubject.category || 'Other',
       })
     } else {
       setFormData({
@@ -169,6 +186,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         description: '',
         color: PRESET_COLORS[0],
         icon: SUBJECT_ICONS[0].emoji,
+        category: 'Other',
       })
     }
   }, [editSubject])
@@ -215,10 +233,18 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
     try {
       const { SubjectService } = await import('../../../../../services')
 
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        color: formData.color,
+        icon: formData.icon,
+        category: formData.category,
+      }
+
       if (isEditMode && editSubject) {
-        await SubjectService.updateSubject(editSubject.subjectId, formData)
+        await SubjectService.updateSubject(editSubject.subjectId, payload)
       } else {
-        await SubjectService.createSubject(formData)
+        await SubjectService.createSubject(payload)
       }
 
       setFormData({
@@ -226,6 +252,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         description: '',
         color: PRESET_COLORS[0],
         icon: SUBJECT_ICONS[0].emoji,
+        category: 'Other',
       })
       setErrors({})
       setShowIconPicker(false)
@@ -233,7 +260,11 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
       onSuccess()
       onClose()
     } catch (error: any) {
-      setErrors({ submit: error?.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} subject` })
+      const msg = error?.response?.data?.message
+        || error?.response?.data?.errors
+        || error?.response?.data?.title
+        || `Failed to ${isEditMode ? 'update' : 'create'} subject`
+      setErrors({ submit: typeof msg === 'string' ? msg : JSON.stringify(msg) })
     } finally {
       setLoading(false)
     }
@@ -246,6 +277,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         description: '',
         color: PRESET_COLORS[0],
         icon: SUBJECT_ICONS[0].emoji,
+        category: 'Other',
       })
       setErrors({})
       setShowIconPicker(false)
@@ -324,6 +356,20 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           </div>
 
           <div>
+            <label className="block text-sm font-bold text-heading mb-2">Category</label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              disabled={loading}
+              className="w-full px-4 py-2 border-2 border-bd-strong bg-th-card focus:outline-none focus:border-blue-600 transition-colors text-heading font-mono"
+            >
+              {CATEGORY_OPTIONS.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-sm font-bold text-heading mb-3">Color Theme</label>
 
             <div className="flex items-center gap-4">
@@ -339,12 +385,12 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                   type="text"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  placeholder="var(--blue-500)"
+                  placeholder="#3b82f6"
                   className="w-full px-3 py-2 border-2 border-bd-strong focus:outline-none focus:border-blue-600 text-heading rounded-sm"
                   disabled={loading}
                 />
                 <p className="text-xs text-muted mt-1">
-                  Enter a CSS variable or hex color value
+                  Enter a hex color value (e.g. #3b82f6)
                 </p>
               </div>
             </div>

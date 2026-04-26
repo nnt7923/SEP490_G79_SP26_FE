@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, PauseCircle, Book, Maximize2, Minimize2, MessageCircle } from 'lucide-react'
+import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, PauseCircle, Maximize2, Minimize2, MessageCircle } from 'lucide-react'
 import { useNavigate, useLocation, useBlocker } from 'react-router-dom'
 import { DailyCheckinService, FocusSessionService, SessionType } from '../../../services'
 import type { FocusSession } from '../../../services/FocusSessionService'
@@ -9,10 +9,14 @@ import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
 import Toast from '../../../components/Toast'
 import CompleteSessionDialog from '../../../components/CompleteSessionDialog'
+import TaskReviewRequestModal, { type TaskReviewRequestSession } from '../../../components/TaskReview/TaskReviewRequestModal'
 import ROUTER from '../../../router/ROUTER'
 import { useTranslation } from 'react-i18next'
 import useDailyCheckinActivitySync from '../../../hooks/useDailyCheckinActivitySync'
 import DailyCheckinPopup from '../Student/components/DailyCheckinPopup'
+import { hasTaskReviewSubmission } from '../../../components/TaskReview/utils'
+import type { MentorDto } from '../../../services/MentorService'
+import type { RequestTaskReviewResult } from '../../../services/TaskReviewService'
 
 interface TaskData {
   id?: string
@@ -297,6 +301,8 @@ const FocusSessionPage: React.FC = () => {
   const [isAiReviewModalOpen, setIsAiReviewModalOpen] = useState<boolean>(false)
   const [finalSubmissionResult, setFinalSubmissionResult] = useState<{ feedback: string; score?: number; taskCompleted: boolean; message?: string } | null>(null)
   const [isFinalSubmissionModalOpen, setIsFinalSubmissionModalOpen] = useState<boolean>(false)
+  const [isTaskReviewRequestModalOpen, setIsTaskReviewRequestModalOpen] = useState<boolean>(false)
+  const [shouldPromptTaskReviewAfterComplete, setShouldPromptTaskReviewAfterComplete] = useState(false)
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false)
   const [dailyCheckinPopup, setDailyCheckinPopup] = useState<{ message: string; currentStreak: number; mood?: string | null; productivity?: number | null } | null>(null)
   const [noteTitle, setNoteTitle] = useState<string>('')
@@ -444,6 +450,39 @@ const FocusSessionPage: React.FC = () => {
       return JSON.stringify([])
     }
   }
+
+  const taskReviewRequestSession = React.useMemo<TaskReviewRequestSession | null>(() => {
+    if (!session?.id) return null
+
+    return {
+      sessionId: String(session.id),
+      taskId: String(session.taskId || task?.taskId || task?.id || ''),
+      taskTitle: task?.title || session.title || null,
+      title: session.title || task?.title || '',
+      submittedCode: currentTaskTypeNum === 0 ? code : (session.submittedCode ?? null),
+      submittedSummary: currentTaskTypeNum === 1 ? (theoryAnswers.answer || '') : (session.submittedSummary ?? null),
+      submittedQuizAnswers: currentTaskTypeNum === 2 ? formatQuizAnswers() : (session.submittedQuizAnswers ?? null),
+    }
+  }, [
+    code,
+    currentTaskTypeNum,
+    formatQuizAnswers,
+    session?.id,
+    session?.submittedCode,
+    session?.submittedQuizAnswers,
+    session?.submittedSummary,
+    session?.taskId,
+    session?.title,
+    task?.id,
+    task?.taskId,
+    task?.title,
+    theoryAnswers.answer,
+  ])
+
+  const canRequestMentorReviewAfterComplete = React.useMemo(() => {
+    if (!finalSubmissionResult || !taskReviewRequestSession) return false
+    return hasTaskReviewSubmission(taskReviewRequestSession)
+  }, [finalSubmissionResult, taskReviewRequestSession])
 
   const parseSubmittedQuizAnswers = (value: unknown): Record<string, number> => {
     if (value == null) return {}
@@ -600,7 +639,7 @@ const FocusSessionPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsFinalSubmissionModalOpen(false)}
+            onClick={navigateBackToDetail}
             style={{
               position: 'fixed',
               inset: 0,
@@ -674,7 +713,7 @@ const FocusSessionPage: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setIsFinalSubmissionModalOpen(false)}
+                    onClick={navigateBackToDetail}
                     style={{
                       border: '1px solid var(--border-base)',
                       borderRadius: 8,
@@ -720,6 +759,29 @@ const FocusSessionPage: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {canRequestMentorReviewAfterComplete && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFinalSubmissionModalOpen(false)
+                        setIsTaskReviewRequestModalOpen(true)
+                      }}
+                      style={{
+                        border: 'none',
+                        borderRadius: 8,
+                        background: shouldPromptTaskReviewAfterComplete ? 'var(--warning-primary)' : 'var(--accent-primary)',
+                        color: 'white',
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {shouldPromptTaskReviewAfterComplete
+                        ? t('focusSession.continueToMentorReviewButton')
+                        : t('focusSession.mentorReviewButton')}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={navigateBackToDetail}
@@ -1329,14 +1391,6 @@ const FocusSessionPage: React.FC = () => {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getSessionTypeLabel = (type: SessionType): string => {
-    return type === SessionType.Pomodoro ? t('focusSession.pomodoro') : t('focusSession.study')
-  }
-
-  const getSessionTypeIcon = (type: SessionType) => {
-    return type === SessionType.Pomodoro ? <Timer size={14} /> : <Book size={14} />
-  }
-
   const getSessionTypeColor = (type: SessionType): string => {
     return type === SessionType.Pomodoro ? 'var(--danger-primary)' : 'var(--accent-primary)'
   }
@@ -1393,6 +1447,8 @@ const FocusSessionPage: React.FC = () => {
   }
 
   const navigateBackToDetail = React.useCallback(() => {
+    shouldPauseOnLeaveRef.current = false
+    setIsFinalSubmissionModalOpen(false)
     if (window.history.length > 1) {
       navigate(-1)
       return
@@ -1435,14 +1491,34 @@ const FocusSessionPage: React.FC = () => {
     setShowCompleteDialog(true)
   }
 
-  const handleCompleteSession = async (submissionType: 0 | 1) => {
+  const handleCompleteSession = async (submissionType: 0 | 1 | 2) => {
     if (!session) return
 
+    // Validate content before final submission
+    if (submissionType === 1) {
+      if (currentTaskTypeNum === 0 && !code.trim()) {
+        setToast({ message: t('focusSession.emptySubmitError'), type: 'error' })
+        setShowCompleteDialog(false)
+        return
+      }
+      if (currentTaskTypeNum === 1 && !theoryAnswers.answer?.trim()) {
+        setToast({ message: t('focusSession.emptySubmitErrorTheory'), type: 'error' })
+        setShowCompleteDialog(false)
+        return
+      }
+      if (currentTaskTypeNum === 2 && Object.keys(quizAnswers).length === 0) {
+        setToast({ message: t('focusSession.emptySubmitErrorQuiz'), type: 'error' })
+        setShowCompleteDialog(false)
+        return
+      }
+    }
+
     setLoading(true)
+    setShouldPromptTaskReviewAfterComplete(false)
     try {
       // Prepare payload based on submitType and taskType
       const payload: any = {
-        submissionType,
+        submissionType: submissionType === 2 ? 0 : submissionType,
         isEarlyCompletion: true
       }
 
@@ -1490,9 +1566,13 @@ const FocusSessionPage: React.FC = () => {
       setToast({ message, type: 'success' })
 
       if (submissionType !== 1) {
-        setTimeout(() => {
-          navigateBackToDetail()
-        }, 2000)
+        if (submissionType === 2) {
+          setIsTaskReviewRequestModalOpen(true)
+        } else {
+          setTimeout(() => {
+            navigateBackToDetail()
+          }, 2000)
+        }
         return
       }
 
@@ -1515,11 +1595,11 @@ const FocusSessionPage: React.FC = () => {
             message: dailyCheckinResult.message,
             currentStreak: dailyCheckinResult.stats.currentStreak,
             mood: dailyCheckinResult.todayCheckin?.mood,
-            productivity: dailyCheckinResult.todayCheckin?.productivity,
           })
         }
       }
     } catch (error: any) {
+      setShouldPromptTaskReviewAfterComplete(false)
       const msg = error?.response?.data?.message || error?.message || t('focusSession.completeError')
       setToast({ message: msg, type: 'error' })
     } finally {
@@ -1530,6 +1610,18 @@ const FocusSessionPage: React.FC = () => {
   const handleCancelComplete = () => {
     setShowCompleteDialog(false)
   }
+
+  const handleTaskReviewSubmitted = React.useCallback((result: RequestTaskReviewResult, mentor: MentorDto) => {
+    setIsTaskReviewRequestModalOpen(false)
+    setIsFinalSubmissionModalOpen(false)
+    setToast({
+      message: t('focusSession.mentorReviewRequestedSuccess', {
+        mentorName: mentor.fullName || mentor.username || mentor.mentorId,
+      }),
+      type: 'success',
+    })
+    navigate(ROUTER.TASK_REVIEW_DETAIL.replace(':reviewId', result.reviewId))
+  }, [navigate, t])
 
   const handleAiReview = async () => {
     if (!session) return
@@ -2358,25 +2450,6 @@ const FocusSessionPage: React.FC = () => {
           </div>
 
           <div style={{ flex: 1, padding: 16 }}>
-            {/* Session Type Badge */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '12px 20px',
-                background: 'transparent',
-                border: `2px solid ${getSessionTypeColor(session.sessionType)}`,
-                color: getSessionTypeColor(session.sessionType),
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600
-              }}>
-                {getSessionTypeIcon(session.sessionType)}
-                {getSessionTypeLabel(session.sessionType)}
-              </div>
-            </div>
-
             {/* Session Name */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ 
@@ -2393,7 +2466,7 @@ const FocusSessionPage: React.FC = () => {
                   letterSpacing: '0.5px', 
                   marginBottom: 8 
                 }}>
-                  SESSION NAME
+                  {t('focusSession.sessionNameLabel')}
                 </div>
                 <div style={{ 
                   fontSize: 16, 
@@ -2885,6 +2958,12 @@ const FocusSessionPage: React.FC = () => {
 
       {renderAiReviewModal()}
       {renderFinalSubmissionModal()}
+      <TaskReviewRequestModal
+        isOpen={isTaskReviewRequestModalOpen}
+        session={taskReviewRequestSession}
+        onClose={() => setIsTaskReviewRequestModalOpen(false)}
+        onSubmitted={handleTaskReviewSubmitted}
+      />
 
       {/* Complete Session Dialog */}
       {showCompleteDialog && (
@@ -2920,7 +2999,6 @@ const FocusSessionPage: React.FC = () => {
           userId: '',
           checkinDate: '',
           mood: dailyCheckinPopup.mood ?? null,
-          productivity: dailyCheckinPopup.productivity ?? null,
           createdAt: '',
         } : null}
         onClose={() => setDailyCheckinPopup(null)}

@@ -3,8 +3,20 @@
 // Based on: fe-chat-learningpath-ui-guide.md
 // ============================================================
 
-export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare'
+export type MessageType = 'Text' | 'Emoji' | 'LearningPathShare' | 'TaskReview'
 export type ShareStatus = 'Pending' | 'Accepted' | 'Rejected'
+export interface AskMentorGoalItem {
+  goal: string
+  goalWeight: number
+}
+
+export interface AskMentorContextPayload {
+  subject: string
+  goals: AskMentorGoalItem[]
+  level: string
+  language: 'VI' | 'EN'
+}
+
 export type LearningPathShareUpdateAction =
   | 'CreateNewFromLatest'
   | 'UpdateCurrentToLatest'
@@ -38,6 +50,7 @@ export interface DirectMessageDto {
   replyToContent?: string | null
   replyToSenderId?: string | null
   learningPathShareId?: string | null
+  taskReviewId?: string | null
   learningPathTitle?: string | null
   learningPathDescription?: string | null
   shareStatus?: ShareStatus | null
@@ -91,10 +104,13 @@ export interface PendingLearningPathShareSummaryDto {
 export interface SentLearningPathShareSummaryDto {
   shareId: string
   pathId: string
+  acceptedPathId?: string | null
   learningPathTitle: string
   learningPathDescription: string | null
   studentId: string
   studentName: string
+  mentorId?: string
+  mentorName?: string
   status: ShareStatus
   sentAt: string
   respondedAt: string | null
@@ -187,6 +203,7 @@ export interface LearningPathSharePreviewDto {
   sentAt: string
   respondedAt: string | null
   invalidatedReason?: string | null
+  acceptedPathId?: string | null
   learningPath: LearningPathSharePreviewPathDto
 }
 

@@ -11,7 +11,7 @@ const CurrentSubscription: React.FC = () => {
   const sidebarConfig = useMemo(() => ({
     navItems,
     actions: [],
-    brand: { name: 'Subscription', subtitle: 'Student' },
+    brand: { name: 'Pricing', subtitle: 'Student' },
   }), [navItems])
 
   const [loading, setLoading] = useState(true)

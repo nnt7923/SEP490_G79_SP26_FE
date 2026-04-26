@@ -65,4 +65,24 @@ describe('useChatHub normalization', () => {
       learningPathTitle: 'React Basics',
     })
   })
+
+  it('normalizes task review realtime messages from numeric message type payloads', () => {
+    const normalized = normalizeDirectMessage({
+      MessageId: 'message-task-review',
+      ConversationId: 'conversation-1',
+      SenderId: 'student-1',
+      Content: 'Please review my focus session',
+      MessageType: 3,
+      TaskReviewId: 'review-1',
+      SentAt: '2026-04-24T09:01:00Z',
+    })
+
+    expect(normalized).toMatchObject({
+      messageId: 'message-task-review',
+      conversationId: 'conversation-1',
+      messageType: 'TaskReview',
+      taskReviewId: 'review-1',
+      content: 'Please review my focus session',
+    })
+  })
 })

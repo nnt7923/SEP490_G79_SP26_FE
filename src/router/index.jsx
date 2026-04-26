@@ -23,6 +23,8 @@ const ResetPassword = React.lazy(() => import('../pages/public/ResetPassword'))
 const StudentDashboard = React.lazy(() => import('../pages/private/Student'))
 const MyPlans = React.lazy(() => import('../pages/private/Student/MyPlans'))
 const MyPlansDetail = React.lazy(() => import('../pages/private/Student/MyPlans/Detail'))
+const MentorReviewStatus = React.lazy(() => import('../pages/private/Student/MentorReviewStatus'))
+const StudentMentorReviews = React.lazy(() => import('../pages/private/Student/MentorReviews'))
 const Goals = React.lazy(() => import('../pages/private/Student/Goals'))
 const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
 const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
@@ -36,8 +38,9 @@ const AdminBillingTransactions = React.lazy(() => import('../pages/private/Admin
 const AdminAIUsageSpending = React.lazy(() => import('../pages/private/Admin/AIUsageSpending'))
 const AdminMentorAIUsage = React.lazy(() => import('../pages/private/Admin/MentorAIUsage'))
 const AdminUsers = React.lazy(() => import('../pages/private/Admin/Users'))
-const AdminReports = React.lazy(() => import('../pages/private/Admin/Reports'))
 const AdminAuditLogs = React.lazy(() => import('../pages/private/Admin/AuditLogs'))
+const AdminSystemRuntimePolicy = React.lazy(() => import('../pages/private/Admin/SystemRuntimePolicy'))
+const AdminMentorReviews = React.lazy(() => import('../pages/private/Admin/MentorReviews'))
 const Plans = React.lazy(() => import('../pages/private/Plans'))
 const PlansResult = React.lazy(() => import('../pages/private/Plans/skeleton'))
 const MentorSubjects = React.lazy(() => import('../pages/private/Mentor/Subjects'))
@@ -48,6 +51,11 @@ const MentorAIPlanDetail = React.lazy(() => import('../pages/private/Mentor/AIPl
 const MentorDrafts = React.lazy(() => import('../pages/private/Mentor/Drafts'))
 const MentorDraftCreate = React.lazy(() => import('../pages/private/Mentor/Drafts/Create'))
 const MentorDraftDetail = React.lazy(() => import('../pages/private/Mentor/Drafts/Detail'))
+const MentorPublishedPaths = React.lazy(() => import('../pages/private/Mentor/Published'))
+const MentorPublishedPathDetail = React.lazy(() => import('../pages/private/Mentor/Published/Detail'))
+const MentorTaskReviews = React.lazy(() => import('../pages/private/Mentor/TaskReviews'))
+const ExplorePathsPage = React.lazy(() => import('../pages/private/Student/ExplorePaths'))
+const ExplorePathPreviewPage = React.lazy(() => import('../pages/private/Student/ExplorePaths/Preview'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
 const Quiz = React.lazy(() => import('../pages/private/Quiz'))
 const TaskPage = React.lazy(() => import('../pages/private/Task'))
@@ -55,12 +63,15 @@ const StudentOverview = React.lazy(() => import('../pages/private/Student/Overvi
 const StudentAchievements = React.lazy(() => import('../pages/private/Student/Achievements'))
 const FocusSession = React.lazy(() => import('../pages/private/FocusSession'))
 const FocusSessionHistory = React.lazy(() => import('../pages/private/FocusSession/History'))
+const TaskReviewDetailPage = React.lazy(() => import('../pages/private/TaskReview'))
 const StudentChatPage = React.lazy(() => import('../pages/private/Student/Chat'))
 const StudentSharePreviewPage = React.lazy(() => import('../pages/private/Student/Chat/SharePreview'))
 const StudentShareUpdatesPage = React.lazy(() => import('../pages/private/Student/Chat/ShareUpdates'))
+const StudentPathEditPage = React.lazy(() => import('../pages/private/Student/PathEdit/Form'))
 const MentorChatPage = React.lazy(() => import('../pages/private/Mentor/Chat')) 
 const StudentChannelChatPage = React.lazy(() => import('../pages/private/Student/ChannelChat'))
 const MentorChannelChatPage = React.lazy(() => import('../pages/private/Mentor/ChannelChat'))
+const MentorReviewEditorPage = React.lazy(() => import('../pages/private/Mentor/ReviewEditor'))
 const SubscriptionPage = React.lazy(() => import('../pages/private/Subscription'))
 const CurrentSubscriptionPage = React.lazy(() => import('../pages/private/Subscription/CurrentSubscription'))
 const SubscriptionPaymentSuccessPage = React.lazy(() => import('../pages/private/Subscription/PaymentSuccess'))
@@ -106,6 +117,11 @@ const router = createBrowserRouter([
           { path: '/student', element: <Navigate to={ROUTER.STUDENT_DASHBOARD} replace /> },
           { path: ROUTER.MY_PLANS, element: <MyPlans /> },
           { path: '/my-plans/detail', element: <MyPlansDetail /> },
+          { path: ROUTER.STUDENT_PATH_EDIT, element: <StudentPathEditPage /> },
+          { path: ROUTER.EXPLORE_PATHS, element: <ExplorePathsPage /> },
+          { path: ROUTER.EXPLORE_PATH_PREVIEW, element: <ExplorePathPreviewPage /> },
+          { path: '/learning-paths/:pathId/mentor-review', element: <MentorReviewStatus /> },
+          { path: '/my-plans/mentor-reviews', element: <StudentMentorReviews /> },
           { path: ROUTER.GOALS, element: <Goals /> },
           { path: ROUTER.STUDENT_ACHIEVEMENTS, element: <StudentAchievements /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
@@ -121,6 +137,7 @@ const router = createBrowserRouter([
           { path: ROUTER.CHAT_SHARE_PREVIEW, element: <StudentSharePreviewPage /> },
           { path: ROUTER.LEARNING_PATH_SHARE_UPDATES, element: <StudentShareUpdatesPage /> },
           { path: ROUTER.CHANNEL_CHAT, element: <StudentChannelChatPage /> },
+          { path: ROUTER.SHOP, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION, element: <SubscriptionPage /> },
           { path: ROUTER.SUBSCRIPTION_CURRENT, element: <CurrentSubscriptionPage /> },
           { path: ROUTER.BILLING_RESULT, element: <SubscriptionPaymentSuccessPage /> },
@@ -134,6 +151,7 @@ const router = createBrowserRouter([
         children: [
           { path: ROUTER.PROFILE, element: <Profile /> },
           { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
+          { path: ROUTER.TASK_REVIEW_DETAIL, element: <TaskReviewDetailPage /> },
         ],
       },
     ],
@@ -144,13 +162,15 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTER.ADMIN_DASHBOARD, element: <AdminDashboard /> },
       { path: ROUTER.ADMIN_API_KEY, element: <AdminApiKey /> },
+      { path: ROUTER.ADMIN_SHOP, element: <AdminSubscriptionPlans /> },
       { path: ROUTER.ADMIN_SUBSCRIPTION_PLANS, element: <AdminSubscriptionPlans /> },
       { path: ROUTER.ADMIN_BILLING_TRANSACTIONS, element: <AdminBillingTransactions /> },
       { path: ROUTER.ADMIN_AI_SPENDING, element: <AdminAIUsageSpending /> },
       { path: ROUTER.ADMIN_MENTOR_AI_USAGE, element: <AdminMentorAIUsage /> },
       { path: ROUTER.ADMIN_USERS, element: <AdminUsers /> },
-      { path: ROUTER.ADMIN_REPORTS, element: <AdminReports /> },
       { path: ROUTER.ADMIN_AUDIT_LOGS, element: <AdminAuditLogs /> },
+      { path: ROUTER.ADMIN_SYSTEM_RUNTIME_POLICY, element: <AdminSystemRuntimePolicy /> },
+      { path: ROUTER.ADMIN_MENTOR_REVIEWS, element: <AdminMentorReviews /> },
       { path: ROUTER.CHANGE_PASSWORD, element: <ChangePassword /> },
     ],
   },
@@ -167,9 +187,13 @@ const router = createBrowserRouter([
       { path: ROUTER.MENTOR_DRAFTS, element: <MentorDrafts /> },
       { path: ROUTER.MENTOR_DRAFT_CREATE, element: <MentorDraftCreate /> },
       { path: ROUTER.MENTOR_DRAFT_DETAIL, element: <MentorDraftDetail /> },
+      { path: ROUTER.MENTOR_PUBLISHED_PATHS, element: <MentorPublishedPaths /> },
+      { path: ROUTER.MENTOR_TASK_REVIEWS, element: <MentorTaskReviews /> },
+      { path: ROUTER.MENTOR_PUBLISHED_PATH_DETAIL, element: <MentorPublishedPathDetail /> },
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
       { path: ROUTER.MENTOR_CHAT, element: <MentorChatPage /> },
       { path: ROUTER.MENTOR_CHANNEL_CHAT, element: <MentorChannelChatPage /> },
+      { path: '/mentor/review-editor/:revisedPathId', element: <MentorReviewEditorPage /> },
     ],
   },
 ])

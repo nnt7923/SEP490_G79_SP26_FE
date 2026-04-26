@@ -64,6 +64,8 @@ function clearSubjectsCache(): void {
   subjectListInFlight.clear()
 }
 
+export { clearSubjectsCache }
+
 export async function listSubjects(params?: ListSubjectsParams): Promise<Subject[]> {
   const cacheKey = getListSubjectsCacheKey(params)
   const shouldForceRefresh = params?.forceRefresh === true
@@ -87,6 +89,11 @@ export async function listSubjects(params?: ListSubjectsParams): Promise<Subject
   }
 
   const url = `${listSubjectsUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+
+  if (shouldForceRefresh) {
+    subjectListInFlight.delete(cacheKey)
+  }
+
   const request = (async () => {
     const res: any = await api.get(url)
 
@@ -136,6 +143,7 @@ export async function createSubject(payload: {
   description?: string
   color?: string
   icon?: string
+  category?: string
 }): Promise<Subject> {
   const res: any = await api.post(createSubjectUrl, payload)
   clearSubjectsCache()
@@ -150,6 +158,7 @@ export async function updateSubject(subjectId: string, payload: {
   description?: string
   color?: string
   icon?: string
+  category?: string
 }): Promise<Subject> {
   const res: any = await api.put(`${basePath}/${subjectId}`, payload)
   clearSubjectsCache()

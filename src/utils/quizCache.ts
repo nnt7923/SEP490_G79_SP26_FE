@@ -27,6 +27,19 @@ export function clearQuizSkeletonCache(lessonId: string): void {
   }
 }
 
+export function clearAllQuizSkeletonCaches(): void {
+  try {
+    const keysToRemove: string[] = []
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i)
+      if (key?.startsWith('quizSkeleton:')) keysToRemove.push(key)
+    }
+    keysToRemove.forEach((k) => sessionStorage.removeItem(k))
+  } catch {
+    // ignore
+  }
+}
+
 const quizKey = (q: AnyRecord) => q?.id ?? q?.quizId ?? q?.quizzId ?? q?.title ?? ''
 
 export function normalizeQuizList(input: any): AnyRecord[] {

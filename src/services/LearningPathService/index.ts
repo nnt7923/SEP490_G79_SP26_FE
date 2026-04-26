@@ -5,12 +5,27 @@ import {
   lessonReadUrl,
   lessonReadStatusUrl,
   userLearningPathsUrl,
+  userLearningPathsSummaryUrl,
+  userLearningPathDetailUrl,
   aiDraftUrl,
   manualDraftUrl,
   manualDraftDetailUrl,
+  publishManualDraftUrl,
   myDraftsUrl,
   myDraftDetailUrl,
   learningPathProgressUrl,
+  publishedPathsUrl,
+  publishedPathPreviewUrl,
+  enrollPathUrl,
+  myPublishedUrl,
+  myPublishedDetailUrl,
+  unpublishLearningPathUrl,
+  republishLearningPathUrl,
+  studentLearningPathUrl,
+  mentorReviewUrl,
+  mentorReviewsUrl,
+  mentorReviewRequestUrl,
+  mentorReviewDecisionUrl,
 } from './url'
 import {
   requestLearningPathGeneration,
@@ -23,7 +38,15 @@ import {
   requestSingleQuizQuestion,
   requestSingleTask,
   requestLearningPathSuggestions,
+  requestMultipleLessonContents,
+  requestMultipleMentorLessonContents,
+  requestMultipleTasks,
+  requestMultipleChapterTasks,
+  requestMultipleQuizSkeletons,
+  requestMultipleQuizQuestions,
+  requestMultipleQuizQuestionsForQuiz,
 } from '../SignalR'
+import type { BatchSettledEntry, MultiTaskRequest, MultiQuizRequest } from '../SignalR'
 
 export type Quiz = {
   id: string
@@ -166,6 +189,102 @@ export type ManualDraftPayload = {
   [key: string]: any
 }
 
+export type PublishedLearningPathItem = {
+  pathId: string
+  title: string
+  description?: string | null
+  subjectId: string
+  subjectName: string
+  complexityLevel: number
+  language: number
+  versionNumber: number
+  mentorId: string
+  mentorName: string
+  chapterCount: number
+  lessonCount: number
+  startDate?: string | null
+  endDate?: string | null
+  isEnrolled: boolean
+}
+
+export type PublishedPathsResponse = {
+  items: PublishedLearningPathItem[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+}
+
+export type PublishedPathGoal = {
+  goalId: string
+  title: string
+  weight: number
+  durationInDays: number
+  status: string
+  completedAt: string | null
+  progressPercent: number
+  targetPercent: number
+}
+
+export type PublishedPathLesson = {
+  lessonId: string
+  title: string
+  lessonDay?: string | null
+  quizCount: number
+}
+
+export type PublishedPathTask = {
+  taskId: string
+  title: string
+  taskType: number
+  priority: number
+  dueDate?: string | null
+}
+
+export type PublishedPathChapter = {
+  chapterId: string
+  title: string
+  content?: string | null
+  orderIndex: number
+  lessons: PublishedPathLesson[]
+  tasks: PublishedPathTask[]
+}
+
+export type PublishedPathPreviewDto = {
+  pathId: string
+  title: string
+  description?: string | null
+  subjectId: string
+  subjectName: string
+  complexityLevel: number
+  language: number
+  versionNumber: number
+  mentorId: string
+  mentorName: string
+  startDate?: string | null
+  endDate?: string | null
+  goals: PublishedPathGoal[]
+  chapters: PublishedPathChapter[]
+  totalChapters: number
+  totalLessons: number
+  isEnrolled: boolean
+}
+
+export type EnrollResponse = {
+  shareId: string
+  enrolledPathId: string
+  versionNumber: number
+}
+
+export type PublishedPathsParams = {
+  pageNumber?: number
+  pageSize?: number
+  searchTerm?: string
+  subjectId?: string
+  complexityLevel?: number | string
+  sortDescending?: boolean
+}
+
 export type SkeletonResponse = {
   pathId?: string
   title?: string
@@ -173,6 +292,7 @@ export type SkeletonResponse = {
   version?: number | null
   previousVersion?: number | null
   hasMeaningfulChange?: boolean
+  shareId?: string | null
   sharedByUserId?: string | null
   sharedByUserName?: string | null
   sourceLearningPathId?: string | null
@@ -308,7 +428,7 @@ function normalizeSkeleton(payload: any): SkeletonResponse {
           lessonDay: lesson?.lessonDay ?? lesson?.LessonDay ?? null,
           quizzes: quizItems?.map((quiz: any) => ({
             ...quiz,
-            id: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
+            id: quiz?.quizId ?? quiz?.quizzId ?? quiz?.id,
             quizId: quiz?.quizId ?? quiz?.quizzId ?? quiz?.id,
             quizzId: quiz?.quizzId ?? quiz?.quizId ?? quiz?.id,
             title: quiz?.title ?? quiz?.Title,
@@ -507,6 +627,60 @@ export async function updateManualDraft(pathId: string, payload: ManualDraftPayl
   return normalizeSkeleton(raw)
 }
 
+export async function publishLearningPath(pathId: string, payload: ManualDraftPayload): Promise<SkeletonResponse> {
+  const res: any = await api.post(publishManualDraftUrl(pathId), payload)
+  const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
+  return normalizeSkeleton(raw)
+}
+
+export async function unpublishLearningPath(pathId: string): Promise<boolean> {
+  const res: any = await api.put(unpublishLearningPathUrl(pathId))
+  clearUserLearningPathsCache()
+  return unwrap<boolean>(res)
+}
+
+export type RepublishPayload = {
+  increaseVersion: boolean
+  versionUpdateType?: number | null
+}
+
+export async function republishLearningPath(pathId: string, payload: RepublishPayload): Promise<boolean> {
+  const res: any = await api.put(republishLearningPathUrl(pathId), payload)
+  clearUserLearningPathsCache()
+  return unwrap<boolean>(res)
+}
+
+export async function getPublishedPaths(params?: PublishedPathsParams): Promise<PublishedPathsResponse> {
+  const queryParams = new URLSearchParams()
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+  if (params?.complexityLevel !== undefined) queryParams.append('ComplexityLevel', String(params.complexityLevel))
+  if (params?.sortDescending !== undefined) queryParams.append('SortDescending', String(params.sortDescending))
+  const url = `${publishedPathsUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<PublishedPathsResponse>(res)
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+    totalPages: data?.totalPages ?? 1,
+  }
+}
+
+export async function getPublishedPathPreview(pathId: string): Promise<PublishedPathPreviewDto> {
+  const res: any = await api.get(publishedPathPreviewUrl(pathId))
+  return unwrap<PublishedPathPreviewDto>(res)
+}
+
+export async function enrollInPath(pathId: string): Promise<EnrollResponse> {
+  const res: any = await api.post(enrollPathUrl(pathId))
+  return unwrap<EnrollResponse>(res)
+}
+
 export async function generateLessonContent(
   lessonId: string,
   payload?: any,
@@ -643,6 +817,125 @@ export async function generateSingleTask(
   }
 
   throw new Error('REST API for single task generation not implemented. Use SignalR instead.')
+}
+
+// ===========================================================================
+// === BATCH / CONCURRENT GENERATION SERVICE WRAPPERS ========================
+// ===========================================================================
+// Re-export and wrap the SignalR batch helpers so components only need to
+// import from LearningPathService (same pattern as single-item functions).
+
+export type { BatchSettledEntry, MultiTaskRequest, MultiQuizRequest }
+
+export async function generateMultipleLessonContents(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+    onQuizEvent?: {
+      onLoading?: (lessonId: string) => void
+      onSuccess?: (lessonId: string, quizData: any) => void
+      onError?: (lessonId: string, err: any) => void
+    }
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleLessonContents(lessonIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple lesson contents')
+  }
+}
+
+export async function generateMultipleMentorLessonContents(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleMentorLessonContents(lessonIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple mentor lesson contents')
+  }
+}
+
+export async function generateMultipleTasks(
+  requests: MultiTaskRequest[],
+  callbacks?: {
+    onItemLoading?: (chapterId: string, taskType: number) => void
+    onItemSuccess?: (key: string, chapterId: string, result: any) => void
+    onItemError?: (key: string, chapterId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleTasks(requests, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple tasks')
+  }
+}
+
+export async function generateMultipleChapterTasks(
+  chapterIds: string[],
+  callbacks?: {
+    onItemLoading?: (chapterId: string) => void
+    onItemSuccess?: (chapterId: string, result: any) => void
+    onItemError?: (chapterId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleChapterTasks(chapterIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple chapter tasks')
+  }
+}
+
+export async function generateMultipleQuizSkeletons(
+  lessonIds: string[],
+  callbacks?: {
+    onItemLoading?: (lessonId: string) => void
+    onItemSuccess?: (lessonId: string, result: any) => void
+    onItemError?: (lessonId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleQuizSkeletons(lessonIds, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple quiz skeletons')
+  }
+}
+
+export async function generateMultipleQuizQuestions(
+  requests: MultiQuizRequest[],
+  callbacks?: {
+    onItemLoading?: (quizId: string, questionType: number) => void
+    onItemSuccess?: (key: string, quizId: string, result: any) => void
+    onItemError?: (key: string, quizId: string, err: Error) => void
+  }
+): Promise<Map<string, BatchSettledEntry>> {
+  try {
+    return await requestMultipleQuizQuestions(requests, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple quiz questions')
+  }
+}
+
+export async function generateMultipleQuizQuestionsForQuiz(
+  quizId: string,
+  questionTypes: number[] = [0, 1, 2, 3, 4, 5],
+  callbacks?: {
+    onItemLoading?: (questionType: number) => void
+    onItemSuccess?: (questionType: number, result: any) => void
+    onItemError?: (questionType: number, err: Error) => void
+  }
+): Promise<Map<number, BatchSettledEntry>> {
+  try {
+    return await requestMultipleQuizQuestionsForQuiz(quizId, questionTypes, callbacks)
+  } catch (err) {
+    throw resolveServiceError(err, 'Failed to generate multiple quiz questions for quiz')
+  }
 }
 
 export interface UserLearningPathsParams {
@@ -834,6 +1127,66 @@ export async function getUserLearningPaths(
   return normalizedResponse
 }
 
+export interface LearningPathSummaryItem {
+  pathId: string
+  title: string
+  description: string | null
+  status: string
+  chapterCount: number
+  progressPercent: number
+  startDate: string | null
+  endDate: string | null
+  createdAt: string
+  complexityLevel: string | null
+  languageSelection: string | null
+  shareId?: string | null
+  sharedByUserName?: string | null
+}
+
+export interface UserLearningPathsSummaryResponse {
+  items: LearningPathSummaryItem[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export async function getUserLearningPathsSummary(
+  userId: string | number,
+  params?: { pageNumber?: number; pageSize?: number; searchTerm?: string; subjectId?: string }
+): Promise<UserLearningPathsSummaryResponse> {
+  const queryParams = new URLSearchParams()
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+
+  const url = `${userLearningPathsSummaryUrl(userId)}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<UserLearningPathsSummaryResponse>(res)
+
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+    totalPages: data?.totalPages ?? 1,
+    hasPreviousPage: data?.hasPreviousPage ?? false,
+    hasNextPage: data?.hasNextPage ?? false,
+  }
+}
+
+export async function getUserLearningPathDetail(
+  userId: string | number,
+  pathId: string
+): Promise<SkeletonResponse> {
+  const res: any = await api.get(userLearningPathDetailUrl(userId, pathId))
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
 export async function getLearningPathProgress(pathId: string): Promise<LearningPathProgressResponse> {
   const res: any = await api.get(learningPathProgressUrl(pathId))
   const data = unwrap<LearningPathProgressResponse>(res)
@@ -872,6 +1225,72 @@ export async function markLessonContentRead(lessonId: string): Promise<string | 
 export async function getMyDraftDetail(pathId: string): Promise<SkeletonResponse> {
   const res: any = await api.get(myDraftDetailUrl(pathId))
   const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function getMyPublishedDetail(pathId: string): Promise<SkeletonResponse> {
+  const res: any = await api.get(myPublishedDetailUrl(pathId))
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function getMyPublished(
+  params?: MyDraftsParams
+): Promise<UserLearningPathsResponse> {
+  const queryParams = new URLSearchParams()
+
+  if (params?.pageNumber !== undefined) queryParams.append('PageNumber', String(params.pageNumber))
+  if (params?.pageSize !== undefined) queryParams.append('PageSize', String(params.pageSize))
+  if (params?.searchTerm) queryParams.append('SearchTerm', params.searchTerm)
+  if (params?.subjectId) queryParams.append('SubjectId', params.subjectId)
+  if (params?.sortDescending !== undefined) queryParams.append('SortDescending', String(params.sortDescending))
+
+  const url = `${myPublishedUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+  const res: any = await api.get(url)
+  const data = unwrap<UserLearningPathsResponse>(res)
+
+  return {
+    items: Array.isArray(data?.items) ? data.items.map(normalizeSkeletonListItem) : [],
+    totalCount: data?.totalCount ?? 0,
+    pageNumber: data?.pageNumber ?? 1,
+    pageSize: data?.pageSize ?? 10,
+  }
+}
+
+export async function updateMyPublished(pathId: string, payload: ManualDraftPayload): Promise<SkeletonResponse> {
+  const res: any = await api.put(myPublishedDetailUrl(pathId), payload)
+  const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
+  return normalizeSkeleton(raw)
+}
+
+export type StudentPathEditPayload = {
+  chapters: Array<{
+    title: string
+    startDate?: string | null
+    endDate?: string | null
+    estimatedDays?: number | null
+    lessons: Array<{
+      title: string
+      lessonDay: string
+      content?: string | null
+    }>
+  }>
+}
+
+export async function getStudentLearningPath(pathId: string): Promise<SkeletonResponse> {
+  const res: any = await api.get(studentLearningPathUrl(pathId))
+  const raw = unwrap<SkeletonResponse>(res)
+  return normalizeSkeleton(raw)
+}
+
+export async function updateStudentLearningPath(
+  pathId: string,
+  payload: StudentPathEditPayload,
+): Promise<SkeletonResponse> {
+  const res: any = await api.put(studentLearningPathUrl(pathId), payload)
+  const raw = unwrap<SkeletonResponse>(res)
+  clearUserLearningPathsCache()
   return normalizeSkeleton(raw)
 }
 
@@ -976,6 +1395,7 @@ export function normalizeSkeletonListItem(payload: any): SkeletonResponse {
     sourceVersion: payload?.sourceVersion ?? payload?.SourceVersion ?? null,
     sourceLatestVersion: payload?.sourceLatestVersion ?? payload?.SourceLatestVersion ?? null,
     hasSourceUpdate: Boolean(payload?.hasSourceUpdate ?? payload?.HasSourceUpdate),
+    shareId: payload?.shareId ?? payload?.ShareId ?? null,
     chapters: undefined,
     lessons: undefined,
     chapterCount: payload?.chapterCount ?? chapterItems.length ?? 0,
@@ -983,11 +1403,182 @@ export function normalizeSkeletonListItem(payload: any): SkeletonResponse {
   } as SkeletonResponse
 }
 
+export async function generateBulkLearningPathContent(
+  pathId: string,
+  options?: {
+    lessonConcurrency?: number
+    quizConcurrency?: number
+    onStarted?: (data: any) => void
+    onProgress?: (data: any) => void
+    onCompleted?: (data: any) => void
+    onError?: (data: any) => void
+    onCancelled?: (data: any) => void
+    onLessonSuccess?: (lesson: any) => void
+    onLessonError?: (data: any) => void
+    onQuizSuccess?: (data: any) => void
+    onQuizError?: (data: any) => void
+  }
+): Promise<any> {
+  const { requestBulkLearningPathContent } = await import('../SignalR')
+  return requestBulkLearningPathContent(
+    pathId,
+    options?.lessonConcurrency ?? 4,
+    options?.quizConcurrency ?? 6,
+    {
+      onStarted: options?.onStarted,
+      onProgress: options?.onProgress,
+      onCompleted: options?.onCompleted,
+      onError: options?.onError,
+      onCancelled: options?.onCancelled,
+      onLessonSuccess: options?.onLessonSuccess,
+      onLessonError: options?.onLessonError,
+      onQuizSuccess: options?.onQuizSuccess,
+      onQuizError: options?.onQuizError,
+    },
+  )
+}
+
+// ===========================================================================
+// === MENTOR REVIEW =========================================================
+// ===========================================================================
+
+export type MentorReviewDecisionStatus = 'Pending' | 'Accepted' | 'Rejected' | 'WaitingStudentResponse'
+
+export interface MentorReviewDto {
+  reviewId: string
+  pathId: string
+  mentorId: string
+  studentId: string
+  revisedPathId?: string | null
+  studentRequestNote?: string | null
+  score?: number | null
+  feedback?: string | null
+  suggestions?: string | null
+  changeSummary?: string | null
+  changeReason?: string | null
+  decisionStatus: MentorReviewDecisionStatus
+  studentDecisionNote?: string | null
+  studentDecidedAt?: string | null
+  rejectionCount?: number
+  maxRejections?: number
+  canRequestRevision?: boolean
+  averageScore?: number | null
+  totalReviews?: number | null
+  mentorName?: string | null
+  mentorAvatarUrl?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface RequestMentorReviewPayload {
+  mentorId: string
+  studentRequestNote?: string | null
+}
+
+export interface SubmitMentorReviewPayload {
+  score: number
+  feedback: string
+  suggestions?: string | null
+  changeSummary?: string | null
+  changeReason?: string | null
+}
+
+export interface MentorReviewDecisionPayload {
+  decisionStatus: 'Accepted' | 'Rejected'
+  studentDecisionNote?: string | null
+}
+
+const MENTOR_REVIEW_ERROR_CODES: Record<string, string> = {
+  REVIEW_REQUEST_NOT_FOUND: 'Mentor chưa nhận được yêu cầu review từ student.',
+  REVISED_PATH_NOT_FOUND: 'Workspace chỉnh sửa của mentor không tồn tại.',
+  MENTOR_REVIEW_REJECT_LIMIT_REACHED: 'Đã hết lượt từ chối. Không thể từ chối thêm.',
+  LEARNING_PATH_NOT_FOUND: 'Không tìm thấy lộ trình học.',
+  LEARNING_PATH_NOT_AI_GENERATED: 'Chỉ có thể review lộ trình được tạo bởi AI.',
+  SELF_REVIEW_NOT_ALLOWED: 'Không thể review lộ trình của chính mình.',
+  INVALID_FEEDBACK: 'Nội dung feedback không hợp lệ.',
+  ACCESS_DENIED: 'Bạn không có quyền thực hiện thao tác này.',
+  REVIEW_NOT_FOUND: 'Không tìm thấy review.',
+  UNAUTHORIZED: 'Vui lòng đăng nhập lại.',
+}
+
+export function resolveMentorReviewError(err: any): string {
+  const code = err?.response?.data?.errorCode || err?.response?.data?.ErrorCode || err?.errorCode
+  if (code && MENTOR_REVIEW_ERROR_CODES[code]) return MENTOR_REVIEW_ERROR_CODES[code]
+  if (err?.response?.status === 429) return MENTOR_REVIEW_ERROR_CODES.MENTOR_REVIEW_REJECT_LIMIT_REACHED
+  return err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi.'
+}
+
+function unwrapReview(res: any): any {
+  const data = res?.data ?? res
+  if (data && typeof data === 'object' && 'value' in data) return data.value
+  return data
+}
+
+export async function requestMentorReview(
+  pathId: string,
+  payload: RequestMentorReviewPayload
+): Promise<MentorReviewDto> {
+  const res = await api.post(mentorReviewRequestUrl(pathId), payload)
+  return unwrapReview(res) as MentorReviewDto
+}
+
+export async function submitMentorReview(
+  pathId: string,
+  payload: SubmitMentorReviewPayload
+): Promise<MentorReviewDto> {
+  const res = await api.put(mentorReviewUrl(pathId), payload)
+  return unwrapReview(res) as MentorReviewDto
+}
+
+export async function getMentorReviews(pathId: string): Promise<MentorReviewDto[]> {
+  const res: any = await api.get(mentorReviewsUrl(pathId))
+  const data = res?.data ?? res
+  let arr: any[] = []
+  if (Array.isArray(data)) arr = data
+  else if (Array.isArray(data?.value)) arr = data.value
+  else if (Array.isArray(data?.value?.reviews)) arr = data.value.reviews
+  else if (Array.isArray(data?.reviews)) arr = data.reviews
+  else if (Array.isArray(data?.items)) arr = data.items
+  // Normalize PascalCase → camelCase for key fields
+  return arr.map((r: any) => ({
+    ...r,
+    reviewId: r.reviewId || r.ReviewId,
+    pathId: r.pathId || r.PathId,
+    mentorId: r.mentorId || r.MentorId,
+    studentId: r.studentId || r.StudentId,
+    revisedPathId: r.revisedPathId || r.RevisedPathId || null,
+    decisionStatus: r.decisionStatus || r.DecisionStatus || 'Pending',
+    studentRequestNote: r.studentRequestNote || r.StudentRequestNote || null,
+    score: r.score ?? r.Score ?? null,
+    feedback: r.feedback || r.Feedback || null,
+    suggestions: r.suggestions || r.Suggestions || null,
+    changeSummary: r.changeSummary || r.ChangeSummary || null,
+    changeReason: r.changeReason || r.ChangeReason || null,
+    mentorName: r.mentorName || r.MentorName || null,
+    createdAt: r.createdAt || r.CreatedAt || null,
+  }))
+}
+
+export async function decideMentorReview(
+  pathId: string,
+  reviewId: string,
+  payload: MentorReviewDecisionPayload
+): Promise<MentorReviewDto> {
+  const res = await api.put(mentorReviewDecisionUrl(pathId, reviewId), payload)
+  return unwrapReview(res) as MentorReviewDto
+}
+
 export default {
   generateSkeleton,
   generateAiDraft,
   createManualDraft,
   updateManualDraft,
+  publishLearningPath,
+  unpublishLearningPath,
+  republishLearningPath,
+  getPublishedPaths,
+  getPublishedPathPreview,
+  enrollInPath,
   generateLessonContent,
   generateMentorLessonContent,
   generateLessonQuizSkeleton,
@@ -996,12 +1587,31 @@ export default {
   generateChapterSkeleton,
   generateChapterMentorSkeleton,
   generateSingleTask,
+  generateMultipleLessonContents,
+  generateMultipleMentorLessonContents,
+  generateMultipleTasks,
+  generateMultipleChapterTasks,
+  generateMultipleQuizSkeletons,
+  generateMultipleQuizQuestions,
+  generateMultipleQuizQuestionsForQuiz,
+  generateBulkLearningPathContent,
   getUserLearningPaths,
+  getUserLearningPathsSummary,
+  getUserLearningPathDetail,
   clearUserLearningPathsCache,
   getLearningPathProgress,
   getLessonReadStatus,
   markLessonContentRead,
   getMyDrafts,
   getMyDraftDetail,
+  getMyPublished,
+  getMyPublishedDetail,
+  updateMyPublished,
+  getStudentLearningPath,
+  updateStudentLearningPath,
   getSuggestions,
+  submitMentorReview,
+  getMentorReviews,
+  decideMentorReview,
+  requestMentorReview,
 }

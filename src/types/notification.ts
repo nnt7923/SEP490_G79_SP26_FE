@@ -10,6 +10,9 @@ export type NotificationTypeKey =
   | 'PlanExpiringSoon'
   | 'PlanExpired'
   | 'ShareVersionUpdated'
+  | 'LearningPathUpdated'
+  | 'TaskReviewRequested'
+  | 'TaskReviewCompleted'
 
 export const NOTIFICATION_TYPE_KEYS: NotificationTypeKey[] = [
   'Alert',
@@ -22,6 +25,9 @@ export const NOTIFICATION_TYPE_KEYS: NotificationTypeKey[] = [
   'PlanExpiringSoon',
   'PlanExpired',
   'ShareVersionUpdated',
+  'LearningPathUpdated',
+  'TaskReviewRequested',
+  'TaskReviewCompleted',
 ]
 
 export type NotificationTargetType =
@@ -31,6 +37,7 @@ export type NotificationTargetType =
   | 'learningPath'
   | 'learningPathShareUpdate'
   | 'subscription'
+  | 'taskReview'
   | null
 
 export interface NotificationAction {

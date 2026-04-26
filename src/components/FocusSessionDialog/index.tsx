@@ -18,7 +18,7 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
   onCancel,
   loading = false
 }) => {
-  const sessionType = SessionType.Study
+  const [sessionType] = useState<SessionType>(SessionType.Study)
   const [duration, setDuration] = useState<number>(25)
   const [title, setTitle] = useState<string>('')
 

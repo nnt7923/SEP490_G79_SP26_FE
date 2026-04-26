@@ -378,6 +378,21 @@ const AdminAIUsageSpendingPage: React.FC = () => {
       .slice(0, 20)
   }, [logs, summaryItems])
 
+  const payableRawUsd = useMemo(
+    () => summaryItems.reduce((sum, item) => sum + (Number.isFinite(item.totalRawRevenueUsd) ? item.totalRawRevenueUsd : 0), 0),
+    [summaryItems],
+  )
+
+  const billedRevenueUsd = useMemo(
+    () => summaryItems.reduce((sum, item) => sum + (Number.isFinite(item.totalRevenueUsd) ? item.totalRevenueUsd : 0), 0),
+    [summaryItems],
+  )
+
+  const billedProfitUsd = useMemo(
+    () => summaryItems.reduce((sum, item) => sum + (Number.isFinite(item.totalProfitUsd) ? item.totalProfitUsd : 0), 0),
+    [summaryItems],
+  )
+
   const fetchUsageData = async (silent = false) => {
     if (!silent) {
       setSummaryLoading(true)
@@ -999,7 +1014,7 @@ const AdminAIUsageSpendingPage: React.FC = () => {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             {[{
               label: t('aiSpending.totalCost', { currency: costLabelCurrency }),
               value: formatCostByCurrency(totalCostUsd, currency, usdToVndRate),
@@ -1020,6 +1035,18 @@ const AdminAIUsageSpendingPage: React.FC = () => {
               label: t('aiSpending.totalTokens'),
               value: formatToken(totalTokens),
               className: 'text-heading',
+            }, {
+              label: t('aiSpending.studentPayableRaw', { currency: costLabelCurrency }),
+              value: formatCostByCurrency(payableRawUsd, currency, usdToVndRate),
+              className: 'text-violet-700',
+            }, {
+              label: t('aiSpending.studentPaidBilled', { currency: costLabelCurrency }),
+              value: formatCostByCurrency(billedRevenueUsd, currency, usdToVndRate),
+              className: 'text-cyan-700',
+            }, {
+              label: t('aiSpending.totalProfit', { currency: costLabelCurrency }),
+              value: formatCostByCurrency(billedProfitUsd, currency, usdToVndRate),
+              className: billedProfitUsd >= 0 ? 'text-emerald-700' : 'text-red-700',
             }].map((card) => (
               <div key={card.label} className="bg-th-card border border-bd-strong p-4">
                 <div className="text-xs text-muted mb-2">{card.label}</div>

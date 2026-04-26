@@ -1,6 +1,6 @@
 import type { NotificationDto } from '../../types/notification'
 import i18n from '../../i18n'
-import { resolveNotificationText } from './utils'
+import { resolveNotificationTextWithContext } from './utils'
 
 let permissionRequest: Promise<NotificationPermission> | null = null
 
@@ -31,7 +31,7 @@ export async function ensureBrowserNotificationPermission(): Promise<Notificatio
 }
 
 function getBrowserNotificationBody(notification: NotificationDto) {
-  const { message } = resolveNotificationText(notification, (key) => i18n.t(key))
+  const { message } = resolveNotificationTextWithContext(notification, (key) => i18n.t(key))
   if (message) return message
 
   const type = String(notification.type || '').trim()
@@ -45,7 +45,7 @@ export function showBrowserNotification(notification: NotificationDto) {
   if (Notification.permission !== 'granted') return null
   if (!shouldShowBrowserNotification()) return null
 
-  const { title } = resolveNotificationText(notification, (key) => i18n.t(key))
+  const { title } = resolveNotificationTextWithContext(notification, (key) => i18n.t(key))
 
   const browserNotification = new Notification(title || 'Notification', {
     body: getBrowserNotificationBody(notification),

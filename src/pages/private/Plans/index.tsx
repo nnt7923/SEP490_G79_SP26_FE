@@ -16,6 +16,10 @@ import Stepper from './components/Stepper'
 import { useTranslation } from 'react-i18next'
 import { getGoalTitle } from '../../../utils/goalTranslation'
 import useAuthStore from '../../../store/useAuthStore'
+import type { AskMentorContextPayload } from '../../../types/chat'
+import { buildAskMentorContextPayload } from '../../../utils/askMentorContext'
+import SelectMentorModal from '../../../components/SelectMentorModal'
+import SuggestionPreviewModal from '../../../components/SuggestionPreviewModal'
 
 // Palette classes used for subject icon blocks (defined in global.css)
 const palette = [
@@ -79,6 +83,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       return {}
     }
   })
+  const [goalPriorityDrafts, setGoalPriorityDrafts] = useState<Record<string, string>>({})
   const [level, setLevel] = useState<Level | null>(() => {
     try {
       return (sessionStorage.getItem(storageKey('level')) as Level | null) || null
@@ -116,6 +121,9 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [planError, setPlanError] = useState<string | null>(null)
   const [skeleton, setSkeleton] = useState<any | null>(null)
+  const generationProgressTimerRef = useRef<number | null>(null)
+  const generationProgressStartRef = useRef<number | null>(null)
+  const authUser = useAuthStore((state) => state.user)
   const refreshProfile = useAuthStore((state) => state.fetchProfile)
 
   // Chapter skeleton generation states
@@ -125,9 +133,18 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   // Lesson content and quiz generation states
   const [generatingLessons, setGeneratingLessons] = useState<Set<string>>(new Set())
   const [lessonErrors, setLessonErrors] = useState<Map<string, string>>(new Map())
+  // Batch generation states
+  const [generatingAllLessons, setGeneratingAllLessons] = useState<boolean>(false)
+  const [generatingAllTasks, setGeneratingAllTasks] = useState<boolean>(false)
+  const [bulkGenerationStatus, setBulkGenerationStatus] = useState<'idle' | 'running' | 'completed' | 'error' | 'cancelled'>('idle')
+  const [bulkGenerationError, setBulkGenerationError] = useState<string | null>(null)
+  const [bulkGenerationStartData, setBulkGenerationStartData] = useState<any>(null)
   
   // New goal creation states
   const [showAddGoal, setShowAddGoal] = useState<boolean>(false)
+  const [createGoalSubjectId, setCreateGoalSubjectId] = useState<string>('')
+  const [createGoalSubjectOptions, setCreateGoalSubjectOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingCreateGoalSubjects, setLoadingCreateGoalSubjects] = useState<boolean>(false)
   const [newGoalTitle, setNewGoalTitle] = useState<string>('')
   const [newGoalDesc, setNewGoalDesc] = useState<string>('')
   const [newGoalDuration, setNewGoalDuration] = useState<string>('OneMonth')
@@ -150,6 +167,18 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
   const [updatingGoal, setUpdatingGoal] = useState<boolean>(false)
   const [updateGoalError, setUpdateGoalError] = useState<string | null>(null)
   const [showEditGoal, setShowEditGoal] = useState<boolean>(false)
+
+  // Select mentor modal state
+  const [showSelectMentorModal, setShowSelectMentorModal] = useState<boolean>(false)
+  // Confirm dialogs for step 7
+  const [confirmAI, setConfirmAI] = useState(false)
+  const [confirmSuggestion, setConfirmSuggestion] = useState(false)
+  const [confirmSuggestionItem, setConfirmSuggestionItem] = useState<any>(null)
+  // Preview state
+  const [previewData, setPreviewData] = useState<any>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   // IMPORTANT: initialize navigate for routing
   const navigate = useNavigate()
@@ -185,17 +214,59 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     }
   }
 
+  const loadCreateGoalSubjects = async () => {
+    if (createGoalSubjectOptions.length > 0) return
+
+    try {
+      setLoadingCreateGoalSubjects(true)
+      const data = await SubjectService.listSubjects()
+      const options = (Array.isArray(data) ? data : [])
+        .map((subject: any) => ({
+          id: String(subject?.id ?? subject?.subjectId ?? '').trim(),
+          name: String(subject?.name ?? '').trim(),
+        }))
+        .filter((subject) => Boolean(subject.id) && Boolean(subject.name))
+
+      setCreateGoalSubjectOptions(options)
+    } catch (e: any) {
+      const d = e?.response?.data
+      const msg = d?.message || d?.error || d?.title || d?.detail || e?.message || t('plans.failedLoadSubjects')
+      setCreateGoalError(msg)
+    } finally {
+      setLoadingCreateGoalSubjects(false)
+    }
+  }
+
+  const mapCreateGoalErrorCode = (errorCode: string): string => {
+    switch (errorCode) {
+      case 'GOAL_SUBJECT_MISMATCH':
+        return t('goals.errorCodes.GOAL_SUBJECT_MISMATCH')
+      case 'INVALID_GOAL':
+        return t('goals.errorCodes.INVALID_GOAL')
+      default:
+        return t('goals.goalCreateFailed')
+    }
+  }
+
+  useEffect(() => {
+    if (!showAddGoal) return
+
+    void loadCreateGoalSubjects()
+    setCreateGoalSubjectId((previous) => previous || language || '')
+  }, [showAddGoal, language])
+
   // Handle goal creation
   const handleCreateGoalModal = async () => {
     const title = newGoalTitle.trim()
     const description = newGoalDesc.trim()
     const duration = newGoalDuration
+    const subjectId = createGoalSubjectId
     
     if (!title) {
       setCreateGoalError(t('plans.enterGoalTitle'))
       return
     }
-    if (!language) {
+    if (!subjectId) {
       setCreateGoalError(t('plans.selectSubjectFirst'))
       return
     }
@@ -205,7 +276,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     
     try {
       const payload = {
-        subjectId: language,
+        subjectId,
         title: title,
         description: description,
         duration: duration
@@ -215,35 +286,21 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       
       setToast({ message: t('plans.goalCreated'), type: 'success' })
       setShowAddGoal(false)
+      setCreateGoalSubjectId('')
       setNewGoalTitle('')
       setNewGoalDesc('')
       setNewGoalDuration('OneMonth')
+
+      if (subjectId && subjectId !== language) {
+        setLanguage(subjectId)
+      }
       
       // Reload goals to get updated list
       await reloadSubjectGoals()
     } catch (e: any) {
       const d = e?.response?.data
-      const errorCode = d?.errorCode || d?.code
-      const errorMessage = d?.errorMessage || d?.message || d?.error || e?.message
-      
-      let displayMessage = errorMessage || t('plans.goalCreateFailed')
-      
-      // Handle specific error codes with translated messages
-      if (errorCode === 'GOAL_SUBJECT_MISMATCH') {
-        displayMessage = t('plans.goalSubjectMismatch')
-      } else if (errorCode === 'INVALID_SUBJECT') {
-        displayMessage = t('plans.invalidSubject')
-      } else if (errorCode === 'DUPLICATE_GOAL') {
-        displayMessage = t('plans.duplicateGoal')
-      } else if (errorCode === 'VALIDATION_ERROR') {
-        displayMessage = t('plans.validationError')
-      } else if (errorCode === 'UNAUTHORIZED') {
-        displayMessage = t('plans.unauthorized')
-      } else if (errorCode === 'RATE_LIMIT_EXCEEDED') {
-        displayMessage = t('plans.rateLimitExceeded')
-      }
-      
-      setCreateGoalError(displayMessage)
+      const errorCode = String(d?.errorCode || d?.code || '').toUpperCase()
+      setCreateGoalError(mapCreateGoalErrorCode(errorCode))
     } finally {
       setCreatingGoal(false)
     }
@@ -491,8 +548,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     const d = e?.response?.data
     const serverMsg = d?.errorMessage || d?.message || d?.msg || d?.error || d?.title || d?.detail
     const code = d?.errorCode || d?.code
-    let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (serverMsg || e?.message || t('plans.unableToGenerate'))
-    const lower = String(serverMsg || e?.message || '').toLowerCase()
+    const rawMsg = serverMsg || e?.message || ''
+    const lower = String(rawMsg).toLowerCase()
+
+    // Timeout
+    if (lower.includes('timeout')) {
+      return t('plans.generationTimeout')
+    }
+
+    let msg = code ? `${code}: ${serverMsg || 'Unknown error'}` : (rawMsg || t('plans.unableToGenerate'))
     if (code === 'AI_GENERATION_FAILED' && (lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized'))) {
       msg = t('plans.aiKeyError')
     }
@@ -509,26 +573,115 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     }
   }
 
+  const waitForAdoptedPathReady = async (adoptedPathId: string): Promise<any | null> => {
+    const userId = authUser?.id
+    if (!userId || !adoptedPathId) return null
+
+    const maxAttempts = 8
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await LearningPathService.getUserLearningPaths(userId, {
+          pageNumber: 1,
+          pageSize: 100,
+          includeDetails: true,
+          sortDescending: true,
+          useCache: false,
+        })
+
+        const foundPath = (response?.items || []).find(
+          (item: any) => String(item?.pathId ?? item?.id ?? '') === String(adoptedPathId)
+        )
+
+        if (foundPath) {
+          const chapters = Array.isArray(foundPath?.chapters)
+            ? foundPath.chapters
+            : Array.isArray(foundPath?.chapterDtos)
+              ? foundPath.chapterDtos
+              : []
+
+          const lessonCount = chapters.reduce((sum: number, chapter: any) => {
+            const lessons = Array.isArray(chapter?.lessons) ? chapter.lessons : []
+            return sum + lessons.length
+          }, 0)
+
+          if (chapters.length > 0 && lessonCount > 0) {
+            return foundPath
+          }
+        }
+      } catch {
+        // Keep retrying until attempts are exhausted.
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 1000))
+    }
+
+    return null
+  }
+
+  const stopGenerationProgressSimulation = React.useCallback(() => {
+    if (generationProgressTimerRef.current !== null) {
+      window.clearInterval(generationProgressTimerRef.current)
+      generationProgressTimerRef.current = null
+    }
+    generationProgressStartRef.current = null
+  }, [])
+
+  const startGenerationProgressSimulation = React.useCallback((initialProgress = 8) => {
+    stopGenerationProgressSimulation()
+    generationProgressStartRef.current = Date.now()
+    setGenerationProgress((prev) => Math.max(prev, initialProgress))
+
+    generationProgressTimerRef.current = window.setInterval(() => {
+      if (!generationProgressStartRef.current) return
+
+      const elapsedMs = Date.now() - generationProgressStartRef.current
+      let target = initialProgress
+
+      // Simulate a long-running generation (~2 minutes): fast start, then slower.
+      if (elapsedMs <= 20_000) {
+        target = initialProgress + ((35 - initialProgress) * elapsedMs) / 20_000
+      } else if (elapsedMs <= 70_000) {
+        target = 35 + ((70 - 35) * (elapsedMs - 20_000)) / 50_000
+      } else if (elapsedMs <= 110_000) {
+        target = 70 + ((88 - 70) * (elapsedMs - 70_000)) / 40_000
+      } else {
+        target = 88 + Math.min(5, (elapsedMs - 110_000) / 10_000)
+      }
+
+      const nextProgress = Math.min(93, Math.round(target))
+      setGenerationProgress((prev) => (prev >= 100 ? prev : Math.max(prev, nextProgress)))
+    }, 1000)
+  }, [stopGenerationProgressSimulation])
+
+  useEffect(() => {
+    return () => {
+      stopGenerationProgressSimulation()
+    }
+  }, [stopGenerationProgressSimulation])
+
   const handleGenerateStudentPlan = async () => {
     if (!validateGenerationInput()) return
 
     setPlanError(null)
     setGenerating(true)
     setGenerationProgress(0)
+    startGenerationProgressSimulation(8)
 
     try {
       const payload = buildGenerationPayload()
       const sk = await LearningPathService.generateSkeleton(payload, {
         useSignalR: true,
         onLoading: () => {
-          setGenerationProgress(10)
+          setGenerationProgress((prev) => Math.max(prev, 12))
         },
         onProgress: (progress: number) => {
-          setGenerationProgress(progress)
+          const normalized = Math.max(0, Math.min(99, Math.round(Number(progress) || 0)))
+          setGenerationProgress((prev) => Math.max(prev, normalized))
         }
       })
 
       setSkeleton(sk)
+      stopGenerationProgressSimulation()
       setGenerationProgress(100)
       try { sessionStorage.setItem('learningPathSkeleton', JSON.stringify(sk)) } catch { }
 
@@ -542,6 +695,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     } catch (e: any) {
       setPlanError(getGenerationErrorMessage(e))
     } finally {
+      stopGenerationProgressSimulation()
       setGenerating(false)
       setGenerationProgress(0)
     }
@@ -552,13 +706,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
     setPlanError(null)
     setGenerating(true)
-    setGenerationProgress(15)
+    setGenerationProgress(0)
+    startGenerationProgressSimulation(12)
 
     try {
       const payload = buildGenerationPayload()
       const sk = await LearningPathService.generateAiDraft(payload)
 
       setSkeleton(sk)
+      stopGenerationProgressSimulation()
       setGenerationProgress(100)
 
       if (!sk?.pathId) {
@@ -572,6 +728,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     } catch (e: any) {
       setPlanError(getGenerationErrorMessage(e))
     } finally {
+      stopGenerationProgressSimulation()
       setGenerating(false)
       setGenerationProgress(0)
     }
@@ -583,6 +740,34 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       return
     }
     await handleGenerateStudentPlan()
+  }
+
+  const handlePreviewSuggestion = async (suggestion: any) => {
+    if (!suggestion?.pathId || !language) return
+    setPreviewData(null)
+    setPreviewError(null)
+    setPreviewLoading(true)
+    setPreviewOpen(true)
+    try {
+      const { requestLearningPathSuggestionPreview } = await import('../../../services/SignalR')
+      const goalsWithWeights = selectedGoals.map(goalId => ({
+        goalId,
+        weight: goalPriorities[goalId] || (selectedGoals.length === 1 ? 100 : 50),
+      }))
+      const result = await requestLearningPathSuggestionPreview(
+        suggestion.pathId,
+        language,
+        goalsWithWeights,
+        level!,
+        languageSelection!,
+        () => setPreviewLoading(true)
+      )
+      setPreviewData(result)
+    } catch (e: any) {
+      setPreviewError(e?.message || 'Không thể tải xem trước lộ trình.')
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   const handleSelectSuggestion = async (suggestion: any) => {
@@ -611,6 +796,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
 
     setGenerating(true)
     setGenerationProgress(0)
+    startGenerationProgressSimulation(8)
     setPlanError(null)
     setShowSuggestions(false) // Close suggestions modal
 
@@ -652,21 +838,29 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
         languageSelection, // languageSelection (0 = English, 1 = Vietnamese)
         () => {
           // onLoading
-          setGenerationProgress(20)
+          setGenerationProgress((prev) => Math.max(prev, 20))
         },
         (data: any) => {
           // onAdopted
-          setGenerationProgress(90)
+          setGenerationProgress((prev) => Math.max(prev, 90))
         }
       )
 
+      stopGenerationProgressSimulation()
       setGenerationProgress(100)
       setGenerating(false)
 
       // Navigate to the adopted learning path
       if (result?.pathId) {
+        LearningPathService.clearUserLearningPathsCache(authUser?.id)
+        const readyPath = await waitForAdoptedPathReady(result.pathId)
         void syncWalletAfterGeneration()
-        navigate('/my-plans/detail', { state: { pathId: result.pathId } })
+        navigate('/my-plans/detail', {
+          state: {
+            pathId: result.pathId,
+            skeleton: readyPath || undefined,
+          },
+        })
         setToast({ message: t('plans.suggestionAdoptedSuccess'), type: 'success' })
       } else {
         setToast({ message: t('plans.suggestionAdoptedButNoPath'), type: 'warning' })
@@ -678,7 +872,22 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       const errorMessage = e?.message || t('plans.errorAdoptingSuggestion')
       setPlanError(errorMessage)
       setToast({ message: errorMessage, type: 'error' })
+      stopGenerationProgressSimulation()
     }
+  }
+
+  const formatSuggestionGoalCoverage = (rawWeight: any): string => {
+    const numeric = Number(rawWeight ?? 0)
+    const normalized = Number.isFinite(numeric)
+      ? (numeric <= 1 ? numeric * 100 : numeric)
+      : 0
+    const clamped = Math.min(100, Math.max(0, normalized))
+
+    if (Math.abs(clamped - Math.round(clamped)) < 0.01) {
+      return String(Math.round(clamped))
+    }
+
+    return String(Math.round(clamped * 100) / 100)
   }
 
   // Handle chapter skeleton generation
@@ -859,6 +1068,180 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
     }
   }
 
+  // ── Batch: generate ALL lesson contents via bulk SignalR ──────────────────
+  const handleGenerateAllLessons = async () => {
+    if (!skeleton || generatingAllLessons) return
+    const pathId = skeleton.pathId || skeleton.id
+    if (!pathId) return
+
+    setGeneratingAllLessons(true)
+    setLessonErrors(new Map())
+
+    // Mark all lessons as loading
+    const chaptersArray = skeleton.chapters || skeleton.chapterDtos || []
+    const allLessonIds: string[] = []
+    chaptersArray.forEach((ch: any) => {
+      ;(ch.lessons || []).forEach((ls: any) => {
+        const id = ls.lessonId || ls.id
+        if (id) allLessonIds.push(id)
+      })
+    })
+    setGeneratingLessons(new Set(allLessonIds))
+
+    const updateLessonInSkeleton = (lessonId: string, patch: Record<string, any>) => {
+      setSkeleton((prev: any) => {
+        if (!prev) return prev
+        const arr = prev.chapters || prev.chapterDtos || []
+        const updated = arr.map((ch: any) => {
+          if (!Array.isArray(ch.lessons)) return ch
+          return {
+            ...ch,
+            lessons: ch.lessons.map((ls: any) => {
+              const id = ls.lessonId || ls.id
+              if (id !== lessonId) return ls
+              return { ...ls, ...patch }
+            }),
+          }
+        })
+        return {
+          ...prev,
+          chapters: prev.chapters ? updated : undefined,
+          chapterDtos: prev.chapterDtos ? updated : undefined,
+        }
+      })
+    }
+
+    try {
+      await LearningPathService.generateBulkLearningPathContent(pathId, {
+        lessonConcurrency: 4,
+        quizConcurrency: 6,
+        onStarted: (data) => {
+          setBulkGenerationStatus('running')
+          setBulkGenerationStartData(data)
+          setBulkGenerationError(null)
+        },
+        onProgress: (data) => {
+          // Update progress bar if available
+          const total = data.TotalLessons || 1
+          const done = (data.CompletedLessons || 0) + (data.FailedLessons || 0)
+          setGenerationProgress(Math.round((done / total) * 100))
+        },
+        onCompleted: (data) => {
+          setBulkGenerationStatus('completed')
+          // Optionally refetch learning path detail to sync state
+        },
+        onError: (data) => {
+          setBulkGenerationStatus('error')
+          setBulkGenerationError(data?.ErrorMessage || 'Bulk generation failed')
+        },
+        onCancelled: (data) => {
+          setBulkGenerationStatus('cancelled')
+          setBulkGenerationError(data?.ErrorMessage || 'Bulk generation was cancelled')
+        },
+        onLessonSuccess: (lesson) => {
+          const lessonId = lesson.lessonId || lesson.LessonId
+          if (!lessonId) return
+          updateLessonInSkeleton(lessonId, {
+            content: lesson.content || lesson.Content,
+            hasContent: true,
+          })
+          setGeneratingLessons(prev => {
+            const next = new Set(prev)
+            next.delete(lessonId)
+            return next
+          })
+        },
+        onLessonError: (data) => {
+          const lessonId = data.LessonId
+          if (!lessonId) return
+          setLessonErrors(prev => {
+            const next = new Map(prev)
+            next.set(lessonId, data.ErrorMessage || 'Failed to generate lesson content')
+            return next
+          })
+          setGeneratingLessons(prev => {
+            const next = new Set(prev)
+            next.delete(lessonId)
+            return next
+          })
+        },
+        onQuizSuccess: (data) => {
+          // data.Questions contains quiz with questions
+          const quiz = data.Questions
+          if (!quiz) return
+          const quizId = quiz.QuizId || quiz.quizId
+          // Find which lesson owns this quiz and update
+          setSkeleton((prev: any) => {
+            if (!prev) return prev
+            const arr = prev.chapters || prev.chapterDtos || []
+            const updated = arr.map((ch: any) => ({
+              ...ch,
+              lessons: (ch.lessons || []).map((ls: any) => {
+                const quizzes = ls.quizzes || []
+                if (!quizzes.some((q: any) => (q.quizzId || q.quizId) === quizId)) return ls
+                return {
+                  ...ls,
+                  quizzes: quizzes.map((q: any) =>
+                    (q.quizzId || q.quizId) === quizId ? { ...q, questions: quiz.Questions, status: 'Completed' } : q
+                  ),
+                }
+              }),
+            }))
+            return {
+              ...prev,
+              chapters: prev.chapters ? updated : undefined,
+              chapterDtos: prev.chapterDtos ? updated : undefined,
+            }
+          })
+        },
+      })
+    } catch (e: any) {
+      setPlanError(getGenerationErrorMessage(e))
+    } finally {
+      setGeneratingAllLessons(false)
+      setGeneratingLessons(new Set())
+      setGenerationProgress(0)
+    }
+  }
+
+  // ── Batch: generate ALL chapter tasks concurrently ─────────────────────────
+  const handleGenerateAllChapterTasks = async () => {
+    if (!skeleton || generatingAllTasks) return
+
+    const chaptersArray = skeleton.chapters || skeleton.chapterDtos || []
+    const chapterIds: string[] = chaptersArray
+      .map((ch: any) => ch.chapterId || ch.id)
+      .filter(Boolean)
+
+    if (chapterIds.length === 0) return
+
+    setGeneratingAllTasks(true)
+
+    await LearningPathService.generateMultipleChapterTasks(chapterIds, {
+      onItemSuccess: (chapterId, result) => {
+        setSkeleton((prev: any) => {
+          if (!prev) return prev
+          const arr = prev.chapters || prev.chapterDtos || []
+          const updated = arr.map((ch: any) => {
+            const id = ch.chapterId || ch.id
+            if (id !== chapterId) return ch
+            return {
+              ...ch,
+              tasks: result.tasks || result.Tasks || ch.tasks || [],
+            }
+          })
+          return {
+            ...prev,
+            chapters: prev.chapters ? updated : undefined,
+            chapterDtos: prev.chapterDtos ? updated : undefined,
+          }
+        })
+      },
+    })
+
+    setGeneratingAllTasks(false)
+  }
+
   // Persist selections
   useEffect(() => {
     try {
@@ -984,6 +1367,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       // Clear selected goals when no language is selected
       setSelectedGoals([])
       setGoalPriorities({})
+      setGoalPriorityDrafts({})
       setCurrentSystemGoalPage(1) // Reset pagination
       setCurrentMyGoalPage(1) // Reset pagination
       return
@@ -997,6 +1381,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       // Clear selected goals when switching subjects since goals are different
       setSelectedGoals([])
       setGoalPriorities({})
+      setGoalPriorityDrafts({})
       setCurrentSystemGoalPage(1) // Reset pagination
       setCurrentMyGoalPage(1) // Reset pagination
     } else {
@@ -1005,6 +1390,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       setGoalsError(null)
       setSelectedGoals([])
       setGoalPriorities({})
+      setGoalPriorityDrafts({})
       setCurrentSystemGoalPage(1) // Reset pagination
       setCurrentMyGoalPage(1) // Reset pagination
     }
@@ -1105,6 +1491,11 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           delete newPriorities[key]
           return newPriorities
         })
+        setGoalPriorityDrafts(prevDrafts => {
+          const nextDrafts = { ...prevDrafts }
+          delete nextDrafts[key]
+          return nextDrafts
+        })
         return prev.filter(id => id !== key)
       } else {
         // Add goal if less than 2 selected
@@ -1120,7 +1511,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           // If this is the second goal, show toast
           if (newGoals.length === 2) {
             setToast({ 
-              message: 'Great! Now set goal priorities in the next step.', 
+              message: t('plans.goalPriorityToast'), 
               type: 'success' 
             })
           }
@@ -1149,6 +1540,31 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
       }))
       .filter((it) => !!it.key)
     : []
+
+  const selectedSubjectName = useMemo(() => (
+    language
+      ? String(
+        subjects.find((s: any) => String(s.id ?? s.subjectId) === String(language))?.name ??
+        language
+      ).trim()
+      : ''
+  ), [language, subjects])
+
+  const askMentorContextPayload = useMemo<AskMentorContextPayload | null>(() => (
+    buildAskMentorContextPayload({
+      subjectName: selectedSubjectName,
+      selectedGoals,
+      goalPriorities,
+      goalItems,
+      level,
+      languageSelection,
+    })
+  ), [selectedSubjectName, selectedGoals, goalPriorities, goalItems, level, languageSelection])
+
+  const handleAskMentorClick = () => {
+    // Open mentor selection modal instead of navigating to chat
+    setShowSelectMentorModal(true)
+  }
 
   // Pagination calculations for system goals
   const totalSystemGoals = systemGoals.length
@@ -1815,6 +2231,25 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                             onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
                           />
                         </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>$ {t('plans.languageLabel')}</label>
+                          <select
+                            value={createGoalSubjectId}
+                            onChange={(e) => setCreateGoalSubjectId(e.target.value)}
+                            disabled={creatingGoal || loadingCreateGoalSubjects}
+                            style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base)' }}
+                          >
+                            <option value="">
+                              {loadingCreateGoalSubjects ? t('goals.loadingSubjects') : t('plans.selectSubjectFirst')}
+                            </option>
+                            {createGoalSubjectOptions.map((subject) => (
+                              <option key={subject.id} value={subject.id}>{subject.name}</option>
+                            ))}
+                          </select>
+                        </div>
                         
                         {/* Description Field */}
                         <div>
@@ -1853,6 +2288,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                             type="button"
                             onClick={() => { 
                               setShowAddGoal(false); 
+                              setCreateGoalSubjectId('');
                               setNewGoalTitle(''); 
                               setNewGoalDesc(''); 
                               setNewGoalDuration('OneMonth');
@@ -1864,11 +2300,11 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                           >{t('plans.cancel')}</button>
                           <button
                             type="button"
-                            disabled={creatingGoal}
+                            disabled={creatingGoal || loadingCreateGoalSubjects || !createGoalSubjectId}
                             onClick={handleCreateGoalModal}
-                            style={{ flex: 1, padding: '8px 16px', background: creatingGoal ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: creatingGoal ? 'not-allowed' : 'pointer' }}
-                            onMouseEnter={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-strong)' }} 
-                            onMouseLeave={(e) => { if (!creatingGoal) e.currentTarget.style.background = 'var(--text-primary)' }}
+                            style={{ flex: 1, padding: '8px 16px', background: (creatingGoal || loadingCreateGoalSubjects || !createGoalSubjectId) ? 'var(--text-secondary)' : 'var(--text-primary)', color: 'var(--bg-surface-short)', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: (creatingGoal || loadingCreateGoalSubjects || !createGoalSubjectId) ? 'not-allowed' : 'pointer' }}
+                            onMouseEnter={(e) => { if (!creatingGoal && !loadingCreateGoalSubjects && createGoalSubjectId) e.currentTarget.style.background = 'var(--text-strong)' }} 
+                            onMouseLeave={(e) => { if (!creatingGoal && !loadingCreateGoalSubjects && createGoalSubjectId) e.currentTarget.style.background = 'var(--text-primary)' }}
                           >{creatingGoal ? t('plans.savingGoal') : t('plans.saveGoal')}</button>
                         </div>
                       </div>
@@ -2010,185 +2446,254 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           {step === 3 && selectedGoals.length === 2 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <StepHeader
-                title="Set Goal Priorities"
-                subtitle="Balance the importance of your learning goals"
-                selectedValue={selectedGoals.length === 2 ? 'Priorities set' : undefined}
+                title={t('plans.stepPriorityTitle')}
+                subtitle={t('plans.stepPrioritySubtitle')}
+                selectedValue={selectedGoals.length === 2 ? t('plans.stepPrioritySelected') : undefined}
               />
-              
+
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
-                <div style={{ 
-                  marginBottom: 32, 
-                  padding: 20, 
-                  background: 'var(--bg-surface)', 
-                  border: '1px dashed var(--border-base)', 
-                  borderRadius: 4 
+                <div style={{
+                  marginBottom: 16,
+                  padding: '12px 14px',
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-base)',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.55,
                 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: 12,
-                    fontSize: 14,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.6
-                  }}>
-                    <span style={{ fontSize: 18 }}>💡</span>
-                    <div>
-                      <strong style={{ color: 'var(--text-primary)' }}>Balance your learning focus</strong>
-                      <br />
-                      Adjust the weight of each goal. The total must equal 100%. The AI will focus more 
-                      on the goal with higher weight when generating your learning path.
-                    </div>
-                  </div>
+                  <strong style={{ color: 'var(--text-primary)' }}>{t('plans.priorityIntroTitle')}</strong>{' '}
+                  {t('plans.priorityIntroBody')}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  {selectedGoals.map((goalId, index) => {
-                    const goal = goalItems.find(g => String(g.key) === String(goalId))
-                    const priority = goalPriorities[goalId] || 50
-                    const otherGoalId = selectedGoals.find(id => id !== goalId)
-                    const otherPriority = otherGoalId ? (goalPriorities[otherGoalId] || 50) : 50
-                    
-                    return (
-                      <div key={goalId} style={{ 
-                        background: 'var(--bg-surface)', 
-                        border: '1px solid var(--border-base)', 
-                        borderRadius: 4, 
-                        padding: 24 
+                {(() => {
+                  const leftGoalId = selectedGoals[0]
+                  const rightGoalId = selectedGoals[1]
+                  const leftGoal = goalItems.find((g) => String(g.key) === String(leftGoalId))
+                  const rightGoal = goalItems.find((g) => String(g.key) === String(rightGoalId))
+                  const leftPriority = goalPriorities[leftGoalId] || 50
+                  const rightPriority = 100 - leftPriority
+                  const leftPriorityDraft = goalPriorityDrafts[leftGoalId]
+                  const rightPriorityDraft = goalPriorityDrafts[rightGoalId]
+                  const leftColor = 'var(--accent-primary)'
+                  const rightColor = 'var(--success-primary)'
+                  const sliderBackground = `linear-gradient(to right, ${leftColor} 0%, ${leftColor} ${leftPriority}%, ${rightColor} ${leftPriority}%, ${rightColor} 100%)`
+                  const clampPriority = (value: number) => Math.max(10, Math.min(90, value))
+
+                  const clearPriorityDrafts = () => {
+                    setGoalPriorityDrafts((prev) => {
+                      if (!(leftGoalId in prev) && !(rightGoalId in prev)) return prev
+                      const next = { ...prev }
+                      delete next[leftGoalId]
+                      delete next[rightGoalId]
+                      return next
+                    })
+                  }
+
+                  const updatePrioritiesFromLeft = (rawValue: number) => {
+                    const nextLeftPriority = clampPriority(rawValue)
+                    const nextRightPriority = 100 - nextLeftPriority
+
+                    setGoalPriorities((prev) => ({
+                      ...prev,
+                      [leftGoalId]: nextLeftPriority,
+                      [rightGoalId]: nextRightPriority,
+                    }))
+                    clearPriorityDrafts()
+                  }
+
+                  const updatePrioritiesFromRight = (rawValue: number) => {
+                    const nextRightPriority = clampPriority(rawValue)
+                    const nextLeftPriority = 100 - nextRightPriority
+
+                    setGoalPriorities((prev) => ({
+                      ...prev,
+                      [leftGoalId]: nextLeftPriority,
+                      [rightGoalId]: nextRightPriority,
+                    }))
+                    clearPriorityDrafts()
+                  }
+
+                  const commitLeftPriorityDraft = () => {
+                    const rawDraft = goalPriorityDrafts[leftGoalId]
+                    if (rawDraft == null) return
+                    const parsed = Number(rawDraft)
+                    if (Number.isFinite(parsed)) {
+                      updatePrioritiesFromLeft(parsed)
+                      return
+                    }
+                    clearPriorityDrafts()
+                  }
+
+                  const commitRightPriorityDraft = () => {
+                    const rawDraft = goalPriorityDrafts[rightGoalId]
+                    if (rawDraft == null) return
+                    const parsed = Number(rawDraft)
+                    if (Number.isFinite(parsed)) {
+                      updatePrioritiesFromRight(parsed)
+                      return
+                    }
+                    clearPriorityDrafts()
+                  }
+
+                  return (
+                    <div style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-base)',
+                      borderRadius: 10,
+                      padding: 18,
+                    }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto 1fr',
+                        alignItems: 'center',
+                        gap: 12,
+                        marginBottom: 12,
                       }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          marginBottom: 20 
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                            <div style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 4,
-                              background: index === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                              color: 'var(--bg-surface)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 18,
-                              fontWeight: 700
-                            }}>
-                              {index + 1}
-                            </div>
-                            <div>
-                              <h4 style={{ 
-                                fontSize: 18, 
-                                fontWeight: 600, 
-                                color: 'var(--text-primary)', 
-                                margin: 0 
-                              }}>
-                                {goal?.label || 'Unknown Goal'}
-                              </h4>
-                            </div>
-                          </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 12,
-                            fontSize: 24,
-                            fontWeight: 700,
-                            color: priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'
-                          }}>
-                            <span>{priority}%</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{t('plans.priorityGoalLabel', { number: 1 })}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {leftGoal?.label || t('plans.unknownGoal')}
                           </div>
                         </div>
-                        
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="range"
-                            min="10"
-                            max="90"
-                            value={priority}
-                            onChange={(e) => {
-                              const newPriority = parseInt(e.target.value)
-                              const otherPriority = 100 - newPriority
-                              
-                              setGoalPriorities(prev => ({
-                                ...prev,
-                                [goalId]: newPriority,
-                                [otherGoalId!]: otherPriority
-                              }))
-                            }}
-                            style={{
-                              width: '100%',
-                              height: 10,
-                              borderRadius: 5,
-                              background: `linear-gradient(to right, 
-                                ${priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} 0%, 
-                                ${priority >= 60 ? 'var(--success-primary)' : 
-                                  priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'} ${priority}%, 
-                                var(--border-base) ${priority}%, 
-                                var(--border-base) 100%)`,
-                              outline: 'none',
-                              appearance: 'none',
-                              cursor: 'pointer'
-                            }}
-                          />
-                          <style>
-                            {`
-                              input[type="range"]::-webkit-slider-thumb {
-                                appearance: none;
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: ${priority >= 60 ? 'var(--success-primary)' : 
-                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
-                                cursor: pointer;
-                                border: 3px solid var(--bg-surface);
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                              }
-                              input[type="range"]::-moz-range-thumb {
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: ${priority >= 60 ? 'var(--success-primary)' : 
-                                             priority >= 40 ? 'var(--accent-primary)' : 'var(--text-secondary)'};
-                                cursor: pointer;
-                                border: 3px solid var(--bg-surface);
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                              }
-                            `}
-                          </style>
-                          
-                          {/* Priority scale labels */}
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            marginTop: 16,
-                            fontSize: 12,
-                            color: 'var(--text-secondary)',
-                            fontWeight: 600
-                          }}>
-                            <span>LOW FOCUS</span>
-                            <span>BALANCED</span>
-                            <span>HIGH FOCUS</span>
-                          </div>
-                        </div>
-                        
-                        {/* Show other goal's weight */}
-                        <div style={{ 
-                          marginTop: 16, 
-                          padding: 12, 
-                          background: 'var(--bg-main)', 
-                          border: '1px dashed var(--border-base)', 
-                          borderRadius: 4,
+
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          padding: '6px 10px',
+                          borderRadius: 999,
+                          border: '1px solid var(--border-base)',
+                          background: 'var(--bg-main)',
+                          color: 'var(--text-primary)',
                           fontSize: 13,
-                          color: 'var(--text-secondary)'
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
                         }}>
-                          Other goal will have <strong style={{ color: 'var(--text-primary)' }}>{100 - priority}%</strong> weight
+                          <span>{leftPriority}%</span>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>/</span>
+                          <span>{rightPriority}%</span>
+                        </div>
+
+                        <div style={{ minWidth: 0, textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{t('plans.priorityGoalLabel', { number: 2 })}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {rightGoal?.label || t('plans.unknownGoal')}
+                          </div>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 36px', alignItems: 'center', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromLeft(leftPriority - 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={10}
+                            max={90}
+                            step={5}
+                            value={leftPriorityDraft ?? String(leftPriority)}
+                            onChange={(e) => {
+                              const nextRaw = e.target.value
+                              if (nextRaw === '') {
+                                setGoalPriorityDrafts((prev) => ({ ...prev, [leftGoalId]: '' }))
+                                return
+                              }
+                              if (!/^\d+$/.test(nextRaw)) return
+                              setGoalPriorityDrafts((prev) => ({ ...prev, [leftGoalId]: nextRaw }))
+                            }}
+                            onBlur={commitLeftPriorityDraft}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                commitLeftPriorityDraft()
+                              }
+                            }}
+                            style={{ width: '100%', height: 36, boxSizing: 'border-box', border: '1px solid var(--border-base)', borderRadius: 8, padding: '7px 10px', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromLeft(leftPriority + 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 36px', alignItems: 'center', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromRight(rightPriority - 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={10}
+                            max={90}
+                            step={5}
+                            value={rightPriorityDraft ?? String(rightPriority)}
+                            onChange={(e) => {
+                              const nextRaw = e.target.value
+                              if (nextRaw === '') {
+                                setGoalPriorityDrafts((prev) => ({ ...prev, [rightGoalId]: '' }))
+                                return
+                              }
+                              if (!/^\d+$/.test(nextRaw)) return
+                              setGoalPriorityDrafts((prev) => ({ ...prev, [rightGoalId]: nextRaw }))
+                            }}
+                            onBlur={commitRightPriorityDraft}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                commitRightPriorityDraft()
+                              }
+                            }}
+                            style={{ width: '100%', height: 36, boxSizing: 'border-box', border: '1px solid var(--border-base)', borderRadius: 8, padding: '7px 10px', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updatePrioritiesFromRight(rightPriority + 5)}
+                            style={{ width: 36, height: 36, border: '1px solid var(--border-base)', background: 'var(--bg-main)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          width: '100%',
+                          height: 8,
+                          borderRadius: 999,
+                          background: sliderBackground,
+                        }}
+                      />
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginTop: 10,
+                        fontSize: 11,
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                      }}>
+                        <span>{t('plans.priorityMoreFocusGoal1')}</span>
+                        <span>{t('plans.priorityBalanced')}</span>
+                        <span>{t('plans.priorityMoreFocusGoal2')}</span>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </motion.div>
           )}
@@ -2381,7 +2886,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     e.currentTarget.style.transform = 'translateY(0)'
                     e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
-                  onClick={handleGenerateClick}
+                  onClick={() => setConfirmAI(true)}
                 >
                   <div style={{ height: 2, width: 42, background: 'var(--accent-primary)', borderRadius: 999, marginBottom: 12 }} />
 
@@ -2555,7 +3060,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                   type="button"
                   style={{
                     padding: 22,
-                    border: '1px dashed var(--border-base)',
+                    border: '1px solid var(--border-base)',
                     borderRadius: 6,
                     background: 'var(--bg-surface)',
                     textAlign: 'left',
@@ -2565,35 +3070,27 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     display: 'flex',
                     flexDirection: 'column',
                     width: '100%',
-                    opacity: 0.9,
-                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)'
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
                   onMouseEnter={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--warning-primary)'
                     e.currentTarget.style.background = 'var(--bg-main)'
                     e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.opacity = '1'
                     e.currentTarget.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.10)'
                   }}
                   onMouseLeave={(e) => { 
                     e.currentTarget.style.borderColor = 'var(--border-base)'
                     e.currentTarget.style.background = 'var(--bg-surface)'
                     e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.opacity = '0.9'
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.06)'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)'
                   }}
-                  onClick={() => {
-                    setToast({ message: t('plans.comingSoon'), type: 'success' })
-                  }}
+                  onClick={handleAskMentorClick}
                 >
                   <div style={{ height: 2, width: 42, background: 'var(--warning-primary)', borderRadius: 999, marginBottom: 12 }} />
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
                       $ {t('plans.askMentor')}
-                    </span>
-                    <span style={{ padding: '2px 8px', border: '1px solid var(--warning-primary)', color: 'var(--warning-primary)', fontSize: 10, fontWeight: 700, borderRadius: 2 }}>
-                      {t('plans.comingSoon')}
                     </span>
                   </div>
 
@@ -2662,7 +3159,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
               {generating && (
                 <div style={{ 
                   display: 'flex', 
-                  alignItems: 'center', 
+                  alignItems: 'flex-start', 
                   justifyContent: 'center', 
                   marginTop: 40, 
                   padding: 24, 
@@ -2680,9 +3177,16 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                     borderRadius: '50%', 
                     marginRight: 16 
                   }} />
-                  <span style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
-                  </span>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <span style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {isMentorVariant ? tm('aiPlans.generatingDraft') : t('plans.generatingPath')} ({generationProgress}%)
+                    </span>
+                    {!isMentorVariant && (
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        {t('plans.generationTimeHint', { defaultValue: 'This usually takes around 1-2 minutes. Please keep this tab open.' })}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -2729,7 +3233,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                           cursor: 'pointer' 
                         }}
                       >
-                        ✕ Close
+                        ✕ {t('plans.close')}
                       </button>
                     </div>
                     
@@ -2757,7 +3261,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                 border: '1px solid var(--border-base)',
                                 borderRadius: 4,
                                 background: 'var(--bg-surface)',
-                                cursor: 'pointer',
                                 transition: 'all 0.2s'
                               }}
                               onMouseEnter={(e) => {
@@ -2768,7 +3271,6 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                 e.currentTarget.style.borderColor = 'var(--border-base)'
                                 e.currentTarget.style.background = 'var(--bg-surface)'
                               }}
-                              onClick={() => handleSelectSuggestion(suggestion)}
                             >
                               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                                 <div style={{ flex: 1 }}>
@@ -2793,16 +3295,15 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                               </div>
                               
                               <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 12, color: 'var(--text-secondary)' }}>
-                                <span>📚 {suggestion.chapterCount} chapters</span>
                                 {suggestion.goals && suggestion.goals.length > 0 && (
-                                  <span>🎯 {suggestion.goals.length} goals</span>
+                                  <span>🧩 {suggestion.goals.length} {t('plans.goalsLabel')}</span>
                                 )}
                               </div>
                               
                               {suggestion.goals && suggestion.goals.length > 0 && (
                                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-base)' }}>
                                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>
-                                    Goals Coverage:
+                                    {t('plans.goalsCoverage')}:
                                   </div>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                     {suggestion.goals.map((goal: any, goalIndex: number) => (
@@ -2817,7 +3318,7 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                           color: 'var(--text-primary)'
                                         }}
                                       >
-                                        {getGoalTitle(t, goal.goalId || goal.id, goal.title)} ({goal.weight}% • {goal.durationInDays} days)
+                                        {getGoalTitle(t, goal.goalId || goal.id, goal.title)} ({formatSuggestionGoalCoverage(goal.weight)}% • {goal.durationInDays} {t('plans.daysLabel')})
                                       </div>
                                     ))}
                                   </div>
@@ -2827,12 +3328,62 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                               <div style={{ 
                                 marginTop: 16, 
                                 paddingTop: 12, 
-                                borderTop: '1px solid var(--border-base)', 
-                                fontSize: 11, 
-                                color: 'var(--accent-primary)', 
-                                fontWeight: 600 
+                                borderTop: '1px solid var(--border-base)',
+                                display: 'flex',
+                                gap: 8,
                               }}>
-                                → Click to select this learning path
+                                <button
+                                  type="button"
+                                  onClick={() => handlePreviewSuggestion(suggestion)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: 'transparent',
+                                    border: '1px solid var(--border-base)',
+                                    borderRadius: 3,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    fontFamily: 'monospace',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    transition: 'all 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--text-secondary)'
+                                    e.currentTarget.style.color = 'var(--text-primary)'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--border-base)'
+                                    e.currentTarget.style.color = 'var(--text-secondary)'
+                                  }}
+                                >
+                                  {t('plans.previewPath')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setConfirmSuggestionItem(suggestion); setConfirmSuggestion(true) }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: 'var(--accent-primary)',
+                                    border: 'none',
+                                    borderRadius: 3,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontFamily: 'monospace',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    transition: 'opacity 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+                                >
+                                  {t('plans.selectThisPath')}
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -2929,6 +3480,151 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {/* Select Mentor Modal */}
+      <SelectMentorModal
+        isOpen={showSelectMentorModal}
+        onClose={() => setShowSelectMentorModal(false)}
+        askMentorContext={askMentorContextPayload ?? undefined}
+      />
+
+      {/* Suggestion Preview Modal */}
+      <SuggestionPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        loading={previewLoading}
+        error={previewError}
+        data={previewData}
+        onSelect={() => {
+          setPreviewOpen(false)
+          setConfirmSuggestionItem({ pathId: previewData?.pathId, ...previewData?.learningPath })
+          setConfirmSuggestion(true)
+        }}
+      />
+
+      {/* Confirm AI Generation */}
+      {confirmAI && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
+          onClick={() => setConfirmAI(false)}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 6, maxWidth: 480, width: '100%', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ height: 3, background: 'var(--accent-primary)' }} />
+            <div style={{ padding: '20px 24px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-primary)', fontFamily: 'monospace', marginBottom: 6 }}>
+                {t('plans.aiGeneration')}
+              </div>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {t('plans.confirmAITitle')}
+              </h3>
+            </div>
+            {/* Summary of what will be generated */}
+            <div style={{ margin: '0 24px 16px', padding: 16, background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Môn học</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSubjectName || '—'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Trình độ</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{level || '—'}</div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Ngôn ngữ</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {languageSelection === 1 ? 'Tiếng Việt' : languageSelection === 2 ? 'English' : '—'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace', marginBottom: 4 }}>Mục tiêu</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {selectedGoals.length === 0 ? <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>—</span> : selectedGoals.map((goalId) => {
+                      const raw = subjectGoals.find((g: any) => String(g?.id ?? g?.goalId) === String(goalId))
+                      const title = raw?.title ?? raw?.name ?? raw?.label ?? goalId
+                      return (
+                        <div key={goalId} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ color: 'var(--accent-primary)', fontFamily: 'monospace' }}>›</span>
+                          {title}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '0 24px 16px', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {t('plans.confirmAIDesc')}
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-base)', background: 'var(--bg-main)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setConfirmAI(false)}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 3, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.cancel')}
+              </button>
+              <button type="button" onClick={() => { setConfirmAI(false); void handleGenerateClick() }}
+                style={{ padding: '8px 20px', background: 'var(--accent-primary)', border: 'none', borderRadius: 3, fontSize: 11, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.confirmGenerate')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Select Suggestion */}
+      {confirmSuggestion && confirmSuggestionItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
+          onClick={() => { setConfirmSuggestion(false); setConfirmSuggestionItem(null) }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 6, maxWidth: 480, width: '100%', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ height: 3, background: 'var(--accent-primary)' }} />
+            <div style={{ padding: '20px 24px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-primary)', fontFamily: 'monospace', marginBottom: 6 }}>
+                {t('plans.similarPaths')}
+              </div>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {t('plans.confirmSuggestionTitle')}
+              </h3>
+            </div>
+            {/* Path preview card */}
+            <div style={{ margin: '0 24px 16px', padding: 16, background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                  {confirmSuggestionItem.title}
+                </h4>
+              </div>
+              {confirmSuggestionItem.description && (
+                <p style={{ margin: '0 0 10px 0', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {confirmSuggestionItem.description}
+                </p>
+              )}
+              {confirmSuggestionItem.goals && confirmSuggestionItem.goals.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {confirmSuggestionItem.goals.slice(0, 3).map((goal: any, i: number) => (
+                    <span key={i} style={{ padding: '3px 8px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                      {getGoalTitle(t, goal.goalId || goal.id, goal.title)} · {goal.durationInDays}d
+                    </span>
+                  ))}
+                  {confirmSuggestionItem.goals.length > 3 && (
+                    <span style={{ padding: '3px 8px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 2, fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                      +{confirmSuggestionItem.goals.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-base)', background: 'var(--bg-main)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => { setConfirmSuggestion(false); setConfirmSuggestionItem(null) }}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-base)', borderRadius: 3, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.cancel')}
+              </button>
+              <button type="button" onClick={() => { setConfirmSuggestion(false); handleSelectSuggestion(confirmSuggestionItem); setConfirmSuggestionItem(null) }}
+                style={{ padding: '8px 20px', background: 'var(--accent-primary)', border: 'none', borderRadius: 3, fontSize: 11, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {t('plans.confirmSelect')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
