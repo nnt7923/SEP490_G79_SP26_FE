@@ -1466,6 +1466,7 @@ export interface MentorReviewDto {
   totalReviews?: number | null
   mentorName?: string | null
   mentorAvatarUrl?: string | null
+  mentorEmail?: string | null
   createdAt?: string | null
   updatedAt?: string | null
 }
