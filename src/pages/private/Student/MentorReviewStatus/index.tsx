@@ -24,21 +24,8 @@ function StatusBadge({ status, t }: { status: string; t: (k: string) => string }
   )
 }
 
-function LessonFullModal({ lesson, onClose }: { lesson: any; onClose: () => void }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10100, padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 8, maxWidth: 960, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{lesson.title}</div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4, display: 'flex' }}><X size={16} /></button>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}><LessonContent content={lesson.content ?? ''} /></div>
-      </div>
-    </div>
-  )
-}
 
-function QuizQuestionsModal({ quiz, onClose }: { quiz: any; onClose: () => void }) {
+function QuizPanel({ quiz, label, accentColor }: { quiz: any; label: string; accentColor: string }) {
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const quizId = quiz?.quizzId || quiz?.quizId || quiz?.id
@@ -51,58 +38,133 @@ function QuizQuestionsModal({ quiz, onClose }: { quiz: any; onClose: () => void 
       .catch(() => {}).finally(() => setLoading(false))
   }, [quizId])
   const TYPE_LABELS: Record<number, string> = { 0: 'True/False', 1: 'Multiple Choice', 2: 'Single Choice', 3: 'Matching', 4: 'Fill in Blank', 5: 'Ordering' }
+
+  // Parse question text: extract code block separately from text
+  const parseQuestionText = (raw: string) => {
+    const codeMatch = raw.match(/```(\w*)\n?([\s\S]*?)```/)
+    if (!codeMatch) return { text: raw.trim(), code: null, lang: null }
+    const before = raw.slice(0, raw.indexOf('```')).trim()
+    const after = raw.slice(raw.indexOf('```') + codeMatch[0].length).trim()
+    return { text: [before, after].filter(Boolean).join(' '), code: codeMatch[2].trim(), lang: codeMatch[1] || 'text' }
+  }
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10100, padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 8, maxWidth: 680, width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{quiz?.title}</div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4, display: 'flex' }}><X size={16} /></button>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-          {loading && <div style={{ textAlign: 'center', padding: 32 }}><Loader className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-primary)', margin: '0 auto' }} /></div>}
-          {!loading && questions.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, padding: 32 }}>Chưa có câu hỏi.</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {questions.map((q: any, qi: number) => {
-              const options: string[] = q.options || q.Options || []
-              const correct = q.correctAnswer || q.CorrectAnswer || ''
-              const qType = q.type ?? q.Type ?? q.questionType ?? q.QuestionType
-              return (
-                <div key={q.id || q.questionId || qi} style={{ padding: '14px 16px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>
-                      <span style={{ color: 'var(--accent-primary)', marginRight: 6 }}>Q{qi + 1}.</span>{q.questionText || q.QuestionText}
+    <div style={{ height: '100%', overflowY: 'auto', padding: '0 20px 20px' }}>
+      {label && <div style={{ padding: '12px 0 8px', fontSize: 10, fontWeight: 700, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 32 }}><Loader className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-primary)', margin: '0 auto' }} /></div>}
+      {!loading && questions.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, padding: 32 }}>Chưa có câu hỏi.</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {questions.map((q: any, qi: number) => {
+          const options: string[] = q.options || q.Options || []
+          const qType = q.type ?? q.Type ?? q.questionType ?? q.QuestionType
+    const { text, code } = parseQuestionText(q.questionText || q.QuestionText || '')
+          return (
+            <div key={q.id || q.questionId || qi} style={{ padding: '12px 14px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 8 }}>
+              {/* Header: question number + type + pts */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-primary)' }}>Q{qi + 1}.</span>
+                {qType != null && <span style={{ fontSize: 10, padding: '1px 6px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4, color: 'var(--text-secondary)', lineHeight: '18px' }}>{typeof qType === 'number' ? TYPE_LABELS[qType] : qType}</span>}
+                <span style={{ fontSize: 10, padding: '1px 6px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4, color: 'var(--text-secondary)', lineHeight: '18px' }}>{q.points ?? q.Points ?? 0} pts</span>
+              </div>
+              {/* Question text */}
+              {text && <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: code ? 8 : 10, lineHeight: 1.5 }}>{text}</div>}
+              {/* Code block */}
+              {code && (
+                <pre style={{ margin: '0 0 10px', padding: '10px 12px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 6, fontSize: 12, overflowX: 'auto', lineHeight: 1.6, color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  <code>{code}</code>
+                </pre>
+              )}
+              {/* Options — no correct answer highlight */}
+              {options.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {options.map((opt: string, oi: number) => (
+                    <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--bg-surface)', border: '1px solid var(--border-base)' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', minWidth: 18 }}>{String.fromCharCode(65 + oi)}.</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-primary)', flex: 1 }}>{opt}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      {qType != null && <span style={{ fontSize: 10, padding: '2px 8px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 999, color: 'var(--text-secondary)' }}>{typeof qType === 'number' ? TYPE_LABELS[qType] : qType}</span>}
-                      <span style={{ fontSize: 10, padding: '2px 8px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 999, color: 'var(--text-secondary)' }}>{q.points ?? q.Points ?? 0} pts</span>
-                    </div>
-                  </div>
-                  {options.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {options.map((opt: string, oi: number) => {
-                        const isCorrect = correct === opt || correct === String(oi) || correct === String.fromCharCode(65 + oi)
-                        return (
-                          <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 6, background: isCorrect ? 'rgba(34,197,94,0.08)' : 'var(--bg-surface)', border: `1px solid ${isCorrect ? 'rgba(34,197,94,0.35)' : 'var(--border-base)'}` }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: isCorrect ? 'var(--success-primary)' : 'var(--text-secondary)', minWidth: 20 }}>{String.fromCharCode(65 + oi)}.</span>
-                            <span style={{ fontSize: 13, color: isCorrect ? 'var(--success-primary)' : 'var(--text-primary)', flex: 1 }}>{opt}</span>
-                            {isCorrect && <span style={{ fontSize: 10, color: 'var(--success-primary)', fontWeight: 700 }}>✓</span>}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                  {options.length === 0 && correct && <div style={{ fontSize: 12, color: 'var(--success-primary)', fontWeight: 600, padding: '6px 10px', background: 'rgba(34,197,94,0.08)', borderRadius: 6 }}>Đáp án: {correct}</div>}
+                  ))}
                 </div>
-              )
-            })}
-          </div>
-        </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-function PreviewLessonCard({ lesson, index }: { lesson: any; index: number }) {
+function QuizQuestionsModal({ quiz, counterpartQuiz, onClose }: { quiz: any; counterpartQuiz?: any; onClose: () => void }) {
+  const hasCounterpart = !!counterpartQuiz
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10100, padding: hasCounterpart ? 8 : 16 }} onClick={onClose}>
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 8, width: hasCounterpart ? 'calc(100vw - 16px)' : '100%', maxWidth: hasCounterpart ? 'none' : 720, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{quiz?.title}</span>
+            {hasCounterpart && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(100,116,139,0.12)', color: 'var(--text-secondary)', fontWeight: 600 }}>Bản gốc</span>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(59,130,246,0.12)', color: 'var(--accent-primary)', fontWeight: 600 }}>Bản mentor sửa</span>
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4, display: 'flex' }}><X size={16} /></button>
+        </div>
+        {hasCounterpart ? (
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1px 1fr', overflow: 'hidden' }}>
+            <QuizPanel quiz={quiz} label="Bản gốc của bạn" accentColor="var(--text-secondary)" />
+            <div style={{ background: 'var(--border-base)' }} />
+            <QuizPanel quiz={counterpartQuiz} label="Bản mentor sửa" accentColor="var(--accent-primary)" />
+          </div>
+        ) : (
+          <QuizPanel quiz={quiz} label="" accentColor="var(--text-secondary)" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Split lesson content modal (orig vs revised) ──────────────────────────────
+function LessonContentSplitModal({ lesson, counterpart, onClose }: { lesson: any; counterpart?: any; onClose: () => void }) {
+  const hasCounterpart = !!(counterpart?.content)
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10100, padding: hasCounterpart ? 8 : 16 }} onClick={onClose}>
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 8, width: hasCounterpart ? 'calc(100vw - 16px)' : '100%', maxWidth: hasCounterpart ? 'none' : 960, maxHeight: '94vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{lesson.title}</span>
+            {hasCounterpart && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(100,116,139,0.12)', color: 'var(--text-secondary)', fontWeight: 600 }}>Bản gốc</span>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(59,130,246,0.12)', color: 'var(--accent-primary)', fontWeight: 600 }}>Bản mentor sửa</span>
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4, display: 'flex' }}><X size={16} /></button>
+        </div>
+        {/* Body */}
+        {hasCounterpart ? (
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1px 1fr', overflow: 'hidden' }}>
+            <div style={{ overflowY: 'auto', padding: '0 20px 20px' }}>
+              <div style={{ padding: '12px 0 8px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bản gốc của bạn</div>
+              <LessonContent content={lesson.content ?? ''} />
+            </div>
+            <div style={{ background: 'var(--border-base)' }} />
+            <div style={{ overflowY: 'auto', padding: '0 20px 20px' }}>
+              <div style={{ padding: '12px 0 8px', fontSize: 10, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bản mentor sửa</div>
+              <LessonContent content={counterpart.content ?? ''} />
+            </div>
+          </div>
+        ) : (
+          <div style={{ flex: 1, overflowY: 'auto' }}><LessonContent content={lesson.content ?? ''} /></div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PreviewLessonCard({ lesson, index, counterpartLesson }: { lesson: any; index: number; counterpartLesson?: any }) {
   const [lessonOpen, setLessonOpen] = useState(false)
   const [quizOpen, setQuizOpen] = useState<any>(null)
   const hasContent = !!(lesson.content || lesson.Content)
@@ -128,20 +190,23 @@ function PreviewLessonCard({ lesson, index }: { lesson: any; index: number }) {
           <div style={{ borderTop: '1px solid var(--border-base)', padding: '10px 16px', background: 'var(--bg-main)' }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quiz ({lesson.quizzes.length})</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {lesson.quizzes.map((q: any, qi: number) => (
-                <div key={q.quizzId || q.quizId || qi} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-primary)', padding: '6px 10px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
-                  <span>{q.title}</span>
-                  <button type="button" onClick={() => setQuizOpen(q)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-primary)', padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
-                    <Eye size={11} /> Xem câu hỏi
-                  </button>
-                </div>
-              ))}
+              {lesson.quizzes.map((q: any, qi: number) => {
+                const counterpartQ = counterpartLesson?.quizzes?.[qi]
+                return (
+                  <div key={q.quizzId || q.quizId || qi} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-primary)', padding: '6px 10px', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 4 }}>
+                    <span>{q.title}</span>
+                    <button type="button" onClick={() => setQuizOpen({ quiz: q, counterpart: counterpartQ })} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-primary)', padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+                      <Eye size={11} /> Xem câu hỏi
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
       </article>
-      {lessonOpen && <LessonFullModal lesson={lesson} onClose={() => setLessonOpen(false)} />}
-      {quizOpen && <QuizQuestionsModal quiz={quizOpen} onClose={() => setQuizOpen(null)} />}
+      {lessonOpen && <LessonContentSplitModal lesson={lesson} counterpart={counterpartLesson} onClose={() => setLessonOpen(false)} />}
+      {quizOpen && <QuizQuestionsModal quiz={quizOpen.quiz} counterpartQuiz={quizOpen.counterpart} onClose={() => setQuizOpen(null)} />}
     </>
   )
 }
@@ -153,11 +218,14 @@ function stripPrefix(t: string): string {
   return s
 }
 
-function PathPanel({ data, label, accentColor, syncChIdx, onChChange }: {
+function PathPanel({ data, label, accentColor, syncChIdx, onChChange, counterpart }: {
   data: any; label: string; accentColor: string; syncChIdx: number; onChChange: (i: number) => void
+  counterpart?: any
 }) {
   const chapters: any[] = data?.chapterDtos || data?.chapters || []
+  const counterpartChs: any[] = counterpart?.chapterDtos || counterpart?.chapters || []
   const activeCh = chapters[syncChIdx] ?? null
+  const counterpartCh = counterpartChs[syncChIdx] ?? null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ background: 'var(--bg-surface)', border: `1px solid ${accentColor}33`, borderRadius: 8, padding: 16, position: 'relative', overflow: 'hidden' }}>
@@ -198,7 +266,9 @@ function PathPanel({ data, label, accentColor, syncChIdx, onChChange }: {
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 6 }}>Bài học ({activeCh.lessons.length})</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {activeCh.lessons.map((ls: any, li: number) => <PreviewLessonCard key={ls.lessonId || ls.id || li} lesson={ls} index={li} />)}
+                    {activeCh.lessons.map((ls: any, li: number) => (
+                      <PreviewLessonCard key={ls.lessonId || ls.id || li} lesson={ls} index={li} counterpartLesson={counterpartCh?.lessons?.[li]} />
+                    ))}
                   </div>
                 </div>
               )}
@@ -269,88 +339,20 @@ function PathPreviewModal({ originalPathId, revisedPathId, onClose }: { original
           {!loading && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 0, alignItems: 'start' }}>
               <div style={{ paddingRight: 12 }}>
-                {original ? <PathPanel data={original} label="Bản gốc của bạn" accentColor="var(--text-secondary)" syncChIdx={syncChIdx} onChChange={setSyncChIdx} />
+                {original ? <PathPanel data={original} label="Bản gốc của bạn" accentColor="var(--text-secondary)" syncChIdx={syncChIdx} onChChange={setSyncChIdx} counterpart={revised} />
                   : <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)', fontSize: 13 }}>Không thể tải bản gốc.</div>}
               </div>
               <div style={{ background: 'var(--border-base)', alignSelf: 'stretch' }} />
               <div style={{ paddingLeft: 12 }}>
-                {revised ? <PathPanel data={revised} label="Bản mentor sửa" accentColor="var(--accent-primary)" syncChIdx={syncChIdx} onChChange={setSyncChIdx} />
+                {revised ? <PathPanel data={revised} label="Bản mentor sửa" accentColor="var(--accent-primary)" syncChIdx={syncChIdx} onChChange={setSyncChIdx} counterpart={original} />
                   : <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)', fontSize: 13 }}>Không thể tải bản sửa.</div>}
               </div>
-<<<<<<< HEAD
-              {/* Chapters 2-col */}
-              {chapters.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr)', gap: 14, height: 480 }}>
-                  {/* Sidebar */}
-                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 8, padding: 12, overflowY: 'auto' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 10, padding: '0 4px' }}>
-                      Nội dung ({chapters.length})
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {chapters.map((ch: any, i: number) => (
-                        <button key={ch.chapterId || ch.id || i} type="button" onClick={() => setActiveChIdx(i)}
-                          style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 6, cursor: 'pointer', width: '100%', border: `1px solid ${i === activeChIdx ? 'var(--accent-primary)' : 'transparent'}`, background: i === activeChIdx ? 'rgba(59,130,246,0.08)' : 'transparent', transition: 'all 0.15s' }}
-                          onMouseEnter={e => { if (i !== activeChIdx) e.currentTarget.style.background = 'var(--bg-main)' }}
-                          onMouseLeave={e => { if (i !== activeChIdx) e.currentTarget.style.background = 'transparent' }}>
-                          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>{i + 1}</div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>{ch.title}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                            {ch.lessons?.length || 0} bài · {ch.tasks?.length || 0} task
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Chapter detail */}
-                  {activeCh && (
-                    <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 8, padding: 18, flexShrink: 0 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{activeChIdx + 1}</div>
-                        <h3 style={{ margin: '0 0 6px 0', fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>{activeCh.title}</h3>
-                        {activeCh.content && <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{activeCh.content}</p>}
-                      </div>
-                      {(activeCh.lessons || []).length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                            Bài học ({activeCh.lessons.length})
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {activeCh.lessons.map((ls: any, li: number) => (
-                              <PreviewLessonCard key={ls.lessonId || ls.id || li} lesson={ls} index={li} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {(activeCh.tasks || []).length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                            Tasks ({activeCh.tasks.length})
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {activeCh.tasks.map((task: any, ti: number) => (
-                              <div key={task.taskId || task.id || ti} style={{ padding: '10px 14px', border: '1px solid var(--border-base)', borderRadius: 6, background: 'var(--bg-surface)' }}>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: task.description ? 4 : 0 }}>
-                                  {task.title}
-                                  {task.taskType && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>· {task.taskType}</span>}
-                                </div>
-                                {task.description && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{task.description}</p>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-=======
->>>>>>> ead8c57 (update mentor review)
             </div>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function DecisionButtons({ pathId, review, t, onDecided }: {
@@ -403,7 +405,7 @@ function DecisionButtons({ pathId, review, t, onDecided }: {
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 const MentorReviewStatusPage: React.FC = () => {

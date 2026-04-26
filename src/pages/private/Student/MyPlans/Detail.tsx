@@ -250,6 +250,22 @@ const MyPlansDetailPage: React.FC = () => {
     if (!plan || bulkGenTriggeredRef.current) return
     const currentPathId = plan.pathId || (plan as any).id
     if (!currentPathId) return
+
+    // Check if all lessons already have content — skip bulk gen if so
+    const allLessons = (plan.chapters || []).flatMap((ch: any) => ch.lessons || [])
+    const allHaveContent = allLessons.length > 0 && allLessons.every((ls: any) => ls.content || ls.Content)
+    if (allHaveContent) {
+      bulkGenTriggeredRef.current = true
+      return
+    }
+
+    // Persist flag across remounts so navigating back doesn't re-trigger
+    const storageKey = `bulkGenDone:${currentPathId}`
+    if (sessionStorage.getItem(storageKey) === 'true') {
+      bulkGenTriggeredRef.current = true
+      return
+    }
+
     bulkGenTriggeredRef.current = true
 
     // Check if review already accepted
@@ -332,6 +348,7 @@ const MyPlansDetailPage: React.FC = () => {
           onCompleted: (data: any) => {
             console.log('[BulkGen] onCompleted:', data)
             setBulkGenProgress(null)
+            sessionStorage.setItem(`bulkGenDone:${currentPathId}`, 'true')
             // Refetch to sync final state from server
             void fetchPlanDetail()
           },
