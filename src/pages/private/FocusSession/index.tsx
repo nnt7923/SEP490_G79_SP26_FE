@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, PauseCircle, Book, Maximize2, Minimize2, MessageCircle } from 'lucide-react'
+import { BookOpen, Code, HelpCircle, Bot, Timer, Flag, CheckCircle, Info, ArrowLeft, Loader2, PlayCircle, PauseCircle, Maximize2, Minimize2, MessageCircle } from 'lucide-react'
 import { useNavigate, useLocation, useBlocker } from 'react-router-dom'
 import { DailyCheckinService, FocusSessionService, SessionType } from '../../../services'
 import type { FocusSession } from '../../../services/FocusSessionService'
@@ -639,7 +639,7 @@ const FocusSessionPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsFinalSubmissionModalOpen(false)}
+            onClick={navigateBackToDetail}
             style={{
               position: 'fixed',
               inset: 0,
@@ -713,7 +713,7 @@ const FocusSessionPage: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setIsFinalSubmissionModalOpen(false)}
+                    onClick={navigateBackToDetail}
                     style={{
                       border: '1px solid var(--border-base)',
                       borderRadius: 8,
@@ -1391,14 +1391,6 @@ const FocusSessionPage: React.FC = () => {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getSessionTypeLabel = (type: SessionType): string => {
-    return type === SessionType.Pomodoro ? t('focusSession.pomodoro') : t('focusSession.study')
-  }
-
-  const getSessionTypeIcon = (type: SessionType) => {
-    return type === SessionType.Pomodoro ? <Timer size={14} /> : <Book size={14} />
-  }
-
   const getSessionTypeColor = (type: SessionType): string => {
     return type === SessionType.Pomodoro ? 'var(--danger-primary)' : 'var(--accent-primary)'
   }
@@ -1455,6 +1447,8 @@ const FocusSessionPage: React.FC = () => {
   }
 
   const navigateBackToDetail = React.useCallback(() => {
+    shouldPauseOnLeaveRef.current = false
+    setIsFinalSubmissionModalOpen(false)
     if (window.history.length > 1) {
       navigate(-1)
       return
@@ -1499,6 +1493,25 @@ const FocusSessionPage: React.FC = () => {
 
   const handleCompleteSession = async (submissionType: 0 | 1 | 2) => {
     if (!session) return
+
+    // Validate content before final submission
+    if (submissionType === 1) {
+      if (currentTaskTypeNum === 0 && !code.trim()) {
+        setToast({ message: t('focusSession.emptySubmitError'), type: 'error' })
+        setShowCompleteDialog(false)
+        return
+      }
+      if (currentTaskTypeNum === 1 && !theoryAnswers.answer?.trim()) {
+        setToast({ message: t('focusSession.emptySubmitErrorTheory'), type: 'error' })
+        setShowCompleteDialog(false)
+        return
+      }
+      if (currentTaskTypeNum === 2 && Object.keys(quizAnswers).length === 0) {
+        setToast({ message: t('focusSession.emptySubmitErrorQuiz'), type: 'error' })
+        setShowCompleteDialog(false)
+        return
+      }
+    }
 
     setLoading(true)
     setShouldPromptTaskReviewAfterComplete(false)
