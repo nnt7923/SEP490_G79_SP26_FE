@@ -79,7 +79,27 @@
     "deleteFailed": "Không thể xóa môn học",
     "updateSuccess": "Đã cập nhật môn học thành công!",
     "createSuccess": "Đã tạo môn học thành công!",
-    "loadFailed": "Không thể tải môn học"
+    "loadFailed": "Không thể tải môn học",
+    "tabAll": "Tất cả môn học",
+    "tabMine": "Môn học của tôi",
+    "filterCategory": "Danh mục",
+    "filterAllCategories": "Tất cả danh mục",
+    "page": "Trang {{current}} / {{total}}",
+    "prev": "Trước",
+    "next": "Tiếp",
+    "categories": {
+      "0": "Ngôn ngữ lập trình",
+      "1": "Frontend",
+      "2": "Backend",
+      "3": "Cơ sở dữ liệu",
+      "5": "Cloud",
+      "6": "Khoa học dữ liệu",
+      "7": "Machine Learning",
+      "8": "Thuật toán",
+      "9": "Phát triển game",
+      "10": "Mobile",
+      "11": "Khác"
+    }
   },
   "classes": {
     "title": "lớp_của_tôi",

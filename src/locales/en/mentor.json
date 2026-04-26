@@ -79,7 +79,27 @@
     "deleteFailed": "Failed to delete subject",
     "updateSuccess": "Subject updated successfully!",
     "createSuccess": "Subject created successfully!",
-    "loadFailed": "Unable to load subjects"
+    "loadFailed": "Unable to load subjects",
+    "tabAll": "All Subjects",
+    "tabMine": "My Subjects",
+    "filterCategory": "Category",
+    "filterAllCategories": "All Categories",
+    "page": "Page {{current}} / {{total}}",
+    "prev": "Prev",
+    "next": "Next",
+    "categories": {
+      "0": "Programming Language",
+      "1": "Frontend",
+      "2": "Backend",
+      "3": "Database",
+      "5": "Cloud",
+      "6": "Data Science",
+      "7": "Machine Learning",
+      "8": "Algorithms",
+      "9": "Game Development",
+      "10": "Mobile",
+      "11": "Other"
+    }
   },
   "classes": {
     "title": "my_classes",
