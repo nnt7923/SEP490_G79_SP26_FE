@@ -188,9 +188,13 @@ function ReviewCard({ review, pathId, isMentor, onUpdated }: {
         style={{ width: '100%', padding: '12px 16px', background: 'var(--bg-main)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {/* Avatar */}
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-            {(review.mentorName || 'M').charAt(0).toUpperCase()}
-          </div>
+          {review.mentorAvatarUrl ? (
+            <img src={review.mentorAvatarUrl} alt={review.mentorName || 'M'} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+          ) : (
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+              {(review.mentorName || 'M').charAt(0).toUpperCase()}
+            </div>
+          )}
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{review.mentorName || 'Mentor'}</div>
           </div>

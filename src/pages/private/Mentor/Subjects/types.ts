@@ -4,6 +4,7 @@ export type Subject = {
   description?: string
   color?: string
   icon?: string | null
+  category?: string
   createdBy?: string
   createdByUserId?: string
   createdAt?: string

@@ -475,12 +475,16 @@ const MentorReviewStatusPage: React.FC = () => {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--bg-main)', borderRadius: 8 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, flexShrink: 0 }}>
-                    {(review.mentorName || 'M').charAt(0).toUpperCase()}
-                  </div>
+                  {review.mentorAvatarUrl ? (
+                    <img src={review.mentorAvatarUrl} alt={review.mentorName || 'Mentor'} style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, flexShrink: 0 }}>
+                      {(review.mentorName || 'M').charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{review.mentorName || 'Mentor'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Mentor</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{review.mentorEmail || 'Mentor'}</div>
                   </div>
                 </div>
                 {review.studentRequestNote && (

@@ -345,6 +345,7 @@ const FocusSessionPage: React.FC = () => {
   const timeRemainingRef = useRef<number>(readRemainingSecondsFromSnapshot(initialSessionData) ?? 0)
   const autoResumeAttemptedRef = useRef<boolean>(false)
   const resumeTransitionIntervalRef = useRef<number | null>(null)
+  const handleCompleteSessionRef = useRef<((submissionType: 0 | 1 | 2, isEarlyCompletion?: boolean) => Promise<void>) | null>(null)
   const initialServerHydrationRef = useRef<boolean>(false)
   const isRunning = sessionUiState === 'Running'
   const shouldBlockNavigation = Boolean(session?.id && sessionUiState === 'Running' && shouldPauseOnLeaveRef.current)
@@ -1128,7 +1129,8 @@ const FocusSessionPage: React.FC = () => {
       if (remaining <= 0) {
         setSessionUiState('Completed')
         shouldPauseOnLeaveRef.current = false
-        setToast({ message: t('focusSession.completed'), type: 'success' })
+        // Auto-submit: save progress when time runs out (not early completion)
+        handleCompleteSessionRef.current?.(0, false)
       }
     }, 1000)
 
@@ -1491,7 +1493,7 @@ const FocusSessionPage: React.FC = () => {
     setShowCompleteDialog(true)
   }
 
-  const handleCompleteSession = async (submissionType: 0 | 1 | 2) => {
+  const handleCompleteSession = async (submissionType: 0 | 1 | 2, isEarlyCompletion = true) => {
     if (!session) return
 
     // Validate content before final submission
@@ -1519,7 +1521,7 @@ const FocusSessionPage: React.FC = () => {
       // Prepare payload based on submitType and taskType
       const payload: any = {
         submissionType: submissionType === 2 ? 0 : submissionType,
-        isEarlyCompletion: true
+        isEarlyCompletion,
       }
 
       // Add task-specific data based on taskType
@@ -1606,6 +1608,9 @@ const FocusSessionPage: React.FC = () => {
       setLoading(false)
     }
   }
+
+  // Keep ref in sync so timer interval can call it without stale closure
+  handleCompleteSessionRef.current = handleCompleteSession
 
   const handleCancelComplete = () => {
     setShowCompleteDialog(false)
@@ -1981,7 +1986,8 @@ const FocusSessionPage: React.FC = () => {
                   placeholder={t('focusSession.theoryInputPlaceholder')}
                   style={{
                     width: '100%',
-                    height: 200,
+                    height: 400,
+                    minHeight: 300,
                     padding: 12,
                     border: '1px solid var(--border-base)',
                     borderRadius: 2,

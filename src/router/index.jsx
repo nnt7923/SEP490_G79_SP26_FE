@@ -25,6 +25,7 @@ const MyPlans = React.lazy(() => import('../pages/private/Student/MyPlans'))
 const MyPlansDetail = React.lazy(() => import('../pages/private/Student/MyPlans/Detail'))
 const MentorReviewStatus = React.lazy(() => import('../pages/private/Student/MentorReviewStatus'))
 const StudentMentorReviews = React.lazy(() => import('../pages/private/Student/MentorReviews'))
+const StudentMentorsPage = React.lazy(() => import('../pages/private/Student/Mentors'))
 const Goals = React.lazy(() => import('../pages/private/Student/Goals'))
 const Profile = React.lazy(() => import('../pages/private/Account/Profile'))
 const ChangePassword = React.lazy(() => import('../pages/private/Account/ChangePassword'))
@@ -122,6 +123,7 @@ const router = createBrowserRouter([
           { path: ROUTER.EXPLORE_PATH_PREVIEW, element: <ExplorePathPreviewPage /> },
           { path: '/learning-paths/:pathId/mentor-review', element: <MentorReviewStatus /> },
           { path: '/my-plans/mentor-reviews', element: <StudentMentorReviews /> },
+          { path: '/mentors', element: <StudentMentorsPage /> },
           { path: ROUTER.GOALS, element: <Goals /> },
           { path: ROUTER.STUDENT_ACHIEVEMENTS, element: <StudentAchievements /> },
           { path: ROUTER.MY_RESOURCES, element: <MyResources /> },
