@@ -519,7 +519,7 @@ const MentorReviewEditorPage: React.FC = () => {
     if (!originalPathId) { setReviewError('Thiếu pathId gốc của student.'); return }
     setSubmitting(true); setReviewError(null)
     try {
-      if (revisedPathId) await LearningPathService.updateManualDraft(revisedPathId, buildPayload() as any).catch(() => {})
+      if (revisedPathId) await LearningPathService.updateManualDraft(revisedPathId, buildPayload() as any).catch(() => { })
       await LearningPathService.submitMentorReview(originalPathId, {
         score: data.score, feedback: data.feedback,
         suggestions: data.suggestions || null,

@@ -1046,7 +1046,7 @@
     "saveProgressDescription": "Only save progress",
     "submitFinalTitle": "Submit",
     "submitFinalDescription": "Close session and AI review",
-    "submitMentorTitle": "Submit to Mentor",
+    "submitMentorTitle": "Submit and Mentor review",
     "submitMentorDescription": "Submit directly to your mentor for review, bypassing AI verification.",
     "finalPassBadge": "PASSED",
     "finalFailBadge": "FAILED",
