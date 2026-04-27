@@ -8,6 +8,7 @@ import './theme.css'
 import './index.css'
 import './global.css'
 import './styles/chat-ui-kit-overrides.css'
+import 'devicon/devicon.min.css'
 import './i18n' // i18n - Khởi tạo đa ngôn ngữ
 import App from './App.tsx'
 import { ThemeProvider } from './contexts/ThemeContext'

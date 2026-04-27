@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next'
 
 export type { Subject }
 
-const PAGE_SIZE = 12
+const PAGE_SIZE = 9
 
 const SubjectsPage: React.FC = () => {
   const { user } = useAuthStore()
@@ -102,6 +102,7 @@ const SubjectsPage: React.FC = () => {
           createdBy: isMySubject ? 'Me' : (s.createdBy || 'Unknown'),
           createdByUserId: s.createdByUserId,
           createdAt: s.createdAt,
+          goals: Array.isArray(s.goals) ? s.goals : [],
         }
       })
 
@@ -113,8 +114,9 @@ const SubjectsPage: React.FC = () => {
     }
   }
 
-  // Reset page when filters change
+  // Reset page when filters change + scroll to top on page change
   useEffect(() => { setCurrentPage(1) }, [searchQuery, selectedCategory, activeTab])
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }, [currentPage])
 
   const availableCategories = useMemo(() => {
     const cats = subjects.map(s => s.category != null ? String(s.category) : null).filter((c): c is string => !!c)
