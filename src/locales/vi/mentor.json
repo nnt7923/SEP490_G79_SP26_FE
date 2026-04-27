@@ -496,6 +496,18 @@
       "Ordering": "Sap xep thu tu"
     }
   },
+  "myReviews": {
+    "title": "Đánh giá của tôi",
+    "subtitle": "Xem tất cả đánh giá mà học viên đã gửi cho bạn",
+    "reload": "Tải lại",
+    "fetchError": "Không thể tải danh sách đánh giá",
+    "loading": "Đang tải...",
+    "empty": "Chưa có đánh giá nào",
+    "reviews": "đánh giá",
+    "noComment": "Không có bình luận",
+    "showing": "Hiển thị {{start}}-{{end}} / {{total}}",
+    "perPage": "Mỗi trang:"
+  },
   "publishedPaths": {
     "brandName": "Lộ trình đã xuất bản",
     "brandSubtitle": "Mentor",

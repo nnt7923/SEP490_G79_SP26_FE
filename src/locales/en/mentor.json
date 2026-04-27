@@ -496,6 +496,18 @@
     "publishErrorNotDraft": "This learning path cannot be published — it is not in Draft status.",
     "publishErrorChaptersRequired": "At least one chapter is required to publish."
   },
+  "myReviews": {
+    "title": "My Reviews",
+    "subtitle": "See all ratings students have left for you",
+    "reload": "Reload",
+    "fetchError": "Failed to load reviews",
+    "loading": "Loading...",
+    "empty": "No reviews yet",
+    "reviews": "reviews",
+    "noComment": "No comment",
+    "showing": "Showing {{start}}-{{end}} of {{total}}",
+    "perPage": "Per page:"
+  },
   "publishedPaths": {
     "brandName": "Published Paths",
     "brandSubtitle": "Mentor",
