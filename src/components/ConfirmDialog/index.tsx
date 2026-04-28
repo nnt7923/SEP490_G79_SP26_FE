@@ -5,83 +5,114 @@ interface ConfirmDialogProps {
   isOpen: boolean
   title: string
   message: string
-  confirmText?: string
-  cancelText?: string
+  confirmLabel?: string
+  cancelLabel?: string
+  danger?: boolean
   onConfirm: () => void
   onCancel: () => void
-  variant?: 'danger' | 'warning' | 'info'
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   isOpen,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  danger = true,
   onConfirm,
   onCancel,
-  variant = 'danger',
 }) => {
   if (!isOpen) return null
 
-  const variantStyles = {
-    danger: {
-      icon: 'text-status-red-muted',
-      button: 'bg-status-red-solid hover:bg-status-red-solid-dark',
-    },
-    warning: {
-      icon: 'text-orange-500',
-      button: 'bg-orange-600 hover:bg-orange-700',
-    },
-    info: {
-      icon: 'text-status-blue-muted',
-      button: 'bg-status-blue-solid hover:bg-status-blue-solid-hover',
-    },
-  }
-
-  const styles = variantStyles[variant]
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-th-card rounded-lg shadow-xl w-full max-w-md border border-sl-200 animate-scale-in">
+    <div
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999, padding: 20,
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-base)',
+          borderRadius: 2,
+          width: '100%',
+          maxWidth: 420,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-start gap-4 p-6 border-b border-sl-200">
-          <div className={`flex-shrink-0 ${styles.icon}`}>
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-sl-900">
+        <div style={{
+          padding: '14px 20px',
+          borderBottom: '1px solid var(--border-base)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle size={15} style={{ color: danger ? 'var(--danger-primary, #ef4444)' : 'var(--accent-primary)' }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
               {title}
-            </h3>
+            </span>
           </div>
           <button
             onClick={onCancel}
-            className="text-sl-400 hover:text-sl-600 transition-colors cursor-pointer"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4, display: 'flex' }}
           >
-            <X className="w-5 h-5" />
+            <X size={15} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6">
-          <p className="text-sm text-sl-600">
+        <div style={{ padding: '16px 20px' }}>
+          <p style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'monospace', lineHeight: 1.6 }}>
             {message}
           </p>
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-6 border-t border-sl-200">
+        <div style={{
+          padding: '12px 20px',
+          borderTop: '1px solid var(--border-base)',
+          display: 'flex', gap: 8, justifyContent: 'flex-end',
+          background: 'var(--bg-main)',
+        }}>
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2 border border-sl-300 rounded-lg text-sl-700 hover:bg-sl-50 transition-colors cursor-pointer"
+            style={{
+              padding: '7px 16px',
+              background: 'transparent',
+              border: '1px solid var(--border-base)',
+              borderRadius: 2,
+              fontSize: 11,
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
           >
-            {cancelText}
+            {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors cursor-pointer ${styles.button}`}
+            style={{
+              padding: '7px 16px',
+              background: danger ? 'var(--danger-primary, #ef4444)' : 'var(--accent-primary)',
+              border: 'none',
+              borderRadius: 2,
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'white',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
           >
-            {confirmText}
+            {confirmLabel}
           </button>
         </div>
       </div>

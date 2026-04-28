@@ -103,6 +103,8 @@
     "mentorAiUsage": "Mentor AI Usage",
     "auditLogs": "Audit Logs",
     "mentorReviews": "Learning Path Review Request",
+    "taskReviews": "Task Reviews",
+    "lpReviews": "LP Reviews",
     "mentors": "Mentors",
     "community": "Community",
     "logout": "Logout"

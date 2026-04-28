@@ -50,6 +50,7 @@
     "createFailed": "Tạo thất bại",
     "updateFailed": "Cập nhật thất bại",
     "deleteFailed": "Xóa thất bại",
+    "deleteConfirm": "Bạn có chắc muốn xóa cấu hình \"{{name}}\"? Hành động này không thể hoàn tác.",
     "setActiveSuccess": "Đã đặt API key làm active thành công",
     "setActiveFailed": "Không thể đặt API key làm active",
     "title": "Quản lý API Key",
@@ -132,7 +133,7 @@
     "pageOption": "{{size}} / trang"
   },
   "createMentor": {
-    "title": "Tạo tài khoản Mentor",
+    "title": "Tạo tài khoản",
     "firstName": "Tên",
     "lastName": "Họ",
     "username": "Tên đăng nhập",
@@ -141,13 +142,17 @@
     "dateOfBirth": "Ngày sinh",
     "address": "Địa chỉ",
     "bio": "Tiểu sử",
-    "bioPlaceholder": "Mô tả ngắn về mentor...",
-    "sendSetupEmail": "Gửi email thiết lập tài khoản cho mentor",
+    "bioPlaceholder": "Mô tả ngắn...",
+    "role": "Vai trò",
+    "rolePlaceholder": "Chọn vai trò",
+    "roleMentor": "Mentor",
+    "roleStudent": "Student",
+    "sendSetupEmail": "Gửi email thiết lập tài khoản",
     "create": "Tạo",
     "creating": "Đang tạo...",
     "cancel": "Hủy",
-    "success": "Tạo tài khoản mentor thành công.",
-    "failed": "Không thể tạo tài khoản mentor."
+    "success": "Tạo tài khoản thành công.",
+    "failed": "Không thể tạo tài khoản."
   },
   "subscriptionPlans": {
     "title": "Quản lý bảng giá",

@@ -52,6 +52,7 @@
     "createFailed": "Create failed",
     "updateFailed": "Update failed",
     "deleteFailed": "Delete failed",
+    "deleteConfirm": "Are you sure you want to delete configuration \"{{name}}\"? This action cannot be undone.",
     "setActiveSuccess": "API key set as active successfully",
     "setActiveFailed": "Failed to set API key as active",
     "title": "API Key Management",
@@ -134,7 +135,7 @@
     "pageOption": "{{size}} / page"
   },
   "createMentor": {
-    "title": "Create Mentor Account",
+    "title": "Create Account",
     "firstName": "First Name",
     "lastName": "Last Name",
     "username": "Username",
@@ -143,13 +144,17 @@
     "dateOfBirth": "Date of Birth",
     "address": "Address",
     "bio": "Bio",
-    "bioPlaceholder": "Brief description about the mentor...",
-    "sendSetupEmail": "Send setup email to mentor",
+    "bioPlaceholder": "Brief description...",
+    "role": "Role",
+    "rolePlaceholder": "Select role",
+    "roleMentor": "Mentor",
+    "roleStudent": "Student",
+    "sendSetupEmail": "Send account setup email",
     "create": "Create",
     "creating": "Creating...",
     "cancel": "Cancel",
-    "success": "Mentor account created successfully.",
-    "failed": "Failed to create mentor account."
+    "success": "Account created successfully.",
+    "failed": "Failed to create account."
   },
   "subscriptionPlans": {
     "title": "Pricing Management",

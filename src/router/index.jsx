@@ -56,6 +56,7 @@ const MentorPublishedPaths = React.lazy(() => import('../pages/private/Mentor/Pu
 const MentorPublishedPathDetail = React.lazy(() => import('../pages/private/Mentor/Published/Detail'))
 const MentorTaskReviews = React.lazy(() => import('../pages/private/Mentor/TaskReviews'))
 const MentorMyReviews = React.lazy(() => import('../pages/private/Mentor/MyReviews'))
+const MentorLearningPathReviews = React.lazy(() => import('../pages/private/Mentor/LearningPathReviews'))
 const ExplorePathsPage = React.lazy(() => import('../pages/private/Student/ExplorePaths'))
 const ExplorePathPreviewPage = React.lazy(() => import('../pages/private/Student/ExplorePaths/Preview'))
 const LessonDetail = React.lazy(() => import('../pages/private/Plans/LessonDetail'))
@@ -192,6 +193,7 @@ const router = createBrowserRouter([
       { path: ROUTER.MENTOR_DRAFT_DETAIL, element: <MentorDraftDetail /> },
       { path: ROUTER.MENTOR_PUBLISHED_PATHS, element: <MentorPublishedPaths /> },
       { path: ROUTER.MENTOR_TASK_REVIEWS, element: <MentorTaskReviews /> },
+      { path: ROUTER.MENTOR_LP_REVIEWS, element: <MentorLearningPathReviews /> },
       { path: ROUTER.MENTOR_MY_REVIEWS, element: <MentorMyReviews /> },
       { path: ROUTER.MENTOR_PUBLISHED_PATH_DETAIL, element: <MentorPublishedPathDetail /> },
       { path: ROUTER.MENTOR_PROFILE, element: <Profile /> },
