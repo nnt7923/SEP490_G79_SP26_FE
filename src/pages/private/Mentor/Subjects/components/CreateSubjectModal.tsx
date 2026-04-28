@@ -165,12 +165,12 @@ const ICON_CATEGORIES = ['Languages', 'Frontend', 'Backend', 'Database', 'DevOps
 type GoalDuration = 'OneWeek' | 'TwoWeeks' | 'OneMonth' | 'TwoMonths' | 'ThreeMonths' | 'SixMonths'
 
 const GOAL_DURATION_OPTIONS: Array<{ value: GoalDuration; labelKey: string; days: number }> = [
-  { value: 'OneWeek',      labelKey: 'subjects.modal.duration.OneWeek',     days: 7   },
-  { value: 'TwoWeeks',     labelKey: 'subjects.modal.duration.TwoWeeks',    days: 14  },
-  { value: 'OneMonth',     labelKey: 'subjects.modal.duration.OneMonth',    days: 30  },
-  { value: 'TwoMonths',    labelKey: 'subjects.modal.duration.TwoMonths',   days: 60  },
-  { value: 'ThreeMonths',  labelKey: 'subjects.modal.duration.ThreeMonths', days: 90  },
-  { value: 'SixMonths',    labelKey: 'subjects.modal.duration.SixMonths',   days: 180 },
+  { value: 'OneWeek', labelKey: 'subjects.modal.duration.OneWeek', days: 7 },
+  { value: 'TwoWeeks', labelKey: 'subjects.modal.duration.TwoWeeks', days: 14 },
+  { value: 'OneMonth', labelKey: 'subjects.modal.duration.OneMonth', days: 30 },
+  { value: 'TwoMonths', labelKey: 'subjects.modal.duration.TwoMonths', days: 60 },
+  { value: 'ThreeMonths', labelKey: 'subjects.modal.duration.ThreeMonths', days: 90 },
+  { value: 'SixMonths', labelKey: 'subjects.modal.duration.SixMonths', days: 180 },
 ]
 
 const DURATION_ENUM_VALUES: GoalDuration[] = GOAL_DURATION_OPTIONS.map(o => o.value)
@@ -279,12 +279,12 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
       // Load existing goals from subject
       const existingGoals: GoalDraft[] = Array.isArray(editSubject.goals) && editSubject.goals.length > 0
         ? editSubject.goals.map(g => ({
-            id: g.goalId || crypto.randomUUID(),
-            goalId: g.goalId || undefined,   // keep server goalId for update payload
-            title: g.title || '',
-            description: g.description || '',
-            duration: mapToDurationEnum(g.duration ?? g.durationInDays),
-          }))
+          id: g.goalId || crypto.randomUUID(),
+          goalId: g.goalId || undefined,   // keep server goalId for update payload
+          title: g.title || '',
+          description: g.description || '',
+          duration: mapToDurationEnum(g.duration ?? g.durationInDays),
+        }))
         : [{ id: crypto.randomUUID(), title: '', description: '', duration: 'OneMonth' as GoalDuration }]
       setGoals(existingGoals)
       setActiveGoalId(existingGoals[0].id)
@@ -622,120 +622,120 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
           {/* Goals — both create and edit mode */}
           <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-heading">
-                  {t('subjects.modal.goalsLabel')} <span className="text-status-red-muted">*</span>
-                  <span className="ml-2 text-xs font-normal text-muted">({goals.length} {t('subjects.modal.goalsCount')})</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={addGoal}
-                  disabled={loading}
-                  className="flex items-center gap-1 px-3 py-1 border border-blue-600 text-status-blue text-xs font-bold hover:bg-status-blue-solid hover:text-white transition-colors disabled:opacity-50"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {t('subjects.modal.addGoal')}
-                </button>
-              </div>
-
-              {/* 2-column layout: list left, editor right */}
-              <div className="border border-bd-strong flex" style={{ minHeight: 220 }}>
-                {/* Left: scrollable goal list */}
-                <div className="w-2/5 border-r border-bd-strong overflow-y-auto" style={{ maxHeight: 280 }}>
-                  {goals.map((goal, idx) => {
-                    const isActive = goal.id === activeGoalId
-                    const hasError = !!goalErrors[goal.id]?.title
-                    const durLabel = t(GOAL_DURATION_OPTIONS.find(o => o.value === goal.duration)?.labelKey ?? '', { defaultValue: goal.duration })
-                    return (
-                      <div
-                        key={goal.id}
-                        onClick={() => setActiveGoalId(goal.id)}
-                        className={`flex items-center justify-between px-3 py-2 cursor-pointer border-b border-bd transition-colors group ${isActive ? 'bg-status-blue-solid' : 'hover:bg-th-page'}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className={`text-xs font-bold truncate ${isActive ? 'text-white' : hasError ? 'text-status-red' : 'text-heading'}`}>
-                            {goal.title.trim() || <span className="opacity-50">{t('subjects.modal.goalUntitled')}</span>}
-                          </div>
-                          <div className={`text-xs mt-0.5 ${isActive ? 'text-blue-100' : 'text-muted'}`}>
-                            #{idx + 1} · {durLabel}
-                          </div>
-                        </div>
-                        {goals.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); removeGoal(goal.id) }}
-                            disabled={loading}
-                            title={t('subjects.modal.removeGoal')}
-                            className="ml-2 flex-shrink-0 w-5 h-5 flex items-center justify-center hover:opacity-70 transition-opacity disabled:opacity-30"
-                          >
-                            <Trash2 style={{ color: '#ef4444', width: 20, height: 20, display: 'block' }} />
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Right: editor for active goal */}
-                <div className="flex-1 p-4 bg-th-page">
-                  {activeGoal ? (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-bold text-heading mb-1">
-                          {t('subjects.modal.goalTitle')} <span className="text-status-red-muted">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={activeGoal.title}
-                          onChange={(e) => updateGoal(activeGoal.id, 'title', e.target.value)}
-                          placeholder={t('subjects.modal.goalTitlePlaceholder')}
-                          disabled={loading}
-                          className={`w-full px-3 py-2 border bg-th-card focus:outline-none transition-colors text-heading text-sm ${goalErrors[activeGoal.id]?.title ? 'border-red-500' : 'border-bd-strong focus:border-blue-600'}`}
-                        />
-                        {goalErrors[activeGoal.id]?.title && (
-                          <p className="text-xs text-status-red mt-1">{goalErrors[activeGoal.id].title}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-heading mb-1">{t('subjects.modal.goalDesc')}</label>
-                        <input
-                          type="text"
-                          value={activeGoal.description}
-                          onChange={(e) => updateGoal(activeGoal.id, 'description', e.target.value)}
-                          placeholder={t('subjects.modal.goalDescPlaceholder')}
-                          disabled={loading}
-                          className="w-full px-3 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-600 transition-colors text-heading text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-heading mb-1">{t('subjects.modal.goalDuration')}</label>
-                        <select
-                          value={activeGoal.duration}
-                          onChange={(e) => updateGoal(activeGoal.id, 'duration', e.target.value)}
-                          disabled={loading}
-                          className="w-full px-3 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-600 transition-colors text-heading text-sm font-mono"
-                        >
-                          {GOAL_DURATION_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>
-                              {t(opt.labelKey, { defaultValue: opt.value })}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted">{t('subjects.modal.goalSelectHint')}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Global goal error (e.g. all titles empty) */}
-              {Object.keys(goalErrors).length > 0 && (
-                <p className="text-xs text-status-red mt-1">
-                  {t('subjects.modal.goalErrorSummary', { count: Object.keys(goalErrors).length })}
-                </p>
-              )}
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-bold text-heading">
+                {t('subjects.modal.goalsLabel')} <span className="text-status-red-muted">*</span>
+                <span className="ml-2 text-xs font-normal text-muted">({goals.length} {t('subjects.modal.goalsCount')})</span>
+              </label>
+              <button
+                type="button"
+                onClick={addGoal}
+                disabled={loading}
+                className="flex items-center gap-1 px-3 py-1 border border-blue-600 text-status-blue text-xs font-bold hover:bg-status-blue-solid hover:text-white transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('subjects.modal.addGoal')}
+              </button>
             </div>
+
+            {/* 2-column layout: list left, editor right */}
+            <div className="border border-bd-strong flex" style={{ minHeight: 220 }}>
+              {/* Left: scrollable goal list */}
+              <div className="w-2/5 border-r border-bd-strong overflow-y-auto" style={{ maxHeight: 280 }}>
+                {goals.map((goal, idx) => {
+                  const isActive = goal.id === activeGoalId
+                  const hasError = !!goalErrors[goal.id]?.title
+                  const durLabel = t(GOAL_DURATION_OPTIONS.find(o => o.value === goal.duration)?.labelKey ?? '', { defaultValue: goal.duration })
+                  return (
+                    <div
+                      key={goal.id}
+                      onClick={() => setActiveGoalId(goal.id)}
+                      className={`flex items-center justify-between px-3 py-2 cursor-pointer border-b border-bd transition-colors group ${isActive ? 'bg-status-blue-solid' : 'hover:bg-th-page'}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-xs font-bold truncate ${isActive ? 'text-white' : hasError ? 'text-status-red' : 'text-heading'}`}>
+                          {goal.title.trim() || <span className="opacity-50">{t('subjects.modal.goalUntitled')}</span>}
+                        </div>
+                        <div className={`text-xs mt-0.5 ${isActive ? 'text-blue-100' : 'text-muted'}`}>
+                          #{idx + 1} · {durLabel}
+                        </div>
+                      </div>
+                      {goals.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeGoal(goal.id) }}
+                          disabled={loading}
+                          title={t('subjects.modal.removeGoal')}
+                          style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+                        >
+                          <Trash2 style={{ color: '#ef4444', width: 20, height: 20, display: 'block' }} />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Right: editor for active goal */}
+              <div className="flex-1 p-4 bg-th-page">
+                {activeGoal ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-heading mb-1">
+                        {t('subjects.modal.goalTitle')} <span className="text-status-red-muted">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={activeGoal.title}
+                        onChange={(e) => updateGoal(activeGoal.id, 'title', e.target.value)}
+                        placeholder={t('subjects.modal.goalTitlePlaceholder')}
+                        disabled={loading}
+                        className={`w-full px-3 py-2 border bg-th-card focus:outline-none transition-colors text-heading text-sm ${goalErrors[activeGoal.id]?.title ? 'border-red-500' : 'border-bd-strong focus:border-blue-600'}`}
+                      />
+                      {goalErrors[activeGoal.id]?.title && (
+                        <p className="text-xs text-status-red mt-1">{goalErrors[activeGoal.id].title}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-heading mb-1">{t('subjects.modal.goalDesc')}</label>
+                      <input
+                        type="text"
+                        value={activeGoal.description}
+                        onChange={(e) => updateGoal(activeGoal.id, 'description', e.target.value)}
+                        placeholder={t('subjects.modal.goalDescPlaceholder')}
+                        disabled={loading}
+                        className="w-full px-3 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-600 transition-colors text-heading text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-heading mb-1">{t('subjects.modal.goalDuration')}</label>
+                      <select
+                        value={activeGoal.duration}
+                        onChange={(e) => updateGoal(activeGoal.id, 'duration', e.target.value)}
+                        disabled={loading}
+                        className="w-full px-3 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-600 transition-colors text-heading text-sm font-mono"
+                      >
+                        {GOAL_DURATION_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>
+                            {t(opt.labelKey, { defaultValue: opt.value })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted">{t('subjects.modal.goalSelectHint')}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Global goal error (e.g. all titles empty) */}
+            {Object.keys(goalErrors).length > 0 && (
+              <p className="text-xs text-status-red mt-1">
+                {t('subjects.modal.goalErrorSummary', { count: Object.keys(goalErrors).length })}
+              </p>
+            )}
+          </div>
 
           {/* Preview */}
           <div>
