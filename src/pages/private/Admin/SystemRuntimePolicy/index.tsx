@@ -16,6 +16,8 @@ import {
   ChevronUp,
   Trash2,
 } from 'lucide-react'
+import ConfirmDialog from '../../../../components/ConfirmDialog'
+import { useTranslation } from 'react-i18next'
 
 // ─── Config JSON editor helpers (same pattern as AdminAPIKey) ────────────────
 
@@ -149,6 +151,7 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
   onFieldsChange,
   onJsonTextChange,
 }) => {
+  const { t } = useTranslation('admin')
   const switchMode = (next: ConfigEditorMode) => {
     if (next === mode) return
     if (next === 'json') {
@@ -176,18 +179,18 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <label className="block text-sm font-bold text-body">configJson</label>
+        <label className="block text-sm font-bold text-body">{t('apiKey.configJsonLabel')}</label>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => switchMode('builder')}
             className={`px-3 py-1.5 text-xs font-bold border rounded-sm transition-colors ${mode === 'builder' ? 'border-blue-600 text-status-blue bg-status-blue-bg' : 'border-bd-strong text-body hover:bg-th-input'}`}
-          >Builder</button>
+          >{t('apiKey.builderMode')}</button>
           <button
             type="button"
             onClick={() => switchMode('json')}
             className={`px-3 py-1.5 text-xs font-bold border rounded-sm transition-colors ${mode === 'json' ? 'border-blue-600 text-status-blue bg-status-blue-bg' : 'border-bd-strong text-body hover:bg-th-input'}`}
-          >JSON</button>
+          >{t('apiKey.jsonMode')}</button>
         </div>
       </div>
 
@@ -196,22 +199,22 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
           <>
             <div className="space-y-3">
               {fields.length === 0 ? (
-                <p className="text-sm text-muted font-bold">No config rows yet. Click Add row.</p>
+                <p className="text-sm text-muted font-bold">{t('apiKey.noBuilderRows')}</p>
               ) : (
                 fields.map((field) => (
                   <div key={field.id} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end bg-th-card p-3 border border-bd">
                     <div className="lg:col-span-5">
-                      <label className="block text-xs font-bold text-muted mb-2">Path</label>
+                      <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.pathLabel')}</label>
                       <input
                         type="text"
                         className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                        placeholder="e.g. focusSessionAutoPauseAfterMinutes"
+                        placeholder={t('apiKey.pathPlaceholder')}
                         value={field.path}
                         onChange={(e) => updateField(field.id, { path: e.target.value })}
                       />
                     </div>
                     <div className="lg:col-span-3">
-                      <label className="block text-xs font-bold text-muted mb-2">Type</label>
+                      <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.typeLabel')}</label>
                       <select
                         className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors bg-th-card font-mono"
                         value={field.type}
@@ -230,7 +233,7 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
                       </select>
                     </div>
                     <div className="lg:col-span-3">
-                      <label className="block text-xs font-bold text-muted mb-2">Value</label>
+                      <label className="block text-xs font-bold text-muted mb-2">{t('apiKey.value')}</label>
                       {field.type === 'boolean' ? (
                         <select
                           className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors bg-th-card font-mono"
@@ -242,11 +245,11 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
                         </select>
                       ) : field.type === 'null' ? (
                         <input disabled type="text" className="w-full px-3 py-2 border border-bd text-sm bg-th-input text-muted font-mono" value="null" />
-                      ) : (
+                          ) : (
                         <input
                           type="text"
                           className="w-full px-3 py-2 border border-bd focus:outline-none focus:border-blue-500 text-sm transition-colors font-mono"
-                          placeholder={field.type === 'json' ? '{...} or [...]' : 'value'}
+                          placeholder={field.type === 'json' ? '{...} or [...]' : t('apiKey.additionalPropValuePlaceholder')}
                           value={field.value}
                           onChange={(e) => updateField(field.id, { value: e.target.value })}
                         />
@@ -257,7 +260,7 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
                         type="button"
                         onClick={() => removeField(field.id)}
                         className="w-full px-2 py-2 border border-red-500 text-status-red hover:bg-status-red-bg transition-colors font-bold text-sm flex items-center justify-center"
-                        title="Remove row"
+                        title={t('apiKey.removeProperty')}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -271,7 +274,7 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
               onClick={addField}
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-status-blue border border-blue-600 hover:bg-status-blue-bg transition-colors rounded-sm"
             >
-              <Plus size={16} /> Add row
+              <Plus size={16} /> {t('apiKey.addRow')}
             </button>
           </>
         ) : (
@@ -280,10 +283,10 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
             value={jsonText}
             onChange={(e) => onJsonTextChange(e.target.value)}
             spellCheck={false}
-            placeholder={'{\n  "focusSessionAutoPauseAfterMinutes": 10,\n  "overdueNotificationIntervalMinutes": 15\n}'}
+            placeholder={t('apiKey.configJsonPlaceholder')}
           />
         )}
-        <p className="text-xs text-muted">Supports nested JSON objects. Numbers and booleans are preserved as JSON types.</p>
+        <p className="text-xs text-muted">{t('apiKey.configJsonHint')}</p>
       </div>
     </div>
   )
@@ -309,6 +312,7 @@ const EditPanel: React.FC<EditPanelProps> = ({ policy, onSaved, onCancel }) => {
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const { t } = useTranslation('admin')
 
   const getConfigJson = (): Record<string, unknown> => {
     if (mode === 'json') return parseJsonTextToObject(jsonText)
@@ -324,7 +328,7 @@ const EditPanel: React.FC<EditPanelProps> = ({ policy, onSaved, onCancel }) => {
       const updated = await updatePolicy(policy.policyKey, { description: description || null, configJson, isActive })
       onSaved(updated)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save policy'
+      const msg = err instanceof Error ? err.message : t('systemRuntimePolicy.saveFailed')
       setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? msg)
     } finally {
       setSaving(false)
@@ -341,18 +345,18 @@ const EditPanel: React.FC<EditPanelProps> = ({ policy, onSaved, onCancel }) => {
         )}
 
         <div>
-          <label className="block text-sm font-bold text-body mb-2">policyKey</label>
+          <label className="block text-sm font-bold text-body mb-2">{t('systemRuntimePolicy.policyKeyLabel')}</label>
           <input
             type="text"
             disabled
             className="w-full px-4 py-2 border border-bd-strong bg-th-input text-muted font-mono text-sm"
             value={policy.policyKey}
           />
-          <p className="text-xs text-muted mt-1">Policy key cannot be changed.</p>
+          <p className="text-xs text-muted mt-1">{t('systemRuntimePolicy.policyKeyCannotChange')}</p>
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-body mb-2">Description</label>
+          <label className="block text-sm font-bold text-body mb-2">{t('systemRuntimePolicy.descriptionLabel')}</label>
           <input
             type="text"
             className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
@@ -380,7 +384,7 @@ const EditPanel: React.FC<EditPanelProps> = ({ policy, onSaved, onCancel }) => {
             onChange={(e) => setIsActive(e.target.checked)}
           />
           <label htmlFor={`isActive-${policy.policyKey}`} className="text-sm font-bold text-heading">
-            Active
+            {t('systemRuntimePolicy.activeLabel')}
           </label>
         </div>
 
@@ -390,14 +394,14 @@ const EditPanel: React.FC<EditPanelProps> = ({ policy, onSaved, onCancel }) => {
             disabled={saving}
             className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold disabled:opacity-60 hover:bg-status-blue-solid-hover transition-colors cursor-pointer rounded-sm"
           >
-            {saving ? 'Saving…' : 'Save policy'}
+            {saving ? t('systemRuntimePolicy.saving') : t('systemRuntimePolicy.savePolicy')}
           </button>
           <button
             type="button"
             onClick={onCancel}
             className="px-6 py-2 border border-bd-strong text-body font-bold hover:bg-th-input transition-colors cursor-pointer rounded-sm"
           >
-            Cancel
+            {t('systemRuntimePolicy.cancel')}
           </button>
         </div>
       </form>
@@ -421,6 +425,7 @@ const CreateModal: React.FC<CreateModalProps> = ({ onCreated, onClose }) => {
   const [jsonText, setJsonText] = useState('{}')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const { t } = useTranslation('admin')
 
   const getConfigJson = (): Record<string, unknown> => {
     if (mode === 'json') return parseJsonTextToObject(jsonText)
@@ -441,7 +446,7 @@ const CreateModal: React.FC<CreateModalProps> = ({ onCreated, onClose }) => {
       if (code?.errorCode === 'POLICY_ALREADY_EXISTS') {
         setError(`Policy key "${policyKey.trim()}" already exists. Use a different key or edit the existing policy.`)
       } else {
-        setError(code?.message ?? (err instanceof Error ? err.message : 'Failed to create policy'))
+        setError(code?.message ?? (err instanceof Error ? err.message : t('systemRuntimePolicy.createFailed')))
       }
     } finally {
       setSaving(false)
@@ -454,7 +459,7 @@ const CreateModal: React.FC<CreateModalProps> = ({ onCreated, onClose }) => {
         <div className="bg-th-input px-6 py-4 border-b border-bd-strong flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Plus className="text-status-blue" size={20} />
-            <h2 className="text-lg font-bold text-heading">New System Runtime Policy</h2>
+            <h2 className="text-lg font-bold text-heading">{t('systemRuntimePolicy.newPolicyTitle')}</h2>
           </div>
           <button type="button" onClick={onClose} className="text-muted hover:text-body transition-colors">
             <X size={20} />
@@ -469,7 +474,7 @@ const CreateModal: React.FC<CreateModalProps> = ({ onCreated, onClose }) => {
           )}
 
           <div>
-            <label className="block text-sm font-bold text-body mb-2">Policy Key <span className="text-status-red">*</span></label>
+            <label className="block text-sm font-bold text-body mb-2">{t('systemRuntimePolicy.policyKeyLabel')} <span className="text-status-red">*</span></label>
             <input
               type="text"
               className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
@@ -478,11 +483,11 @@ const CreateModal: React.FC<CreateModalProps> = ({ onCreated, onClose }) => {
               onChange={(e) => setPolicyKey(e.target.value)}
               autoFocus
             />
-            <p className="text-xs text-muted mt-1">Unique identifier. Cannot be changed after creation.</p>
+            <p className="text-xs text-muted mt-1">{t('systemRuntimePolicy.policyKeyHint')}</p>
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-body mb-2">Description</label>
+            <label className="block text-sm font-bold text-body mb-2">{t('systemRuntimePolicy.descriptionLabel')}</label>
             <input
               type="text"
               className="w-full px-4 py-2 border border-bd-strong bg-th-card focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm"
@@ -509,7 +514,7 @@ const CreateModal: React.FC<CreateModalProps> = ({ onCreated, onClose }) => {
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
             />
-            <label htmlFor="create-isActive" className="text-sm font-bold text-heading">Active</label>
+            <label htmlFor="create-isActive" className="text-sm font-bold text-heading">{t('systemRuntimePolicy.activeLabel')}</label>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -518,14 +523,14 @@ const CreateModal: React.FC<CreateModalProps> = ({ onCreated, onClose }) => {
               disabled={saving}
               className="px-6 py-2 border border-blue-600 bg-status-blue-solid text-white font-bold disabled:opacity-60 hover:bg-status-blue-solid-hover transition-colors cursor-pointer rounded-sm"
             >
-              {saving ? 'Creating…' : 'Create policy'}
+              {saving ? t('systemRuntimePolicy.creating') : t('systemRuntimePolicy.createPolicy')}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="px-6 py-2 border border-bd-strong text-body font-bold hover:bg-th-input transition-colors cursor-pointer rounded-sm"
             >
-              Cancel
+              {t('systemRuntimePolicy.cancel')}
             </button>
           </div>
         </form>
@@ -544,10 +549,13 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set())
   const [showCreate, setShowCreate] = useState(false)
+  const { t } = useTranslation('admin')
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null)
+  const [confirmDeleteName, setConfirmDeleteName] = useState<string | null>(null)
 
   const sidebarConfig = {
     navItems: useAdminSidebarConfig() as unknown[],
-    brand: { name: 'Admin', subtitle: 'System Runtime Policy' },
+    brand: { name: 'Admin', subtitle: t('systemRuntimePolicy.title') },
   }
 
   const fetchPolicies = async () => {
@@ -569,16 +577,22 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
   const handleSaved = (updated: SystemRuntimePolicyDto) => {
     setPolicies((prev) => prev.map((p) => (p.policyKey === updated.policyKey ? updated : p)))
     setEditingKey(null)
-    setNotice(`Policy "${updated.policyKey}" saved successfully.`)
+    setNotice(t('systemRuntimePolicy.savedSuccess', { key: updated.policyKey }))
     setTimeout(() => setNotice(''), 4000)
   }
 
   const handleCreated = (created: SystemRuntimePolicyDto) => {
     setPolicies((prev) => [created, ...prev])
     setShowCreate(false)
-    setNotice(`Policy "${created.policyKey}" created successfully.`)
+    setNotice(t('systemRuntimePolicy.createdSuccess', { key: created.policyKey }))
     setTimeout(() => setNotice(''), 4000)
   }
+
+  const handleDelete = async (policyKey: string, name?: string) => {
+    setConfirmDeleteKey(policyKey)
+    setConfirmDeleteName(name ?? policyKey)
+  }
+
 
   const toggleDetails = (key: string) => {
     setExpandedDetails((prev) => {
@@ -604,11 +618,9 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
               <div>
                 <h1 className="text-2xl font-bold text-heading flex items-center gap-2">
                   <Settings className="text-status-blue flex-shrink-0" size={28} />
-                  System Runtime Policy
+                  {t('systemRuntimePolicy.title')}
                 </h1>
-                <p className="text-muted mt-2">
-                  Manage runtime configuration policies. Changes take effect at the next job loop — no server restart needed.
-                </p>
+                <p className="text-muted mt-2">{t('systemRuntimePolicy.subtitle')}</p>
               </div>
               <button
                 type="button"
@@ -616,7 +628,7 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
                 className="px-6 py-2 border border-blue-600 bg-th-card text-status-blue font-bold hover:bg-status-blue-bg transition-colors cursor-pointer rounded-sm flex items-center gap-2"
               >
                 <Plus size={18} />
-                New Policy
+                {t('systemRuntimePolicy.newPolicyButton')}
               </button>
             </div>
           </div>
@@ -636,12 +648,12 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
           {/* ── POLICY LIST ── */}
           {loading ? (
             <div className="text-center py-16">
-              <span className="text-sm font-bold text-muted">Loading policies…</span>
+              <span className="text-sm font-bold text-muted">{t('status.loading')}</span>
             </div>
           ) : policies.length === 0 ? (
             <div className="text-center py-16 bg-th-card border border-bd-strong">
-              <p className="text-heading font-bold text-lg mb-1">No policies found</p>
-              <p className="text-sm text-muted">Click "New Policy" to create the first one.</p>
+              <p className="text-heading font-bold text-lg mb-1">{t('systemRuntimePolicy.noPoliciesTitle')}</p>
+              <p className="text-sm text-muted">{t('systemRuntimePolicy.noPoliciesHint')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -665,14 +677,14 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
                                   : 'border-bd-strong text-muted bg-th-input'
                               }`}
                             >
-                              {policy.isActive ? 'active' : 'inactive'}
+                              {policy.isActive ? t('apiKey.active') : t('apiKey.inactive')}
                             </span>
                           </div>
                           {policy.description && (
                             <p className="text-sm text-muted">{policy.description}</p>
                           )}
                           <p className="text-xs text-muted mt-1">
-                            Updated: {formatDate(policy.updatedAt)} · {configEntries.length} config key{configEntries.length !== 1 ? 's' : ''}
+                            {t('systemRuntimePolicy.updatedAt')}: {formatDate(policy.updatedAt)} · {configEntries.length} {t('systemRuntimePolicy.configKeys', { count: configEntries.length })}
                           </p>
                         </div>
 
@@ -684,7 +696,7 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
                               className="px-3 py-1 border border-bd-strong text-label text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                             >
                               {isDetailsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                              Details
+                              {t('systemRuntimePolicy.details')}
                             </button>
                           )}
                           <button
@@ -693,8 +705,9 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
                             className="px-3 py-1 border border-bd-strong text-body text-xs font-bold hover:bg-th-input cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                           >
                             {isEditing ? <X size={14} /> : <Edit size={14} />}
-                            {isEditing ? 'Close' : 'Edit'}
+                            {isEditing ? t('systemRuntimePolicy.close') : t('systemRuntimePolicy.edit')}
                           </button>
+                          
                         </div>
                       </div>
                     </div>
@@ -702,7 +715,7 @@ const AdminSystemRuntimePolicyPage: React.FC = () => {
                     {/* Expanded configJson details */}
                     {isDetailsExpanded && !isEditing && (
                       <div className="border-t border-bd px-5 py-4 bg-th-page">
-                        <div className="text-xs font-bold text-muted uppercase mb-2">configJson</div>
+                                  <div className="text-xs font-bold text-muted uppercase mb-2">{t('apiKey.configJsonLabel')}</div>
                         <pre className="bg-th-card px-4 py-3 border border-bd text-xs leading-6 text-heading overflow-x-auto whitespace-pre-wrap break-words">
                           {JSON.stringify(policy.configJson, null, 2)}
                         </pre>

@@ -13,7 +13,7 @@ export const getAdminSidebarConfig = (): SidebarNavItem[] => {
     { label: 'AI Spending', path: ROUTER.ADMIN_AI_SPENDING, icon: <Wallet size={18} /> },
     { label: 'Mentor AI Usage', path: ROUTER.ADMIN_MENTOR_AI_USAGE, icon: <Bot size={18} /> },
     { label: 'Audit Logs', path: ROUTER.ADMIN_AUDIT_LOGS, icon: <Activity size={18} /> },
-    { label: 'System Runtime Policy', path: ROUTER.ADMIN_SYSTEM_RUNTIME_POLICY, icon: <Settings size={18} /> },
+    { label: t('sidebar.systemRuntimePolicy'), path: ROUTER.ADMIN_SYSTEM_RUNTIME_POLICY, icon: <Settings size={18} /> },
   ]
 }
 

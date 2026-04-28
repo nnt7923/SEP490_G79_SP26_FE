@@ -65,6 +65,7 @@ dist-ssr
 
 # config files
 .package-lock.local.json
+.package-lock.json
 
 .tsconfig.json
 .tsconfig.node.json
