@@ -563,7 +563,12 @@
     "cancel": "Hủy",
     "sending": "Đang gửi...",
     "reminderSuccess": "Đã gửi thông báo nhắc nhở thành công.",
-    "reminderError": "Không thể gửi thông báo nhắc nhở."
+    "reminderError": "Không thể gửi thông báo nhắc nhở.",
+    "sendMentorReminder": "Nhắc nhở Mentor",
+    "confirmMentorReminderTitle": "Xác nhận gửi thông báo",
+    "confirmMentorReminderMessage": "Bạn có chắc muốn gửi thông báo nhắc nhở đến mentor không?",
+    "mentorReminderSuccess": "Đã gửi thông báo nhắc nhở đến mentor thành công.",
+    "mentorReminderError": "Không thể gửi thông báo nhắc nhở đến mentor."
   },
   "mentorAiUsage": {
     "title": "Quản lý sử dụng request AI của Mentor",

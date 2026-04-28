@@ -565,7 +565,12 @@
     "cancel": "Cancel",
     "sending": "Sending...",
     "reminderSuccess": "Reminder notification sent successfully.",
-    "reminderError": "Failed to send reminder notification."
+    "reminderError": "Failed to send reminder notification.",
+    "sendMentorReminder": "Remind Mentor",
+    "confirmMentorReminderTitle": "Confirm Send Notification",
+    "confirmMentorReminderMessage": "Are you sure you want to send a reminder notification to the mentor?",
+    "mentorReminderSuccess": "Mentor reminder notification sent successfully.",
+    "mentorReminderError": "Failed to send mentor reminder notification."
   },
   "mentorAiUsage": {
     "title": "Mentor AI Request Usage",

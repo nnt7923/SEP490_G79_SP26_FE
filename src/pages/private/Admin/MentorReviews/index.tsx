@@ -54,6 +54,7 @@ const AdminMentorReviews: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0)
   const [selected, setSelected] = useState<AdminMentorReviewItem | null>(null)
   const [confirmReminder, setConfirmReminder] = useState<AdminMentorReviewItem | null>(null)
+  const [confirmMentorReminder, setConfirmMentorReminder] = useState<AdminMentorReviewItem | null>(null)
   const [sendingReminder, setSendingReminder] = useState(false)
   const [reminderSuccess, setReminderSuccess] = useState<string | null>(null)
 
@@ -67,6 +68,21 @@ const AdminMentorReviews: React.FC = () => {
     } catch {
       setError(t('mentorReviews.reminderError'))
       setConfirmReminder(null)
+    } finally {
+      setSendingReminder(false)
+    }
+  }
+
+  const handleSendMentorReminder = async () => {
+    if (!confirmMentorReminder) return
+    setSendingReminder(true)
+    try {
+      await AdminMentorReviewService.sendMentorReminder(confirmMentorReminder.reviewId)
+      setReminderSuccess(t('mentorReviews.mentorReminderSuccess'))
+      setConfirmMentorReminder(null)
+    } catch {
+      setError(t('mentorReviews.mentorReminderError'))
+      setConfirmMentorReminder(null)
     } finally {
       setSendingReminder(false)
     }
@@ -204,6 +220,15 @@ const AdminMentorReviews: React.FC = () => {
                           {t('mentorReviews.sendReminder')}
                         </button>
                       )}
+                      {item.decisionStatus === 'Pending' && (
+                        <button
+                          onClick={() => setConfirmMentorReminder(item)}
+                          className="flex items-center gap-1 px-3 py-1 text-xs font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors mx-auto"
+                        >
+                          <Bell size={13} />
+                          {t('mentorReviews.sendMentorReminder')}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -322,16 +347,27 @@ const AdminMentorReviews: React.FC = () => {
               )}
             </div>
 
-            {/* Modal footer — trigger button for WaitingStudentResponse */}
-            {selected.decisionStatus === 'WaitingStudentResponse' && (
+            {/* Modal footer — trigger button for WaitingStudentResponse or Pending */}
+            {(selected.decisionStatus === 'WaitingStudentResponse' || selected.decisionStatus === 'Pending') && (
               <div className="p-4 border-t border-bd flex justify-end">
-                <button
-                  onClick={() => { setConfirmReminder(selected); setSelected(null) }}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors"
-                >
-                  <Bell size={15} />
-                  {t('mentorReviews.sendReminder')}
-                </button>
+                {selected.decisionStatus === 'WaitingStudentResponse' && (
+                  <button
+                    onClick={() => { setConfirmReminder(selected); setSelected(null) }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors"
+                  >
+                    <Bell size={15} />
+                    {t('mentorReviews.sendReminder')}
+                  </button>
+                )}
+                {selected.decisionStatus === 'Pending' && (
+                  <button
+                    onClick={() => { setConfirmMentorReminder(selected); setSelected(null) }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors"
+                  >
+                    <Bell size={15} />
+                    {t('mentorReviews.sendMentorReminder')}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -367,6 +403,47 @@ const AdminMentorReviews: React.FC = () => {
               </button>
               <button
                 onClick={handleSendReminder}
+                disabled={sendingReminder}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors disabled:opacity-50"
+              >
+                {sendingReminder ? <RefreshCw size={14} className="animate-spin" /> : <Bell size={14} />}
+                {sendingReminder ? t('mentorReviews.sending') : t('mentorReviews.confirmSend')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Mentor Reminder Dialog */}
+      {confirmMentorReminder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-th-card border border-bd w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b border-bd">
+              <h3 className="text-base font-bold text-heading flex items-center gap-2">
+                <Bell size={18} className="text-status-blue" />
+                {t('mentorReviews.confirmMentorReminderTitle')}
+              </h3>
+              <button onClick={() => setConfirmMentorReminder(null)} className="p-1 hover:bg-th-input text-muted transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-3 text-sm text-body">
+              <p>{t('mentorReviews.confirmMentorReminderMessage')}</p>
+              <div className="bg-th-page border border-bd p-3 space-y-1">
+                <p><span className="text-muted">{t('mentorReviews.mentor')}:</span> <span className="font-semibold text-heading">{confirmMentorReminder.mentorName}</span></p>
+                <p><span className="text-muted">{t('mentorReviews.pathTitle')}:</span> <span className="font-semibold text-heading">{confirmMentorReminder.pathTitle}</span></p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-bd flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmMentorReminder(null)}
+                disabled={sendingReminder}
+                className="px-4 py-2 text-sm border border-bd text-body hover:bg-th-input transition-colors disabled:opacity-50"
+              >
+                {t('mentorReviews.cancel')}
+              </button>
+              <button
+                onClick={handleSendMentorReminder}
                 disabled={sendingReminder}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors disabled:opacity-50"
               >
