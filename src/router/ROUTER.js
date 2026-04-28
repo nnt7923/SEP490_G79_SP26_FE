@@ -33,6 +33,7 @@ const ROUTER = {
   MENTOR_PUBLISHED_PATH_DETAIL: "/mentor/published/:pathId",
   MENTOR_TASK_REVIEWS: "/mentor/task-reviews",
   MENTOR_MY_REVIEWS: "/mentors/me/reviews",
+  MENTOR_LP_REVIEWS: "/mentor/lp-reviews",
   // Admin nested
   ADMIN_API_KEY: "/admin/api-key",
   ADMIN_SHOP: "/admin/shop",

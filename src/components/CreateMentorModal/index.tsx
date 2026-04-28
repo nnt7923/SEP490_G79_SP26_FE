@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { X, UserPlus, Loader2 } from 'lucide-react'
 import { UserService } from '../../services'
-import type { CreateMentorPayload } from '../../services/UserService'
+import type { CreateUserPayload, UserRole } from '../../services/UserService'
 import { useTranslation } from 'react-i18next'
 
 interface CreateMentorModalProps {
@@ -10,11 +10,12 @@ interface CreateMentorModalProps {
   onSuccess: () => void
 }
 
-const INITIAL_FORM: CreateMentorPayload = {
+const INITIAL_FORM: CreateUserPayload = {
   email: '',
   username: '',
   firstName: '',
   lastName: '',
+  role: 'Mentor',
   bio: '',
   phone: '',
   address: '',
@@ -24,13 +25,13 @@ const INITIAL_FORM: CreateMentorPayload = {
 
 const CreateMentorModal: React.FC<CreateMentorModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { t } = useTranslation('admin')
-  const [form, setForm] = useState<CreateMentorPayload>(INITIAL_FORM)
+  const [form, setForm] = useState<CreateUserPayload>(INITIAL_FORM)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (!isOpen) return null
 
-  const handleChange = (field: keyof CreateMentorPayload, value: any) => {
+  const handleChange = (field: keyof CreateUserPayload, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -39,11 +40,11 @@ const CreateMentorModal: React.FC<CreateMentorModalProps> = ({ isOpen, onClose, 
     setLoading(true)
     setError(null)
     try {
-      const payload: CreateMentorPayload = {
+      const payload: CreateUserPayload = {
         ...form,
         dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth).toISOString() : undefined,
       }
-      await UserService.createMentor(payload)
+      await UserService.createUser(payload)
       setForm(INITIAL_FORM)
       onSuccess()
       onClose()
@@ -125,7 +126,24 @@ const CreateMentorModal: React.FC<CreateMentorModalProps> = ({ isOpen, onClose, 
         </div>
 
         {/* Form */}
-        <form id="create-mentor-form" onSubmit={handleSubmit} style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form id="create-user-form" onSubmit={handleSubmit} style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Role */}
+          <div>
+            <label style={labelStyle}>{t('createMentor.role')} *</label>
+            <select
+              required
+              style={{ ...inputStyle, cursor: 'pointer' }}
+              value={form.role}
+              onChange={(e) => handleChange('role', e.target.value as UserRole)}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base, #e2e8f0)' }}
+            >
+              <option value="" disabled>{t('createMentor.rolePlaceholder')}</option>
+              <option value="Mentor">{t('createMentor.roleMentor')}</option>
+              <option value="Student">{t('createMentor.roleStudent')}</option>
+            </select>
+          </div>
+
           {/* Row: firstName + lastName */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
@@ -162,7 +180,7 @@ const CreateMentorModal: React.FC<CreateMentorModalProps> = ({ isOpen, onClose, 
               style={inputStyle}
               value={form.username}
               onChange={(e) => handleChange('username', e.target.value)}
-              placeholder="mentor1"
+              placeholder="user123"
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
               onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base, #e2e8f0)' }}
             />
@@ -177,7 +195,7 @@ const CreateMentorModal: React.FC<CreateMentorModalProps> = ({ isOpen, onClose, 
               style={inputStyle}
               value={form.email}
               onChange={(e) => handleChange('email', e.target.value)}
-              placeholder="mentor@example.com"
+              placeholder="user@example.com"
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)' }}
               onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-base, #e2e8f0)' }}
             />
@@ -295,7 +313,7 @@ const CreateMentorModal: React.FC<CreateMentorModalProps> = ({ isOpen, onClose, 
           </button>
           <button
             type="submit"
-            form="create-mentor-form"
+            form="create-user-form"
             disabled={loading}
             style={{
               padding: '7px 16px',
