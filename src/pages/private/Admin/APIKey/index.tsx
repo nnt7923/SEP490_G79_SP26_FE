@@ -5,6 +5,7 @@ import { useAdminSidebarConfig } from '../components/AdminSideBar'
 import { AIConfigService, AIUsageType } from '../../../../services'
 import { LayoutTemplate, FileText, CheckCircle, MessageSquare, Plus, X, ChevronDown, ChevronUp, ChevronRight, Edit, Trash2, Settings, Key } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import ConfirmDialog from '../../../../components/ConfirmDialog'
 
 const AccessTier = {
   Free: 0,
@@ -100,6 +101,8 @@ const AdminApiKeyPage: React.FC = () => {
   const [error, setError] = useState<string>('')
   const [notice, setNotice] = useState<string>('')
   const { t } = useTranslation('admin')
+  const [confirmDeleteName, setConfirmDeleteName] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // List of configs from backend
   const [items, setItems] = useState<any[]>([])
@@ -457,11 +460,20 @@ const AdminApiKeyPage: React.FC = () => {
     }
   }
 
-  const onDelete = async (name: string) => {
+  const onDelete = (id: string, name: string) => {
+    setConfirmDeleteId(id)
+    setConfirmDeleteName(name)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId) return
+    const id = confirmDeleteId
+    setConfirmDeleteId(null)
+    setConfirmDeleteName(null)
     setError('')
     setNotice(t('apiKey.deletingConfig'))
     try {
-      await AIConfigService.deleteAIConfig(name)
+      await AIConfigService.deleteAIConfig(id)
       if (expandedIndex !== null) setExpandedIndex(null)
       await fetchList()
       setNotice(t('apiKey.deleteSuccess'))
@@ -867,7 +879,7 @@ const AdminApiKeyPage: React.FC = () => {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => name !== '—' && onDelete(name)}
+                                            onClick={() => { const id = it.configId ?? it.id ?? ''; if (id) onDelete(id, name) }}
                                             className="px-3 py-1 border border-red-500 text-status-red text-xs font-bold hover:bg-status-red-bg cursor-pointer transition-colors rounded-sm flex items-center gap-1"
                                           >
                                             <Trash2 size={14} />
@@ -907,6 +919,15 @@ const AdminApiKeyPage: React.FC = () => {
         )}
       </div>
       </div>
+      <ConfirmDialog
+        isOpen={confirmDeleteId !== null}
+        title={t('apiKey.delete')}
+        message={t('apiKey.deleteConfirm', { name: confirmDeleteName ?? '' })}
+        confirmLabel={t('apiKey.delete')}
+        cancelLabel={t('apiKey.cancel')}
+        onConfirm={() => { void handleConfirmDelete() }}
+        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteName(null) }}
+      />
     </Layout>
   )
 }

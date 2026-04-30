@@ -50,6 +50,7 @@
     "createFailed": "Tạo thất bại",
     "updateFailed": "Cập nhật thất bại",
     "deleteFailed": "Xóa thất bại",
+    "deleteConfirm": "Bạn có chắc muốn xóa cấu hình \"{{name}}\"? Hành động này không thể hoàn tác.",
     "setActiveSuccess": "Đã đặt API key làm active thành công",
     "setActiveFailed": "Không thể đặt API key làm active",
     "title": "Quản lý API Key",
@@ -71,6 +72,35 @@
     "tierPaid": "Trả phí",
     "selectTier": "Chọn gói truy cập",
     "noConfigsInTier": "Chưa có cấu hình trong gói này"
+  },
+  "systemRuntimePolicy": {
+    "title": "System Runtime Policy",
+    "subtitle": "Quản lý các policy cấu hình runtime. Thay đổi có hiệu lực ở vòng xử lý công việc tiếp theo — không cần khởi động lại server.",
+    "newPolicyButton": "Tạo policy",
+    "newPolicyTitle": "Tạo System Runtime Policy",
+    "noPoliciesTitle": "Chưa có policy nào",
+    "noPoliciesHint": "Bấm \"Tạo policy\" để tạo policy đầu tiên.",
+    "policyKeyLabel": "Policy Key",
+    "policyKeyCannotChange": "Policy key không thể thay đổi.",
+    "policyKeyHint": "Định danh duy nhất. Không thể thay đổi sau khi tạo.",
+    "descriptionLabel": "Mô tả",
+    "activeLabel": "Hoạt động",
+    "savePolicy": "Lưu policy",
+    "createPolicy": "Tạo policy",
+    "creating": "Đang tạo…",
+    "saving": "Đang lưu…",
+    "cancel": "Hủy",
+    "details": "Chi tiết",
+    "edit": "Sửa",
+    "close": "Đóng",
+    "updatedAt": "Cập nhật",
+    "configKeys": "khóa cấu hình",
+    "savedSuccess": "Đã lưu Policy \"{{key}}\" thành công.",
+    "createdSuccess": "Đã tạo Policy \"{{key}}\" thành công.",
+    "saveFailed": "Không thể lưu policy",
+    "createFailed": "Không thể tạo policy",
+    "deletedSuccess": "Đã xóa Policy \"{{key}}\" thành công.",
+    "deleteFailed": "Không thể xóa policy"
   },
   "dashboard": {
     "title": "Bảng điều khiển Admin",
@@ -132,7 +162,7 @@
     "pageOption": "{{size}} / trang"
   },
   "createMentor": {
-    "title": "Tạo tài khoản Mentor",
+    "title": "Tạo tài khoản",
     "firstName": "Tên",
     "lastName": "Họ",
     "username": "Tên đăng nhập",
@@ -141,13 +171,17 @@
     "dateOfBirth": "Ngày sinh",
     "address": "Địa chỉ",
     "bio": "Tiểu sử",
-    "bioPlaceholder": "Mô tả ngắn về mentor...",
-    "sendSetupEmail": "Gửi email thiết lập tài khoản cho mentor",
+    "bioPlaceholder": "Mô tả ngắn...",
+    "role": "Vai trò",
+    "rolePlaceholder": "Chọn vai trò",
+    "roleMentor": "Mentor",
+    "roleStudent": "Student",
+    "sendSetupEmail": "Gửi email thiết lập tài khoản",
     "create": "Tạo",
     "creating": "Đang tạo...",
     "cancel": "Hủy",
-    "success": "Tạo tài khoản mentor thành công.",
-    "failed": "Không thể tạo tài khoản mentor."
+    "success": "Tạo tài khoản thành công.",
+    "failed": "Không thể tạo tài khoản."
   },
   "subscriptionPlans": {
     "title": "Quản lý bảng giá",
@@ -558,7 +592,12 @@
     "cancel": "Hủy",
     "sending": "Đang gửi...",
     "reminderSuccess": "Đã gửi thông báo nhắc nhở thành công.",
-    "reminderError": "Không thể gửi thông báo nhắc nhở."
+    "reminderError": "Không thể gửi thông báo nhắc nhở.",
+    "sendMentorReminder": "Nhắc nhở Mentor",
+    "confirmMentorReminderTitle": "Xác nhận gửi thông báo",
+    "confirmMentorReminderMessage": "Bạn có chắc muốn gửi thông báo nhắc nhở đến mentor không?",
+    "mentorReminderSuccess": "Đã gửi thông báo nhắc nhở đến mentor thành công.",
+    "mentorReminderError": "Không thể gửi thông báo nhắc nhở đến mentor."
   },
   "mentorAiUsage": {
     "title": "Quản lý sử dụng request AI của Mentor",

@@ -120,8 +120,6 @@ function getInitials(name: string): string {
 // Button that fetches revisedPathId from review then navigates to draft editor
 function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, mentorId }: { pathId: string; revisedPathId?: string; mentorId: string }) {
   const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
   const [decisionStatus, setDecisionStatus] = useState<string | null>(null)
   const [revisedPathId, setRevisedPathId] = useState<string | null>(revisedPathIdFromMsg ?? null)
 
@@ -142,24 +140,13 @@ function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, 
 
   const handleOpen = async () => {
     if (isAccepted) return
+    // If already has a revised draft → go to draft editor
     if (revisedPathId) {
       navigate(`/mentor/drafts/${revisedPathId}?reviewPathId=${pathId}`)
       return
     }
-    setLoading(true); setErr(null)
-    try {
-      const reviews = await LearningPathService.getMentorReviews(pathId)
-      const mine = reviews.find((r: any) => r.mentorId === mentorId)
-      if (mine?.revisedPathId) {
-        navigate(`/mentor/drafts/${mine.revisedPathId}?reviewPathId=${pathId}`)
-      } else {
-        setErr('Workspace chưa sẵn sàng. Thử lại sau.')
-      }
-    } catch {
-      setErr('Không thể tải thông tin review.')
-    } finally {
-      setLoading(false)
-    }
+    // No revised draft yet → go to LP Reviews page so mentor can act on the request
+    navigate('/mentor/lp-reviews')
   }
 
   const statusMap: Record<string, { label: string; color: string; bg: string }> = {
@@ -179,16 +166,15 @@ function ReviewRequestOpenButton({ pathId, revisedPathId: revisedPathIdFromMsg, 
         </span>
       </div>
       {!isAccepted ? (
-        <button onClick={handleOpen} disabled={loading}
-          style={{ width: '100%', padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Đang tải...' : 'Xem & Review lộ trình'}
+        <button onClick={handleOpen}
+          style={{ width: '100%', padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          {revisedPathId ? 'Mở workspace review' : 'Xem & Review lộ trình'}
         </button>
       ) : (
         <div style={{ padding: '8px 12px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, fontSize: 12, color: 'var(--success-primary)', textAlign: 'center' }}>
           Student đã chấp nhận bản sửa
         </div>
       )}
-      {err && <div style={{ fontSize: 11, color: 'var(--danger-primary)', marginTop: 4 }}>{err}</div>}
     </div>
   )
 }
@@ -237,6 +223,7 @@ const MentorChatPage: React.FC<MentorChatPageProps> = ({
   const { logout, user } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation() as {
+    pathname: string;
     state?: {
       conversationId?: string;
       sharePath?: { pathId: string; title?: string };

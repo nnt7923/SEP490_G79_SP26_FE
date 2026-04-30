@@ -285,6 +285,25 @@ const Header: React.FC = () => {
                   {t('nav.plans')}
                 </Link>
               )}
+              {isStudent && (
+                <Link
+                  to="/explore-paths"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 13,
+                    color: 'var(--text-secondary)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease',
+                    fontWeight: 500,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
+                >
+                  {t('sidebar.explorePaths', { defaultValue: 'Explore Paths' })}
+                </Link>
+              )}
               <Link
                 to="/about"
                 style={{

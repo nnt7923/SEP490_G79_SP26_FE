@@ -334,9 +334,13 @@ const SelectMentorModal: React.FC<SelectMentorModalProps> = ({
           <div style={{ padding: 18 }}>
             {/* Mentor info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--bg-main)', border: '1px solid var(--border-base)', borderRadius: 2, marginBottom: 16 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 2, background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                {confirmMentor.fullName?.charAt(0)?.toUpperCase() || 'M'}
-              </div>
+              {confirmMentor.avatarUrl ? (
+                <img src={confirmMentor.avatarUrl} alt={confirmMentor.fullName} style={{ width: 32, height: 32, borderRadius: 2, objectFit: 'cover', flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 32, height: 32, borderRadius: 2, background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                  {confirmMentor.fullName?.charAt(0)?.toUpperCase() || 'M'}
+                </div>
+              )}
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{confirmMentor.fullName}</div>
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>@{confirmMentor.username}</div>

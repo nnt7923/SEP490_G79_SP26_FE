@@ -8,4 +8,11 @@ export type Subject = {
   createdBy?: string
   createdByUserId?: string
   createdAt?: string
+  goals?: Array<{
+    goalId?: string
+    title: string
+    description?: string
+    duration?: string
+    durationInDays?: number
+  }>
 }

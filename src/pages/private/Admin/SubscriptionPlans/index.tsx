@@ -10,6 +10,7 @@ import {
 } from '../../../../services/AdminSubscriptionService'
 import { useTranslation } from 'react-i18next'
 import { Package, RefreshCw, Plus, Pencil, Trash2, X } from 'lucide-react'
+import ConfirmDialog from '../../../../components/ConfirmDialog'
 
 type NoticeType = 'success' | 'error'
 type ShopAdminTab = 'token' | 'mentor'
@@ -70,6 +71,9 @@ const AdminSubscriptionPlansPage: React.FC = () => {
   const [editingMentorId, setEditingMentorId] = useState<string | null>(null)
   const [showMentorForm, setShowMentorForm] = useState<boolean>(false)
   const [mentorForm, setMentorForm] = useState<UpsertAdminMentorPackagePayload>(defaultMentorForm)
+
+  type ConfirmTarget = { type: 'token'; pkg: AdminTokenPackage } | { type: 'mentor'; pkg: AdminMentorPackage }
+  const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null)
 
   const sortedTokenPackages = useMemo(
     () => [...tokenPackages].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name)),
@@ -214,51 +218,50 @@ const AdminSubscriptionPlansPage: React.FC = () => {
   }
 
   const onDeleteToken = async (tokenPackage: AdminTokenPackage) => {
-    const accepted = window.confirm(t('subscriptionPlans.deleteConfirm', { name: tokenPackage.name }))
-    if (!accepted) return
-
-    setDeletingId(tokenPackage.tokenPackageId)
-    setError('')
-    setNotice(null)
-    try {
-      await AdminSubscriptionService.deleteTokenPackage(tokenPackage.tokenPackageId)
-      setNotice({ type: 'success', message: t('subscriptionPlans.deleteSuccess') })
-      await fetchData()
-      if (editingTokenId === tokenPackage.tokenPackageId) {
-        resetTokenForm()
-      }
-    } catch (err: unknown) {
-      const message = (err as { message?: string })?.message || t('subscriptionPlans.deleteFailed')
-      setError(message)
-    } finally {
-      setDeletingId(null)
-    }
+    setConfirmTarget({ type: 'token', pkg: tokenPackage })
   }
 
   const onDeleteMentor = async (mentorPackage: AdminMentorPackage) => {
-    const accepted = window.confirm(
-      t('subscriptionPlans.mentorDeleteConfirm', {
-        defaultValue: 'Delete mentor package "{{name}}"? This action cannot be undone.',
-        name: mentorPackage.name,
-      }),
-    )
-    if (!accepted) return
+    setConfirmTarget({ type: 'mentor', pkg: mentorPackage })
+  }
 
-    setDeletingId(mentorPackage.mentorPackageId)
-    setError('')
-    setNotice(null)
-    try {
-      await AdminSubscriptionService.deleteMentorPackage(mentorPackage.mentorPackageId)
-      setNotice({ type: 'success', message: t('subscriptionPlans.mentorDeleteSuccess', { defaultValue: 'Mentor package deleted successfully' }) })
-      await fetchData()
-      if (editingMentorId === mentorPackage.mentorPackageId) {
-        resetMentorForm()
+  const handleConfirmDelete = async () => {
+    if (!confirmTarget) return
+    const target = confirmTarget
+    setConfirmTarget(null)
+
+    if (target.type === 'token') {
+      const tokenPackage = target.pkg
+      setDeletingId(tokenPackage.tokenPackageId)
+      setError('')
+      setNotice(null)
+      try {
+        await AdminSubscriptionService.deleteTokenPackage(tokenPackage.tokenPackageId)
+        setNotice({ type: 'success', message: t('subscriptionPlans.deleteSuccess') })
+        await fetchData()
+        if (editingTokenId === tokenPackage.tokenPackageId) resetTokenForm()
+      } catch (err: unknown) {
+        const message = (err as { message?: string })?.message || t('subscriptionPlans.deleteFailed')
+        setError(message)
+      } finally {
+        setDeletingId(null)
       }
-    } catch (err: unknown) {
-      const message = (err as { message?: string })?.message || t('subscriptionPlans.mentorDeleteFailed', { defaultValue: 'Failed to delete mentor package' })
-      setError(message)
-    } finally {
-      setDeletingId(null)
+    } else {
+      const mentorPackage = target.pkg
+      setDeletingId(mentorPackage.mentorPackageId)
+      setError('')
+      setNotice(null)
+      try {
+        await AdminSubscriptionService.deleteMentorPackage(mentorPackage.mentorPackageId)
+        setNotice({ type: 'success', message: t('subscriptionPlans.mentorDeleteSuccess', { defaultValue: 'Mentor package deleted successfully' }) })
+        await fetchData()
+        if (editingMentorId === mentorPackage.mentorPackageId) resetMentorForm()
+      } catch (err: unknown) {
+        const message = (err as { message?: string })?.message || t('subscriptionPlans.mentorDeleteFailed', { defaultValue: 'Failed to delete mentor package' })
+        setError(message)
+      } finally {
+        setDeletingId(null)
+      }
     }
   }
 
@@ -713,6 +716,19 @@ const AdminSubscriptionPlansPage: React.FC = () => {
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={confirmTarget !== null}
+        title={t('subscriptionPlans.delete')}
+        message={
+          confirmTarget?.type === 'token'
+            ? t('subscriptionPlans.deleteConfirm', { name: (confirmTarget.pkg as AdminTokenPackage).name })
+            : t('subscriptionPlans.mentorDeleteConfirm', { name: confirmTarget ? (confirmTarget.pkg as AdminMentorPackage).name : '' })
+        }
+        confirmLabel={t('subscriptionPlans.delete')}
+        cancelLabel={t('subscriptionPlans.cancel')}
+        onConfirm={() => { void handleConfirmDelete() }}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </Layout>
   )
 }

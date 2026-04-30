@@ -141,9 +141,9 @@ export async function putAIConfigById(configId: string, payload: Partial<AIConfi
   return unwrap<AIConfig>(res)
 }
 
-// DELETE /admin/ai-configs/{providerName}
-export async function deleteAIConfig(providerName: string): Promise<any> {
-  const res: any = await api.delete(providerConfigUrl(providerName))
+// DELETE /admin/ai-configs/{configId}
+export async function deleteAIConfig(configId: string): Promise<any> {
+  const res: any = await api.delete(configIdUrl(configId))
   clearAIConfigCache()
   return unwrap<any>(res)
 }

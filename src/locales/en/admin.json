@@ -52,6 +52,7 @@
     "createFailed": "Create failed",
     "updateFailed": "Update failed",
     "deleteFailed": "Delete failed",
+    "deleteConfirm": "Are you sure you want to delete configuration \"{{name}}\"? This action cannot be undone.",
     "setActiveSuccess": "API key set as active successfully",
     "setActiveFailed": "Failed to set API key as active",
     "title": "API Key Management",
@@ -74,6 +75,36 @@
     "selectTier": "Choose access tier",
     "noConfigsInTier": "No configurations in this tier"
   },
+  "systemRuntimePolicy": {
+    "title": "System Runtime Policy",
+    "subtitle": "Manage runtime configuration policies. Changes take effect at the next job loop — no server restart needed.",
+    "newPolicyButton": "New Policy",
+    "newPolicyTitle": "New System Runtime Policy",
+    "noPoliciesTitle": "No policies found",
+    "noPoliciesHint": "Click \"New Policy\" to create the first one.",
+    "policyKeyLabel": "Policy Key",
+    "policyKeyCannotChange": "Policy key cannot be changed.",
+    "policyKeyHint": "Unique identifier. Cannot be changed after creation.",
+    "descriptionLabel": "Description",
+    "activeLabel": "Active",
+    "savePolicy": "Save policy",
+    "createPolicy": "Create policy",
+    "creating": "Creating…",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "details": "Details",
+    "edit": "Edit",
+    "close": "Close",
+    "updatedAt": "Updated",
+    "configKeys": "config key(s)",
+    "savedSuccess": "Policy \"{{key}}\" saved successfully.",
+    "createdSuccess": "Policy \"{{key}}\" created successfully.",
+    "saveFailed": "Failed to save policy",
+    "createFailed": "Failed to create policy",
+    "deletedSuccess": "Policy \"{{key}}\" deleted successfully.",
+    "deleteFailed": "Failed to delete policy"
+  },
+  
   "dashboard": {
     "title": "Admin Dashboard",
     "welcome": "Welcome back, {{name}}.",
@@ -134,7 +165,7 @@
     "pageOption": "{{size}} / page"
   },
   "createMentor": {
-    "title": "Create Mentor Account",
+    "title": "Create Account",
     "firstName": "First Name",
     "lastName": "Last Name",
     "username": "Username",
@@ -143,13 +174,17 @@
     "dateOfBirth": "Date of Birth",
     "address": "Address",
     "bio": "Bio",
-    "bioPlaceholder": "Brief description about the mentor...",
-    "sendSetupEmail": "Send setup email to mentor",
+    "bioPlaceholder": "Brief description...",
+    "role": "Role",
+    "rolePlaceholder": "Select role",
+    "roleMentor": "Mentor",
+    "roleStudent": "Student",
+    "sendSetupEmail": "Send account setup email",
     "create": "Create",
     "creating": "Creating...",
     "cancel": "Cancel",
-    "success": "Mentor account created successfully.",
-    "failed": "Failed to create mentor account."
+    "success": "Account created successfully.",
+    "failed": "Failed to create account."
   },
   "subscriptionPlans": {
     "title": "Pricing Management",
@@ -560,7 +595,12 @@
     "cancel": "Cancel",
     "sending": "Sending...",
     "reminderSuccess": "Reminder notification sent successfully.",
-    "reminderError": "Failed to send reminder notification."
+    "reminderError": "Failed to send reminder notification.",
+    "sendMentorReminder": "Remind Mentor",
+    "confirmMentorReminderTitle": "Confirm Send Notification",
+    "confirmMentorReminderMessage": "Are you sure you want to send a reminder notification to the mentor?",
+    "mentorReminderSuccess": "Mentor reminder notification sent successfully.",
+    "mentorReminderError": "Failed to send mentor reminder notification."
   },
   "mentorAiUsage": {
     "title": "Mentor AI Request Usage",

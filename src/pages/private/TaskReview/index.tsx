@@ -144,7 +144,7 @@ const TaskReviewDetailPage: React.FC = () => {
 
   return (
     <Layout sidebar={sidebarConfig}>
-      <div style={{ padding: 24, background: 'var(--bg-main)', minHeight: '100vh', display: 'grid', gap: 16 }}>
+      <div style={{ padding: 24, background: 'var(--bg-main)', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -193,13 +193,10 @@ const TaskReviewDetailPage: React.FC = () => {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                <FieldBlock label={t('taskReview.sessionId', { ns: 'common', defaultValue: 'Session ID' })} value={detail.sessionId || '-'} mono />
-                <FieldBlock label={t('taskReview.taskId', { ns: 'common', defaultValue: 'Task ID' })} value={detail.taskId || '-'} mono />
                 <FieldBlock label={t('taskReview.student', { ns: 'common', defaultValue: 'Student' })} value={detail.studentUserName || detail.studentId || '-'} />
                 <FieldBlock label={t('taskReview.mentor', { ns: 'common', defaultValue: 'Mentor' })} value={detail.mentorUserName || detail.mentorId || '-'} />
                 <FieldBlock label={t('taskReview.requestedAt', { ns: 'common', defaultValue: 'Requested at' })} value={formatDateTime(detail.requestedAt)} />
                 <FieldBlock label={t('taskReview.reviewedAt', { ns: 'common', defaultValue: 'Reviewed at' })} value={formatDateTime(detail.reviewedAt)} />
-                <FieldBlock label={t('taskReview.verification', { ns: 'common', defaultValue: 'Verification' })} value={`${detail.isVerified ? t('taskReview.verified', { ns: 'common', defaultValue: 'Verified' }) : t('taskReview.notVerified', { ns: 'common', defaultValue: 'Not verified' })} / ${detail.verificationScore ?? '-'}`} />
                 <FieldBlock label={t('taskReview.score', { ns: 'common', defaultValue: 'Score' })} value={detail.score ?? '-'} />
               </div>
             </div>

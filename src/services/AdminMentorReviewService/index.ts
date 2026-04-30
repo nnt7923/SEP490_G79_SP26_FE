@@ -44,6 +44,10 @@ class AdminMentorReviewServiceClass {
     await api.post(`/admin/mentor-reviews/${reviewId}/send-reminder`)
   }
 
+  async sendMentorReminder(reviewId: string): Promise<void> {
+    await api.post(`/admin/mentor-reviews/${reviewId}/send-mentor-reminder`)
+  }
+
   async getReviews(params?: AdminMentorReviewsParams): Promise<PaginatedResult<AdminMentorReviewItem>> {
     const response = await api.get('/admin/mentor-reviews', {
       params: {

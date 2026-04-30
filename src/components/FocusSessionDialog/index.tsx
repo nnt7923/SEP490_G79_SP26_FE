@@ -148,9 +148,6 @@ const FocusSessionDialog: React.FC<FocusSessionDialogProps> = ({
                 transition: 'border-color 0.2s ease'
               }}
             />
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-              Từ {getMinDuration()} đến {getMaxDuration()} phút
-            </div>
           </div>
 
           <div style={{ marginBottom: 20 }}>
