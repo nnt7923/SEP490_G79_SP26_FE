@@ -564,7 +564,7 @@
     "status_Pending": "Chờ xử lý",
     "status_Accepted": "Đã chấp nhận",
     "status_Rejected": "Đã từ chối",
-    "status_WaitingStudentResponse": "Chờ phản hồi học viên",
+    "status_WaitingStudentResponse": "Chờ học viên phản hồi",
     "pathTitle": "Lộ trình",
     "student": "Học viên",
     "mentor": "Mentor",

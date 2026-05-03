@@ -230,7 +230,16 @@
     "statusLabel": "status",
     "createdLabel": "created",
     "completedLabel": "completed",
-    "selectGoal": "select a goal to view details"
+    "selectGoal": "select a goal to view details",
+    "compensatoryGenButton": "gen compensatory path",
+    "compensatoryBtnDisabledHint": "All goals in each path must meet their target progress before generating a compensatory path",
+    "compensatoryModalTitle": "Generate Compensatory Learning Path",
+    "compensatoryModalDesc": "The following learning paths have all goals meeting their targets, but the total goal weight is less than 100%. A compensatory path will be generated to cover the remaining percentage.",
+    "compensatoryWeightInfo": "Compensatory coverage: {{weight}}%",
+    "compensatoryGenerating": "generating...",
+    "compensatoryConfirmButton": "generate compensatory path",
+    "compensatoryGenSuccess": "Compensatory learning path generated successfully",
+    "compensatoryGenFailed": "Failed to generate compensatory learning path"
   },
   "myPlans": {
     "searchPlaceholder": "search learning paths...",
