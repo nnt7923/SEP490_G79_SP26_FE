@@ -174,8 +174,10 @@ const GoalsPage: React.FC = () => {
   const [pageNumber, setPageNumber] = useState<number>(1)
   const pageSize = 20
 
-  const [showCompensatoryModal, setShowCompensatoryModal] = useState<string | null>(null)
+  const [showCompensatoryModal, setShowCompensatoryModal] = useState<{ pathId: string; goalId: string } | null>(null)
   const [generatingCompensatory, setGeneratingCompensatory] = useState<boolean>(false)
+  const [supplementaryLanguage, setSupplementaryLanguage] = useState<number>(1) // 1=Vietnamese, 2=English
+  const [supplementaryLevel, setSupplementaryLevel] = useState<string>('Beginner')
 
   const sidebarConfig = {
     navItems: useStudentSidebarConfig(),
@@ -563,48 +565,44 @@ const GoalsPage: React.FC = () => {
     return map
   }, [pathGoalRows])
 
-  // A path is eligible for compensatory generation if:
-  // 1. It has more than 1 goal (total weight < 100%)
-  // 2. All goals in that path have progressPercent >= targetPercent
+  // A path is eligible for supplementary generation if:
+  // 1. It has more than 1 goal
+  // 2. All goals in that path have goalStatus = 'completed'
   const eligibleCompensatoryPaths = useMemo(() => {
-    const result: Array<{ learningPathId: string; learningPathTitle: string; subjectName: string | null | undefined; goals: PathGoalItem[]; compensatoryWeight: number }> = []
+    const result: Array<{ learningPathId: string; learningPathTitle: string; subjectName: string | null | undefined; goals: PathGoalItem[] }> = []
     for (const [pathId, goals] of pathGoalsByPath.entries()) {
       if (goals.length <= 1) continue
-      const allGoalsMet = goals.every((g) => {
-        const progress = normalizePercentValue(g.progressPercent)
-        const target = normalizePercentValue(g.targetPercent)
-        return progress >= target
+      const allGoalsCompleted = goals.every((g) => {
+        const status = String(g.goalStatus || '').trim().toLowerCase()
+        return status === 'completed'
       })
-      if (!allGoalsMet) continue
-      const totalWeight = goals.reduce((sum, g) => sum + normalizeWeightPercent(g.weight), 0)
-      const compensatoryWeight = Math.max(0, Math.round(100 - totalWeight))
-      if (compensatoryWeight <= 0) continue
+      if (!allGoalsCompleted) continue
       result.push({
         learningPathId: pathId,
         learningPathTitle: goals[0]?.learningPathTitle ?? '',
         subjectName: goals[0]?.subjectName,
         goals,
-        compensatoryWeight,
       })
     }
     return result
   }, [pathGoalsByPath])
 
-  const handleGenerateCompensatory = async (pathId: string) => {
-    const pathInfo = eligibleCompensatoryPaths.find((p) => p.learningPathId === pathId)
-    if (!pathInfo) return
+  const handleGenerateCompensatory = async (pathId: string, goalId: string) => {
+    const goalsInPath = pathGoalsByPath.get(pathId) ?? []
+    const goal = goalsInPath.find((g) => g.goalId === goalId)
+    if (!goal) return
+    const goalWeight = normalizeWeightPercent(goal.weight)
+    const supplementaryWeight = Math.max(0, Math.round(100 - goalWeight))
     setGeneratingCompensatory(true)
     try {
-      const goalPayloads = pathInfo.goals.map((g) => ({
-        goalId: g.goalId,
-        weight: normalizeWeightPercent(g.weight),
-      }))
       await LearningPathService.generateAiDraft({
         subjectId: undefined,
-        goals: goalPayloads,
-        compensatoryWeight: pathInfo.compensatoryWeight,
-        sourcePathId: pathInfo.learningPathId,
+        goals: [{ goalId: goal.goalId, weight: goalWeight }],
+        compensatoryWeight: supplementaryWeight,
+        sourcePathId: pathId,
         isCompensatory: true,
+        complexityLevel: supplementaryLevel,
+        languageSelection: supplementaryLanguage,
       })
       showToast(t('goals.compensatoryGenSuccess'), 'success')
       setShowCompensatoryModal(null)
@@ -772,40 +770,14 @@ const GoalsPage: React.FC = () => {
                 return (
                   <article key={pathId} style={{ border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', padding: 12 }}>
                     {/* Path header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>
-                          {firstGoal?.learningPathTitle || t('goals.pathUntitled')}
-                        </div>
-                        <div style={{ marginTop: 3, fontSize: 11, color: 'var(--text-secondary)' }}>
-                          {firstGoal?.subjectName || '-'} &nbsp;·&nbsp;
-                          {t('goals.pathStatusLabel')}: <span style={{ color: getStatusBadgeStyles(firstGoal?.learningPathStatus ?? '').color, fontWeight: 700 }}>{pathStatusText}</span>
-                        </div>
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>
+                        {firstGoal?.learningPathTitle || t('goals.pathUntitled')}
                       </div>
-
-                      {pathHasMultipleGoals && (
-                        <button
-                          type="button"
-                          onClick={() => { if (pathEligible) setShowCompensatoryModal(pathId) }}
-                          disabled={!pathEligible}
-                          title={!pathEligible ? t('goals.compensatoryBtnDisabledHint') : undefined}
-                          style={{
-                            flexShrink: 0,
-                            padding: '5px 11px',
-                            border: `1px solid ${pathEligible ? 'var(--accent-primary)' : 'var(--border-base)'}`,
-                            borderRadius: 2,
-                            background: pathEligible ? 'var(--accent-primary)' : 'transparent',
-                            color: pathEligible ? 'var(--bg-surface-short)' : 'var(--text-secondary)',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: pathEligible ? 'pointer' : 'not-allowed',
-                            opacity: pathEligible ? 1 : 0.5,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {t('goals.compensatoryGenButton')}
-                        </button>
-                      )}
+                      <div style={{ marginTop: 3, fontSize: 11, color: 'var(--text-secondary)' }}>
+                        {firstGoal?.subjectName || '-'} &nbsp;·&nbsp;
+                        {t('goals.pathStatusLabel')}: <span style={{ color: getStatusBadgeStyles(firstGoal?.learningPathStatus ?? '').color, fontWeight: 700 }}>{pathStatusText}</span>
+                      </div>
                     </div>
 
                     {/* Goals list */}
@@ -823,9 +795,33 @@ const GoalsPage: React.FC = () => {
                               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                                 {item.goalTitle || t('goals.untitled')}
                               </span>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: getStatusBadgeStyles(String(item.goalStatus || '')).color, whiteSpace: 'nowrap' }}>
-                                {goalStatusText}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: getStatusBadgeStyles(String(item.goalStatus || '')).color }}>
+                                  {goalStatusText}
+                                </span>
+                                {pathHasMultipleGoals && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowCompensatoryModal({ pathId, goalId: item.goalId })}
+                                    disabled={!pathEligible}
+                                    title={!pathEligible ? t('goals.compensatoryBtnDisabledHint') : undefined}
+                                    style={{
+                                      padding: '3px 9px',
+                                      border: `1px solid ${pathEligible ? 'var(--accent-primary)' : 'var(--border-base)'}`,
+                                      borderRadius: 2,
+                                      background: pathEligible ? 'var(--accent-primary)' : 'transparent',
+                                      color: pathEligible ? 'var(--bg-surface-short)' : 'var(--text-secondary)',
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      cursor: pathEligible ? 'pointer' : 'not-allowed',
+                                      opacity: pathEligible ? 1 : 0.5,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {t('goals.supplementaryGenButton')}
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 6 }}>
@@ -1130,8 +1126,10 @@ const GoalsPage: React.FC = () => {
         )}
 
         {showCompensatoryModal && (() => {
-          const pathInfo = eligibleCompensatoryPaths.find((p) => p.learningPathId === showCompensatoryModal)
-          if (!pathInfo) return null
+          const { pathId, goalId } = showCompensatoryModal
+          const goalsInPath = pathGoalsByPath.get(pathId) ?? []
+          const goal = goalsInPath.find((g) => g.goalId === goalId)
+          const firstGoal = goalsInPath[0]
           return (
             <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 93, padding: 16 }}>
               <div style={{ width: '100%', maxWidth: 520, background: 'var(--bg-surface-short)', border: '1px solid var(--border-base)', borderRadius: 2, overflow: 'hidden' }}>
@@ -1148,27 +1146,47 @@ const GoalsPage: React.FC = () => {
                 </div>
 
                 <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    {t('goals.compensatoryModalDesc')}
-                  </p>
-
+                  {/* Goal info */}
                   <div style={{ border: '1px solid var(--border-base)', borderRadius: 2, padding: '10px 12px', background: 'var(--bg-main)' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                      {pathInfo.learningPathTitle || t('goals.pathUntitled')}
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      {t('goals.supplementaryModalInfo', {
+                        goalTitle: goal?.goalTitle || t('goals.untitled'),
+                        subject: firstGoal?.subjectName || t('goals.pathUntitled'),
+                      })}
                     </div>
-                    {pathInfo.subjectName && (
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>{pathInfo.subjectName}</div>
-                    )}
-                    <div style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>
-                      {t('goals.compensatoryWeightInfo', { weight: formatPercent(pathInfo.compensatoryWeight) })}
-                    </div>
-                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {pathInfo.goals.map((g) => (
-                        <span key={g.goalId} style={{ fontSize: 11, padding: '2px 8px', border: '1px solid var(--border-base)', borderRadius: 999, color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>
-                          {g.goalTitle} ({formatPercent(normalizeWeightPercent(g.weight))}%)
-                        </span>
-                      ))}
-                    </div>
+                  </div>
+
+                  {/* Language */}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {t('goals.supplementaryLanguageLabel')}
+                    </label>
+                    <select
+                      value={supplementaryLanguage}
+                      onChange={(e) => setSupplementaryLanguage(Number(e.target.value))}
+                      disabled={generatingCompensatory}
+                      style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}
+                    >
+                      <option value={1}>{t('plans.languageVietnamese')}</option>
+                      <option value={2}>{t('plans.languageEnglish')}</option>
+                    </select>
+                  </div>
+
+                  {/* Level */}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {t('goals.supplementaryLevelLabel')}
+                    </label>
+                    <select
+                      value={supplementaryLevel}
+                      onChange={(e) => setSupplementaryLevel(e.target.value)}
+                      disabled={generatingCompensatory}
+                      style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: '1px solid var(--border-base)', borderRadius: 2, background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}
+                    >
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
                   </div>
                 </div>
 
@@ -1183,7 +1201,7 @@ const GoalsPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleGenerateCompensatory(showCompensatoryModal)}
+                    onClick={() => handleGenerateCompensatory(pathId, goalId)}
                     disabled={generatingCompensatory}
                     style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--accent-primary)', borderRadius: 2, background: generatingCompensatory ? 'var(--text-secondary)' : 'var(--accent-primary)', color: 'var(--bg-surface-short)', fontSize: 12, fontWeight: 700, cursor: generatingCompensatory ? 'not-allowed' : 'pointer' }}
                   >
