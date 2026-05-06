@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../../../../components/Layout'
 import { useStudentSidebarConfig } from '../components/StudentSideBar'
 import { GoalService, SubjectService } from '../../../../services'
-import LearningPathService from '../../../../services/LearningPathService'
 import ROUTER from '../../../../router/ROUTER.js'
 import { useTranslation } from 'react-i18next'
 import useNotificationStore from '../../../../store/useNotificationStore'
+import { requestGoalSupplementLearningPath } from '../../../../services/SignalR'
 
 type DashboardPathStatusFilter = 'All' | 'Active' | 'InProgress' | 'Completed' | 'Draft' | 'Cancelled'
 type GoalDuration = 'OneWeek' | 'TwoWeeks' | 'OneMonth' | 'TwoMonths' | 'ThreeMonths' | 'SixMonths'
@@ -588,28 +588,25 @@ const GoalsPage: React.FC = () => {
   }, [pathGoalsByPath])
 
   const handleGenerateCompensatory = async (pathId: string, goalId: string) => {
-    const goalsInPath = pathGoalsByPath.get(pathId) ?? []
-    const goal = goalsInPath.find((g) => g.goalId === goalId)
-    if (!goal) return
-    const goalWeight = normalizeWeightPercent(goal.weight)
-    const supplementaryWeight = Math.max(0, Math.round(100 - goalWeight))
     setGeneratingCompensatory(true)
     try {
-      await LearningPathService.generateAiDraft({
-        subjectId: undefined,
-        goals: [{ goalId: goal.goalId, weight: goalWeight }],
-        compensatoryWeight: supplementaryWeight,
-        sourcePathId: pathId,
-        isCompensatory: true,
+      const result = await requestGoalSupplementLearningPath(pathId, goalId, {
         complexityLevel: supplementaryLevel,
         languageSelection: supplementaryLanguage,
+        saveAsDraft: false,
+        onStarted: () => {
+          showToast(t('goals.compensatoryGenStarted'), 'success')
+        },
       })
       showToast(t('goals.compensatoryGenSuccess'), 'success')
       setShowCompensatoryModal(null)
-      await refreshDashboard(false)
+      if (result.pathId) {
+        navigate('/my-plans/detail', { state: { pathId: result.pathId } })
+      } else {
+        await refreshDashboard(false)
+      }
     } catch (err: any) {
-      const msg = err?.response?.data?.errorMessage || err?.response?.data?.message || err?.message || t('goals.compensatoryGenFailed')
-      showToast(msg, 'error')
+      showToast(err?.message || t('goals.compensatoryGenFailed'), 'error')
     } finally {
       setGeneratingCompensatory(false)
     }
@@ -796,9 +793,6 @@ const GoalsPage: React.FC = () => {
                                 {item.goalTitle || t('goals.untitled')}
                               </span>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: getStatusBadgeStyles(String(item.goalStatus || '')).color }}>
-                                  {goalStatusText}
-                                </span>
                                 {pathHasMultipleGoals && (
                                   <button
                                     type="button"

@@ -240,6 +240,7 @@
     "compensatoryConfirmButton": "generate compensatory path",
     "compensatoryGenSuccess": "Compensatory learning path generated successfully",
     "compensatoryGenFailed": "Failed to generate compensatory learning path",
+    "compensatoryGenStarted": "Generating supplementary learning path...",
     "supplementaryLanguageLabel": "content language",
     "supplementaryLevelLabel": "difficulty level",
     "supplementaryModalInfo": "A new learning path for the goal \"{{goalTitle}}\" will be generated under the same subject ({{subject}}) to cover the remaining knowledge not yet included in the current path."
