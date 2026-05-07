@@ -231,7 +231,20 @@
     "statusLabel": "trạng thái",
     "createdLabel": "ngày tạo",
     "completedLabel": "hoàn thành",
-    "selectGoal": "chọn mục tiêu để xem chi tiết"
+    "selectGoal": "chọn mục tiêu để xem chi tiết",
+    "supplementaryGenButton": "tạo lộ trình bổ sung",
+    "compensatoryBtnDisabledHint": "Tất cả mục tiêu trong mỗi lộ trình phải đạt tiến độ mục tiêu trước khi gen lộ trình bù",
+    "compensatoryModalTitle": "Gen lộ trình học bổ sung",
+    "compensatoryModalDesc": "Các lộ trình dưới đây có tất cả mục tiêu đã đạt tiến độ, nhưng tổng trọng số mục tiêu chưa đủ 100%. Lộ trình bù sẽ được tạo để bù phần còn thiếu.",
+    "compensatoryWeightInfo": "Phần bù cần gen: {{weight}}%",
+    "compensatoryGenerating": "đang tạo...",
+    "compensatoryConfirmButton": "tạo lộ trình bổ sung",
+    "compensatoryGenSuccess": "Tạo lộ trình bổ sung thành công",
+    "compensatoryGenFailed": "Không thể tạo lộ trình bổ sung",
+    "compensatoryGenStarted": "Đang tạo lộ trình bổ sung...",
+    "supplementaryLanguageLabel": "ngôn ngữ nội dung",
+    "supplementaryLevelLabel": "độ khó",
+    "supplementaryModalInfo": "Một lộ trình học mới cho mục tiêu \"{{goalTitle}}\" sẽ được tạo trong cùng môn học ({{subject}}) để bù nốt phần kiến thức còn thiếu chưa có trong lộ trình hiện tại."
   },
   "myPlans": {
     "searchPlaceholder": "tìm lộ trình...",

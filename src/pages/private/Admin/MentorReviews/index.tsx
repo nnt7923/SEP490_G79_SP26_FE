@@ -21,7 +21,7 @@ function StatusBadge({ status, t }: { status: MentorReviewDecisionStatus; t: (k:
   const s = STATUS_STYLE[status] ?? STATUS_STYLE.Pending
   return (
     <span
-      className="px-2 py-0.5 text-xs font-semibold border inline-block whitespace-nowrap"
+      className="px-2.5 py-1 text-xs font-semibold rounded-full border inline-flex items-center whitespace-nowrap"
       style={{ backgroundColor: s.bg, color: s.text, borderColor: s.border }}
     >
       {t(`mentorReviews.status_${status}`)}
@@ -163,72 +163,118 @@ const AdminMentorReviews: React.FC = () => {
         )}
 
         {/* Table */}
-        <div className="bg-th-card border border-bd overflow-hidden">
+        <div className="bg-th-card border border-bd overflow-hidden rounded-lg shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-th-input border-b border-bd text-heading text-sm font-semibold">
-                <tr>
-                  <th className="p-4">{t('mentorReviews.pathTitle')}</th>
-                  <th className="p-4">{t('mentorReviews.student')}</th>
-                  <th className="p-4">{t('mentorReviews.mentor')}</th>
-                  <th className="p-4">{t('mentorReviews.status')}</th>
-                  <th className="p-4">{t('mentorReviews.createdAt')}</th>
-                  <th className="p-4 text-center">{t('mentorReviews.details')}</th>
-                  <th className="p-4 text-center">{t('mentorReviews.actions')}</th>
+              <thead>
+                <tr className="bg-th-input border-b-2 border-accent-primary/30">
+                  <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">#</th>
+                  <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">{t('mentorReviews.pathTitle')}</th>
+                  <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">{t('mentorReviews.student')}</th>
+                  <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">{t('mentorReviews.mentor')}</th>
+                  <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">{t('mentorReviews.status')}</th>
+                  <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">{t('mentorReviews.createdAt')}</th>
+                  <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted text-center">{t('mentorReviews.actions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-layer text-body text-sm">
+              <tbody className="text-sm">
                 {loading && items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-muted">
-                      <div className="flex flex-col items-center gap-2">
-                        <RefreshCw className="animate-spin" size={24} />
-                        {t('mentorReviews.loading')}
+                    <td colSpan={7} className="py-16 text-center text-muted">
+                      <div className="flex flex-col items-center gap-3">
+                        <RefreshCw className="animate-spin text-accent-primary" size={28} />
+                        <span>{t('mentorReviews.loading')}</span>
                       </div>
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-muted">{t('mentorReviews.empty')}</td>
-                  </tr>
-                ) : items.map(item => (
-                  <tr key={item.reviewId} className="hover:bg-th-input/50 transition-colors">
-                    <td className="p-4 max-w-[220px]">
-                      <span className="line-clamp-2 text-heading font-medium" title={item.pathTitle}>{item.pathTitle}</span>
+                    <td colSpan={7} className="py-16 text-center text-muted">
+                      <div className="flex flex-col items-center gap-2">
+                        <ClipboardList size={36} className="opacity-30" />
+                        <span>{t('mentorReviews.empty')}</span>
+                      </div>
                     </td>
-                    <td className="p-4 whitespace-nowrap">{item.studentName}</td>
-                    <td className="p-4 whitespace-nowrap">{item.mentorName}</td>
-                    <td className="p-4">
+                  </tr>
+                ) : items.map((item, idx) => (
+                  <tr
+                    key={item.reviewId}
+                    className="border-b border-bd last:border-0 hover:bg-accent-primary/5 transition-colors group"
+                  >
+                    {/* Row number */}
+                    <td className="px-5 py-4 text-muted text-xs w-10">
+                      {(page - 1) * pageSize + idx + 1}
+                    </td>
+
+                    {/* Path */}
+                    <td className="px-5 py-4 max-w-[200px]">
+                      <span
+                        className="font-semibold text-heading line-clamp-2 leading-snug"
+                        title={item.pathTitle}
+                      >
+                        {item.pathTitle}
+                      </span>
+                    </td>
+
+                    {/* Student */}
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-full bg-accent-primary/15 text-accent-primary text-xs font-bold flex items-center justify-center shrink-0 uppercase">
+                          {item.studentName?.charAt(0) ?? '?'}
+                        </span>
+                        <span className="text-body">{item.studentName}</span>
+                      </div>
+                    </td>
+
+                    {/* Mentor */}
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-full bg-status-green-bg text-status-green-dark text-xs font-bold flex items-center justify-center shrink-0 uppercase">
+                          {item.mentorName?.charAt(0) ?? '?'}
+                        </span>
+                        <span className="text-body">{item.mentorName}</span>
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-5 py-4">
                       <StatusBadge status={item.decisionStatus} t={t} />
                     </td>
-                    <td className="p-4 whitespace-nowrap text-muted">{formatDate(item.createdAt, locale)}</td>
-                    <td className="p-4 text-center">
-                      <button
-                        onClick={() => setSelected(item)}
-                        className="text-accent-primary hover:underline font-medium text-sm"
-                      >
-                        {t('mentorReviews.viewDetails')}
-                      </button>
+
+                    {/* Date */}
+                    <td className="px-5 py-4 whitespace-nowrap text-muted text-xs">
+                      {formatDate(item.createdAt, locale)}
                     </td>
-                    <td className="p-4 text-center">
-                      {item.decisionStatus === 'WaitingStudentResponse' && (
+
+                    {/* Actions */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => setConfirmReminder(item)}
-                          className="flex items-center gap-1 px-3 py-1 text-xs font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors mx-auto"
+                          onClick={() => setSelected(item)}
+                          title={t('mentorReviews.viewDetails')}
+                          className="p-1.5 rounded text-accent-primary hover:bg-accent-primary/10 transition-colors"
                         >
-                          <Bell size={13} />
-                          {t('mentorReviews.sendReminder')}
+                          <Info size={16} />
                         </button>
-                      )}
-                      {item.decisionStatus === 'Pending' && (
-                        <button
-                          onClick={() => setConfirmMentorReminder(item)}
-                          className="flex items-center gap-1 px-3 py-1 text-xs font-semibold border border-status-blue text-status-blue hover:bg-status-blue-bg transition-colors mx-auto"
-                        >
-                          <Bell size={13} />
-                          {t('mentorReviews.sendMentorReminder')}
-                        </button>
-                      )}
+                        {item.decisionStatus === 'WaitingStudentResponse' && (
+                          <button
+                            onClick={() => setConfirmReminder(item)}
+                            title={t('mentorReviews.sendReminder')}
+                            className="p-1.5 rounded text-status-blue hover:bg-status-blue-bg transition-colors"
+                          >
+                            <Bell size={16} />
+                          </button>
+                        )}
+                        {item.decisionStatus === 'Pending' && (
+                          <button
+                            onClick={() => setConfirmMentorReminder(item)}
+                            title={t('mentorReviews.sendMentorReminder')}
+                            className="p-1.5 rounded text-status-blue hover:bg-status-blue-bg transition-colors"
+                          >
+                            <Bell size={16} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -238,31 +284,31 @@ const AdminMentorReviews: React.FC = () => {
 
           {/* Pagination */}
           {!loading && totalCount > 0 && (
-            <div className="p-4 border-t border-bd flex flex-col md:flex-row items-center justify-between gap-4 bg-th-input/30">
-              <span className="text-sm text-muted">
+            <div className="px-5 py-3 border-t border-bd flex flex-col md:flex-row items-center justify-between gap-3 bg-th-input/20">
+              <span className="text-xs text-muted">
                 {t('mentorReviews.showing', {
                   start: (page - 1) * pageSize + 1,
                   end: Math.min(page * pageSize, totalCount),
                   total: totalCount,
                 })}
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="p-1 text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 transition-all"
+                  className="p-1.5 rounded text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 transition-all"
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={18} />
                 </button>
-                <span className="text-sm font-medium text-heading min-w-[3rem] text-center">
+                <span className="text-xs font-semibold text-heading px-3 py-1 bg-th-card border border-bd rounded min-w-[4rem] text-center">
                   {page} / {totalPages}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="p-1 text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 transition-all"
+                  className="p-1.5 rounded text-body hover:bg-th-card border border-transparent hover:border-bd disabled:opacity-30 transition-all"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={18} />
                 </button>
               </div>
             </div>

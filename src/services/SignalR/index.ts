@@ -3414,3 +3414,130 @@ export async function requestMultipleQuizQuestionsForQuiz(
   await Promise.allSettled(tasks)
   return results
 }
+
+// ==== Request goal supplement learning path (SignalR) ====
+export async function requestGoalSupplementLearningPath(
+  sourcePathId: string,
+  goalId: string,
+  options?: {
+    complexityLevel?: string
+    languageSelection?: number
+    saveAsDraft?: boolean
+    onStarted?: (data: { sourcePathId: string; goalId: string }) => void
+    onCreated?: (data: {
+      sourcePathId: string
+      goalId: string
+      currentProgressPercent: number
+      remainingPercent: number
+      learningPath: any
+    }) => void
+    onCompleted?: (data: {
+      sourcePathId: string
+      goalId: string
+      currentProgressPercent: number
+      remainingPercent: number
+      pathId: string
+      message: string
+    }) => void
+    onError?: (data: { errorCode: string; errorMessage: string }) => void
+  }
+): Promise<{ pathId: string; learningPath?: any }> {
+  const hub = await getLearningPathHub()
+
+  return new Promise((resolve, reject) => {
+    let done = false
+
+    const isMatchingPayload = (payload: any): boolean => {
+      const pSourcePathId = String(payload?.sourcePathId ?? payload?.SourcePathId ?? '').trim()
+      const pGoalId = String(payload?.goalId ?? payload?.GoalId ?? '').trim()
+      if (pSourcePathId && pSourcePathId !== sourcePathId) return false
+      if (pGoalId && pGoalId !== goalId) return false
+      return true
+    }
+
+    const cleanup = () => {
+      hub.off('GoalSupplementLearningPathGenerationStarted', handleStarted)
+      hub.off('GoalSupplementLearningPathCreated', handleCreated)
+      hub.off('GoalSupplementLearningPathGenerationCompleted', handleCompleted)
+      hub.off('GoalSupplementLearningPathGenerationError', handleError)
+    }
+
+    const handleStarted = (payload: any) => {
+      if (!isMatchingPayload(payload)) return
+      debugSignalR('supplement.started', 'GoalSupplementLearningPathGenerationStarted', payload)
+      options?.onStarted?.({ sourcePathId: payload.sourcePathId, goalId: payload.goalId })
+    }
+
+    const handleCreated = (payload: any) => {
+      if (!isMatchingPayload(payload)) return
+      debugSignalR('supplement.created', 'GoalSupplementLearningPathCreated', payload)
+      options?.onCreated?.({
+        sourcePathId: payload.sourcePathId,
+        goalId: payload.goalId,
+        currentProgressPercent: payload.currentProgressPercent,
+        remainingPercent: payload.remainingPercent,
+        learningPath: payload.learningPath,
+      })
+    }
+
+    const handleCompleted = (payload: any) => {
+      if (!isMatchingPayload(payload)) return
+      debugSignalR('supplement.completed', 'GoalSupplementLearningPathGenerationCompleted', payload)
+      if (done) return
+      done = true
+      cleanup()
+      clearTo()
+      resolve({
+        pathId: String(payload.pathId ?? payload.learningPath?.pathId ?? ''),
+        learningPath: payload.learningPath,
+      })
+      options?.onCompleted?.({
+        sourcePathId: payload.sourcePathId,
+        goalId: payload.goalId,
+        currentProgressPercent: payload.currentProgressPercent,
+        remainingPercent: payload.remainingPercent,
+        pathId: payload.pathId,
+        message: payload.message,
+      })
+    }
+
+    const handleError = (payload: any) => {
+      if (!isMatchingPayload(payload)) return
+      debugSignalR('supplement.error', 'GoalSupplementLearningPathGenerationError', payload)
+      if (done) return
+      done = true
+      cleanup()
+      clearTo()
+      const msg = resolveHubErrorMessage(payload, 'Failed to generate supplement learning path')
+      reject(new Error(msg))
+      options?.onError?.({ errorCode: payload.errorCode ?? '', errorMessage: msg })
+    }
+
+    const to = setTimeout(() => {
+      if (done) return
+      done = true
+      cleanup()
+      reject(new Error('Supplement learning path generation timeout'))
+    }, REQUEST_TIMEOUT)
+
+    const clearTo = () => { try { clearTimeout(to) } catch { } }
+
+    hub.on('GoalSupplementLearningPathGenerationStarted', handleStarted)
+    hub.on('GoalSupplementLearningPathCreated', handleCreated)
+    hub.on('GoalSupplementLearningPathGenerationCompleted', handleCompleted)
+    hub.on('GoalSupplementLearningPathGenerationError', handleError)
+
+    try {
+      hub.invoke(
+        'RequestGoalSupplementLearningPath',
+        sourcePathId,
+        goalId,
+        options?.complexityLevel ?? null,
+        options?.languageSelection ?? null,
+        options?.saveAsDraft ?? false,
+      ).catch(handleError)
+    } catch (err) {
+      handleError(err)
+    }
+  })
+}
