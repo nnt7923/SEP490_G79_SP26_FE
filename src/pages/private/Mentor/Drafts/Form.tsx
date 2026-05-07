@@ -1559,6 +1559,13 @@ const MentorDraftFormPage: React.FC = () => {
     }
 
     if (!isCreateMode) {
+      if (reviewPathId) {
+        const result = await persistDraft({ increaseVersion: false, versionUpdateType: null })
+        if (result?.successMessage) {
+          setToast({ message: t('drafts.reviewUpdateSuccess'), type: 'success' })
+        }
+        return
+      }
       setIsVersionUpdateModalOpen(true)
       return
     }
@@ -1657,6 +1664,7 @@ const MentorDraftFormPage: React.FC = () => {
         <div style={{ maxWidth: 1440, margin: '0 auto', display: 'grid', gap: 20 }}>
           <DraftEditorHeader
             isCreateMode={isCreateMode}
+            isReviewMode={!!reviewPathId}
             title={form.title}
             chapterCount={form.chapters.length}
             version={form.version}
@@ -1896,6 +1904,7 @@ function ReviewSubmitModal({ originalPathId, onClose, onSuccess }: {
 
   const handleSubmit = async () => {
     if (!changeSummary.trim()) { setError('Vui lòng nhập tóm tắt thay đổi.'); return }
+    if (!changeReason.trim()) { setError('Vui lòng nhập lý do thay đổi.'); return }
     setSubmitting(true); setError(null)
     try {
       await LearningPathService.submitMentorReview(originalPathId, {
@@ -1937,10 +1946,10 @@ function ReviewSubmitModal({ originalPathId, onClose, onSuccess }: {
               onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'} />
           </div>
           <div style={{ marginBottom: 20 }}>
-            <label style={lbl}>Lý do thay đổi</label>
+            <label style={lbl}>Lý do thay đổi *</label>
             <textarea value={changeReason}
               onChange={e => { setChangeReason(e.target.value); persist(changeSummary, e.target.value) }}
-              rows={3} placeholder="Để student có output sớm, bám mục tiêu tuyển dụng..." style={ta}
+              rows={3} placeholder="Ví dụ: Để lộ trình sát thực tế hơn, bổ sung thêm kiến thức nâng cao còn thiếu..." style={ta}
               onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
               onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'} />
           </div>

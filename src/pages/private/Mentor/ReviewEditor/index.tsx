@@ -226,6 +226,8 @@ function SubmitReviewModal({ onClose, onSubmit, submitting, error, success }: {
   const handleSubmit = () => {
     if (score === 0) { setLocalErr('Vui lòng chọn điểm.'); return }
     if (!feedback.trim()) { setLocalErr('Vui lòng nhập feedback.'); return }
+    if (!changeSummary.trim()) { setLocalErr('Vui lòng nhập tóm tắt thay đổi.'); return }
+    if (!changeReason.trim()) { setLocalErr('Vui lòng nhập lý do thay đổi.'); return }
     setLocalErr(null)
     onSubmit({ score, feedback: feedback.trim(), suggestions: suggestions.trim(), changeSummary: changeSummary.trim(), changeReason: changeReason.trim() })
   }
@@ -255,8 +257,8 @@ function SubmitReviewModal({ onClose, onSubmit, submitting, error, success }: {
           {[
             { label: 'Feedback *', val: feedback, set: setFeedback, ph: 'Nhận xét về lộ trình...', rows: 3 },
             { label: 'Gợi ý cải thiện', val: suggestions, set: setSuggestions, ph: 'Ưu tiên làm mini-project...', rows: 2 },
-            { label: 'Tóm tắt thay đổi', val: changeSummary, set: setChangeSummary, ph: 'Đổi thứ tự chapter...', rows: 2 },
-            { label: 'Lý do thay đổi', val: changeReason, set: setChangeReason, ph: 'Để student có output sớm...', rows: 2 },
+            { label: 'Tóm tắt thay đổi *', val: changeSummary, set: setChangeSummary, ph: 'Ví dụ: Đổi thứ tự chapter, thêm task thực chiến...', rows: 2 },
+            { label: 'Lý do thay đổi *', val: changeReason, set: setChangeReason, ph: 'Ví dụ: Để lộ trình sát thực tế hơn, bổ sung thêm kiến thức nâng cao còn thiếu...', rows: 2 },
           ].map(({ label, val, set, ph, rows }) => (
             <div key={label} style={{ marginBottom: 12 }}>
               <label style={lbl}>{label}</label>
