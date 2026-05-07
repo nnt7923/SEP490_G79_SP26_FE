@@ -76,6 +76,11 @@ export interface BillingSummary {
   dailyRevenue: BillingSummaryDailyRevenue[]
 }
 
+export interface BillingMonthlyOverview {
+  packageProfitVnd: number
+  aiProfitUsd: number
+}
+
 type BillingTransactionsListCacheEntry = {
   expiresAt: number
   data: BillingTransactionsPage
@@ -435,6 +440,14 @@ class AdminBillingService {
     writeBillingSummaryStorageCache(cacheKey, cacheEntry)
 
     return data
+  }
+
+  async getMonthlyOverview(year: number, month: number): Promise<BillingMonthlyOverview> {
+    const response = await api.get(`/admin/billing/monthly-overview?year=${year}&month=${month}`)
+    return {
+      packageProfitVnd: Number(response?.packageProfitVnd ?? 0),
+      aiProfitUsd: Number(response?.aiProfitUsd ?? 0),
+    }
   }
 }
 

@@ -2472,7 +2472,7 @@ const FocusSessionPage: React.FC = () => {
                   letterSpacing: '0.5px', 
                   marginBottom: 8 
                 }}>
-                  {t('focusSession.sessionNameLabel')}
+                  {t('focusSession.sessionName')}
                 </div>
                 <div style={{ 
                   fontSize: 16, 
