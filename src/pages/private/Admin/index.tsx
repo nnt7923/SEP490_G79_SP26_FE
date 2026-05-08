@@ -21,7 +21,7 @@ const AdminDashboard: React.FC = () => {
   const [studentCount, setStudentCount] = useState(0)
   const [mentorCount, setMentorCount] = useState(0)
   const [adminCount, setAdminCount] = useState(0)
-  const [aiProfitUsd, setAiProfitUsd] = useState(0)
+  const [totalAiCostUsd, setTotalAiCostUsd] = useState(0)
   const [currency, setCurrency] = useState<CurrencyCode>('VND')
   const [usdToVndRate, setUsdToVndRate] = useState<number | null>(null)
   const [exchangeRateUpdatedAt, setExchangeRateUpdatedAt] = useState('')
@@ -82,13 +82,13 @@ const AdminDashboard: React.FC = () => {
         setStudentCount(Number(studentsPage?.totalCount || 0))
         setMentorCount(Number(mentorsPage?.totalCount || 0))
         setAdminCount(Number(adminsPage?.totalCount || 0))
-        setAiProfitUsd(monthlyOverview?.aiProfitUsd || 0)
+        setTotalAiCostUsd(monthlyOverview?.totalAiCostUsd || 0)
       } catch (error) {
         // Removed console.error in admin stats load
         setStudentCount(0)
         setMentorCount(0)
         setAdminCount(0)
-        setAiProfitUsd(0)
+        setTotalAiCostUsd(0)
       } finally {
         setLoading(false)
       }
@@ -263,8 +263,8 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div className="border border-bd p-3 bg-th-card">
                 <div className="text-xs text-muted">{t('dashboard.totalCombinedRevenue')}</div>
-                <div className="text-xl font-bold text-status-blue mt-1 truncate" title={currency === 'VND' ? formatCurrency(billingTotalRevenue + (aiProfitUsd * (usdToVndRate || 25400))) : ((billingTotalRevenue / (usdToVndRate || 25400)) + aiProfitUsd).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}>
-                  {billingLoading ? '...' : (currency === 'VND' ? formatCurrency(billingTotalRevenue + (aiProfitUsd * (usdToVndRate || 25400))) : ((billingTotalRevenue / (usdToVndRate || 25400)) + aiProfitUsd).toLocaleString('en-US', { style: 'currency', currency: 'USD' }))}
+                <div className="text-xl font-bold text-status-blue mt-1 truncate" title={currency === 'VND' ? formatCurrency(billingTotalRevenue - (totalAiCostUsd * (usdToVndRate || 25400))) : ((billingTotalRevenue / (usdToVndRate || 25400)) - totalAiCostUsd).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}>
+                  {billingLoading ? '...' : (currency === 'VND' ? formatCurrency(billingTotalRevenue - (totalAiCostUsd * (usdToVndRate || 25400))) : ((billingTotalRevenue / (usdToVndRate || 25400)) - totalAiCostUsd).toLocaleString('en-US', { style: 'currency', currency: 'USD' }))}
                 </div>
               </div>
             </div>

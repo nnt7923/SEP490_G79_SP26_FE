@@ -100,8 +100,9 @@ const AdminMentorAIUsagePage: React.FC = () => {
     setPolicySuccess('')
 
     const monthlyLimit = Number(mentorPaidRequestsMonthlyLimit)
-    const cooldownHours = Number(mentorDowngradeNotifyCooldownHours)
-    if (!Number.isFinite(monthlyLimit) || monthlyLimit < 0 || !Number.isFinite(cooldownHours) || cooldownHours < 0) {
+    // Hidden cooldown fixed at 5 hours
+    const cooldownHours = 5
+    if (!Number.isFinite(monthlyLimit) || monthlyLimit < 0) {
       setPolicyError(t('mentorAiUsage.policyValidation'))
       return
     }
@@ -109,7 +110,7 @@ const AdminMentorAIUsagePage: React.FC = () => {
     setPolicySaving(true)
     try {
       const normalizedMonthlyLimit = Math.floor(monthlyLimit)
-      const normalizedCooldownHours = Math.floor(cooldownHours)
+      const normalizedCooldownHours = cooldownHours
 
       const updated = await AdminAIUsageService.updateMentorAIAccessPolicy(
         MENTOR_AI_ACCESS_POLICY_KEY,
@@ -229,7 +230,7 @@ const AdminMentorAIUsagePage: React.FC = () => {
               </div>
             ) : null}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-xs font-bold text-muted mb-2">{t('mentorAiUsage.policyMonthlyLimit')}</label>
                 <input
@@ -237,17 +238,6 @@ const AdminMentorAIUsagePage: React.FC = () => {
                   min={0}
                   value={mentorPaidRequestsMonthlyLimit}
                   onChange={(event) => setMentorPaidRequestsMonthlyLimit(Number(event.target.value))}
-                  className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-muted mb-2">{t('mentorAiUsage.policyCooldownHours')}</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={mentorDowngradeNotifyCooldownHours}
-                  onChange={(event) => setMentorDowngradeNotifyCooldownHours(Number(event.target.value))}
                   className="w-full px-3 py-2 border border-bd-input bg-white text-sm focus:outline-none"
                 />
               </div>

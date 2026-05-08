@@ -78,7 +78,7 @@ export interface BillingSummary {
 
 export interface BillingMonthlyOverview {
   packageProfitVnd: number
-  aiProfitUsd: number
+  totalAiCostUsd: number
 }
 
 type BillingTransactionsListCacheEntry = {
@@ -444,9 +444,10 @@ class AdminBillingService {
 
   async getMonthlyOverview(year: number, month: number): Promise<BillingMonthlyOverview> {
     const response = await api.get(`/admin/billing/monthly-overview?year=${year}&month=${month}`)
+    const data = response?.data ?? response
     return {
-      packageProfitVnd: Number(response?.packageProfitVnd ?? 0),
-      aiProfitUsd: Number(response?.aiProfitUsd ?? 0),
+      packageProfitVnd: Number(data?.packageProfitVnd ?? 0),
+      totalAiCostUsd: Number(data?.totalAiCostUsd ?? 0),
     }
   }
 }

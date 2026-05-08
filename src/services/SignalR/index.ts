@@ -22,7 +22,7 @@ const SUMMARY_HUB_URL = `${HUB_BASE}/hubs/summary`
 const LEARNING_PATH_HUB_URL = `${HUB_BASE}/hubs/learningpath`
 const TUTOR_HUB_URL = `${HUB_BASE}/hubs/tutor-chat`
 const NOTIFICATION_HUB_URL = `${HUB_BASE}/hubs/notification`
-const REQUEST_TIMEOUT = 180000 // 3m timeout
+const REQUEST_TIMEOUT = 300000 // 5m timeout
 const SIGNALR_DEBUG_STORAGE_KEY = 'signalr:debug'
 const SIGNALR_DEBUG_QUERY_KEY = 'debugSignalR'
 
