@@ -6,6 +6,7 @@ import { cardStyle, getButtonStyle, pillStyle, subtleTextStyle } from './editorU
 
 type HeaderProps = {
   isCreateMode: boolean
+  isReviewMode?: boolean
   title: string
   chapterCount: number
   version: number | null
@@ -32,6 +33,7 @@ const STEP_META: Array<{ id: EditorStep; icon: React.ReactNode }> = [
 
 export const DraftEditorHeader: React.FC<HeaderProps> = ({
   isCreateMode,
+  isReviewMode,
   title,
   chapterCount,
   version,
@@ -49,6 +51,12 @@ export const DraftEditorHeader: React.FC<HeaderProps> = ({
   onStepChange,
 }) => {
   const { t } = useTranslation('mentor')
+
+  const getSaveLabel = () => {
+    if (saving) return t('drafts.saving')
+    if (isReviewMode) return t('drafts.saveReview')
+    return t('drafts.save')
+  }
 
   return (
     <div
@@ -96,7 +104,7 @@ export const DraftEditorHeader: React.FC<HeaderProps> = ({
             onClick={onSave}
             disabled={saving}
           >
-            <Save size={14} /> {saving ? t('drafts.saving') : t('drafts.save')}
+            <Save size={14} /> {getSaveLabel()}
           </button>
           {!hidePublish && (
             <button

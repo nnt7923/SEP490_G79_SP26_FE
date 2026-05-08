@@ -19,6 +19,7 @@ const API_BASE = (isDev || isVercel)
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
+  timeout: 300000, // 5m timeout
   // headers: { 'Content-Type': 'application/json' },
 })
 

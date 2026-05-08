@@ -5,20 +5,29 @@ import useAuthStore from '../../../store/useAuthStore'
 import Layout from '../../../components/Layout'
 import { useAdminSidebarConfig } from './components/AdminSideBar'
 import { UserService } from '../../../services'
-import { AIConfigService } from '../../../services'
 import AdminBillingService, { type BillingSummaryDailyRevenue } from '../../../services/AdminBillingService'
 import { useTranslation } from 'react-i18next'
 import { Shield, Users, Key, PieChart, Activity, CheckCircle2, Server, KeySquare, ChevronRight, ReceiptText, BarChart3, TrendingUp } from 'lucide-react'
 
+const USD_TO_VND_API_URL = 'https://open.er-api.com/v6/latest/USD'
+const EXCHANGE_RATE_REFRESH_MS = 15 * 60 * 1000
+
+type CurrencyCode = 'USD' | 'VND'
+
 const AdminDashboard: React.FC = () => {
   const { user } = useAuthStore()
   const name = user?.name || user?.username || 'Admin'
-  const { t } = useTranslation('admin')
+  const { t, i18n } = useTranslation('admin')
   const [studentCount, setStudentCount] = useState(0)
   const [mentorCount, setMentorCount] = useState(0)
   const [adminCount, setAdminCount] = useState(0)
-  const [apiKeyCount, setApiKeyCount] = useState(0)
+  const [totalAiCostUsd, setTotalAiCostUsd] = useState(0)
+  const [currency, setCurrency] = useState<CurrencyCode>('VND')
+  const [usdToVndRate, setUsdToVndRate] = useState<number | null>(null)
+  const [exchangeRateUpdatedAt, setExchangeRateUpdatedAt] = useState('')
   const [billingLoading, setBillingLoading] = useState(true)
+  const [billingFromDate, setBillingFromDate] = useState<string>('')
+  const [billingToDate, setBillingToDate] = useState<string>('')
   const [billingTotalTransactions, setBillingTotalTransactions] = useState(0)
   const [billingSuccessTransactions, setBillingSuccessTransactions] = useState(0)
   const [billingFailedTransactions, setBillingFailedTransactions] = useState(0)
@@ -41,30 +50,45 @@ const AdminDashboard: React.FC = () => {
     return dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
   }
 
+  const fetchUsdToVndRate = async () => {
+    try {
+      const response = await fetch(USD_TO_VND_API_URL)
+      if (!response.ok) throw new Error('Failed to fetch exchange rate')
+      const data = await response.json()
+      const rate = Number(data?.rates?.VND)
+      if (Number.isFinite(rate) && rate > 0) {
+        setUsdToVndRate(rate)
+        setExchangeRateUpdatedAt(new Date().toISOString())
+      } else {
+        setUsdToVndRate(null)
+      }
+    } catch {
+      setUsdToVndRate(null)
+    }
+  }
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true)
-        setBillingLoading(true)
-        const [studentsPage, mentorsPage, adminsPage, configData] = await Promise.all([
+        const now = new Date()
+        const [studentsPage, mentorsPage, adminsPage, monthlyOverview] = await Promise.all([
           UserService.listUsersPaged({ pageNumber: 1, pageSize: 1, role: 'Student' }),
           UserService.listUsersPaged({ pageNumber: 1, pageSize: 1, role: 'Mentor' }),
           UserService.listUsersPaged({ pageNumber: 1, pageSize: 1, role: 'Admin' }),
-          AIConfigService.getAIConfig(),
+          AdminBillingService.getMonthlyOverview(now.getFullYear(), now.getMonth() + 1),
         ])
 
         setStudentCount(Number(studentsPage?.totalCount || 0))
         setMentorCount(Number(mentorsPage?.totalCount || 0))
         setAdminCount(Number(adminsPage?.totalCount || 0))
-
-        // Extract API key count
-        const configs = Array.isArray(configData) ? configData : [configData]
-        setApiKeyCount(configs.filter(c => c).length)
+        setTotalAiCostUsd(monthlyOverview?.totalAiCostUsd || 0)
       } catch (error) {
         // Removed console.error in admin stats load
         setStudentCount(0)
         setMentorCount(0)
         setAdminCount(0)
+        setTotalAiCostUsd(0)
       } finally {
         setLoading(false)
       }
@@ -73,7 +97,11 @@ const AdminDashboard: React.FC = () => {
     const fetchBillingSummary = async () => {
       try {
         setBillingLoading(true)
-        const summary = await AdminBillingService.getSummary({ provider: 'VNPAY' })
+        const summary = await AdminBillingService.getSummary({
+          provider: 'VNPAY',
+          fromUtc: billingFromDate ? new Date(billingFromDate).toISOString() : undefined,
+          toUtc: billingToDate ? new Date(billingToDate).toISOString() : undefined,
+        })
         setBillingTotalTransactions(summary.totalTransactions)
         setBillingSuccessTransactions(summary.successfulTransactions)
         setBillingFailedTransactions(summary.failedTransactions)
@@ -95,7 +123,10 @@ const AdminDashboard: React.FC = () => {
 
     fetchStats()
     fetchBillingSummary()
-  }, [])
+    fetchUsdToVndRate()
+    const timer = window.setInterval(fetchUsdToVndRate, EXCHANGE_RATE_REFRESH_MS)
+    return () => window.clearInterval(timer)
+  }, [billingFromDate, billingToDate])
 
   const sidebarConfig = {
     navItems: useAdminSidebarConfig() as any,
@@ -148,12 +179,70 @@ const AdminDashboard: React.FC = () => {
                 <ReceiptText size={20} className="text-status-blue-muted" />
                 {t('dashboard.billingOverview')}
               </h2>
-              <span className="text-xs text-muted">
-                {billingLoading ? t('dashboard.loadingBilling') : t('dashboard.billingRangeHint')}
-              </span>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            {/* Date Filter & Controls */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-3 bg-th-card border border-bd rounded-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-heading uppercase">{t('dashboard.filterFromDate')}:</span>
+                  <input
+                    type="date"
+                    value={billingFromDate}
+                    onChange={(e) => setBillingFromDate(e.target.value)}
+                    disabled={billingLoading}
+                    className="px-2 py-1 border border-bd bg-th-page text-heading text-sm rounded-sm disabled:opacity-60"
+                  />
+                </label>
+                <label className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-heading uppercase">{t('dashboard.filterToDate')}:</span>
+                  <input
+                    type="date"
+                    value={billingToDate}
+                    onChange={(e) => setBillingToDate(e.target.value)}
+                    disabled={billingLoading}
+                    className="px-2 py-1 border border-bd bg-th-page text-heading text-sm rounded-sm disabled:opacity-60"
+                  />
+                </label>
+                <button
+                  onClick={() => {
+                    setBillingFromDate('')
+                    setBillingToDate('')
+                  }}
+                  disabled={billingLoading}
+                  className="px-3 py-1 border border-bd bg-th-page text-heading text-xs font-bold uppercase rounded-sm hover:bg-th-card disabled:opacity-60"
+                >
+                  {t('dashboard.filterClear')}
+                </button>
+              </div>
+              
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextCurrency = currency === 'USD' ? 'VND' : 'USD'
+                    if (nextCurrency === 'VND' && !usdToVndRate) return
+                    setCurrency(nextCurrency)
+                  }}
+                  disabled={!usdToVndRate}
+                  className="relative h-10 w-[126px] overflow-hidden rounded-full border border-bd-input bg-th-card transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span
+                    className={`pointer-events-none absolute left-1 top-1 h-8 w-[58px] rounded-full border border-blue-500 bg-status-blue-bg shadow-sm transition-transform duration-300 ease-out ${currency === 'VND' ? 'translate-x-[58px]' : 'translate-x-0'}`}
+                  />
+                  <span className="relative z-10 grid h-full grid-cols-2 text-xs font-bold">
+                    <span className={`flex items-center justify-center transition-colors ${currency === 'USD' ? 'text-status-blue' : 'text-muted'}`}>
+                      USD
+                    </span>
+                    <span className={`flex items-center justify-center transition-colors ${currency === 'VND' ? 'text-status-blue' : 'text-muted'}`}>
+                      VND
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
               <div className="border border-bd p-3 bg-th-card">
                 <div className="text-xs text-muted">{t('dashboard.totalTransactions')}</div>
                 <div className="text-xl font-bold text-heading mt-1">{billingLoading ? '...' : billingTotalTransactions}</div>
@@ -167,8 +256,16 @@ const AdminDashboard: React.FC = () => {
                 <div className="text-xl font-bold text-red-700 mt-1">{billingLoading ? '...' : billingFailedTransactions}</div>
               </div>
               <div className="border border-bd p-3 bg-th-card">
-                <div className="text-xs text-muted">{t('dashboard.totalRevenue')}</div>
-                <div className="text-xl font-bold text-status-blue mt-1 truncate" title={formatCurrency(billingTotalRevenue)}>{billingLoading ? '...' : formatCurrency(billingTotalRevenue)}</div>
+                <div className="text-xs text-muted">{t('dashboard.packageRevenue')}</div>
+                <div className="text-xl font-bold text-status-blue mt-1 truncate" title={currency === 'VND' ? formatCurrency(billingTotalRevenue) : (billingTotalRevenue / (usdToVndRate || 25400)).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}>
+                  {billingLoading ? '...' : (currency === 'VND' ? formatCurrency(billingTotalRevenue) : (billingTotalRevenue / (usdToVndRate || 25400)).toLocaleString('en-US', { style: 'currency', currency: 'USD' }))}
+                </div>
+              </div>
+              <div className="border border-bd p-3 bg-th-card">
+                <div className="text-xs text-muted">{t('dashboard.totalCombinedRevenue')}</div>
+                <div className="text-xl font-bold text-status-blue mt-1 truncate" title={currency === 'VND' ? formatCurrency(billingTotalRevenue - (totalAiCostUsd * (usdToVndRate || 25400))) : ((billingTotalRevenue / (usdToVndRate || 25400)) - totalAiCostUsd).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}>
+                  {billingLoading ? '...' : (currency === 'VND' ? formatCurrency(billingTotalRevenue - (totalAiCostUsd * (usdToVndRate || 25400))) : ((billingTotalRevenue / (usdToVndRate || 25400)) - totalAiCostUsd).toLocaleString('en-US', { style: 'currency', currency: 'USD' }))}
+                </div>
               </div>
             </div>
 
@@ -235,12 +332,12 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-8">
             {/* Students Card */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+              transition={{ duration: 0.4, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
               whileHover={{ y: -3, scale: 1.01 }}
               className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors"
             >
@@ -256,29 +353,6 @@ const AdminDashboard: React.FC = () => {
               <div className="text-xs text-muted flex items-center gap-2">
                 <Users size={16} className="text-status-blue-muted flex-shrink-0" />
                 {t('dashboard.activeStudentAccounts')}
-              </div>
-            </motion.div>
-
-            {/* API Keys Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-              whileHover={{ y: -3, scale: 1.01 }}
-              className="bg-[var(--gray-100)] rounded-none border border-bd-strong p-6 flex flex-col justify-between hover:bg-th-card transition-colors"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-muted text-sm font-bold uppercase">{t('dashboard.apiKeys')}</span>
-                <span className="text-xs font-bold text-status-blue bg-status-blue-bg-strong px-2 py-0.5 border border-blue-300 rounded-sm">
-                  {t('dashboard.configured')}
-                </span>
-              </div>
-              <div className="text-3xl font-bold text-heading my-2">
-                {loading ? '...' : apiKeyCount}
-              </div>
-              <div className="text-xs text-muted flex items-center gap-2">
-                <Key size={16} className="text-purple-500 flex-shrink-0" />
-                {t('dashboard.aiModelConfigurations')}
               </div>
             </motion.div>
           </div>
@@ -363,7 +437,7 @@ const AdminDashboard: React.FC = () => {
                     <KeySquare size={18} className="text-orange-500" />
                     <span className="text-sm font-bold text-heading">{t('dashboard.aiModels')}</span>
                   </div>
-                  <span className="text-sm font-bold text-orange-700 bg-orange-50 px-2 py-0.5 border border-orange-200 rounded-sm">{apiKeyCount} {t('dashboard.configured')}</span>
+                  <span className="text-sm font-bold text-status-green-dark bg-status-green-bg-strong px-2 py-0.5 border border-green-300 rounded-sm">{t('dashboard.active')}</span>
                 </div>
               </div>
 

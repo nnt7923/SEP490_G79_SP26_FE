@@ -3288,9 +3288,10 @@ export const PlansPage: React.FC<PlansPageProps> = ({ variant = 'student' }) => 
                                   borderRadius: 12, 
                                   fontSize: 12, 
                                   fontWeight: 600,
-                                  marginLeft: 16
+                                  marginLeft: 16,
+                                  display: 'none'
                                 }}>
-                                  {t('plans.matchScore')}: {Math.round((suggestion.score || 0) * 100)}%
+                                  {/* {t('plans.matchScore')}: {Math.round((suggestion.score || 0) * 100)}% */}
                                 </div>
                               </div>
                               

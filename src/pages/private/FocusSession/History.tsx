@@ -461,9 +461,7 @@ const FocusSessionHistoryPageView: React.FC = () => {
     const normalized = value.toLowerCase()
     if (normalized === 'running') return t('focusSessionHistory.statusRunning')
     if (normalized === 'paused') return t('focusSessionHistory.statusPaused')
-    if (normalized === 'completedearly') return t('focusSessionHistory.statusCompletedEarly')
-    if (normalized === 'completedontime') return t('focusSessionHistory.statusCompletedOnTime')
-    if (normalized === 'completedlate') return t('focusSessionHistory.statusCompletedLate')
+    if (normalized === 'completedearly' || normalized === 'completedontime' || normalized === 'completedlate') return t('focusSessionHistory.statusCompleted')
     if (normalized === 'abandoned') return t('focusSessionHistory.statusAbandoned')
     return humanizeToken(value)
   }
@@ -510,18 +508,10 @@ const FocusSessionHistoryPageView: React.FC = () => {
       style.background = 'var(--bg-warning-soft)'
       style.color = 'var(--warning-primary)'
       style.borderColor = 'var(--warning-primary)'
-    } else if (status === 'completedearly') {
-      style.background = 'rgba(16, 185, 129, 0.12)'
-      style.color = '#047857'
-      style.borderColor = '#10b981'
-    } else if (status === 'completedontime') {
+    } else if (status === 'completedearly' || status === 'completedontime' || status === 'completedlate') {
       style.background = 'var(--badge-bg-success)'
       style.color = 'var(--badge-text-success)'
       style.borderColor = 'var(--success-primary)'
-    } else if (status === 'completedlate') {
-      style.background = 'rgba(245, 158, 11, 0.12)'
-      style.color = '#b45309'
-      style.borderColor = '#f59e0b'
     } else if (status === 'abandoned') {
       style.background = 'rgba(239, 68, 68, 0.12)'
       style.color = 'var(--danger-primary)'
@@ -535,9 +525,7 @@ const FocusSessionHistoryPageView: React.FC = () => {
     let statusLabel = t('focusSessionHistory.statusUnknown')
     if (status === 'running') statusLabel = t('focusSessionHistory.statusRunning')
     else if (status === 'paused') statusLabel = t('focusSessionHistory.statusPaused')
-    else if (status === 'completedearly') statusLabel = t('focusSessionHistory.statusCompletedEarly')
-    else if (status === 'completedontime') statusLabel = t('focusSessionHistory.statusCompletedOnTime')
-    else if (status === 'completedlate') statusLabel = t('focusSessionHistory.statusCompletedLate')
+    else if (status === 'completedearly' || status === 'completedontime' || status === 'completedlate') statusLabel = t('focusSessionHistory.statusCompleted')
     else if (status === 'abandoned') statusLabel = t('focusSessionHistory.statusAbandoned')
 
     return <span style={style}>{statusLabel}</span>
