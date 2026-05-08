@@ -157,6 +157,25 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
           bootstrapped: true,
         }))
       } catch (error: any) {
+        if (error?.response?.status === 400 || error?.response?.status === 404) {
+          set({
+            unreadCount: 0,
+            panelItems: [],
+            items: [],
+            pageNumber: DEFAULT_PAGE_NUMBER,
+            pageSize: DEFAULT_PAGE_SIZE,
+            totalCount: 0,
+            hasNextPage: false,
+            hasPreviousPage: false,
+            unreadOnly: false,
+            selectedType: null,
+            panelLoading: false,
+            error: null,
+            bootstrapped: true,
+          })
+          return
+        }
+
         set({
           panelLoading: false,
           error: error?.response?.data?.message || error?.message || 'Failed to load notifications',
@@ -205,6 +224,26 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
       })
       return page
     } catch (error: any) {
+      if (error?.response?.status === 400 || error?.response?.status === 404) {
+        const emptyPage = {
+          items: [],
+          pageNumber,
+          pageSize,
+          totalCount: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        }
+        set({
+          ...emptyPage,
+          unreadOnly,
+          selectedType,
+          loading: false,
+          error: null,
+          bootstrapped: true,
+        })
+        return emptyPage
+      }
+
       set({
         loading: false,
         error: error?.response?.data?.message || error?.message || 'Failed to load notifications',
@@ -226,7 +265,17 @@ const useAppNotificationStore = create<AppNotificationState>((set, get) => ({
         panelLoading: false,
         error: null,
       })
+      return
     } catch (error: any) {
+      if (error?.response?.status === 400 || error?.response?.status === 404) {
+        set({
+          panelItems: [],
+          panelLoading: false,
+          error: null,
+        })
+        return
+      }
+
       set({
         panelLoading: false,
         error: error?.response?.data?.message || error?.message || 'Failed to refresh notifications',
