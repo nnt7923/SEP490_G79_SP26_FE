@@ -4,8 +4,8 @@ import ROUTER from '../../../router/ROUTER'
 import { useNavigate } from 'react-router-dom'
 import Header from '../../../components/Layout/Header'
 import Footer from '../../../components/Layout/Footer'
-import { getMyGoals } from '../../../services/GoalService'
-import { getUserLearningPaths } from '../../../services/LearningPathService'
+import { getMyGoals, getGoalsDashboard } from '../../../services/GoalService'
+import { getUserLearningPathsSummary } from '../../../services/LearningPathService'
 import { useTranslation } from 'react-i18next'
 import { getGoalTitle } from '../../../utils/goalTranslation'
 import { FileText, Target, BookOpen, GraduationCap, AlertTriangle, ArrowRight } from 'lucide-react'
@@ -44,28 +44,25 @@ const StudentOverview: React.FC = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        const [goals, pathsResponse] = await Promise.all([
-          getMyGoals(),
-          getUserLearningPaths(user?.id || 'me', { pageNumber: 1, pageSize: 10 })
+        // Optimized: fetching summary only (lighter weight) and dashboard data
+        // For Student Overview, we prioritize fresh data over cache to ensure progress is updated
+        const [dashboardResponse, pathsSummary] = await Promise.all([
+          getGoalsDashboard({ pageSize: 3, sortDescending: true }),
+          getUserLearningPathsSummary(user?.id || 'me', { pageNumber: 1, pageSize: 6, useCache: false })
         ])
 
-        const goalsArray = Array.isArray(goals) ? goals : []
-        const plansArray = pathsResponse?.items || []
+        const goalsArray = dashboardResponse?.personalGoals || []
+        const plansArray = pathsSummary?.items || []
 
-        setPlansCount(pathsResponse?.totalCount || 0)
+        setPlansCount(pathsSummary?.totalCount || 0)
         setRecentPlans(plansArray.slice(0, 3))
         setRecentGoals(goalsArray.slice(0, 3))
 
         let totalLessons = 0
         let totalChapters = 0
         plansArray.forEach((plan: any) => {
-          totalChapters += plan.chapterCount || plan.chapters?.length || 0
-          totalLessons += plan.lessonCount ?? 0
-          if (plan.lessonCount === undefined && plan.chapters) {
-            plan.chapters.forEach((chapter: any) => {
-              totalLessons += chapter.lessons?.length || 0
-            })
-          }
+          totalChapters += plan.chapterCount || 0
+          totalLessons += plan.lessonCount || 0
         })
 
         const activeGoals = goalsArray.filter((g: any) => g.status !== 'Completed').length
